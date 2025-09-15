@@ -15,6 +15,7 @@ import { Plus, FileText, Eye, Edit, Send } from "lucide-react";
 import { insertOutboundQuotationSchema, type InsertOutboundQuotation, type Customer, type OutboundQuotation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
 
 export default function OutboundQuotations() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -28,8 +29,16 @@ export default function OutboundQuotations() {
     queryKey: ["/api/customers"],
   });
 
+  // Enhanced validation schema with proper required fields
+  const quotationFormSchema = insertOutboundQuotationSchema.extend({
+    quotationNumber: z.string().min(1, "Quotation number is required"),
+    customerId: z.string().uuid("Please select a customer"),
+    subtotalAmount: z.string().min(1, "Subtotal amount is required"), 
+    totalAmount: z.string().min(1, "Total amount is required"),
+  });
+
   const form = useForm<InsertOutboundQuotation>({
-    resolver: zodResolver(insertOutboundQuotationSchema),
+    resolver: zodResolver(quotationFormSchema),
     defaultValues: {
       status: 'draft',
       quotationDate: new Date(),
@@ -40,7 +49,7 @@ export default function OutboundQuotations() {
       totalAmount: '0.00',
       quotationNumber: '',
       customerId: '',
-      userId: '',
+      userId: 'f1a2b3c4-d5e6-f7g8-h9i0-j1k2l3m4n5o6',
       deliveryTerms: '',
       paymentTerms: '',
       warrantyTerms: '',
@@ -58,7 +67,7 @@ export default function OutboundQuotations() {
     mutationFn: (data: InsertOutboundQuotation) => 
       apiRequest('POST', '/api/outbound-quotations', {
         ...data,
-        userId: 'default-user-id' // TODO: Get from auth context
+        userId: 'f1a2b3c4-d5e6-f7g8-h9i0-j1k2l3m4n5o6' // Valid UUID format
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
@@ -184,15 +193,12 @@ export default function OutboundQuotations() {
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(
-                (data) => {
-                  console.log('Form submitted with data:', data);
-                  createQuotationMutation.mutate(data);
-                },
+                (data) => createQuotationMutation.mutate(data),
                 (errors) => {
-                  console.log('Form validation errors:', errors);
+                  console.error('Form validation errors:', errors);
                   toast({
-                    title: "Form Validation Error",
-                    description: "Please fill in all required fields",
+                    title: "Validation Error",
+                    description: "Please fill in all required fields correctly",
                     variant: "destructive",
                   });
                 }
@@ -248,7 +254,7 @@ export default function OutboundQuotations() {
                         <FormControl>
                           <Input 
                             type="date" 
-                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-quotation-date" 
                           />
@@ -267,7 +273,7 @@ export default function OutboundQuotations() {
                         <FormControl>
                           <Input 
                             type="date" 
-                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-valid-until-date" 
                           />
@@ -396,11 +402,6 @@ export default function OutboundQuotations() {
                     type="submit" 
                     disabled={createQuotationMutation.isPending}
                     data-testid="button-submit"
-                    onClick={() => {
-                      console.log('Submit button clicked');
-                      console.log('Form state:', form.formState);
-                      console.log('Form errors:', form.formState.errors);
-                    }}
                   >
                     {createQuotationMutation.isPending ? "Creating..." : "Create Quotation"}
                   </Button>
