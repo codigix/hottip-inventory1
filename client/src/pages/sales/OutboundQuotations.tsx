@@ -32,14 +32,20 @@ export default function OutboundQuotations() {
     resolver: zodResolver(insertOutboundQuotationSchema),
     defaultValues: {
       status: 'draft',
-      quotationDate: new Date().toISOString().split('T')[0],
-      validUntilDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+      quotationDate: new Date(),
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       subtotalAmount: '0.00',
-      cgstAmount: '0.00',
-      sgstAmount: '0.00',
-      igstAmount: '0.00',
+      taxAmount: '0.00',
       discountAmount: '0.00',
       totalAmount: '0.00',
+      quotationNumber: '',
+      customerId: '',
+      userId: '',
+      deliveryTerms: '',
+      paymentTerms: '',
+      warrantyTerms: '',
+      specialTerms: '',
+      notes: '',
     },
   });
 
@@ -206,7 +212,12 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Quotation Date</FormLabel>
                         <FormControl>
-                          <Input {...field} type="date" data-testid="input-quotation-date" />
+                          <Input 
+                            type="date" 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            data-testid="input-quotation-date" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -215,12 +226,17 @@ export default function OutboundQuotations() {
                   
                   <FormField
                     control={form.control}
-                    name="validUntilDate"
+                    name="validUntil"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Valid Until</FormLabel>
                         <FormControl>
-                          <Input {...field} type="date" data-testid="input-valid-until-date" />
+                          <Input 
+                            type="date" 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            data-testid="input-valid-until-date" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -228,7 +244,7 @@ export default function OutboundQuotations() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="subtotalAmount"
@@ -245,31 +261,18 @@ export default function OutboundQuotations() {
 
                   <FormField
                     control={form.control}
-                    name="cgstAmount"
+                    name="taxAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>CGST Amount</FormLabel>
+                        <FormLabel>Tax Amount</FormLabel>
                         <FormControl>
-                          <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-cgst" />
+                          <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-tax" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="sgstAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SGST Amount</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-sgst" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
