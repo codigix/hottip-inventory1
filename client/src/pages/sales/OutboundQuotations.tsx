@@ -183,7 +183,20 @@ export default function OutboundQuotations() {
             </DialogHeader>
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createQuotationMutation.mutate(data))} className="space-y-4">
+              <form onSubmit={form.handleSubmit(
+                (data) => {
+                  console.log('Form submitted with data:', data);
+                  createQuotationMutation.mutate(data);
+                },
+                (errors) => {
+                  console.log('Form validation errors:', errors);
+                  toast({
+                    title: "Form Validation Error",
+                    description: "Please fill in all required fields",
+                    variant: "destructive",
+                  });
+                }
+              )} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -383,6 +396,11 @@ export default function OutboundQuotations() {
                     type="submit" 
                     disabled={createQuotationMutation.isPending}
                     data-testid="button-submit"
+                    onClick={() => {
+                      console.log('Submit button clicked');
+                      console.log('Form state:', form.formState);
+                      console.log('Form errors:', form.formState.errors);
+                    }}
                   >
                     {createQuotationMutation.isPending ? "Creating..." : "Create Quotation"}
                   </Button>
