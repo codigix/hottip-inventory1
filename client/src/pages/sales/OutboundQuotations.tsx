@@ -46,12 +46,17 @@ export default function OutboundQuotations() {
       warrantyTerms: '',
       specialTerms: '',
       notes: '',
+      jobCardNumber: '',
+      partNumber: '',
+      bankName: '',
+      accountNumber: '',
+      ifscCode: ''
     },
   });
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: InsertOutboundQuotation) => 
-      apiRequest('/api/outbound-quotations', { method: 'POST', body: data }),
+      apiRequest('POST', '/api/outbound-quotations', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
       toast({
@@ -191,7 +196,7 @@ export default function OutboundQuotations() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {customers?.map((customer: any) => (
+                            {(customers || []).map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name} - {customer.email}
                               </SelectItem>
@@ -313,7 +318,7 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Payment Terms</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="30 days" data-testid="input-payment-terms" />
+                          <Input {...field} value={field.value || ''} placeholder="30 days" data-testid="input-payment-terms" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -327,7 +332,7 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Delivery Terms</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Ex-works" data-testid="input-delivery-terms" />
+                          <Input {...field} value={field.value || ''} placeholder="Ex-works" data-testid="input-delivery-terms" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -342,7 +347,7 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="Additional notes for the quotation" data-testid="textarea-notes" />
+                        <Textarea {...field} value={field.value || ''} placeholder="Additional notes for the quotation" data-testid="textarea-notes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -28,17 +28,29 @@ export default function ClientManagement() {
   const form = useForm<InsertCustomer>({
     resolver: zodResolver(insertCustomerSchema),
     defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      contactPerson: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
       country: 'India',
+      gstNumber: '',
+      panNumber: '',
       companyType: 'individual',
+      website: '',
       creditLimit: '0.00',
       paymentTerms: 30,
       isActive: true,
+      notes: '',
     },
   });
 
   const createCustomerMutation = useMutation({
     mutationFn: (data: InsertCustomer) => 
-      apiRequest('/api/customers', { method: 'POST', body: data }),
+      apiRequest('POST', '/api/customers', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       toast({
@@ -374,7 +386,15 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Credit Limit (₹)</FormLabel>
                           <FormControl>
-                            <Input {...field} type="number" step="0.01" placeholder="100000.00" data-testid="input-credit-limit" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="100000.00" 
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              data-testid="input-credit-limit" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -388,7 +408,14 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Payment Terms (Days)</FormLabel>
                           <FormControl>
-                            <Input {...field} type="number" placeholder="30" data-testid="input-payment-terms" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="30" 
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 30)}
+                              data-testid="input-payment-terms" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
