@@ -56,7 +56,10 @@ export default function OutboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: InsertOutboundQuotation) => 
-      apiRequest('POST', '/api/outbound-quotations', data),
+      apiRequest('POST', '/api/outbound-quotations', {
+        ...data,
+        userId: 'default-user-id' // TODO: Get from auth context
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
       toast({
