@@ -561,6 +561,9 @@ export const insertOutboundQuotationSchema = createInsertSchema(outboundQuotatio
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  quotationDate: z.coerce.date(), // Accept ISO strings and coerce to Date
+  validUntil: z.coerce.date(), // Accept ISO strings and coerce to Date
 });
 
 export const insertQuotationItemSchema = createInsertSchema(quotationItems).omit({

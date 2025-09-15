@@ -29,28 +29,12 @@ export default function OutboundQuotations() {
     queryKey: ["/api/customers"],
   });
 
-  // Enhanced validation schema with clear field-level errors
-  const quotationFormSchema = z.object({
+  // Use shared schema with enhanced validation messages
+  const quotationFormSchema = insertOutboundQuotationSchema.extend({
     quotationNumber: z.string().min(1, "⚠️ Quotation number is required (e.g., QUO-2025-001)"),
     customerId: z.string().min(1, "⚠️ Please select a customer from the dropdown"),
-    quotationDate: z.date(),
-    validUntil: z.date(),
     subtotalAmount: z.string().min(1, "⚠️ Subtotal amount is required (e.g., 1000.00)"),
-    taxAmount: z.string().optional(),
-    discountAmount: z.string().optional(),
     totalAmount: z.string().min(1, "⚠️ Total amount is required (e.g., 1180.00)"),
-    status: z.string().optional(),
-    userId: z.string().optional(),
-    deliveryTerms: z.string().optional(),
-    paymentTerms: z.string().optional(),
-    warrantyTerms: z.string().optional(),
-    specialTerms: z.string().optional(),
-    notes: z.string().optional(),
-    jobCardNumber: z.string().optional(),
-    partNumber: z.string().optional(),
-    bankName: z.string().optional(),
-    accountNumber: z.string().optional(),
-    ifscCode: z.string().optional(),
   });
 
   const form = useForm<InsertOutboundQuotation>({
