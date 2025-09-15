@@ -1,11 +1,18 @@
 import { 
   users, products, customers, orders, orderItems, suppliers, 
   purchaseOrders, shipments, tasks, attendance, activityLog,
+  outboundQuotations, quotationItems, inboundQuotations, inboundQuotationItems,
+  invoices, invoiceItems,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
   type Shipment, type InsertShipment, type Task, type InsertTask,
-  type Attendance, type InsertAttendance, type ActivityLog
+  type Attendance, type InsertAttendance, type ActivityLog,
+  type OutboundQuotation, type InsertOutboundQuotation,
+  type QuotationItem, type InsertQuotationItem,
+  type InboundQuotation, type InsertInboundQuotation,
+  type InboundQuotationItem, type InsertInboundQuotationItem,
+  type Invoice, type InsertInvoice, type InvoiceItem, type InsertInvoiceItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, like, count, sum, sql } from "drizzle-orm";
@@ -82,6 +89,49 @@ export interface IStorage {
 
   // Analytics/Dashboard
   getDashboardMetrics(): Promise<any>;
+
+  // Outbound Quotations (Company → Clients)
+  getOutboundQuotation(id: string): Promise<any>;
+  getOutboundQuotations(): Promise<any[]>;
+  createOutboundQuotation(quotation: InsertOutboundQuotation): Promise<OutboundQuotation>;
+  updateOutboundQuotation(id: string, quotation: Partial<InsertOutboundQuotation>): Promise<OutboundQuotation>;
+  deleteOutboundQuotation(id: string): Promise<void>;
+  getOutboundQuotationsByStatus(status: string): Promise<any[]>;
+  convertQuotationToInvoice(quotationId: string): Promise<Invoice>;
+
+  // Quotation Items
+  createQuotationItem(item: InsertQuotationItem): Promise<QuotationItem>;
+  getQuotationItems(quotationId: string): Promise<any[]>;
+  deleteQuotationItems(quotationId: string): Promise<void>;
+  updateQuotationItem(id: string, item: Partial<InsertQuotationItem>): Promise<QuotationItem>;
+
+  // Inbound Quotations (Clients/Vendors → Company)
+  getInboundQuotation(id: string): Promise<any>;
+  getInboundQuotations(): Promise<any[]>;
+  createInboundQuotation(quotation: InsertInboundQuotation): Promise<InboundQuotation>;
+  updateInboundQuotation(id: string, quotation: Partial<InsertInboundQuotation>): Promise<InboundQuotation>;
+  deleteInboundQuotation(id: string): Promise<void>;
+  getInboundQuotationsByStatus(status: string): Promise<any[]>;
+
+  // Inbound Quotation Items
+  createInboundQuotationItem(item: InsertInboundQuotationItem): Promise<InboundQuotationItem>;
+  getInboundQuotationItems(quotationId: string): Promise<any[]>;
+  deleteInboundQuotationItems(quotationId: string): Promise<void>;
+
+  // Invoices
+  getInvoice(id: string): Promise<any>;
+  getInvoices(): Promise<any[]>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice>;
+  deleteInvoice(id: string): Promise<void>;
+  getInvoicesByStatus(status: string): Promise<any[]>;
+  getInvoicesByCustomer(customerId: string): Promise<any[]>;
+
+  // Invoice Items
+  createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
+  getInvoiceItems(invoiceId: string): Promise<any[]>;
+  deleteInvoiceItems(invoiceId: string): Promise<void>;
+  updateInvoiceItem(id: string, item: Partial<InsertInvoiceItem>): Promise<InvoiceItem>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -578,6 +628,327 @@ export class DatabaseStorage implements IStorage {
       lowStockItems: lowStockCount[0]?.count || 0,
       totalEmployees: totalEmployees[0]?.count || 0,
     };
+  }
+
+  // Outbound Quotations (Company → Clients)
+  async getOutboundQuotation(id: string): Promise<any> {
+    const [quotation] = await db
+      .select()
+      .from(outboundQuotations)
+      .leftJoin(customers, eq(outboundQuotations.customerId, customers.id))
+      .leftJoin(users, eq(outboundQuotations.userId, users.id))
+      .where(eq(outboundQuotations.id, id));
+    
+    if (!quotation) return undefined;
+
+    const items = await this.getQuotationItems(id);
+    return {
+      ...quotation.outbound_quotations,
+      customer: quotation.customers,
+      user: quotation.users,
+      items
+    };
+  }
+
+  async getOutboundQuotations(): Promise<any[]> {
+    const quotations = await db
+      .select()
+      .from(outboundQuotations)
+      .leftJoin(customers, eq(outboundQuotations.customerId, customers.id))
+      .leftJoin(users, eq(outboundQuotations.userId, users.id))
+      .orderBy(desc(outboundQuotations.createdAt));
+
+    return quotations.map(q => ({
+      ...q.outbound_quotations,
+      customer: q.customers,
+      user: q.users
+    }));
+  }
+
+  async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
+    const [quotation] = await db.insert(outboundQuotations).values(insertQuotation).returning();
+    return quotation;
+  }
+
+  async updateOutboundQuotation(id: string, updateQuotation: Partial<InsertOutboundQuotation>): Promise<OutboundQuotation> {
+    const [quotation] = await db
+      .update(outboundQuotations)
+      .set({ ...updateQuotation, updatedAt: new Date() })
+      .where(eq(outboundQuotations.id, id))
+      .returning();
+    return quotation;
+  }
+
+  async deleteOutboundQuotation(id: string): Promise<void> {
+    await this.deleteQuotationItems(id);
+    await db.delete(outboundQuotations).where(eq(outboundQuotations.id, id));
+  }
+
+  async getOutboundQuotationsByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(outboundQuotations)
+      .leftJoin(customers, eq(outboundQuotations.customerId, customers.id))
+      .where(eq(outboundQuotations.status, status as any))
+      .orderBy(desc(outboundQuotations.createdAt));
+  }
+
+  async convertQuotationToInvoice(quotationId: string): Promise<Invoice> {
+    const quotation = await this.getOutboundQuotation(quotationId);
+    if (!quotation) throw new Error('Quotation not found');
+    
+    // Generate invoice number
+    const invoiceCount = await db.select({ count: count() }).from(invoices);
+    const invoiceNumber = `INV${String(invoiceCount[0].count + 1).padStart(6, '0')}`;
+    
+    // Create invoice from quotation
+    const invoiceData: InsertInvoice = {
+      invoiceNumber,
+      quotationId,
+      customerId: quotation.customerId,
+      userId: quotation.userId,
+      invoiceDate: new Date(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      subtotalAmount: quotation.subtotalAmount,
+      totalAmount: quotation.totalAmount,
+      balanceAmount: quotation.totalAmount,
+      paymentTerms: quotation.paymentTerms,
+      bankName: quotation.bankName,
+      accountNumber: quotation.accountNumber,
+      ifscCode: quotation.ifscCode
+    };
+
+    const [invoice] = await db.insert(invoices).values(invoiceData).returning();
+    
+    // Copy quotation items to invoice items
+    const quotationItems = await this.getQuotationItems(quotationId);
+    for (const item of quotationItems) {
+      await this.createInvoiceItem({
+        invoiceId: invoice.id,
+        productId: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        hsnSacCode: item.hsnSacCode,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount
+      });
+    }
+
+    // Update quotation status to approved
+    await this.updateOutboundQuotation(quotationId, { status: 'approved' });
+
+    return invoice;
+  }
+
+  // Quotation Items
+  async createQuotationItem(insertItem: InsertQuotationItem): Promise<QuotationItem> {
+    const [item] = await db.insert(quotationItems).values(insertItem).returning();
+    return item;
+  }
+
+  async getQuotationItems(quotationId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(quotationItems)
+      .leftJoin(products, eq(quotationItems.productId, products.id))
+      .where(eq(quotationItems.quotationId, quotationId));
+  }
+
+  async deleteQuotationItems(quotationId: string): Promise<void> {
+    await db.delete(quotationItems).where(eq(quotationItems.quotationId, quotationId));
+  }
+
+  async updateQuotationItem(id: string, updateItem: Partial<InsertQuotationItem>): Promise<QuotationItem> {
+    const [item] = await db
+      .update(quotationItems)
+      .set(updateItem)
+      .where(eq(quotationItems.id, id))
+      .returning();
+    return item;
+  }
+
+  // Inbound Quotations (Clients/Vendors → Company)
+  async getInboundQuotation(id: string): Promise<any> {
+    const [quotation] = await db
+      .select()
+      .from(inboundQuotations)
+      .leftJoin(suppliers, eq(inboundQuotations.senderId, suppliers.id))
+      .leftJoin(users, eq(inboundQuotations.userId, users.id))
+      .where(eq(inboundQuotations.id, id));
+    
+    if (!quotation) return undefined;
+
+    const items = await this.getInboundQuotationItems(id);
+    return {
+      ...quotation.inbound_quotations,
+      sender: quotation.suppliers,
+      user: quotation.users,
+      items
+    };
+  }
+
+  async getInboundQuotations(): Promise<any[]> {
+    const quotations = await db
+      .select()
+      .from(inboundQuotations)
+      .leftJoin(suppliers, eq(inboundQuotations.senderId, suppliers.id))
+      .leftJoin(users, eq(inboundQuotations.userId, users.id))
+      .orderBy(desc(inboundQuotations.createdAt));
+
+    return quotations.map(q => ({
+      ...q.inbound_quotations,
+      sender: q.suppliers,
+      user: q.users
+    }));
+  }
+
+  async createInboundQuotation(insertQuotation: InsertInboundQuotation): Promise<InboundQuotation> {
+    const [quotation] = await db.insert(inboundQuotations).values(insertQuotation).returning();
+    return quotation;
+  }
+
+  async updateInboundQuotation(id: string, updateQuotation: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
+    const [quotation] = await db
+      .update(inboundQuotations)
+      .set({ ...updateQuotation, updatedAt: new Date() })
+      .where(eq(inboundQuotations.id, id))
+      .returning();
+    return quotation;
+  }
+
+  async deleteInboundQuotation(id: string): Promise<void> {
+    await this.deleteInboundQuotationItems(id);
+    await db.delete(inboundQuotations).where(eq(inboundQuotations.id, id));
+  }
+
+  async getInboundQuotationsByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(inboundQuotations)
+      .leftJoin(suppliers, eq(inboundQuotations.senderId, suppliers.id))
+      .where(eq(inboundQuotations.status, status as any))
+      .orderBy(desc(inboundQuotations.createdAt));
+  }
+
+  // Inbound Quotation Items
+  async createInboundQuotationItem(insertItem: InsertInboundQuotationItem): Promise<InboundQuotationItem> {
+    const [item] = await db.insert(inboundQuotationItems).values(insertItem).returning();
+    return item;
+  }
+
+  async getInboundQuotationItems(quotationId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(inboundQuotationItems)
+      .where(eq(inboundQuotationItems.quotationId, quotationId));
+  }
+
+  async deleteInboundQuotationItems(quotationId: string): Promise<void> {
+    await db.delete(inboundQuotationItems).where(eq(inboundQuotationItems.quotationId, quotationId));
+  }
+
+  // Invoices
+  async getInvoice(id: string): Promise<any> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .leftJoin(users, eq(invoices.userId, users.id))
+      .leftJoin(outboundQuotations, eq(invoices.quotationId, outboundQuotations.id))
+      .where(eq(invoices.id, id));
+    
+    if (!invoice) return undefined;
+
+    const items = await this.getInvoiceItems(id);
+    return {
+      ...invoice.invoices,
+      customer: invoice.customers,
+      user: invoice.users,
+      quotation: invoice.outbound_quotations,
+      items
+    };
+  }
+
+  async getInvoices(): Promise<any[]> {
+    const invoices_data = await db
+      .select()
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .leftJoin(users, eq(invoices.userId, users.id))
+      .orderBy(desc(invoices.createdAt));
+
+    return invoices_data.map(inv => ({
+      ...inv.invoices,
+      customer: inv.customers,
+      user: inv.users
+    }));
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const [invoice] = await db.insert(invoices).values(insertInvoice).returning();
+    return invoice;
+  }
+
+  async updateInvoice(id: string, updateInvoice: Partial<InsertInvoice>): Promise<Invoice> {
+    const [invoice] = await db
+      .update(invoices)
+      .set({ ...updateInvoice, updatedAt: new Date() })
+      .where(eq(invoices.id, id))
+      .returning();
+    return invoice;
+  }
+
+  async deleteInvoice(id: string): Promise<void> {
+    await this.deleteInvoiceItems(id);
+    await db.delete(invoices).where(eq(invoices.id, id));
+  }
+
+  async getInvoicesByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .where(eq(invoices.status, status as any))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async getInvoicesByCustomer(customerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .where(eq(invoices.customerId, customerId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  // Invoice Items
+  async createInvoiceItem(insertItem: InsertInvoiceItem): Promise<InvoiceItem> {
+    const [item] = await db.insert(invoiceItems).values(insertItem).returning();
+    return item;
+  }
+
+  async getInvoiceItems(invoiceId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(invoiceItems)
+      .leftJoin(products, eq(invoiceItems.productId, products.id))
+      .where(eq(invoiceItems.invoiceId, invoiceId));
+  }
+
+  async deleteInvoiceItems(invoiceId: string): Promise<void> {
+    await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+  }
+
+  async updateInvoiceItem(id: string, updateItem: Partial<InsertInvoiceItem>): Promise<InvoiceItem> {
+    const [item] = await db
+      .update(invoiceItems)
+      .set(updateItem)
+      .where(eq(invoiceItems.id, id))
+      .returning();
+    return item;
   }
 }
 

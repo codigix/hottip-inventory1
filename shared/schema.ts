@@ -36,7 +36,7 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Customers
+// Customers (Enhanced for Sales Module)
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -46,7 +46,20 @@ export const customers = pgTable("customers", {
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
-  country: text("country").notNull().default('US'),
+  country: text("country").notNull().default('India'),
+  // GST and Tax Details
+  gstNumber: text("gst_number"),
+  panNumber: text("pan_number"),
+  // Business Details
+  companyType: text("company_type").default('individual'), // individual, partnership, company, etc.
+  contactPerson: text("contact_person"),
+  website: text("website"),
+  // Financial Details
+  creditLimit: decimal("credit_limit", { precision: 10, scale: 2 }).default('0'),
+  paymentTerms: integer("payment_terms").default(30), // days
+  // Status
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -78,14 +91,30 @@ export const orderItems = pgTable("order_items", {
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
 });
 
-// Suppliers/Vendors
+// Suppliers/Vendors (Enhanced for Sales Module)
 export const suppliers = pgTable("suppliers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  country: text("country").notNull().default('India'),
+  // GST and Tax Details
+  gstNumber: text("gst_number"),
+  panNumber: text("pan_number"),
+  // Business Details  
+  companyType: text("company_type").default('company'),
   contactPerson: text("contact_person"),
+  website: text("website"),
+  // Financial Details
+  creditLimit: decimal("credit_limit", { precision: 10, scale: 2 }).default('0'),
+  paymentTerms: integer("payment_terms").default(30), // days
+  // Status
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -120,6 +149,163 @@ export const shipments = pgTable("shipments", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Quotations Status (for both outbound and inbound)
+export const quotationStatusEnum = pgEnum('quotation_status', ['draft', 'sent', 'pending', 'approved', 'rejected', 'received', 'under_review']);
+
+export const outboundQuotations = pgTable("outbound_quotations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  quotationNumber: text("quotation_number").notNull().unique(),
+  customerId: uuid("customer_id").references(() => customers.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  status: quotationStatusEnum("status").notNull().default('draft'),
+  
+  // PDF Fields
+  quotationDate: timestamp("quotation_date").notNull().defaultNow(),
+  validUntil: timestamp("valid_until").notNull(),
+  jobCardNumber: text("job_card_number"),
+  partNumber: text("part_number"),
+  
+  // Financial Details
+  subtotalAmount: decimal("subtotal_amount", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  
+  // Terms and Conditions
+  deliveryTerms: text("delivery_terms"),
+  paymentTerms: text("payment_terms"),
+  warrantyTerms: text("warranty_terms"),
+  specialTerms: text("special_terms"),
+  
+  // Bank Details
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ifscCode: text("ifsc_code"),
+  
+  // Additional Info
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Quotation Items
+export const quotationItems = pgTable("quotation_items", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  quotationId: uuid("quotation_id").references(() => outboundQuotations.id).notNull(),
+  productId: uuid("product_id").references(() => products.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull().default('pcs'),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  hsnSacCode: text("hsn_sac_code"), // HSN/SAC Code for tax classification
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('18.00'), // GST rate in percentage
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0'),
+});
+
+// Inbound Quotations (Clients/Vendors → Company)
+export const inboundQuotations = pgTable("inbound_quotations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  quotationNumber: text("quotation_number").notNull(),
+  quotationRef: text("quotation_ref"), // Their reference number
+  senderId: uuid("sender_id").references(() => suppliers.id).notNull(), // Can be customer or supplier
+  senderType: text("sender_type").notNull().default('supplier'), // 'customer' or 'supplier'
+  userId: uuid("user_id").references(() => users.id).notNull(), // Who received/reviewed it
+  status: quotationStatusEnum("status").notNull().default('received'),
+  
+  // Basic Details
+  quotationDate: timestamp("quotation_date").notNull(),
+  validUntil: timestamp("valid_until"),
+  subject: text("subject"),
+  
+  // Financial Details
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default('INR'),
+  
+  // Terms
+  paymentTerms: text("payment_terms"),
+  deliveryTerms: text("delivery_terms"),
+  
+  // File Upload
+  attachmentPath: text("attachment_path"), // Path to uploaded document
+  attachmentName: text("attachment_name"), // Original filename
+  
+  // Additional Info
+  notes: text("notes"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Inbound Quotation Items
+export const inboundQuotationItems = pgTable("inbound_quotation_items", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  quotationId: uuid("quotation_id").references(() => inboundQuotations.id).notNull(),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull().default('pcs'),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Invoices (Generated from Approved Outbound Quotations)
+export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'sent', 'paid', 'overdue', 'cancelled']);
+
+export const invoices = pgTable("invoices", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  quotationId: uuid("quotation_id").references(() => outboundQuotations.id),
+  customerId: uuid("customer_id").references(() => customers.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  status: invoiceStatusEnum("status").notNull().default('draft'),
+  
+  // Dates
+  invoiceDate: timestamp("invoice_date").notNull().defaultNow(),
+  dueDate: timestamp("due_date").notNull(),
+  
+  // Financial Details
+  subtotalAmount: decimal("subtotal_amount", { precision: 10, scale: 2 }).notNull(),
+  cgstAmount: decimal("cgst_amount", { precision: 10, scale: 2 }).default('0'), // Central GST
+  sgstAmount: decimal("sgst_amount", { precision: 10, scale: 2 }).default('0'), // State GST
+  igstAmount: decimal("igst_amount", { precision: 10, scale: 2 }).default('0'), // Integrated GST
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0'),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  
+  // Payment Details
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).default('0'),
+  balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 }).notNull(),
+  
+  // Terms and Bank Details
+  paymentTerms: text("payment_terms"),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ifscCode: text("ifsc_code"),
+  
+  // Additional Info
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Invoice Items
+export const invoiceItems = pgTable("invoice_items", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: uuid("invoice_id").references(() => invoices.id).notNull(),
+  productId: uuid("product_id").references(() => products.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull().default('pcs'),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  hsnSacCode: text("hsn_sac_code"),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('18.00'),
+  cgstRate: decimal("cgst_rate", { precision: 5, scale: 2 }).default('9.00'),
+  sgstRate: decimal("sgst_rate", { precision: 5, scale: 2 }).default('9.00'),
+  igstRate: decimal("igst_rate", { precision: 5, scale: 2 }).default('0.00'),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0'),
 });
 
 // Employee Attendance
@@ -171,6 +357,8 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const customersRelations = relations(customers, ({ many }) => ({
   orders: many(orders),
+  outboundQuotations: many(outboundQuotations),
+  invoices: many(invoices),
 }));
 
 export const productsRelations = relations(products, ({ many }) => ({
@@ -203,6 +391,7 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
   purchaseOrders: many(purchaseOrders),
+  inboundQuotations: many(inboundQuotations),
 }));
 
 export const purchaseOrdersRelations = relations(purchaseOrders, ({ one }) => ({
@@ -238,6 +427,81 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
   user: one(users, {
     fields: [attendance.userId],
     references: [users.id],
+  }),
+}));
+
+// New Sales Relations
+export const outboundQuotationsRelations = relations(outboundQuotations, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [outboundQuotations.customerId],
+    references: [customers.id],
+  }),
+  user: one(users, {
+    fields: [outboundQuotations.userId],
+    references: [users.id],
+  }),
+  quotationItems: many(quotationItems),
+  invoice: many(invoices),
+}));
+
+export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
+  quotation: one(outboundQuotations, {
+    fields: [quotationItems.quotationId],
+    references: [outboundQuotations.id],
+  }),
+  product: one(products, {
+    fields: [quotationItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const inboundQuotationsRelations = relations(inboundQuotations, ({ one, many }) => ({
+  sender: one(suppliers, {
+    fields: [inboundQuotations.senderId],
+    references: [suppliers.id],
+  }),
+  user: one(users, {
+    fields: [inboundQuotations.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [inboundQuotations.reviewedBy],
+    references: [users.id],
+  }),
+  quotationItems: many(inboundQuotationItems),
+}));
+
+export const inboundQuotationItemsRelations = relations(inboundQuotationItems, ({ one }) => ({
+  quotation: one(inboundQuotations, {
+    fields: [inboundQuotationItems.quotationId],
+    references: [inboundQuotations.id],
+  }),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [invoices.customerId],
+    references: [customers.id],
+  }),
+  user: one(users, {
+    fields: [invoices.userId],
+    references: [users.id],
+  }),
+  quotation: one(outboundQuotations, {
+    fields: [invoices.quotationId],
+    references: [outboundQuotations.id],
+  }),
+  invoiceItems: many(invoiceItems),
+}));
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+  product: one(products, {
+    fields: [invoiceItems.productId],
+    references: [products.id],
   }),
 }));
 
@@ -292,6 +556,37 @@ export const insertAttendanceSchema = createInsertSchema(attendance).omit({
   id: true,
 });
 
+// New Sales Insert Schemas
+export const insertOutboundQuotationSchema = createInsertSchema(outboundQuotations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertQuotationItemSchema = createInsertSchema(quotationItems).omit({
+  id: true,
+});
+
+export const insertInboundQuotationSchema = createInsertSchema(inboundQuotations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInboundQuotationItemSchema = createInsertSchema(inboundQuotationItems).omit({
+  id: true,
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
+  id: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -321,3 +616,22 @@ export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 
 export type ActivityLog = typeof activityLog.$inferSelect;
+
+// New Sales Types
+export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
+export type InsertOutboundQuotation = z.infer<typeof insertOutboundQuotationSchema>;
+
+export type QuotationItem = typeof quotationItems.$inferSelect;
+export type InsertQuotationItem = z.infer<typeof insertQuotationItemSchema>;
+
+export type InboundQuotation = typeof inboundQuotations.$inferSelect;
+export type InsertInboundQuotation = z.infer<typeof insertInboundQuotationSchema>;
+
+export type InboundQuotationItem = typeof inboundQuotationItems.$inferSelect;
+export type InsertInboundQuotationItem = z.infer<typeof insertInboundQuotationItemSchema>;
+
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;

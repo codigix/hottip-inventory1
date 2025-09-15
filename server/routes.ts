@@ -4,7 +4,10 @@ import { storage } from "./storage";
 import { 
   insertUserSchema, insertProductSchema, insertCustomerSchema,
   insertOrderSchema, insertOrderItemSchema, insertSupplierSchema,
-  insertShipmentSchema, insertTaskSchema, insertAttendanceSchema
+  insertShipmentSchema, insertTaskSchema, insertAttendanceSchema,
+  insertOutboundQuotationSchema, insertQuotationItemSchema,
+  insertInboundQuotationSchema, insertInboundQuotationItemSchema,
+  insertInvoiceSchema, insertInvoiceItemSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -444,6 +447,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid attendance data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create attendance record" });
+    }
+  });
+
+  // Outbound Quotations Routes
+  app.get("/api/outbound-quotations", async (req, res) => {
+    try {
+      const quotations = await storage.getOutboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch outbound quotations" });
+    }
+  });
+
+  app.get("/api/outbound-quotations/:id", async (req, res) => {
+    try {
+      const quotation = await storage.getOutboundQuotation(req.params.id);
+      if (!quotation) {
+        return res.status(404).json({ error: "Outbound quotation not found" });
+      }
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch outbound quotation" });
+    }
+  });
+
+  app.post("/api/outbound-quotations", async (req, res) => {
+    try {
+      const quotationData = insertOutboundQuotationSchema.parse(req.body);
+      const quotation = await storage.createOutboundQuotation(quotationData);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "CREATE_OUTBOUND_QUOTATION",
+        entityType: "outbound_quotation",
+        entityId: quotation.id,
+        details: `Created outbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.status(201).json(quotation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create outbound quotation" });
+    }
+  });
+
+  app.put("/api/outbound-quotations/:id", async (req, res) => {
+    try {
+      const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
+      const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "UPDATE_OUTBOUND_QUOTATION",
+        entityType: "outbound_quotation",
+        entityId: quotation.id,
+        details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update outbound quotation" });
+    }
+  });
+
+  app.delete("/api/outbound-quotations/:id", async (req, res) => {
+    try {
+      await storage.deleteOutboundQuotation(req.params.id);
+      await storage.createActivity({
+        userId: null,
+        action: "DELETE_OUTBOUND_QUOTATION",
+        entityType: "outbound_quotation",
+        entityId: req.params.id,
+        details: `Deleted outbound quotation`,
+      });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete outbound quotation" });
+    }
+  });
+
+  app.post("/api/outbound-quotations/:id/convert-to-invoice", async (req, res) => {
+    try {
+      const invoice = await storage.convertQuotationToInvoice(req.params.id);
+      await storage.createActivity({
+        userId: invoice.userId,
+        action: "CONVERT_QUOTATION_TO_INVOICE",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: `Converted quotation to invoice: ${invoice.invoiceNumber}`,
+      });
+      res.status(201).json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to convert quotation to invoice" });
+    }
+  });
+
+  // Inbound Quotations Routes
+  app.get("/api/inbound-quotations", async (req, res) => {
+    try {
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+    }
+  });
+
+  app.get("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotation = await storage.getInboundQuotation(req.params.id);
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotation" });
+    }
+  });
+
+  app.post("/api/inbound-quotations", async (req, res) => {
+    try {
+      const quotationData = insertInboundQuotationSchema.parse(req.body);
+      const quotation = await storage.createInboundQuotation(quotationData);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "CREATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Created inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.status(201).json(quotation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create inbound quotation" });
+    }
+  });
+
+  app.put("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotationData = insertInboundQuotationSchema.partial().parse(req.body);
+      const quotation = await storage.updateInboundQuotation(req.params.id, quotationData);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "UPDATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Updated inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update inbound quotation" });
+    }
+  });
+
+  // Invoice Routes
+  app.get("/api/invoices", async (req, res) => {
+    try {
+      const invoices = await storage.getInvoices();
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch invoices" });
+    }
+  });
+
+  app.get("/api/invoices/:id", async (req, res) => {
+    try {
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch invoice" });
+    }
+  });
+
+  app.post("/api/invoices", async (req, res) => {
+    try {
+      const invoiceData = insertInvoiceSchema.parse(req.body);
+      const invoice = await storage.createInvoice(invoiceData);
+      await storage.createActivity({
+        userId: invoice.userId,
+        action: "CREATE_INVOICE",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: `Created invoice: ${invoice.invoiceNumber}`,
+      });
+      res.status(201).json(invoice);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid invoice data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create invoice" });
+    }
+  });
+
+  app.put("/api/invoices/:id", async (req, res) => {
+    try {
+      const invoiceData = insertInvoiceSchema.partial().parse(req.body);
+      const invoice = await storage.updateInvoice(req.params.id, invoiceData);
+      await storage.createActivity({
+        userId: invoice.userId,
+        action: "UPDATE_INVOICE",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: `Updated invoice: ${invoice.invoiceNumber}`,
+      });
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update invoice" });
     }
   });
 
