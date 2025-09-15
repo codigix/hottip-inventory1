@@ -207,7 +207,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Email Address *</FormLabel>
                           <FormControl>
-                            <Input {...field} type="email" placeholder="contact@abc.com" data-testid="input-email" />
+                            <Input {...field} value={field.value ?? ''} type="email" placeholder="contact@abc.com" data-testid="input-email" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -223,7 +223,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Phone Number *</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="+91 9876543210" data-testid="input-phone" />
+                            <Input {...field} value={field.value ?? ''} placeholder="+91 9876543210" data-testid="input-phone" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -237,7 +237,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Contact Person</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="John Doe" data-testid="input-contact-person" />
+                            <Input {...field} value={field.value ?? ''} placeholder="John Doe" data-testid="input-contact-person" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -256,7 +256,7 @@ export default function ClientManagement() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Company Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
                             <FormControl>
                               <SelectTrigger data-testid="select-company-type">
                                 <SelectValue placeholder="Select type" />
@@ -283,7 +283,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>Website</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="https://www.abc.com" data-testid="input-website" />
+                            <Input {...field} value={field.value ?? ''} placeholder="https://www.abc.com" data-testid="input-website" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -303,7 +303,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>GST Number</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="22AAAAA0000A1Z5" data-testid="input-gst-number" />
+                            <Input {...field} value={field.value ?? ''} placeholder="22AAAAA0000A1Z5" data-testid="input-gst-number" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -317,7 +317,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>PAN Number</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="AAAAA0000A" data-testid="input-pan-number" />
+                            <Input {...field} value={field.value ?? ''} placeholder="AAAAA0000A" data-testid="input-pan-number" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -336,7 +336,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Street Address</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="123 Business Street, Sector 1" data-testid="textarea-address" />
+                          <Textarea {...field} value={field.value ?? ''} placeholder="123 Business Street, Sector 1" data-testid="textarea-address" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -351,7 +351,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>City</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Mumbai" data-testid="input-city" />
+                            <Input {...field} value={field.value ?? ''} placeholder="Mumbai" data-testid="input-city" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -365,7 +365,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>State</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Maharashtra" data-testid="input-state" />
+                            <Input {...field} value={field.value ?? ''} placeholder="Maharashtra" data-testid="input-state" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -379,7 +379,7 @@ export default function ClientManagement() {
                         <FormItem>
                           <FormLabel>ZIP Code</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="400001" data-testid="input-zip-code" />
+                            <Input {...field} value={field.value ?? ''} placeholder="400001" data-testid="input-zip-code" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -447,7 +447,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Notes</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Additional notes about the client" data-testid="textarea-notes" />
+                          <Textarea {...field} value={field.value ?? ''} placeholder="Additional notes about the client" data-testid="textarea-notes" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
