@@ -65,7 +65,7 @@ export default function OutboundQuotations() {
       totalAmount: '0.00',
       quotationNumber: '',
       customerId: '',
-      userId: 'f1a2b3c4-d5e6-f7g8-h9i0-j1k2l3m4n5o6',
+      userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3', // Real user ID from database
       deliveryTerms: '',
       paymentTerms: '',
       warrantyTerms: '',
@@ -83,7 +83,7 @@ export default function OutboundQuotations() {
     mutationFn: (data: InsertOutboundQuotation) => 
       apiRequest('POST', '/api/outbound-quotations', {
         ...data,
-        userId: 'f1a2b3c4-d5e6-f7g8-h9i0-j1k2l3m4n5o6' // Valid UUID format
+        userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3' // Real user ID from database
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
