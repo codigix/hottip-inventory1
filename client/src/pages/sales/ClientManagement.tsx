@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Users, Eye, Edit, FileText, History } from "lucide-react";
-import { insertCustomerSchema, type InsertCustomer } from "@shared/schema";
+import { insertCustomerSchema, type InsertCustomer, type Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,7 +21,7 @@ export default function ClientManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  const { data: customers, isLoading } = useQuery({
+  const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
 
@@ -60,10 +60,23 @@ export default function ClientManagement() {
       setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Client creation error:', error);
+      
+      // Parse server validation errors and set field errors
+      const issues = error?.data?.errors ?? error?.errors;
+      if (Array.isArray(issues)) {
+        issues.forEach((e: { path?: string[]; message: string }) => {
+          const fieldName = e.path?.[0] as keyof InsertCustomer;
+          if (fieldName) {
+            form.setError(fieldName, { type: "server", message: e.message });
+          }
+        });
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to create client",
+        title: "Validation Error",
+        description: error?.message || "Please fix the highlighted fields and try again",
         variant: "destructive",
       });
     },
