@@ -29,12 +29,28 @@ export default function OutboundQuotations() {
     queryKey: ["/api/customers"],
   });
 
-  // Enhanced validation schema with proper required fields
-  const quotationFormSchema = insertOutboundQuotationSchema.extend({
-    quotationNumber: z.string().min(1, "Quotation number is required"),
-    customerId: z.string().uuid("Please select a customer"),
-    subtotalAmount: z.string().min(1, "Subtotal amount is required"), 
-    totalAmount: z.string().min(1, "Total amount is required"),
+  // Enhanced validation schema with clear field-level errors
+  const quotationFormSchema = z.object({
+    quotationNumber: z.string().min(1, "⚠️ Quotation number is required (e.g., QUO-2025-001)"),
+    customerId: z.string().min(1, "⚠️ Please select a customer from the dropdown"),
+    quotationDate: z.date(),
+    validUntil: z.date(),
+    subtotalAmount: z.string().min(1, "⚠️ Subtotal amount is required (e.g., 1000.00)"),
+    taxAmount: z.string().optional(),
+    discountAmount: z.string().optional(),
+    totalAmount: z.string().min(1, "⚠️ Total amount is required (e.g., 1180.00)"),
+    status: z.string().optional(),
+    userId: z.string().optional(),
+    deliveryTerms: z.string().optional(),
+    paymentTerms: z.string().optional(),
+    warrantyTerms: z.string().optional(),
+    specialTerms: z.string().optional(),
+    notes: z.string().optional(),
+    jobCardNumber: z.string().optional(),
+    partNumber: z.string().optional(),
+    bankName: z.string().optional(),
+    accountNumber: z.string().optional(),
+    ifscCode: z.string().optional(),
   });
 
   const form = useForm<InsertOutboundQuotation>({
@@ -209,7 +225,7 @@ export default function OutboundQuotations() {
                     name="quotationNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quotation Number</FormLabel>
+                        <FormLabel>Quotation Number <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="QUO-2024-001" data-testid="input-quotation-number" />
                         </FormControl>
@@ -223,7 +239,7 @@ export default function OutboundQuotations() {
                     name="customerId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Customer</FormLabel>
+                        <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-customer">
@@ -290,7 +306,7 @@ export default function OutboundQuotations() {
                     name="subtotalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subtotal Amount</FormLabel>
+                        <FormLabel>Subtotal Amount <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-subtotal" />
                         </FormControl>
@@ -335,7 +351,7 @@ export default function OutboundQuotations() {
                     name="totalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Total Amount</FormLabel>
+                        <FormLabel>Total Amount <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-total" />
                         </FormControl>
