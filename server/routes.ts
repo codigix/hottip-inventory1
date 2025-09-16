@@ -43,6 +43,18 @@ interface AuthenticatedRequest extends Request {
 // SECURE authentication middleware - NEVER trust client-supplied identity headers
 const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // DEVELOPMENT MODE BYPASS: Skip authentication completely in development
+    if (process.env.NODE_ENV === 'development') {
+      // Set a default admin user for development
+      req.user = {
+        id: 'dev-admin-user',
+        role: 'admin',
+        username: 'dev_admin'
+      };
+      next();
+      return;
+    }
+
     // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
     if (req.headers['x-user-id']) {
       res.status(401).json({ 

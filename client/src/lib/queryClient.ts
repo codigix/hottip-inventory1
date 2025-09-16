@@ -1,9 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Helper function to get auth token
+// Helper function to get auth token (disabled for direct access)
 function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token');
+  // Return null to disable authentication in development
+  return null;
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -33,14 +33,10 @@ export async function apiRequest(
 ): Promise<Response> {
   const { method = "GET", body, headers = {} } = options || {};
   
-  // Get auth token and include in headers
-  const token = getAuthToken();
-  
   const res = await fetch(url, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...headers,
     },
     body,
@@ -57,13 +53,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Get auth token and include in headers
-    const token = getAuthToken();
-    
     const res = await fetch(queryKey.join("/") as string, {
-      headers: {
-        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-      },
+      headers: {},
       credentials: "include",
     });
 

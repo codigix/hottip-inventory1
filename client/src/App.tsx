@@ -3,8 +3,6 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { LoginForm } from "@/components/LoginForm";
 import { GlobalNavbar } from "@/components/GlobalNavbar";
 import Dashboard from "@/pages/Dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
@@ -16,24 +14,8 @@ import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import EmployeesDashboard from "@/pages/EmployeesDashboard";
 import NotFound from "@/pages/not-found";
 
-function ProtectedRouter() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  // Show loading spinner while checking auth status
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
-
-  // Show login form if not authenticated
-  if (!isAuthenticated) {
-    return <LoginForm />;
-  }
-
-  // Show main app if authenticated
+function AppRouter() {
+  // Show main app directly without authentication
   return (
     <div className="min-h-screen bg-background">
       <GlobalNavbar />
@@ -59,12 +41,10 @@ function ProtectedRouter() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <ProtectedRouter />
-        </TooltipProvider>
-      </AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <AppRouter />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }
