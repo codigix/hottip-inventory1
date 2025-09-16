@@ -41,20 +41,22 @@ interface AuthenticatedRequest extends Request {
 }
 
 // SECURE authentication middleware - NEVER trust client-supplied identity headers
-const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
     if (req.headers['x-user-id']) {
-      return res.status(401).json({ 
+      res.status(401).json({ 
         error: "Security violation", 
         message: "Client identity headers are not allowed for security reasons" 
       });
+      return;
     }
 
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
     // JWT authentication (production and development)
@@ -70,11 +72,13 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
           role: decoded.role, 
           username: decoded.username 
         };
-        return next();
+        next();
+        return;
       } catch (jwtError) {
         // In production, JWT failure is final
         if (process.env.NODE_ENV === 'production') {
-          return res.status(401).json({ error: "Invalid JWT token" });
+          res.status(401).json({ error: "Invalid JWT token" });
+          return;
         }
         // In development, fall through to dev token handling
       }
@@ -85,7 +89,8 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
       if (!jwtSecret) {
         throw new Error('JWT_SECRET required in production');
       }
-      return res.status(401).json({ error: "Valid JWT token required" });
+      res.status(401).json({ error: "Valid JWT token required" });
+      return;
     }
     
     // Development HMAC-signed tokens (dev mode fallback)
@@ -96,7 +101,8 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
       const parts = token.split('-');
       
       if (parts.length !== 3) {
-        return res.status(401).json({ error: "Invalid development token format" });
+        res.status(401).json({ error: "Invalid development token format" });
+        return;
       }
       
       const [userId, timestamp, signature] = parts;
@@ -104,16 +110,18 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
       // Verify HMAC signature (using a server secret)
       const serverSecret = process.env.DEV_TOKEN_SECRET;
       if (!serverSecret) {
-        return res.status(401).json({ 
+        res.status(401).json({ 
           error: "Server misconfiguration", 
           message: "DEV_TOKEN_SECRET environment variable is required for development authentication" 
         });
+        return;
       }
       
       // Validate timestamp format
       const timestampNum = parseInt(timestamp);
       if (isNaN(timestampNum) || timestampNum <= 0) {
-        return res.status(401).json({ error: "Invalid development token timestamp" });
+        res.status(401).json({ error: "Invalid development token timestamp" });
+        return;
       }
       
       const expectedSignature = crypto
@@ -122,18 +130,21 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
         .digest('hex'); // Use full HMAC signature for security
       
       if (signature !== expectedSignature) {
-        return res.status(401).json({ error: "Invalid token signature" });
+        res.status(401).json({ error: "Invalid token signature" });
+        return;
       }
       
       // Check token age (expire after 24 hours)
       const tokenAge = Date.now() - timestampNum;
       if (tokenAge > 24 * 60 * 60 * 1000) { // 24 hours
-        return res.status(401).json({ error: "Token expired" });
+        res.status(401).json({ error: "Token expired" });
+        return;
       }
       
       const user = await storage.getUser(userId);
       if (!user || !user.isActive) {
-        return res.status(401).json({ error: "Invalid or inactive user" });
+        res.status(401).json({ error: "Invalid or inactive user" });
+        return;
       }
       
       req.user = {
@@ -141,48 +152,53 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
         role: user.role,
         username: user.username
       };
-      return next();
+      next();
+      return;
     }
 
-    return res.status(401).json({ error: "Authentication failed" });
+    res.status(401).json({ error: "Authentication failed" });
   } catch (error) {
-    return res.status(401).json({ error: "Authentication failed" });
+    res.status(401).json({ error: "Authentication failed" });
   }
 };
 
 // Role-based authorization middleware for financial/accounts access
-const requireAccountsAccess = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const requireAccountsAccess = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
-    return res.status(401).json({ error: "Authentication required" });
+    res.status(401).json({ error: "Authentication required" });
+    return;
   }
 
   const { role } = req.user;
   const allowedRoles = ['admin', 'manager']; // Only admin and manager can access financial reports
   
   if (!allowedRoles.includes(role)) {
-    return res.status(403).json({ 
+    res.status(403).json({ 
       error: "Insufficient permissions", 
       message: "Access to financial reports requires admin or manager role" 
     });
+    return;
   }
 
   next();
 };
 
 // Role-based authorization middleware for marketing metrics and admin operations
-const requireMarketingAccess = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const requireMarketingAccess = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
-    return res.status(401).json({ error: "Authentication required" });
+    res.status(401).json({ error: "Authentication required" });
+    return;
   }
 
   const { role } = req.user;
   const allowedRoles = ['admin', 'manager']; // Only admin and manager can access marketing metrics
   
   if (!allowedRoles.includes(role)) {
-    return res.status(403).json({ 
+    res.status(403).json({ 
       error: "Insufficient permissions", 
       message: "Access to marketing metrics requires admin or manager role" 
     });
+    return;
   }
 
   next();
@@ -195,29 +211,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication endpoints (public routes)
   app.post('/api/auth/login', async (req, res) => {
     try {
+      console.log('🔐 Login attempt received:', { body: req.body });
+      
       const { username, password } = loginSchema.parse(req.body);
+      console.log('✅ Login data parsed successfully:', { username });
+      
       const user = await storage.getUserByUsername(username);
+      console.log('👤 User lookup result:', user ? `Found user: ${user.username} (${user.role})` : 'No user found');
       
       if (!user || !user.isActive) {
+        console.log('❌ Login failed: Invalid user or inactive account');
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       
+      console.log('🔑 Comparing passwords...');
       const validPassword = await bcrypt.compare(password, user.password);
+      console.log('🔐 Password comparison result:', validPassword ? 'Valid' : 'Invalid');
+      
       if (!validPassword) {
+        console.log('❌ Login failed: Invalid password');
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       
       const jwtSecret = process.env.JWT_SECRET;
+      console.log('🔒 JWT_SECRET status:', jwtSecret ? 'Available' : 'Missing');
+      
       if (!jwtSecret) {
+        console.error('❌ CRITICAL: JWT_SECRET environment variable is missing');
         throw new Error('JWT_SECRET is required');
       }
       
+      console.log('🎫 Generating JWT token...');
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
         jwtSecret,
         { expiresIn: '15m', algorithm: 'HS256' }
       );
       
+      console.log('✅ Login successful for user:', user.username);
       res.json({ 
         token, 
         user: { 
@@ -227,10 +258,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } catch (error) {
+      console.error('💥 Login error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : typeof error
+      });
+      
       if (error instanceof z.ZodError) {
+        console.log('📝 Validation error:', error.errors);
         return res.status(400).json({ error: "Invalid input", details: error.errors });
       }
-      res.status(500).json({ error: "Login failed" });
+      
+      console.error('❌ Unexpected login error:', error);
+      res.status(500).json({ error: "Login failed", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -255,17 +295,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // SECURITY: Per-resource ownership authorization middleware
   const checkOwnership = (entityType: string) => {
-    return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
       try {
         if (!req.user) {
-          return res.status(401).json({ error: "Authentication required" });
+          res.status(401).json({ error: "Authentication required" });
+          return;
         }
 
         const { role } = req.user;
         
         // Admin and manager roles have full access
         if (role === 'admin' || role === 'manager') {
-          return next();
+          next();
+          return;
         }
 
         // For regular users, check ownership
@@ -285,14 +327,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               entity = await storage.getMarketingAttendance(req.params.id);
               break;
             default:
-              return res.status(500).json({ error: "Unknown entity type" });
+              res.status(500).json({ error: "Unknown entity type" });
+              return;
           }
         } catch (error) {
-          return res.status(404).json({ error: `${entityType.replace('_', ' ')} not found` });
+          res.status(404).json({ error: `${entityType.replace('_', ' ')} not found` });
+          return;
         }
 
         if (!entity) {
-          return res.status(404).json({ error: `${entityType.replace('_', ' ')} not found` });
+          res.status(404).json({ error: `${entityType.replace('_', ' ')} not found` });
+          return;
         }
 
         // Check if user owns the resource (assigned to them or created by them)
@@ -302,15 +347,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                          entity.userId === userId;
 
         if (!hasAccess) {
-          return res.status(403).json({ 
+          res.status(403).json({ 
             error: "Access denied", 
             message: "You can only access your own records" 
           });
+          return;
         }
 
         next();
       } catch (error) {
-        return res.status(500).json({ error: "Failed to verify ownership" });
+        res.status(500).json({ error: "Failed to verify ownership" });
       }
     };
   };
