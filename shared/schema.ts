@@ -348,6 +348,118 @@ export const activityLog = pgTable("activity_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Stock Transactions - Track all stock movements (in/out)
+export const stockTransactionTypeEnum = pgEnum('stock_transaction_type', ['in', 'out', 'adjustment', 'transfer']);
+export const stockTransactionReasonEnum = pgEnum('stock_transaction_reason', ['purchase', 'sale', 'adjustment', 'damage', 'return', 'transfer']);
+
+export const stockTransactions = pgTable("stock_transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: uuid("product_id").references(() => products.id).notNull(),
+  batchId: uuid("batch_id").references(() => batches.id),
+  type: stockTransactionTypeEnum("type").notNull(),
+  reason: stockTransactionReasonEnum("reason").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  referenceNumber: text("reference_number"), // PO number, invoice number, etc.
+  notes: text("notes"),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Spare Parts - Track fabrication parts separately
+export const sparePartStatusEnum = pgEnum('spare_part_status', ['available', 'in_fabrication', 'quality_check', 'ready', 'shipped', 'damaged']);
+export const sparePartTypeEnum = pgEnum('spare_part_type', ['raw_material', 'component', 'finished_part', 'tool']);
+
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partNumber: text("part_number").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: sparePartTypeEnum("type").notNull().default('component'),
+  status: sparePartStatusEnum("status").notNull().default('available'),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("min_stock").notNull().default(5),
+  maxStock: integer("max_stock").notNull().default(100),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
+  location: text("location"), // Storage location
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  // Fabrication details
+  fabricationTime: integer("fabrication_time"), // hours
+  qualityCheckRequired: boolean("quality_check_required").default(true),
+  specifications: text("specifications"), // JSON or text
+  drawingPath: text("drawing_path"), // Path to technical drawing
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Batches/Lots - For batch tracking
+export const batches = pgTable("batches", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchNumber: text("batch_number").notNull().unique(),
+  productId: uuid("product_id").references(() => products.id),
+  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  quantity: integer("quantity").notNull(),
+  remainingQuantity: integer("remaining_quantity").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
+  manufactureDate: timestamp("manufacture_date"),
+  expiryDate: timestamp("expiry_date"),
+  location: text("location"),
+  qualityStatus: text("quality_status").default('pending'), // pending, approved, rejected
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Barcodes/QR Codes - For scanning support
+export const barcodes = pgTable("barcodes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  barcode: text("barcode").notNull().unique(),
+  type: text("type").notNull().default('QR'), // QR, Code128, EAN13, etc.
+  entityType: text("entity_type").notNull(), // product, spare_part, batch
+  entityId: uuid("entity_id").notNull(),
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  generatedBy: uuid("generated_by").references(() => users.id),
+});
+
+// Vendor Communications - Track communication history
+export const communicationTypeEnum = pgEnum('communication_type', ['email', 'phone', 'meeting', 'quote_request', 'order', 'complaint', 'follow_up']);
+export const communicationStatusEnum = pgEnum('communication_status', ['pending', 'completed', 'cancelled']);
+
+export const vendorCommunications = pgTable("vendor_communications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  supplierId: uuid("supplier_id").references(() => suppliers.id).notNull(),
+  type: communicationTypeEnum("type").notNull(),
+  status: communicationStatusEnum("status").notNull().default('completed'),
+  subject: text("subject").notNull(),
+  notes: text("notes"),
+  contactPerson: text("contact_person"),
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
+  followUpRequired: boolean("follow_up_required").default(false),
+  followUpDate: timestamp("follow_up_date"),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Reorder Points - Automated reorder planning
+export const reorderPoints = pgTable("reorder_points", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: uuid("product_id").references(() => products.id),
+  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
+  minQuantity: integer("min_quantity").notNull(),
+  maxQuantity: integer("max_quantity").notNull(),
+  reorderQuantity: integer("reorder_quantity").notNull(),
+  leadTimeDays: integer("lead_time_days").notNull().default(7),
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  isActive: boolean("is_active").notNull().default(true),
+  lastTriggered: timestamp("last_triggered"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
@@ -505,6 +617,81 @@ export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
   }),
 }));
 
+// New Inventory Relations
+export const stockTransactionsRelations = relations(stockTransactions, ({ one }) => ({
+  product: one(products, {
+    fields: [stockTransactions.productId],
+    references: [products.id],
+  }),
+  batch: one(batches, {
+    fields: [stockTransactions.batchId],
+    references: [batches.id],
+  }),
+  user: one(users, {
+    fields: [stockTransactions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const sparePartsRelations = relations(spareParts, ({ one, many }) => ({
+  supplier: one(suppliers, {
+    fields: [spareParts.supplierId],
+    references: [suppliers.id],
+  }),
+  batches: many(batches),
+  barcodes: many(barcodes),
+}));
+
+export const batchesRelations = relations(batches, ({ one, many }) => ({
+  product: one(products, {
+    fields: [batches.productId],
+    references: [products.id],
+  }),
+  sparePart: one(spareParts, {
+    fields: [batches.sparePartId],
+    references: [spareParts.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [batches.supplierId],
+    references: [suppliers.id],
+  }),
+  stockTransactions: many(stockTransactions),
+  barcodes: many(barcodes),
+}));
+
+export const barcodesRelations = relations(barcodes, ({ one }) => ({
+  generatedByUser: one(users, {
+    fields: [barcodes.generatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const vendorCommunicationsRelations = relations(vendorCommunications, ({ one }) => ({
+  supplier: one(suppliers, {
+    fields: [vendorCommunications.supplierId],
+    references: [suppliers.id],
+  }),
+  user: one(users, {
+    fields: [vendorCommunications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const reorderPointsRelations = relations(reorderPoints, ({ one }) => ({
+  product: one(products, {
+    fields: [reorderPoints.productId],
+    references: [products.id],
+  }),
+  sparePart: one(spareParts, {
+    fields: [reorderPoints.sparePartId],
+    references: [spareParts.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [reorderPoints.supplierId],
+    references: [suppliers.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -590,12 +777,65 @@ export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
   id: true,
 });
 
+// New Inventory Insert Schemas
+export const insertStockTransactionSchema = createInsertSchema(stockTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSparePartSchema = createInsertSchema(spareParts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBatchSchema = createInsertSchema(batches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBarcodeSchema = createInsertSchema(barcodes).omit({
+  id: true,
+  generatedAt: true,
+});
+
+export const insertVendorCommunicationSchema = createInsertSchema(vendorCommunications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReorderPointSchema = createInsertSchema(reorderPoints).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+
+export type StockTransaction = typeof stockTransactions.$inferSelect;
+export type InsertStockTransaction = z.infer<typeof insertStockTransactionSchema>;
+
+export type SparePart = typeof spareParts.$inferSelect;
+export type InsertSparePart = z.infer<typeof insertSparePartSchema>;
+
+export type Batch = typeof batches.$inferSelect;
+export type InsertBatch = z.infer<typeof insertBatchSchema>;
+
+export type Barcode = typeof barcodes.$inferSelect;
+export type InsertBarcode = z.infer<typeof insertBarcodeSchema>;
+
+export type VendorCommunication = typeof vendorCommunications.$inferSelect;
+export type InsertVendorCommunication = z.infer<typeof insertVendorCommunicationSchema>;
+
+export type ReorderPoint = typeof reorderPoints.$inferSelect;
+export type InsertReorderPoint = z.infer<typeof insertReorderPointSchema>;
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
