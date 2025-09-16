@@ -1398,6 +1398,73 @@ export const insertMarketingAttendanceSchema = createInsertSchema(marketingAtten
   updatedAt: true,
 });
 
+// Workflow Validation Schemas for Marketing Operations
+// Status Update Schemas
+export const updateLeadStatusSchema = z.object({
+  status: z.enum(['new', 'contacted', 'in_progress', 'converted', 'dropped']),
+  notes: z.string().optional(),
+});
+
+export const updateFieldVisitStatusSchema = z.object({
+  status: z.enum(['scheduled', 'in_progress', 'completed', 'cancelled']),
+  notes: z.string().optional(),
+});
+
+export const updateMarketingTaskStatusSchema = z.object({
+  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+  notes: z.string().optional(),
+});
+
+// GPS Check-in/Check-out Schemas
+export const fieldVisitCheckInSchema = z.object({
+  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
+  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
+});
+
+export const fieldVisitCheckOutSchema = z.object({
+  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
+  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
+  visitNotes: z.string().optional(),
+  outcome: z.string().optional(),
+  nextAction: z.string().optional(),
+});
+
+// Lead Conversion Schema
+export const convertLeadSchema = z.object({
+  notes: z.string().optional(),
+  creditLimit: z.string().optional(),
+  paymentTerms: z.number().optional(),
+});
+
+// Combined Filtering Schemas
+export const leadFilterSchema = z.object({
+  status: z.enum(['new', 'contacted', 'in_progress', 'converted', 'dropped']).optional(),
+  source: z.enum(['website', 'referral', 'advertisement', 'social_media', 'trade_show', 'cold_call', 'email_campaign', 'other']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  assignedTo: z.string().uuid().optional(),
+  search: z.string().optional(),
+});
+
+export const fieldVisitFilterSchema = z.object({
+  status: z.enum(['scheduled', 'in_progress', 'completed', 'cancelled']).optional(),
+  assignedTo: z.string().uuid().optional(),
+  leadId: z.string().uuid().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const marketingTaskFilterSchema = z.object({
+  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']).optional(),
+  type: z.enum(['visit_client', 'follow_up', 'demo', 'presentation', 'proposal', 'phone_call', 'email_campaign', 'market_research', 'other']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  assignedTo: z.string().uuid().optional(),
+  leadId: z.string().uuid().optional(),
+});
+
 // Accounts Insert Schemas
 export const insertAccountsReceivableSchema = createInsertSchema(accountsReceivables).omit({
   id: true,

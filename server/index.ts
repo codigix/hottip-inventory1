@@ -37,6 +37,18 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // SECURITY: Boot-time JWT_SECRET assertion for production deployments
+  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+    console.error('❌ CRITICAL: JWT_SECRET environment variable is required in production');
+    throw new Error('JWT_SECRET required in production - server cannot start without proper authentication configuration');
+  }
+  
+  if (process.env.JWT_SECRET) {
+    console.log('✅ JWT_SECRET configured for authentication');
+  } else {
+    console.log('⚠️  Development mode: JWT_SECRET not configured (dev tokens will be used)');
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
