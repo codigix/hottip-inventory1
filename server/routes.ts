@@ -14,7 +14,11 @@ import {
   insertInvoiceSchema, insertInvoiceItemSchema,
   insertStockTransactionSchema, insertSparePartSchema, insertBatchSchema,
   insertBarcodeSchema, insertFabricationOrderSchema, insertReorderPointSchema,
-  insertVendorCommunicationSchema, insertInventoryTaskSchema
+  insertVendorCommunicationSchema, insertInventoryTaskSchema,
+  // Accounts schemas
+  insertAccountsReceivableSchema, insertAccountsPayableSchema, insertPaymentSchema,
+  insertBankAccountSchema, insertBankTransactionSchema, insertGstReturnSchema,
+  insertAccountReminderSchema, insertAccountTaskSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -1236,6 +1240,671 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete inventory task" });
+    }
+  });
+
+  // ===== ACCOUNTS MODULE ROUTES =====
+
+  // Accounts Receivables Routes
+  app.get("/api/accounts-receivables", async (req, res) => {
+    try {
+      const receivables = await storage.getAccountsReceivables();
+      res.json(receivables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch accounts receivables" });
+    }
+  });
+
+  app.get("/api/accounts-receivables/overdue", async (req, res) => {
+    try {
+      const receivables = await storage.getOverdueReceivables();
+      res.json(receivables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch overdue receivables" });
+    }
+  });
+
+  app.get("/api/accounts-receivables/customer/:customerId", async (req, res) => {
+    try {
+      const receivables = await storage.getAccountsReceivablesByCustomer(req.params.customerId);
+      res.json(receivables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch receivables by customer" });
+    }
+  });
+
+  app.get("/api/accounts-receivables/:id", async (req, res) => {
+    try {
+      const receivable = await storage.getAccountsReceivable(req.params.id);
+      if (!receivable) {
+        return res.status(404).json({ error: "Accounts receivable not found" });
+      }
+      res.json(receivable);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch accounts receivable" });
+    }
+  });
+
+  app.post("/api/accounts-receivables", async (req, res) => {
+    try {
+      const receivableData = insertAccountsReceivableSchema.parse(req.body);
+      const receivable = await storage.createAccountsReceivable(receivableData);
+      await storage.createActivity({
+        userId: receivable.customerId,
+        action: "CREATE_ACCOUNTS_RECEIVABLE",
+        entityType: "accounts_receivable",
+        entityId: receivable.id,
+        details: `Created accounts receivable for amount ${receivable.amountDue}`,
+      });
+      res.status(201).json(receivable);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid receivable data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create accounts receivable" });
+    }
+  });
+
+  app.put("/api/accounts-receivables/:id", async (req, res) => {
+    try {
+      const receivableData = insertAccountsReceivableSchema.partial().parse(req.body);
+      const receivable = await storage.updateAccountsReceivable(req.params.id, receivableData);
+      res.json(receivable);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update accounts receivable" });
+    }
+  });
+
+  app.delete("/api/accounts-receivables/:id", async (req, res) => {
+    try {
+      await storage.deleteAccountsReceivable(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete accounts receivable" });
+    }
+  });
+
+  // Accounts Payables Routes
+  app.get("/api/accounts-payables", async (req, res) => {
+    try {
+      const payables = await storage.getAccountsPayables();
+      res.json(payables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch accounts payables" });
+    }
+  });
+
+  app.get("/api/accounts-payables/overdue", async (req, res) => {
+    try {
+      const payables = await storage.getOverduePayables();
+      res.json(payables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch overdue payables" });
+    }
+  });
+
+  app.get("/api/accounts-payables/supplier/:supplierId", async (req, res) => {
+    try {
+      const payables = await storage.getAccountsPayablesBySupplier(req.params.supplierId);
+      res.json(payables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payables by supplier" });
+    }
+  });
+
+  app.get("/api/accounts-payables/:id", async (req, res) => {
+    try {
+      const payable = await storage.getAccountsPayable(req.params.id);
+      if (!payable) {
+        return res.status(404).json({ error: "Accounts payable not found" });
+      }
+      res.json(payable);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch accounts payable" });
+    }
+  });
+
+  app.post("/api/accounts-payables", async (req, res) => {
+    try {
+      const payableData = insertAccountsPayableSchema.parse(req.body);
+      const payable = await storage.createAccountsPayable(payableData);
+      await storage.createActivity({
+        userId: payable.supplierId,
+        action: "CREATE_ACCOUNTS_PAYABLE",
+        entityType: "accounts_payable",
+        entityId: payable.id,
+        details: `Created accounts payable for amount ${payable.amountDue}`,
+      });
+      res.status(201).json(payable);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid payable data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create accounts payable" });
+    }
+  });
+
+  app.put("/api/accounts-payables/:id", async (req, res) => {
+    try {
+      const payableData = insertAccountsPayableSchema.partial().parse(req.body);
+      const payable = await storage.updateAccountsPayable(req.params.id, payableData);
+      res.json(payable);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update accounts payable" });
+    }
+  });
+
+  app.delete("/api/accounts-payables/:id", async (req, res) => {
+    try {
+      await storage.deleteAccountsPayable(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete accounts payable" });
+    }
+  });
+
+  // Payments Routes
+  app.get("/api/payments", async (req, res) => {
+    try {
+      const payments = await storage.getPayments();
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payments" });
+    }
+  });
+
+  app.get("/api/payments/kind/:kind", async (req, res) => {
+    try {
+      const payments = await storage.getPaymentsByKind(req.params.kind);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payments by kind" });
+    }
+  });
+
+  app.get("/api/payments/method/:method", async (req, res) => {
+    try {
+      const payments = await storage.getPaymentsByMethod(req.params.method);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payments by method" });
+    }
+  });
+
+  app.get("/api/payments/:id", async (req, res) => {
+    try {
+      const payment = await storage.getPayment(req.params.id);
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      res.json(payment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payment" });
+    }
+  });
+
+  app.post("/api/payments", async (req, res) => {
+    try {
+      const paymentData = insertPaymentSchema.parse(req.body);
+      const payment = await storage.createPayment(paymentData);
+      await storage.createActivity({
+        userId: payment.id,
+        action: "CREATE_PAYMENT",
+        entityType: "payment",
+        entityId: payment.id,
+        details: `Created ${payment.kind} payment for amount ${payment.amount}`,
+      });
+      res.status(201).json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid payment data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create payment" });
+    }
+  });
+
+  app.put("/api/payments/:id", async (req, res) => {
+    try {
+      const paymentData = insertPaymentSchema.partial().parse(req.body);
+      const payment = await storage.updatePayment(req.params.id, paymentData);
+      res.json(payment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update payment" });
+    }
+  });
+
+  app.delete("/api/payments/:id", async (req, res) => {
+    try {
+      await storage.deletePayment(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete payment" });
+    }
+  });
+
+  // Bank Accounts Routes
+  app.get("/api/bank-accounts", async (req, res) => {
+    try {
+      const accounts = await storage.getBankAccounts();
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank accounts" });
+    }
+  });
+
+  app.get("/api/bank-accounts/active", async (req, res) => {
+    try {
+      const accounts = await storage.getActiveBankAccounts();
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active bank accounts" });
+    }
+  });
+
+  app.get("/api/bank-accounts/default", async (req, res) => {
+    try {
+      const account = await storage.getDefaultBankAccount();
+      if (!account) {
+        return res.status(404).json({ error: "No default bank account found" });
+      }
+      res.json(account);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch default bank account" });
+    }
+  });
+
+  app.get("/api/bank-accounts/:id", async (req, res) => {
+    try {
+      const account = await storage.getBankAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank account" });
+    }
+  });
+
+  app.post("/api/bank-accounts", async (req, res) => {
+    try {
+      const accountData = insertBankAccountSchema.parse(req.body);
+      const account = await storage.createBankAccount(accountData);
+      await storage.createActivity({
+        userId: account.id,
+        action: "CREATE_BANK_ACCOUNT",
+        entityType: "bank_account",
+        entityId: account.id,
+        details: `Created bank account: ${account.name}`,
+      });
+      res.status(201).json(account);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid bank account data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create bank account" });
+    }
+  });
+
+  app.put("/api/bank-accounts/:id", async (req, res) => {
+    try {
+      const accountData = insertBankAccountSchema.partial().parse(req.body);
+      const account = await storage.updateBankAccount(req.params.id, accountData);
+      res.json(account);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update bank account" });
+    }
+  });
+
+  app.delete("/api/bank-accounts/:id", async (req, res) => {
+    try {
+      await storage.deleteBankAccount(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete bank account" });
+    }
+  });
+
+  // Bank Transactions Routes
+  app.get("/api/bank-transactions", async (req, res) => {
+    try {
+      const transactions = await storage.getBankTransactions();
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank transactions" });
+    }
+  });
+
+  app.get("/api/bank-transactions/account/:accountId", async (req, res) => {
+    try {
+      const transactions = await storage.getBankTransactionsByAccount(req.params.accountId);
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch transactions by account" });
+    }
+  });
+
+  app.get("/api/bank-transactions/:id", async (req, res) => {
+    try {
+      const transaction = await storage.getBankTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ error: "Bank transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank transaction" });
+    }
+  });
+
+  app.post("/api/bank-transactions", async (req, res) => {
+    try {
+      const transactionData = insertBankTransactionSchema.parse(req.body);
+      const transaction = await storage.createBankTransaction(transactionData);
+      await storage.createActivity({
+        userId: transaction.id,
+        action: "CREATE_BANK_TRANSACTION",
+        entityType: "bank_transaction",
+        entityId: transaction.id,
+        details: `Created bank transaction for amount ${transaction.amount}`,
+      });
+      res.status(201).json(transaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid transaction data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create bank transaction" });
+    }
+  });
+
+  app.put("/api/bank-transactions/:id", async (req, res) => {
+    try {
+      const transactionData = insertBankTransactionSchema.partial().parse(req.body);
+      const transaction = await storage.updateBankTransaction(req.params.id, transactionData);
+      res.json(transaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update bank transaction" });
+    }
+  });
+
+  app.delete("/api/bank-transactions/:id", async (req, res) => {
+    try {
+      await storage.deleteBankTransaction(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete bank transaction" });
+    }
+  });
+
+  // GST Returns Routes
+  app.get("/api/gst-returns", async (req, res) => {
+    try {
+      const returns = await storage.getGstReturns();
+      res.json(returns);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch GST returns" });
+    }
+  });
+
+  app.get("/api/gst-returns/status/:status", async (req, res) => {
+    try {
+      const returns = await storage.getGstReturnsByStatus(req.params.status);
+      res.json(returns);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch GST returns by status" });
+    }
+  });
+
+  app.get("/api/gst-returns/:id", async (req, res) => {
+    try {
+      const gstReturn = await storage.getGstReturn(req.params.id);
+      if (!gstReturn) {
+        return res.status(404).json({ error: "GST return not found" });
+      }
+      res.json(gstReturn);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch GST return" });
+    }
+  });
+
+  app.post("/api/gst-returns", async (req, res) => {
+    try {
+      const returnData = insertGstReturnSchema.parse(req.body);
+      const gstReturn = await storage.createGstReturn(returnData);
+      await storage.createActivity({
+        userId: gstReturn.id,
+        action: "CREATE_GST_RETURN",
+        entityType: "gst_return",
+        entityId: gstReturn.id,
+        details: `Created GST return for period ${gstReturn.periodStart} to ${gstReturn.periodEnd}`,
+      });
+      res.status(201).json(gstReturn);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid GST return data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create GST return" });
+    }
+  });
+
+  app.put("/api/gst-returns/:id", async (req, res) => {
+    try {
+      const returnData = insertGstReturnSchema.partial().parse(req.body);
+      const gstReturn = await storage.updateGstReturn(req.params.id, returnData);
+      res.json(gstReturn);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update GST return" });
+    }
+  });
+
+  app.delete("/api/gst-returns/:id", async (req, res) => {
+    try {
+      await storage.deleteGstReturn(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete GST return" });
+    }
+  });
+
+  // Account Reminders Routes
+  app.get("/api/account-reminders", async (req, res) => {
+    try {
+      const reminders = await storage.getAccountReminders();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch account reminders" });
+    }
+  });
+
+  app.get("/api/account-reminders/pending", async (req, res) => {
+    try {
+      const reminders = await storage.getPendingReminders();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending reminders" });
+    }
+  });
+
+  app.get("/api/account-reminders/target/:targetType", async (req, res) => {
+    try {
+      const reminders = await storage.getRemindersByTargetType(req.params.targetType);
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reminders by target type" });
+    }
+  });
+
+  app.get("/api/account-reminders/:id", async (req, res) => {
+    try {
+      const reminder = await storage.getAccountReminder(req.params.id);
+      if (!reminder) {
+        return res.status(404).json({ error: "Account reminder not found" });
+      }
+      res.json(reminder);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch account reminder" });
+    }
+  });
+
+  app.post("/api/account-reminders", async (req, res) => {
+    try {
+      const reminderData = insertAccountReminderSchema.parse(req.body);
+      const reminder = await storage.createAccountReminder(reminderData);
+      await storage.createActivity({
+        userId: reminder.id,
+        action: "CREATE_ACCOUNT_REMINDER",
+        entityType: "account_reminder",
+        entityId: reminder.id,
+        details: `Created account reminder for ${reminder.targetType}`,
+      });
+      res.status(201).json(reminder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid reminder data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create account reminder" });
+    }
+  });
+
+  app.put("/api/account-reminders/:id", async (req, res) => {
+    try {
+      const reminderData = insertAccountReminderSchema.partial().parse(req.body);
+      const reminder = await storage.updateAccountReminder(req.params.id, reminderData);
+      res.json(reminder);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update account reminder" });
+    }
+  });
+
+  app.delete("/api/account-reminders/:id", async (req, res) => {
+    try {
+      await storage.deleteAccountReminder(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete account reminder" });
+    }
+  });
+
+  // Account Tasks Routes
+  app.get("/api/account-tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getAccountTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch account tasks" });
+    }
+  });
+
+  app.get("/api/account-tasks/assignee/:assigneeId", async (req, res) => {
+    try {
+      const tasks = await storage.getAccountTasksByAssignee(req.params.assigneeId);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tasks by assignee" });
+    }
+  });
+
+  app.get("/api/account-tasks/status/:status", async (req, res) => {
+    try {
+      const tasks = await storage.getAccountTasksByStatus(req.params.status);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tasks by status" });
+    }
+  });
+
+  app.get("/api/account-tasks/type/:type", async (req, res) => {
+    try {
+      const tasks = await storage.getAccountTasksByType(req.params.type);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tasks by type" });
+    }
+  });
+
+  app.get("/api/account-tasks/:id", async (req, res) => {
+    try {
+      const task = await storage.getAccountTask(req.params.id);
+      if (!task) {
+        return res.status(404).json({ error: "Account task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch account task" });
+    }
+  });
+
+  app.post("/api/account-tasks", async (req, res) => {
+    try {
+      const taskData = insertAccountTaskSchema.parse(req.body);
+      const task = await storage.createAccountTask(taskData);
+      await storage.createActivity({
+        userId: task.assignedBy,
+        action: "CREATE_ACCOUNT_TASK",
+        entityType: "account_task",
+        entityId: task.id,
+        details: `Created account task: ${task.title}`,
+      });
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create account task" });
+    }
+  });
+
+  app.put("/api/account-tasks/:id", async (req, res) => {
+    try {
+      const taskData = insertAccountTaskSchema.partial().parse(req.body);
+      const task = await storage.updateAccountTask(req.params.id, taskData);
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update account task" });
+    }
+  });
+
+  app.delete("/api/account-tasks/:id", async (req, res) => {
+    try {
+      await storage.deleteAccountTask(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete account task" });
+    }
+  });
+
+  // Accounts Analytics Routes
+  app.get("/api/accounts/dashboard-metrics", async (req, res) => {
+    try {
+      const metrics = await storage.getAccountsDashboardMetrics();
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch accounts dashboard metrics" });
+    }
+  });
+
+  app.get("/api/accounts/cash-flow-summary", async (req, res) => {
+    try {
+      const summary = await storage.getCashFlowSummary();
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch cash flow summary" });
+    }
+  });
+
+  app.get("/api/accounts/receivables-total", async (req, res) => {
+    try {
+      const total = await storage.getTotalReceivablesAmount();
+      res.json({ total });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch total receivables amount" });
+    }
+  });
+
+  app.get("/api/accounts/payables-total", async (req, res) => {
+    try {
+      const total = await storage.getTotalPayablesAmount();
+      res.json({ total });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch total payables amount" });
     }
   });
 
