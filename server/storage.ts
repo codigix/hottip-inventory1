@@ -29,7 +29,7 @@ import {
   type AccountReport, type InsertAccountReport
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, like, count, sum, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -96,6 +96,12 @@ export interface IStorage {
   getAttendanceByUser(userId: string): Promise<Attendance[]>;
   createAttendance(attendance: InsertAttendance): Promise<Attendance>;
   updateAttendance(id: string, attendance: Partial<InsertAttendance>): Promise<Attendance>;
+  deleteAttendance(id: string): Promise<void>;
+  getAccountsAttendance(filters: any): Promise<any[]>;
+  getAccountsAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
+  getAccountsAttendanceSummary(period: string): Promise<any>;
+  getUserAttendanceHistory(filters: any): Promise<any[]>;
+  getAttendanceMetrics(): Promise<any>;
 
   // Activity Log
   createActivity(activity: Omit<ActivityLog, 'id' | 'createdAt'>): Promise<ActivityLog>;
@@ -753,6 +759,268 @@ export class DatabaseStorage implements IStorage {
       .where(eq(attendance.id, id))
       .returning();
     return record;
+  }
+
+  async deleteAttendance(id: string): Promise<void> {
+    await db.delete(attendance).where(eq(attendance.id, id));
+  }
+
+  async getAccountsAttendance(filters: any): Promise<any[]> {
+    let query = db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        location: attendance.location,
+        status: attendance.status,
+        notes: attendance.notes,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          department: users.department,
+        },
+      })
+      .from(attendance)
+      .leftJoin(users, eq(attendance.userId, users.id));
+
+    const conditions = [];
+    
+    if (filters.startDate) {
+      conditions.push(gte(attendance.date, filters.startDate));
+    }
+    if (filters.endDate) {
+      conditions.push(lte(attendance.date, filters.endDate));
+    }
+    if (filters.department) {
+      conditions.push(eq(users.department, filters.department));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return await query.orderBy(desc(attendance.date));
+  }
+
+  async getAccountsAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    return await db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        location: attendance.location,
+        status: attendance.status,
+        notes: attendance.notes,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          department: users.department,
+        },
+      })
+      .from(attendance)
+      .leftJoin(users, eq(attendance.userId, users.id))
+      .where(
+        and(
+          gte(attendance.date, startDate),
+          lte(attendance.date, endDate)
+        )
+      )
+      .orderBy(desc(attendance.date));
+  }
+
+  async getAccountsAttendanceSummary(period: string): Promise<any> {
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    const totalAttendance = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(gte(attendance.date, startDate));
+
+    const presentCount = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, startDate),
+          eq(attendance.status, 'present')
+        )
+      );
+
+    const lateCount = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, startDate),
+          eq(attendance.status, 'late')
+        )
+      );
+
+    const absentCount = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, startDate),
+          eq(attendance.status, 'absent')
+        )
+      );
+
+    const totalEmployees = await db
+      .select({ count: count() })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    return {
+      period,
+      totalAttendance: totalAttendance[0]?.count || 0,
+      presentCount: presentCount[0]?.count || 0,
+      lateCount: lateCount[0]?.count || 0,
+      absentCount: absentCount[0]?.count || 0,
+      totalEmployees: totalEmployees[0]?.count || 0,
+      attendanceRate: totalEmployees[0]?.count && totalAttendance[0]?.count ? 
+        ((presentCount[0]?.count || 0) / (totalAttendance[0]?.count) * 100) : 0,
+    };
+  }
+
+  async getUserAttendanceHistory(filters: any): Promise<any[]> {
+    let query = db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        location: attendance.location,
+        status: attendance.status,
+        notes: attendance.notes,
+      })
+      .from(attendance);
+
+    const conditions = [eq(attendance.userId, filters.userId)];
+    
+    if (filters.startDate) {
+      conditions.push(gte(attendance.date, filters.startDate));
+    }
+    if (filters.endDate) {
+      conditions.push(lte(attendance.date, filters.endDate));
+    }
+
+    return await query
+      .where(and(...conditions))
+      .orderBy(desc(attendance.date));
+  }
+
+  async getAttendanceMetrics(): Promise<any> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Today's attendance
+    const todayAttendance = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, today),
+          lt(attendance.date, tomorrow)
+        )
+      );
+
+    const todayPresent = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, today),
+          lt(attendance.date, tomorrow),
+          eq(attendance.status, 'present')
+        )
+      );
+
+    const todayLate = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, today),
+          lt(attendance.date, tomorrow),
+          eq(attendance.status, 'late')
+        )
+      );
+
+    // This week's late arrivals
+    const weekLateArrivals = await db
+      .select({ count: count() })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, thisWeekStart),
+          eq(attendance.status, 'late')
+        )
+      );
+
+    // Average working hours calculation
+    const avgHoursResult = await db
+      .select({
+        avgMinutes: avg(
+          sql`EXTRACT(EPOCH FROM (${attendance.checkOut} - ${attendance.checkIn})) / 60`
+        ),
+      })
+      .from(attendance)
+      .where(
+        and(
+          gte(attendance.date, thisMonth),
+          isNotNull(attendance.checkIn),
+          isNotNull(attendance.checkOut)
+        )
+      );
+
+    const totalActiveEmployees = await db
+      .select({ count: count() })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    const avgHours = avgHoursResult[0]?.avgMinutes ? 
+      Math.round((parseFloat(avgHoursResult[0].avgMinutes) / 60) * 10) / 10 : 0;
+
+    return {
+      teamSize: totalActiveEmployees[0]?.count || 0,
+      presentToday: todayPresent[0]?.count || 0,
+      attendanceRate: totalActiveEmployees[0]?.count ? 
+        ((todayPresent[0]?.count || 0) / (totalActiveEmployees[0]?.count) * 100) : 0,
+      avgHours: avgHours,
+      lateArrivalsThisWeek: weekLateArrivals[0]?.count || 0,
+      todayTotal: todayAttendance[0]?.count || 0,
+      todayLate: todayLate[0]?.count || 0,
+    };
   }
 
   // Activity Log

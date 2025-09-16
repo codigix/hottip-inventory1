@@ -525,6 +525,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/attendance/:id", async (req, res) => {
+    try {
+      const attendanceData = insertAttendanceSchema.partial().parse(req.body);
+      const attendance = await storage.updateAttendance(req.params.id, attendanceData);
+      res.json(attendance);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid attendance data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update attendance record" });
+    }
+  });
+
+  app.delete("/api/attendance/:id", async (req, res) => {
+    try {
+      await storage.deleteAttendance(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete attendance record" });
+    }
+  });
+
+  // Account-specific Attendance Routes with Authentication
+  app.get("/api/account-attendance", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate, department } = req.query;
+      const filters = {
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        department: department as string,
+      };
+      const attendance = await storage.getAccountsAttendance(filters);
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch account attendance records" });
+    }
+  });
+
+  app.get("/api/account-attendance/today", requireAuth, async (req, res) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const attendance = await storage.getAccountsAttendanceByDateRange(today, tomorrow);
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch today's attendance" });
+    }
+  });
+
+  app.get("/api/account-attendance/summary", requireAuth, async (req, res) => {
+    try {
+      const { period = 'month' } = req.query;
+      const summary = await storage.getAccountsAttendanceSummary(period as string);
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch attendance summary" });
+    }
+  });
+
+  app.get("/api/account-attendance/user/:userId", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const filters = {
+        userId: req.params.userId,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      const attendance = await storage.getUserAttendanceHistory(filters);
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user attendance history" });
+    }
+  });
+
+  app.post("/api/account-attendance/clock-in", requireAuth, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { location, notes } = req.body;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Check if already clocked in today
+      const existingAttendance = await storage.getAttendance(req.user.id, today);
+      if (existingAttendance && existingAttendance.checkIn) {
+        return res.status(400).json({ error: "Already clocked in today" });
+      }
+
+      const attendanceData = {
+        userId: req.user.id,
+        date: new Date(),
+        checkIn: new Date(),
+        location: location || 'Office',
+        status: 'present',
+        notes: notes || '',
+      };
+
+      const attendance = await storage.createAttendance(attendanceData);
+      await storage.createActivity({
+        userId: req.user.id,
+        action: "CLOCK_IN",
+        entityType: "attendance",
+        entityId: attendance.id,
+        details: `Clocked in at ${attendance.checkIn?.toLocaleTimeString()}`,
+      });
+
+      res.status(201).json(attendance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clock in" });
+    }
+  });
+
+  app.post("/api/account-attendance/clock-out", requireAuth, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { notes } = req.body;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Find today's attendance record
+      const existingAttendance = await storage.getAttendance(req.user.id, today);
+      if (!existingAttendance || !existingAttendance.checkIn) {
+        return res.status(400).json({ error: "Must clock in first" });
+      }
+
+      if (existingAttendance.checkOut) {
+        return res.status(400).json({ error: "Already clocked out today" });
+      }
+
+      const updatedAttendance = await storage.updateAttendance(existingAttendance.id, {
+        checkOut: new Date(),
+        notes: notes ? `${existingAttendance.notes || ''}\n${notes}` : existingAttendance.notes,
+      });
+
+      await storage.createActivity({
+        userId: req.user.id,
+        action: "CLOCK_OUT",
+        entityType: "attendance",
+        entityId: updatedAttendance.id,
+        details: `Clocked out at ${updatedAttendance.checkOut?.toLocaleTimeString()}`,
+      });
+
+      res.json(updatedAttendance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clock out" });
+    }
+  });
+
+  app.get("/api/account-attendance/metrics", requireAuth, async (req, res) => {
+    try {
+      const metrics = await storage.getAttendanceMetrics();
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch attendance metrics" });
+    }
+  });
+
   // Outbound Quotations Routes
   app.get("/api/outbound-quotations", async (req, res) => {
     try {

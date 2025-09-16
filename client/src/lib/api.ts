@@ -6,9 +6,9 @@ export const api = {
   users: {
     getAll: () => fetch("/api/users").then(res => res.json()),
     getById: (id: string) => fetch(`/api/users/${id}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/users", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/users/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/users/${id}`),
+    create: (data: any) => apiRequest("/api/users", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/users/${id}`, { method: "DELETE" }),
   },
 
   // Products
@@ -17,45 +17,45 @@ export const api = {
     getById: (id: string) => fetch(`/api/products/${id}`).then(res => res.json()),
     getLowStock: () => fetch("/api/products/low-stock").then(res => res.json()),
     search: (query: string) => fetch(`/api/products/search?q=${encodeURIComponent(query)}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/products", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/products/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/products/${id}`),
+    create: (data: any) => apiRequest("/api/products", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/products/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/products/${id}`, { method: "DELETE" }),
   },
 
   // Customers
   customers: {
     getAll: () => fetch("/api/customers").then(res => res.json()),
     getById: (id: string) => fetch(`/api/customers/${id}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/customers", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/customers/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/customers/${id}`),
+    create: (data: any) => apiRequest("/api/customers", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/customers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/customers/${id}`, { method: "DELETE" }),
   },
 
   // Orders
   orders: {
     getAll: () => fetch("/api/orders").then(res => res.json()),
     getById: (id: string) => fetch(`/api/orders/${id}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/orders", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/orders/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/orders/${id}`),
+    create: (data: any) => apiRequest("/api/orders", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/orders/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/orders/${id}`, { method: "DELETE" }),
   },
 
   // Suppliers
   suppliers: {
     getAll: () => fetch("/api/suppliers").then(res => res.json()),
     getById: (id: string) => fetch(`/api/suppliers/${id}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/suppliers", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/suppliers/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/suppliers/${id}`),
+    create: (data: any) => apiRequest("/api/suppliers", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/suppliers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/suppliers/${id}`, { method: "DELETE" }),
   },
 
   // Shipments
   shipments: {
     getAll: () => fetch("/api/shipments").then(res => res.json()),
     getById: (id: string) => fetch(`/api/shipments/${id}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/shipments", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/shipments/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/shipments/${id}`),
+    create: (data: any) => apiRequest("/api/shipments", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/shipments/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/shipments/${id}`, { method: "DELETE" }),
   },
 
   // Tasks
@@ -63,16 +63,16 @@ export const api = {
     getAll: () => fetch("/api/tasks").then(res => res.json()),
     getById: (id: string) => fetch(`/api/tasks/${id}`).then(res => res.json()),
     getByUser: (userId: string) => fetch(`/api/tasks/user/${userId}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/tasks", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/tasks/${id}`, data),
-    delete: (id: string) => apiRequest("DELETE", `/api/tasks/${id}`),
+    create: (data: any) => apiRequest("/api/tasks", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
   },
 
   // Attendance
   attendance: {
     getByUser: (userId: string) => fetch(`/api/attendance/${userId}`).then(res => res.json()),
-    create: (data: any) => apiRequest("POST", "/api/attendance", data),
-    update: (id: string, data: any) => apiRequest("PUT", `/api/attendance/${id}`, data),
+    create: (data: any) => apiRequest("/api/attendance", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest(`/api/attendance/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   },
 
   // Dashboard & Analytics
