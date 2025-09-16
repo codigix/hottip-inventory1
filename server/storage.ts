@@ -9,6 +9,8 @@ import {
   gstReturns, accountReminders, accountTasks, accountReports,
   // Marketing entities
   leads, fieldVisits, marketingTasks, marketingAttendance,
+  // Logistics entities
+  logisticsShipments, logisticsStatusUpdates, logisticsCheckpoints,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -31,7 +33,14 @@ import {
   type AccountReport, type InsertAccountReport,
   // Marketing types
   type Lead, type InsertLead, type FieldVisit, type InsertFieldVisit,
-  type MarketingTask, type InsertMarketingTask, type MarketingAttendance, type InsertMarketingAttendance
+  type MarketingTask, type InsertMarketingTask, type MarketingAttendance, type InsertMarketingAttendance,
+  // Logistics types
+  type LogisticsShipment, type InsertLogisticsShipment, type LogisticsStatusUpdate, type InsertLogisticsStatusUpdate,
+  type LogisticsCheckpoint, type InsertLogisticsCheckpoint,
+  // Logistics interfaces
+  type LogisticsStatusData, type LogisticsPodData, type LogisticsShipmentTimeline,
+  type LogisticsDashboardMetrics, type LogisticsDeliveryMetrics, type LogisticsVendorPerformance,
+  type LogisticsShipmentVolumeMetrics
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
@@ -401,6 +410,54 @@ export interface IStorage {
   getLeadConversionRates(): Promise<any>;
   getMarketingTeamPerformance(): Promise<any>;
   getVisitSuccessRates(): Promise<any>;
+
+  // ===== LOGISTICS MODULE =====
+  
+  // Logistics Shipments
+  getLogisticsShipment(id: string): Promise<LogisticsShipment | undefined>;
+  getLogisticsShipments(): Promise<LogisticsShipment[]>;
+  createLogisticsShipment(shipment: InsertLogisticsShipment): Promise<LogisticsShipment>;
+  updateLogisticsShipment(id: string, shipment: Partial<InsertLogisticsShipment>): Promise<LogisticsShipment>;
+  deleteLogisticsShipment(id: string): Promise<void>;
+  getLogisticsShipmentsByStatus(status: string): Promise<LogisticsShipment[]>;
+  getLogisticsShipmentsByEmployee(userId: string): Promise<LogisticsShipment[]>;
+  getLogisticsShipmentsByClient(clientId: string): Promise<LogisticsShipment[]>;
+  getLogisticsShipmentsByVendor(vendorId: string): Promise<LogisticsShipment[]>;
+  getLogisticsShipmentsByDateRange(startDate: Date, endDate: Date): Promise<LogisticsShipment[]>;
+  updateShipmentStatus(id: string, statusData: LogisticsStatusData): Promise<LogisticsShipment>;
+  getShipmentTimeline(id: string): Promise<LogisticsShipmentTimeline[]>;
+  getActiveShipments(): Promise<LogisticsShipment[]>;
+  getOverdueShipments(): Promise<LogisticsShipment[]>;
+  closeShipment(id: string, podData: LogisticsPodData): Promise<LogisticsShipment>;
+  searchShipments(query: string): Promise<LogisticsShipment[]>;
+
+  // Logistics Status Updates
+  getLogisticsStatusUpdate(id: string): Promise<LogisticsStatusUpdate | undefined>;
+  getLogisticsStatusUpdates(): Promise<LogisticsStatusUpdate[]>;
+  createLogisticsStatusUpdate(update: InsertLogisticsStatusUpdate): Promise<LogisticsStatusUpdate>;
+  updateLogisticsStatusUpdate(id: string, update: Partial<InsertLogisticsStatusUpdate>): Promise<LogisticsStatusUpdate>;
+  deleteLogisticsStatusUpdate(id: string): Promise<void>;
+  getStatusUpdatesByShipment(shipmentId: string): Promise<LogisticsStatusUpdate[]>;
+  getStatusUpdatesByEmployee(userId: string): Promise<LogisticsStatusUpdate[]>;
+  getStatusUpdatesByDateRange(startDate: Date, endDate: Date): Promise<LogisticsStatusUpdate[]>;
+
+  // Logistics Checkpoints
+  getLogisticsCheckpoint(id: string): Promise<LogisticsCheckpoint | undefined>;
+  getLogisticsCheckpoints(): Promise<LogisticsCheckpoint[]>;
+  createLogisticsCheckpoint(checkpoint: InsertLogisticsCheckpoint): Promise<LogisticsCheckpoint>;
+  updateLogisticsCheckpoint(id: string, checkpoint: Partial<InsertLogisticsCheckpoint>): Promise<LogisticsCheckpoint>;
+  deleteLogisticsCheckpoint(id: string): Promise<void>;
+  getCheckpointsByShipment(shipmentId: string): Promise<LogisticsCheckpoint[]>;
+  getCheckpointsByEmployee(userId: string): Promise<LogisticsCheckpoint[]>;
+  getCheckpointsByDateRange(startDate: Date, endDate: Date): Promise<LogisticsCheckpoint[]>;
+
+  // Logistics Reports & Analytics
+  getLogisticsDashboardMetrics(): Promise<LogisticsDashboardMetrics>;
+  getDailyShipmentsReport(date: Date): Promise<{ date: string; shipments: LogisticsShipment[]; count: number }>;
+  getAverageDeliveryTime(dateRange?: { start: Date; end: Date }): Promise<{ averageDays: number; totalShipments: number }>;
+  getVendorPerformanceReport(vendorId?: string): Promise<LogisticsVendorPerformance[]>;
+  getShipmentVolumeMetrics(): Promise<LogisticsShipmentVolumeMetrics>;
+  getDeliveryPerformanceMetrics(): Promise<LogisticsDeliveryMetrics>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4136,6 +4193,682 @@ export class DatabaseStorage implements IStorage {
         successRate: item.total ? 
           (parseInt(item.completed?.toString() || '0') / item.total * 100) : 0
       }))
+    };
+  }
+
+  // ===== LOGISTICS MODULE IMPLEMENTATIONS =====
+
+  // Logistics Shipments - Basic CRUD
+  async getLogisticsShipment(id: string): Promise<any> {
+    const [shipment] = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .leftJoin(users, eq(logisticsShipments.assignedTo, users.id))
+      .where(eq(logisticsShipments.id, id));
+    
+    if (!shipment) return undefined;
+    
+    return {
+      ...shipment.logistics_shipments,
+      client: shipment.customers,
+      vendor: shipment.suppliers,
+      assignedEmployee: shipment.users
+    };
+  }
+
+  async getLogisticsShipments(): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .leftJoin(users, eq(logisticsShipments.assignedTo, users.id))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers,
+      assignedEmployee: s.users
+    }));
+  }
+
+  async createLogisticsShipment(shipment: InsertLogisticsShipment): Promise<LogisticsShipment> {
+    const [newShipment] = await db
+      .insert(logisticsShipments)
+      .values(shipment)
+      .returning();
+    return newShipment;
+  }
+
+  async updateLogisticsShipment(id: string, shipment: Partial<InsertLogisticsShipment>): Promise<LogisticsShipment> {
+    const [updatedShipment] = await db
+      .update(logisticsShipments)
+      .set(shipment)
+      .where(eq(logisticsShipments.id, id))
+      .returning();
+    return updatedShipment;
+  }
+
+  async deleteLogisticsShipment(id: string): Promise<void> {
+    await db.delete(logisticsShipments).where(eq(logisticsShipments.id, id));
+  }
+
+  // Logistics Shipments - Specialized queries
+  async getLogisticsShipmentsByStatus(status: string): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(eq(logisticsShipments.currentStatus, status as any))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  async getLogisticsShipmentsByEmployee(userId: string): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(eq(logisticsShipments.assignedTo, userId))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  async getLogisticsShipmentsByClient(clientId: string): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .where(eq(logisticsShipments.clientId, clientId))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers
+    }));
+  }
+
+  async getLogisticsShipmentsByVendor(vendorId: string): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(eq(logisticsShipments.vendorId, vendorId))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      vendor: s.suppliers
+    }));
+  }
+
+  async getLogisticsShipmentsByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(and(
+        gte(logisticsShipments.createdAt, startDate),
+        lte(logisticsShipments.createdAt, endDate)
+      ))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  // Logistics Shipments - Workflow operations
+  async updateShipmentStatus(id: string, statusData: any): Promise<LogisticsShipment> {
+    // Update shipment status
+    const [updatedShipment] = await db
+      .update(logisticsShipments)
+      .set({ 
+        currentStatus: statusData.status,
+        updatedAt: new Date()
+      })
+      .where(eq(logisticsShipments.id, id))
+      .returning();
+
+    // Create status update record
+    await db.insert(logisticsStatusUpdates).values({
+      shipmentId: id,
+      status: statusData.status,
+      location: statusData.location,
+      notes: statusData.notes,
+      podObjectKey: statusData.podObjectKey,
+      updatedBy: statusData.updatedBy
+    });
+
+    return updatedShipment;
+  }
+
+  async getShipmentTimeline(id: string): Promise<any[]> {
+    const timeline = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(users, eq(logisticsStatusUpdates.updatedBy, users.id))
+      .where(eq(logisticsStatusUpdates.shipmentId, id))
+      .orderBy(asc(logisticsStatusUpdates.timestamp));
+
+    return timeline.map(t => ({
+      ...t.logistics_status_updates,
+      updatedByUser: t.users
+    }));
+  }
+
+  async getActiveShipments(): Promise<any[]> {
+    const activeStatuses = ['created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery'];
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(sql`${logisticsShipments.currentStatus} = ANY(${activeStatuses})`)
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  async getOverdueShipments(): Promise<any[]> {
+    const today = new Date();
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(and(
+        lt(logisticsShipments.expectedDeliveryDate, today),
+        sql`${logisticsShipments.currentStatus} NOT IN ('delivered', 'closed')`
+      ))
+      .orderBy(asc(logisticsShipments.expectedDeliveryDate));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  async closeShipment(id: string, podData: any): Promise<LogisticsShipment> {
+    const now = new Date();
+    
+    // Update shipment to closed status
+    const [closedShipment] = await db
+      .update(logisticsShipments)
+      .set({
+        currentStatus: 'closed',
+        closedAt: now,
+        podObjectKey: podData.podObjectKey,
+        podUploadedAt: now,
+        podUploadedBy: podData.uploadedBy,
+        updatedAt: now
+      })
+      .where(eq(logisticsShipments.id, id))
+      .returning();
+
+    // Create final status update
+    await db.insert(logisticsStatusUpdates).values({
+      shipmentId: id,
+      status: 'closed',
+      notes: podData.notes || 'Shipment closed with POD',
+      podObjectKey: podData.podObjectKey,
+      updatedBy: podData.uploadedBy
+    });
+
+    return closedShipment;
+  }
+
+  async searchShipments(query: string): Promise<any[]> {
+    const shipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(like(logisticsShipments.consignmentNumber, `%${query}%`))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    return shipments.map(s => ({
+      ...s.logistics_shipments,
+      client: s.customers,
+      vendor: s.suppliers
+    }));
+  }
+
+  // Logistics Status Updates - Basic CRUD
+  async getLogisticsStatusUpdate(id: string): Promise<any> {
+    const [statusUpdate] = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(users, eq(logisticsStatusUpdates.updatedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsStatusUpdates.shipmentId, logisticsShipments.id))
+      .where(eq(logisticsStatusUpdates.id, id));
+    
+    if (!statusUpdate) return undefined;
+    
+    return {
+      ...statusUpdate.logistics_status_updates,
+      updatedByUser: statusUpdate.users,
+      shipment: statusUpdate.logistics_shipments
+    };
+  }
+
+  async getLogisticsStatusUpdates(): Promise<any[]> {
+    const statusUpdates = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(users, eq(logisticsStatusUpdates.updatedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsStatusUpdates.shipmentId, logisticsShipments.id))
+      .orderBy(desc(logisticsStatusUpdates.timestamp));
+
+    return statusUpdates.map(u => ({
+      ...u.logistics_status_updates,
+      updatedByUser: u.users,
+      shipment: u.logistics_shipments
+    }));
+  }
+
+  async createLogisticsStatusUpdate(update: InsertLogisticsStatusUpdate): Promise<LogisticsStatusUpdate> {
+    const [newUpdate] = await db
+      .insert(logisticsStatusUpdates)
+      .values(update)
+      .returning();
+    return newUpdate;
+  }
+
+  async updateLogisticsStatusUpdate(id: string, update: Partial<InsertLogisticsStatusUpdate>): Promise<LogisticsStatusUpdate> {
+    const [updatedUpdate] = await db
+      .update(logisticsStatusUpdates)
+      .set(update)
+      .where(eq(logisticsStatusUpdates.id, id))
+      .returning();
+    return updatedUpdate;
+  }
+
+  async deleteLogisticsStatusUpdate(id: string): Promise<void> {
+    await db.delete(logisticsStatusUpdates).where(eq(logisticsStatusUpdates.id, id));
+  }
+
+  async getStatusUpdatesByShipment(shipmentId: string): Promise<any[]> {
+    const statusUpdates = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(users, eq(logisticsStatusUpdates.updatedBy, users.id))
+      .where(eq(logisticsStatusUpdates.shipmentId, shipmentId))
+      .orderBy(asc(logisticsStatusUpdates.timestamp));
+
+    return statusUpdates.map(u => ({
+      ...u.logistics_status_updates,
+      updatedByUser: u.users
+    }));
+  }
+
+  async getStatusUpdatesByEmployee(userId: string): Promise<any[]> {
+    const statusUpdates = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(logisticsShipments, eq(logisticsStatusUpdates.shipmentId, logisticsShipments.id))
+      .where(eq(logisticsStatusUpdates.updatedBy, userId))
+      .orderBy(desc(logisticsStatusUpdates.timestamp));
+
+    return statusUpdates.map(u => ({
+      ...u.logistics_status_updates,
+      shipment: u.logistics_shipments
+    }));
+  }
+
+  async getStatusUpdatesByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const statusUpdates = await db
+      .select()
+      .from(logisticsStatusUpdates)
+      .leftJoin(users, eq(logisticsStatusUpdates.updatedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsStatusUpdates.shipmentId, logisticsShipments.id))
+      .where(and(
+        gte(logisticsStatusUpdates.timestamp, startDate),
+        lte(logisticsStatusUpdates.timestamp, endDate)
+      ))
+      .orderBy(desc(logisticsStatusUpdates.timestamp));
+
+    return statusUpdates.map(u => ({
+      ...u.logistics_status_updates,
+      updatedByUser: u.users,
+      shipment: u.logistics_shipments
+    }));
+  }
+
+  // Logistics Checkpoints - Basic CRUD
+  async getLogisticsCheckpoint(id: string): Promise<any> {
+    const [checkpoint] = await db
+      .select()
+      .from(logisticsCheckpoints)
+      .leftJoin(users, eq(logisticsCheckpoints.addedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsCheckpoints.shipmentId, logisticsShipments.id))
+      .where(eq(logisticsCheckpoints.id, id));
+    
+    if (!checkpoint) return undefined;
+    
+    return {
+      ...checkpoint.logistics_checkpoints,
+      addedByUser: checkpoint.users,
+      shipment: checkpoint.logistics_shipments
+    };
+  }
+
+  async getLogisticsCheckpoints(): Promise<any[]> {
+    const checkpoints = await db
+      .select()
+      .from(logisticsCheckpoints)
+      .leftJoin(users, eq(logisticsCheckpoints.addedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsCheckpoints.shipmentId, logisticsShipments.id))
+      .orderBy(desc(logisticsCheckpoints.checkpointTime));
+
+    return checkpoints.map(c => ({
+      ...c.logistics_checkpoints,
+      addedByUser: c.users,
+      shipment: c.logistics_shipments
+    }));
+  }
+
+  async createLogisticsCheckpoint(checkpoint: InsertLogisticsCheckpoint): Promise<LogisticsCheckpoint> {
+    const [newCheckpoint] = await db
+      .insert(logisticsCheckpoints)
+      .values(checkpoint)
+      .returning();
+    return newCheckpoint;
+  }
+
+  async updateLogisticsCheckpoint(id: string, checkpoint: Partial<InsertLogisticsCheckpoint>): Promise<LogisticsCheckpoint> {
+    const [updatedCheckpoint] = await db
+      .update(logisticsCheckpoints)
+      .set(checkpoint)
+      .where(eq(logisticsCheckpoints.id, id))
+      .returning();
+    return updatedCheckpoint;
+  }
+
+  async deleteLogisticsCheckpoint(id: string): Promise<void> {
+    await db.delete(logisticsCheckpoints).where(eq(logisticsCheckpoints.id, id));
+  }
+
+  async getCheckpointsByShipment(shipmentId: string): Promise<any[]> {
+    const checkpoints = await db
+      .select()
+      .from(logisticsCheckpoints)
+      .leftJoin(users, eq(logisticsCheckpoints.addedBy, users.id))
+      .where(eq(logisticsCheckpoints.shipmentId, shipmentId))
+      .orderBy(asc(logisticsCheckpoints.checkpointTime));
+
+    return checkpoints.map(c => ({
+      ...c.logistics_checkpoints,
+      addedByUser: c.users
+    }));
+  }
+
+  async getCheckpointsByEmployee(userId: string): Promise<any[]> {
+    const checkpoints = await db
+      .select()
+      .from(logisticsCheckpoints)
+      .leftJoin(logisticsShipments, eq(logisticsCheckpoints.shipmentId, logisticsShipments.id))
+      .where(eq(logisticsCheckpoints.addedBy, userId))
+      .orderBy(desc(logisticsCheckpoints.checkpointTime));
+
+    return checkpoints.map(c => ({
+      ...c.logistics_checkpoints,
+      shipment: c.logistics_shipments
+    }));
+  }
+
+  async getCheckpointsByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const checkpoints = await db
+      .select()
+      .from(logisticsCheckpoints)
+      .leftJoin(users, eq(logisticsCheckpoints.addedBy, users.id))
+      .leftJoin(logisticsShipments, eq(logisticsCheckpoints.shipmentId, logisticsShipments.id))
+      .where(and(
+        gte(logisticsCheckpoints.checkpointTime, startDate),
+        lte(logisticsCheckpoints.checkpointTime, endDate)
+      ))
+      .orderBy(desc(logisticsCheckpoints.checkpointTime));
+
+    return checkpoints.map(c => ({
+      ...c.logistics_checkpoints,
+      addedByUser: c.users,
+      shipment: c.logistics_shipments
+    }));
+  }
+
+  // Logistics Reports & Analytics
+  async getLogisticsDashboardMetrics(): Promise<any> {
+    const today = new Date();
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Total shipments
+    const totalShipments = await db
+      .select({ count: count() })
+      .from(logisticsShipments);
+
+    // Active shipments
+    const activeShipments = await db
+      .select({ count: count() })
+      .from(logisticsShipments)
+      .where(sql`${logisticsShipments.currentStatus} NOT IN ('delivered', 'closed')`);
+
+    // Delivered this month
+    const monthlyDelivered = await db
+      .select({ count: count() })
+      .from(logisticsShipments)
+      .where(and(
+        gte(logisticsShipments.deliveredAt, thisMonthStart),
+        eq(logisticsShipments.currentStatus, 'delivered')
+      ));
+
+    // On-time delivery rate
+    const onTimeDeliveries = await db
+      .select({ count: count() })
+      .from(logisticsShipments)
+      .where(and(
+        sql`${logisticsShipments.deliveredAt} <= ${logisticsShipments.expectedDeliveryDate}`,
+        sql`${logisticsShipments.currentStatus} IN ('delivered', 'closed')`
+      ));
+
+    const totalDeliveries = await db
+      .select({ count: count() })
+      .from(logisticsShipments)
+      .where(sql`${logisticsShipments.currentStatus} IN ('delivered', 'closed')`);
+
+    const onTimeRate = totalDeliveries[0]?.count ? 
+      ((onTimeDeliveries[0]?.count || 0) / totalDeliveries[0].count * 100) : 0;
+
+    return {
+      totalShipments: totalShipments[0]?.count || 0,
+      activeShipments: activeShipments[0]?.count || 0,
+      monthlyDelivered: monthlyDelivered[0]?.count || 0,
+      onTimeDeliveryRate: Math.round(onTimeRate * 100) / 100
+    };
+  }
+
+  async getDailyShipmentsReport(date: Date): Promise<any> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const dailyShipments = await db
+      .select()
+      .from(logisticsShipments)
+      .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(and(
+        gte(logisticsShipments.createdAt, startOfDay),
+        lte(logisticsShipments.createdAt, endOfDay)
+      ))
+      .orderBy(desc(logisticsShipments.createdAt));
+
+    const statusCounts = await db
+      .select({
+        status: logisticsShipments.currentStatus,
+        count: count()
+      })
+      .from(logisticsShipments)
+      .where(and(
+        gte(logisticsShipments.createdAt, startOfDay),
+        lte(logisticsShipments.createdAt, endOfDay)
+      ))
+      .groupBy(logisticsShipments.currentStatus);
+
+    return {
+      date: date.toISOString().split('T')[0],
+      totalShipments: dailyShipments.length,
+      shipments: dailyShipments.map(s => ({
+        ...s.logistics_shipments,
+        client: s.customers,
+        vendor: s.suppliers
+      })),
+      statusBreakdown: statusCounts
+    };
+  }
+
+  async getAverageDeliveryTime(dateRange?: { start: Date; end: Date }): Promise<any> {
+    let query = db
+      .select({
+        avgDays: avg(sql`EXTRACT(EPOCH FROM (${logisticsShipments.deliveredAt} - ${logisticsShipments.dispatchDate})) / 86400`)
+      })
+      .from(logisticsShipments)
+      .where(and(
+        isNotNull(logisticsShipments.deliveredAt),
+        isNotNull(logisticsShipments.dispatchDate)
+      ));
+
+    if (dateRange) {
+      query = query.where(and(
+        gte(logisticsShipments.deliveredAt, dateRange.start),
+        lte(logisticsShipments.deliveredAt, dateRange.end)
+      ));
+    }
+
+    const result = await query;
+    const avgDays = result[0]?.avgDays ? parseFloat(result[0].avgDays) : 0;
+
+    return {
+      averageDeliveryDays: Math.round(avgDays * 100) / 100,
+      dateRange: dateRange ? {
+        start: dateRange.start.toISOString().split('T')[0],
+        end: dateRange.end.toISOString().split('T')[0]
+      } : null
+    };
+  }
+
+  async getVendorPerformanceReport(vendorId?: string): Promise<any[]> {
+    let vendorQuery = db
+      .select({
+        vendorId: logisticsShipments.vendorId,
+        vendorName: suppliers.name,
+        totalShipments: count(),
+        deliveredShipments: sum(sql`CASE WHEN ${logisticsShipments.currentStatus} IN ('delivered', 'closed') THEN 1 ELSE 0 END`),
+        onTimeDeliveries: sum(sql`CASE WHEN ${logisticsShipments.deliveredAt} <= ${logisticsShipments.expectedDeliveryDate} AND ${logisticsShipments.currentStatus} IN ('delivered', 'closed') THEN 1 ELSE 0 END`),
+        avgDeliveryDays: avg(sql`EXTRACT(EPOCH FROM (${logisticsShipments.deliveredAt} - ${logisticsShipments.dispatchDate})) / 86400`)
+      })
+      .from(logisticsShipments)
+      .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+      .where(isNotNull(logisticsShipments.vendorId))
+      .groupBy(logisticsShipments.vendorId, suppliers.name);
+
+    if (vendorId) {
+      vendorQuery = vendorQuery.where(eq(logisticsShipments.vendorId, vendorId));
+    }
+
+    const vendors = await vendorQuery;
+
+    return vendors.map(v => ({
+      vendorId: v.vendorId,
+      vendorName: v.vendorName,
+      totalShipments: v.totalShipments,
+      deliveredShipments: parseInt(v.deliveredShipments?.toString() || '0'),
+      onTimeDeliveries: parseInt(v.onTimeDeliveries?.toString() || '0'),
+      deliveryRate: v.totalShipments ? 
+        (parseInt(v.deliveredShipments?.toString() || '0') / v.totalShipments * 100) : 0,
+      onTimeRate: parseInt(v.deliveredShipments?.toString() || '0') ? 
+        (parseInt(v.onTimeDeliveries?.toString() || '0') / parseInt(v.deliveredShipments?.toString() || '1') * 100) : 0,
+      avgDeliveryDays: v.avgDeliveryDays ? Math.round(parseFloat(v.avgDeliveryDays) * 100) / 100 : 0
+    }));
+  }
+
+  async getShipmentVolumeMetrics(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dailyVolume = await db
+      .select({
+        date: sql`DATE(${logisticsShipments.createdAt})`,
+        count: count()
+      })
+      .from(logisticsShipments)
+      .where(gte(logisticsShipments.createdAt, thirtyDaysAgo))
+      .groupBy(sql`DATE(${logisticsShipments.createdAt})`)
+      .orderBy(sql`DATE(${logisticsShipments.createdAt})`);
+
+    return {
+      dailyVolume,
+      totalLast30Days: dailyVolume.reduce((sum, day) => sum + day.count, 0),
+      avgDailyVolume: dailyVolume.length ? 
+        Math.round((dailyVolume.reduce((sum, day) => sum + day.count, 0) / dailyVolume.length) * 100) / 100 : 0
+    };
+  }
+
+  async getDeliveryPerformanceMetrics(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const performanceData = await db
+      .select({
+        totalShipments: count(),
+        deliveredShipments: sum(sql`CASE WHEN ${logisticsShipments.currentStatus} IN ('delivered', 'closed') THEN 1 ELSE 0 END`),
+        onTimeDeliveries: sum(sql`CASE WHEN ${logisticsShipments.deliveredAt} <= ${logisticsShipments.expectedDeliveryDate} AND ${logisticsShipments.currentStatus} IN ('delivered', 'closed') THEN 1 ELSE 0 END`),
+        overdueShipments: sum(sql`CASE WHEN ${logisticsShipments.expectedDeliveryDate} < NOW() AND ${logisticsShipments.currentStatus} NOT IN ('delivered', 'closed') THEN 1 ELSE 0 END`)
+      })
+      .from(logisticsShipments)
+      .where(gte(logisticsShipments.createdAt, thirtyDaysAgo));
+
+    const data = performanceData[0];
+    const totalShipments = data?.totalShipments || 0;
+    const deliveredShipments = parseInt(data?.deliveredShipments?.toString() || '0');
+    const onTimeDeliveries = parseInt(data?.onTimeDeliveries?.toString() || '0');
+    const overdueShipments = parseInt(data?.overdueShipments?.toString() || '0');
+
+    return {
+      totalShipments,
+      deliveredShipments,
+      onTimeDeliveries,
+      overdueShipments,
+      deliveryRate: totalShipments ? (deliveredShipments / totalShipments * 100) : 0,
+      onTimeRate: deliveredShipments ? (onTimeDeliveries / deliveredShipments * 100) : 0,
+      overdueRate: totalShipments ? (overdueShipments / totalShipments * 100) : 0
     };
   }
 }

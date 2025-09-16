@@ -1778,3 +1778,65 @@ export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
 
 export type AccountReport = typeof accountReports.$inferSelect;
 export type InsertAccountReport = z.infer<typeof insertAccountReportSchema>;
+
+// Logistics Operation Interfaces
+export interface LogisticsStatusData {
+  status: 'created' | 'packed' | 'dispatched' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'closed';
+  timestamp?: Date;
+  location?: string;
+  notes?: string;
+}
+
+export interface LogisticsPodData {
+  podObjectKey: string;
+  podUploadedAt: Date;
+  podUploadedBy: string;
+  deliveryConfirmation?: string;
+  recipientName?: string;
+  signatureObjectKey?: string;
+}
+
+// Logistics Analytics Interfaces
+export interface LogisticsShipmentTimeline {
+  id: string;
+  status: string;
+  timestamp: Date;
+  location?: string;
+  notes?: string;
+  updatedBy: string;
+  userName?: string;
+}
+
+export interface LogisticsDashboardMetrics {
+  totalShipments: number;
+  activeShipments: number;
+  deliveredToday: number;
+  overdueShipments: number;
+  averageDeliveryTime: number;
+  statusDistribution: Record<string, number>;
+  recentActivity: LogisticsShipmentTimeline[];
+}
+
+export interface LogisticsDeliveryMetrics {
+  onTimeDeliveries: number;
+  totalDeliveries: number;
+  onTimePercentage: number;
+  averageDeliveryDays: number;
+  delayedShipments: number;
+}
+
+export interface LogisticsVendorPerformance {
+  vendorId: string;
+  vendorName: string;
+  totalShipments: number;
+  onTimeDeliveries: number;
+  onTimePercentage: number;
+  averageDeliveryTime: number;
+}
+
+export interface LogisticsShipmentVolumeMetrics {
+  dailyShipments: { date: string; count: number }[];
+  monthlyTrend: { month: string; count: number }[];
+  totalVolume: number;
+  growthRate: number;
+}
