@@ -7,6 +7,8 @@ import {
   // Accounts entities
   accountsReceivables, accountsPayables, payments, bankAccounts, bankTransactions,
   gstReturns, accountReminders, accountTasks, accountReports,
+  // Marketing entities
+  leads, fieldVisits, marketingTasks, marketingAttendance,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -26,7 +28,10 @@ import {
   type Payment, type InsertPayment, type BankAccount, type InsertBankAccount,
   type BankTransaction, type InsertBankTransaction, type GstReturn, type InsertGstReturn,
   type AccountReminder, type InsertAccountReminder, type AccountTask, type InsertAccountTask,
-  type AccountReport, type InsertAccountReport
+  type AccountReport, type InsertAccountReport,
+  // Marketing types
+  type Lead, type InsertLead, type FieldVisit, type InsertFieldVisit,
+  type MarketingTask, type InsertMarketingTask, type MarketingAttendance, type InsertMarketingAttendance
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
@@ -320,6 +325,82 @@ export interface IStorage {
   getReportsByStatus(status: string): Promise<any[]>;
   exportReport(id: string, format: string): Promise<{ url: string; fileName: string }>;
   incrementReportDownload(id: string): Promise<void>;
+
+  // ===== MARKETING MODULE METHODS =====
+
+  // Leads
+  getLead(id: string): Promise<any>;
+  getLeads(): Promise<any[]>;
+  createLead(lead: InsertLead): Promise<Lead>;
+  updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead>;
+  deleteLead(id: string): Promise<void>;
+  getLeadsByStatus(status: string): Promise<any[]>;
+  getLeadsByAssignedEmployee(userId: string): Promise<any[]>;
+  getLeadsBySource(source: string): Promise<any[]>;
+  getLeadsByPriority(priority: string): Promise<any[]>;
+  updateLeadStatus(id: string, status: string): Promise<Lead>;
+  convertLeadToCustomer(leadId: string): Promise<Customer>;
+  getLeadsConversionMetrics(): Promise<any>;
+  searchLeads(query: string): Promise<any[]>;
+  getLeadsByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
+  getActiveLeads(): Promise<any[]>;
+
+  // Field Visits
+  getFieldVisit(id: string): Promise<any>;
+  getFieldVisits(): Promise<any[]>;
+  createFieldVisit(visit: InsertFieldVisit): Promise<FieldVisit>;
+  updateFieldVisit(id: string, visit: Partial<InsertFieldVisit>): Promise<FieldVisit>;
+  deleteFieldVisit(id: string): Promise<void>;
+  getFieldVisitsByEmployee(userId: string): Promise<any[]>;
+  getFieldVisitsByLead(leadId: string): Promise<any[]>;
+  getFieldVisitsByStatus(status: string): Promise<any[]>;
+  getFieldVisitsByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
+  updateVisitStatus(id: string, status: string): Promise<FieldVisit>;
+  getTodayFieldVisits(): Promise<any[]>;
+  getUpcomingFieldVisits(): Promise<any[]>;
+  getVisitMetrics(): Promise<any>;
+  checkInFieldVisit(id: string, checkInData: any): Promise<FieldVisit>;
+  checkOutFieldVisit(id: string, checkOutData: any): Promise<FieldVisit>;
+
+  // Marketing Tasks
+  getMarketingTask(id: string): Promise<any>;
+  getMarketingTasks(): Promise<any[]>;
+  createMarketingTask(task: InsertMarketingTask): Promise<MarketingTask>;
+  updateMarketingTask(id: string, task: Partial<InsertMarketingTask>): Promise<MarketingTask>;
+  deleteMarketingTask(id: string): Promise<void>;
+  getMarketingTasksByEmployee(userId: string): Promise<any[]>;
+  getMarketingTasksByStatus(status: string): Promise<any[]>;
+  getMarketingTasksByType(type: string): Promise<any[]>;
+  getMarketingTasksByPriority(priority: string): Promise<any[]>;
+  getMarketingTasksByLead(leadId: string): Promise<any[]>;
+  updateTaskStatus(id: string, status: string): Promise<MarketingTask>;
+  getTodayMarketingTasks(): Promise<any[]>;
+  getOverdueMarketingTasks(): Promise<any[]>;
+  getTaskMetrics(): Promise<any>;
+  completeMarketingTask(id: string, completionData: any): Promise<MarketingTask>;
+
+  // Marketing Attendance
+  getMarketingAttendance(id: string): Promise<any>;
+  getMarketingAttendances(): Promise<any[]>;
+  createMarketingAttendance(attendance: InsertMarketingAttendance): Promise<MarketingAttendance>;
+  updateMarketingAttendance(id: string, attendance: Partial<InsertMarketingAttendance>): Promise<MarketingAttendance>;
+  deleteMarketingAttendance(id: string): Promise<void>;
+  getMarketingAttendanceByEmployee(userId: string): Promise<any[]>;
+  getMarketingAttendanceByDate(date: Date): Promise<any[]>;
+  getMarketingAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
+  getTodayMarketingAttendance(): Promise<any[]>;
+  checkInMarketingAttendance(userId: string, checkInData: any): Promise<MarketingAttendance>;
+  checkOutMarketingAttendance(userId: string, checkOutData: any): Promise<MarketingAttendance>;
+  getMarketingAttendanceMetrics(): Promise<any>;
+  getEmployeeAttendanceHistory(userId: string, filters: any): Promise<any[]>;
+  updateAttendanceStatus(id: string, status: string): Promise<MarketingAttendance>;
+  getMarketingTeamAttendanceSummary(): Promise<any>;
+
+  // Marketing Analytics
+  getMarketingDashboardMetrics(): Promise<any>;
+  getLeadConversionRates(): Promise<any>;
+  getMarketingTeamPerformance(): Promise<any>;
+  getVisitSuccessRates(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2693,6 +2774,1333 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(accountReports.id, id));
+  }
+
+  // ===== MARKETING MODULE IMPLEMENTATIONS =====
+
+  // LEADS CRUD OPERATIONS
+  async getLead(id: string): Promise<any> {
+    const [lead] = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.id, id));
+    
+    if (!lead) return undefined;
+    
+    return {
+      ...lead.leads,
+      assignedUser: lead.users
+    };
+  }
+
+  async getLeads(): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async createLead(insertLead: InsertLead): Promise<Lead> {
+    const [lead] = await db.insert(leads).values(insertLead).returning();
+    return lead;
+  }
+
+  async updateLead(id: string, updateLead: Partial<InsertLead>): Promise<Lead> {
+    const [lead] = await db
+      .update(leads)
+      .set({ ...updateLead, updatedAt: new Date() })
+      .where(eq(leads.id, id))
+      .returning();
+    return lead;
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    await db.delete(leads).where(eq(leads.id, id));
+  }
+
+  async getLeadsByStatus(status: string): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.status, status as any))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async getLeadsByAssignedEmployee(userId: string): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.assignedTo, userId))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async getLeadsBySource(source: string): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.source, source as any))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async getLeadsByPriority(priority: string): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.priority, priority as any))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async updateLeadStatus(id: string, status: string): Promise<Lead> {
+    const [lead] = await db
+      .update(leads)
+      .set({ 
+        status: status as any, 
+        updatedAt: new Date(),
+        ...(status === 'converted' && { conversionDate: new Date() })
+      })
+      .where(eq(leads.id, id))
+      .returning();
+    return lead;
+  }
+
+  async convertLeadToCustomer(leadId: string): Promise<Customer> {
+    const lead = await this.getLead(leadId);
+    if (!lead) throw new Error('Lead not found');
+    
+    // Create customer from lead data
+    const customerData: InsertCustomer = {
+      name: `${lead.firstName} ${lead.lastName}`,
+      email: lead.email,
+      phone: lead.phone,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state,
+      zipCode: lead.zipCode,
+      country: lead.country,
+      companyType: lead.companyName ? 'company' : 'individual',
+      notes: `Converted from lead on ${new Date().toISOString()}. Original requirement: ${lead.requirementDescription}`
+    };
+
+    const customer = await this.createCustomer(customerData);
+    
+    // Update lead status to converted
+    await this.updateLeadStatus(leadId, 'converted');
+    
+    return customer;
+  }
+
+  async getLeadsConversionMetrics(): Promise<any> {
+    const totalLeads = await db.select({ count: count() }).from(leads);
+    const convertedLeads = await db.select({ count: count() }).from(leads).where(eq(leads.status, 'converted'));
+    const activeLeads = await db.select({ count: count() }).from(leads).where(eq(leads.isActive, true));
+    
+    const conversionRate = totalLeads[0]?.count ? 
+      ((convertedLeads[0]?.count || 0) / totalLeads[0].count * 100) : 0;
+    
+    return {
+      totalLeads: totalLeads[0]?.count || 0,
+      convertedLeads: convertedLeads[0]?.count || 0,
+      activeLeads: activeLeads[0]?.count || 0,
+      conversionRate: Math.round(conversionRate * 100) / 100
+    };
+  }
+
+  async searchLeads(query: string): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(
+        sql`${leads.firstName} ILIKE ${`%${query}%`} OR 
+            ${leads.lastName} ILIKE ${`%${query}%`} OR 
+            ${leads.companyName} ILIKE ${`%${query}%`} OR 
+            ${leads.email} ILIKE ${`%${query}%`} OR 
+            ${leads.phone} ILIKE ${`%${query}%`}`
+      )
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async getLeadsByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(and(
+        gte(leads.createdAt, startDate),
+        lte(leads.createdAt, endDate)
+      ))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  async getActiveLeads(): Promise<any[]> {
+    const leadsData = await db
+      .select()
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(and(
+        eq(leads.isActive, true),
+        sql`${leads.status} NOT IN ('converted', 'dropped')`
+      ))
+      .orderBy(desc(leads.createdAt));
+
+    return leadsData.map(l => ({
+      ...l.leads,
+      assignedUser: l.users
+    }));
+  }
+
+  // FIELD VISITS CRUD OPERATIONS
+  async getFieldVisit(id: string): Promise<any> {
+    const [visit] = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(eq(fieldVisits.id, id));
+    
+    if (!visit) return undefined;
+    
+    return {
+      ...visit.field_visits,
+      lead: visit.leads,
+      assignedUser: visit.users
+    };
+  }
+
+  async getFieldVisits(): Promise<any[]> {
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .orderBy(desc(fieldVisits.createdAt));
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
+    // Generate visit number
+    const visitCount = await db.select({ count: count() }).from(fieldVisits);
+    const visitNumber = `FV${String(visitCount[0].count + 1).padStart(6, '0')}`;
+    
+    const [visit] = await db
+      .insert(fieldVisits)
+      .values({ ...insertVisit, visitNumber })
+      .returning();
+    return visit;
+  }
+
+  async updateFieldVisit(id: string, updateVisit: Partial<InsertFieldVisit>): Promise<FieldVisit> {
+    const [visit] = await db
+      .update(fieldVisits)
+      .set({ ...updateVisit, updatedAt: new Date() })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    return visit;
+  }
+
+  async deleteFieldVisit(id: string): Promise<void> {
+    await db.delete(fieldVisits).where(eq(fieldVisits.id, id));
+  }
+
+  async getFieldVisitsByEmployee(userId: string): Promise<any[]> {
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(eq(fieldVisits.assignedTo, userId))
+      .orderBy(desc(fieldVisits.plannedDate));
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async getFieldVisitsByLead(leadId: string): Promise<any[]> {
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(eq(fieldVisits.leadId, leadId))
+      .orderBy(desc(fieldVisits.plannedDate));
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async getFieldVisitsByStatus(status: string): Promise<any[]> {
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(eq(fieldVisits.status, status as any))
+      .orderBy(desc(fieldVisits.plannedDate));
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async getFieldVisitsByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(and(
+        gte(fieldVisits.plannedDate, startDate),
+        lte(fieldVisits.plannedDate, endDate)
+      ))
+      .orderBy(desc(fieldVisits.plannedDate));
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async updateVisitStatus(id: string, status: string): Promise<FieldVisit> {
+    const [visit] = await db
+      .update(fieldVisits)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    return visit;
+  }
+
+  async getTodayFieldVisits(): Promise<any[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(and(
+        gte(fieldVisits.plannedDate, today),
+        lt(fieldVisits.plannedDate, tomorrow)
+      ))
+      .orderBy(fieldVisits.plannedStartTime);
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async getUpcomingFieldVisits(): Promise<any[]> {
+    const today = new Date();
+    
+    const visitsData = await db
+      .select()
+      .from(fieldVisits)
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .where(and(
+        gte(fieldVisits.plannedDate, today),
+        eq(fieldVisits.status, 'scheduled')
+      ))
+      .orderBy(fieldVisits.plannedDate)
+      .limit(20);
+
+    return visitsData.map(v => ({
+      ...v.field_visits,
+      lead: v.leads,
+      assignedUser: v.users
+    }));
+  }
+
+  async getVisitMetrics(): Promise<any> {
+    const totalVisits = await db.select({ count: count() }).from(fieldVisits);
+    const completedVisits = await db.select({ count: count() }).from(fieldVisits).where(eq(fieldVisits.status, 'completed'));
+    const todayVisits = await this.getTodayFieldVisits();
+    
+    const successRate = totalVisits[0]?.count ? 
+      ((completedVisits[0]?.count || 0) / totalVisits[0].count * 100) : 0;
+    
+    return {
+      totalVisits: totalVisits[0]?.count || 0,
+      completedVisits: completedVisits[0]?.count || 0,
+      todayVisits: todayVisits.length,
+      successRate: Math.round(successRate * 100) / 100
+    };
+  }
+
+  async checkInFieldVisit(id: string, checkInData: any): Promise<FieldVisit> {
+    const [visit] = await db
+      .update(fieldVisits)
+      .set({
+        actualStartTime: checkInData.actualStartTime || new Date(),
+        checkInLocation: checkInData.location,
+        checkInLatitude: checkInData.latitude,
+        checkInLongitude: checkInData.longitude,
+        checkInPhotoPath: checkInData.photoPath,
+        status: 'in_progress',
+        updatedAt: new Date()
+      })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    return visit;
+  }
+
+  async checkOutFieldVisit(id: string, checkOutData: any): Promise<FieldVisit> {
+    const [visit] = await db
+      .update(fieldVisits)
+      .set({
+        actualEndTime: checkOutData.actualEndTime || new Date(),
+        checkOutLocation: checkOutData.location,
+        checkOutLatitude: checkOutData.latitude,
+        checkOutLongitude: checkOutData.longitude,
+        checkOutPhotoPath: checkOutData.photoPath,
+        visitNotes: checkOutData.notes,
+        outcome: checkOutData.outcome,
+        status: 'completed',
+        updatedAt: new Date()
+      })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    return visit;
+  }
+
+  // MARKETING TASKS CRUD OPERATIONS
+  async getMarketingTask(id: string): Promise<any> {
+    const [task] = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .leftJoin(fieldVisits, eq(marketingTasks.fieldVisitId, fieldVisits.id))
+      .leftJoin(customers, eq(marketingTasks.customerId, customers.id))
+      .where(eq(marketingTasks.id, id));
+    
+    if (!task) return undefined;
+    
+    return {
+      ...task.marketing_tasks,
+      assignedUser: task.users,
+      lead: task.leads,
+      fieldVisit: task.field_visits,
+      customer: task.customers
+    };
+  }
+
+  async getMarketingTasks(): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .leftJoin(fieldVisits, eq(marketingTasks.fieldVisitId, fieldVisits.id))
+      .leftJoin(customers, eq(marketingTasks.customerId, customers.id))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads,
+      fieldVisit: t.field_visits,
+      customer: t.customers
+    }));
+  }
+
+  async createMarketingTask(insertTask: InsertMarketingTask): Promise<MarketingTask> {
+    const [task] = await db.insert(marketingTasks).values(insertTask).returning();
+    return task;
+  }
+
+  async updateMarketingTask(id: string, updateTask: Partial<InsertMarketingTask>): Promise<MarketingTask> {
+    const [task] = await db
+      .update(marketingTasks)
+      .set({ ...updateTask, updatedAt: new Date() })
+      .where(eq(marketingTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async deleteMarketingTask(id: string): Promise<void> {
+    await db.delete(marketingTasks).where(eq(marketingTasks.id, id));
+  }
+
+  async getMarketingTasksByEmployee(userId: string): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(eq(marketingTasks.assignedTo, userId))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getMarketingTasksByStatus(status: string): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(eq(marketingTasks.status, status as any))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getMarketingTasksByType(type: string): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(eq(marketingTasks.type, type as any))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getMarketingTasksByPriority(priority: string): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(eq(marketingTasks.priority, priority as any))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getMarketingTasksByLead(leadId: string): Promise<any[]> {
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(eq(marketingTasks.leadId, leadId))
+      .orderBy(desc(marketingTasks.createdAt));
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async updateTaskStatus(id: string, status: string): Promise<MarketingTask> {
+    const updateData: any = { 
+      status: status as any, 
+      updatedAt: new Date() 
+    };
+    
+    if (status === 'in_progress') {
+      updateData.startedDate = new Date();
+    } else if (status === 'completed') {
+      updateData.completedDate = new Date();
+    }
+    
+    const [task] = await db
+      .update(marketingTasks)
+      .set(updateData)
+      .where(eq(marketingTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async getTodayMarketingTasks(): Promise<any[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(and(
+        gte(marketingTasks.dueDate, today),
+        lt(marketingTasks.dueDate, tomorrow)
+      ))
+      .orderBy(marketingTasks.dueDate);
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getOverdueMarketingTasks(): Promise<any[]> {
+    const today = new Date();
+    
+    const tasksData = await db
+      .select()
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
+      .where(and(
+        lt(marketingTasks.dueDate, today),
+        sql`${marketingTasks.status} NOT IN ('completed', 'cancelled')`
+      ))
+      .orderBy(marketingTasks.dueDate);
+
+    return tasksData.map(t => ({
+      ...t.marketing_tasks,
+      assignedUser: t.users,
+      lead: t.leads
+    }));
+  }
+
+  async getTaskMetrics(): Promise<any> {
+    const totalTasks = await db.select({ count: count() }).from(marketingTasks);
+    const completedTasks = await db.select({ count: count() }).from(marketingTasks).where(eq(marketingTasks.status, 'completed'));
+    const overdueTasks = await this.getOverdueMarketingTasks();
+    const todayTasks = await this.getTodayMarketingTasks();
+    
+    const completionRate = totalTasks[0]?.count ? 
+      ((completedTasks[0]?.count || 0) / totalTasks[0].count * 100) : 0;
+    
+    return {
+      totalTasks: totalTasks[0]?.count || 0,
+      completedTasks: completedTasks[0]?.count || 0,
+      overdueTasks: overdueTasks.length,
+      todayTasks: todayTasks.length,
+      completionRate: Math.round(completionRate * 100) / 100
+    };
+  }
+
+  async completeMarketingTask(id: string, completionData: any): Promise<MarketingTask> {
+    const [task] = await db
+      .update(marketingTasks)
+      .set({
+        status: 'completed',
+        completedDate: new Date(),
+        completionNotes: completionData.notes,
+        outcome: completionData.outcome,
+        nextAction: completionData.nextAction,
+        actualHours: completionData.actualHours,
+        updatedAt: new Date()
+      })
+      .where(eq(marketingTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  // MARKETING ATTENDANCE CRUD OPERATIONS
+  async getMarketingAttendance(id: string): Promise<any> {
+    const [attendance] = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(eq(marketingAttendance.id, id));
+    
+    if (!attendance) return undefined;
+    
+    return {
+      ...attendance.marketing_attendance,
+      user: attendance.users
+    };
+  }
+
+  async getMarketingAttendances(): Promise<any[]> {
+    const attendanceData = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .orderBy(desc(marketingAttendance.date));
+
+    return attendanceData.map(a => ({
+      ...a.marketing_attendance,
+      user: a.users
+    }));
+  }
+
+  async createMarketingAttendance(insertAttendance: InsertMarketingAttendance): Promise<MarketingAttendance> {
+    const [attendance] = await db.insert(marketingAttendance).values(insertAttendance).returning();
+    return attendance;
+  }
+
+  async updateMarketingAttendance(id: string, updateAttendance: Partial<InsertMarketingAttendance>): Promise<MarketingAttendance> {
+    const [attendance] = await db
+      .update(marketingAttendance)
+      .set({ ...updateAttendance, updatedAt: new Date() })
+      .where(eq(marketingAttendance.id, id))
+      .returning();
+    return attendance;
+  }
+
+  async deleteMarketingAttendance(id: string): Promise<void> {
+    await db.delete(marketingAttendance).where(eq(marketingAttendance.id, id));
+  }
+
+  async getMarketingAttendanceByEmployee(userId: string): Promise<any[]> {
+    const attendanceData = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(eq(marketingAttendance.userId, userId))
+      .orderBy(desc(marketingAttendance.date));
+
+    return attendanceData.map(a => ({
+      ...a.marketing_attendance,
+      user: a.users
+    }));
+  }
+
+  async getMarketingAttendanceByDate(date: Date): Promise<any[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const attendanceData = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(and(
+        gte(marketingAttendance.date, startOfDay),
+        lte(marketingAttendance.date, endOfDay)
+      ))
+      .orderBy(marketingAttendance.checkInTime);
+
+    return attendanceData.map(a => ({
+      ...a.marketing_attendance,
+      user: a.users
+    }));
+  }
+
+  async getMarketingAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    const attendanceData = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(and(
+        gte(marketingAttendance.date, startDate),
+        lte(marketingAttendance.date, endDate)
+      ))
+      .orderBy(desc(marketingAttendance.date));
+
+    return attendanceData.map(a => ({
+      ...a.marketing_attendance,
+      user: a.users
+    }));
+  }
+
+  async getTodayMarketingAttendance(): Promise<any[]> {
+    const today = new Date();
+    return await this.getMarketingAttendanceByDate(today);
+  }
+
+  async checkInMarketingAttendance(userId: string, checkInData: any): Promise<MarketingAttendance> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Check if already checked in today
+    const [existing] = await db
+      .select()
+      .from(marketingAttendance)
+      .where(and(
+        eq(marketingAttendance.userId, userId),
+        gte(marketingAttendance.date, today)
+      ));
+
+    if (existing) {
+      // Update existing record
+      const [attendance] = await db
+        .update(marketingAttendance)
+        .set({
+          checkInTime: checkInData.checkInTime || new Date(),
+          checkInLocation: checkInData.location,
+          checkInLatitude: checkInData.latitude,
+          checkInLongitude: checkInData.longitude,
+          checkInPhotoPath: checkInData.photoPath,
+          attendanceStatus: 'present',
+          updatedAt: new Date()
+        })
+        .where(eq(marketingAttendance.id, existing.id))
+        .returning();
+      return attendance;
+    } else {
+      // Create new record
+      const attendanceData: InsertMarketingAttendance = {
+        userId,
+        date: new Date(),
+        checkInTime: checkInData.checkInTime || new Date(),
+        checkInLocation: checkInData.location,
+        checkInLatitude: checkInData.latitude,
+        checkInLongitude: checkInData.longitude,
+        checkInPhotoPath: checkInData.photoPath,
+        attendanceStatus: 'present'
+      };
+      return await this.createMarketingAttendance(attendanceData);
+    }
+  }
+
+  async checkOutMarketingAttendance(userId: string, checkOutData: any): Promise<MarketingAttendance> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [existing] = await db
+      .select()
+      .from(marketingAttendance)
+      .where(and(
+        eq(marketingAttendance.userId, userId),
+        gte(marketingAttendance.date, today)
+      ));
+
+    if (!existing) {
+      throw new Error('No check-in record found for today');
+    }
+
+    // Calculate work hours
+    const checkInTime = existing.checkInTime;
+    const checkOutTime = checkOutData.checkOutTime || new Date();
+    const totalMinutes = checkInTime ? 
+      Math.round((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60)) : 0;
+    const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
+
+    const [attendance] = await db
+      .update(marketingAttendance)
+      .set({
+        checkOutTime: checkOutTime,
+        checkOutLocation: checkOutData.location,
+        checkOutLatitude: checkOutData.latitude,
+        checkOutLongitude: checkOutData.longitude,
+        checkOutPhotoPath: checkOutData.photoPath,
+        totalHours: totalHours.toString(),
+        workDescription: checkOutData.workDescription,
+        visitCount: checkOutData.visitCount || 0,
+        tasksCompleted: checkOutData.tasksCompleted || 0,
+        notes: checkOutData.notes,
+        updatedAt: new Date()
+      })
+      .where(eq(marketingAttendance.id, existing.id))
+      .returning();
+    return attendance;
+  }
+
+  async getMarketingAttendanceMetrics(): Promise<any> {
+    const today = new Date();
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Today's attendance
+    const todayAttendance = await this.getTodayMarketingAttendance();
+    const presentToday = todayAttendance.filter(a => a.attendanceStatus === 'present').length;
+
+    // This week's average hours
+    const weeklyHours = await db
+      .select({
+        avgHours: avg(sql`CAST(${marketingAttendance.totalHours} AS DECIMAL)`)
+      })
+      .from(marketingAttendance)
+      .where(and(
+        gte(marketingAttendance.date, thisWeekStart),
+        isNotNull(marketingAttendance.totalHours)
+      ));
+
+    // Monthly attendance rate
+    const monthlyAttendance = await db
+      .select({ count: count() })
+      .from(marketingAttendance)
+      .where(and(
+        gte(marketingAttendance.date, thisMonthStart),
+        eq(marketingAttendance.attendanceStatus, 'present')
+      ));
+
+    const totalMarketingEmployees = await db
+      .select({ count: count() })
+      .from(users)
+      .where(and(
+        eq(users.isActive, true),
+        eq(users.department, 'marketing')
+      ));
+
+    const avgHours = weeklyHours[0]?.avgHours ? 
+      Math.round(parseFloat(weeklyHours[0].avgHours) * 100) / 100 : 0;
+
+    return {
+      totalEmployees: totalMarketingEmployees[0]?.count || 0,
+      presentToday: presentToday,
+      averageHoursThisWeek: avgHours,
+      monthlyAttendanceCount: monthlyAttendance[0]?.count || 0,
+      todayTotal: todayAttendance.length
+    };
+  }
+
+  async getEmployeeAttendanceHistory(userId: string, filters: any): Promise<any[]> {
+    let query = db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(eq(marketingAttendance.userId, userId));
+
+    if (filters.startDate && filters.endDate) {
+      query = query.where(and(
+        eq(marketingAttendance.userId, userId),
+        gte(marketingAttendance.date, filters.startDate),
+        lte(marketingAttendance.date, filters.endDate)
+      ));
+    }
+
+    if (filters.status) {
+      query = query.where(and(
+        eq(marketingAttendance.userId, userId),
+        eq(marketingAttendance.attendanceStatus, filters.status)
+      ));
+    }
+
+    const attendanceData = await query.orderBy(desc(marketingAttendance.date));
+
+    return attendanceData.map(a => ({
+      ...a.marketing_attendance,
+      user: a.users
+    }));
+  }
+
+  async updateAttendanceStatus(id: string, status: string): Promise<MarketingAttendance> {
+    const [attendance] = await db
+      .update(marketingAttendance)
+      .set({ 
+        attendanceStatus: status, 
+        updatedAt: new Date() 
+      })
+      .where(eq(marketingAttendance.id, id))
+      .returning();
+    return attendance;
+  }
+
+  async getMarketingTeamAttendanceSummary(): Promise<any> {
+    const today = new Date();
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Get all marketing employees
+    const marketingEmployees = await db
+      .select()
+      .from(users)
+      .where(and(
+        eq(users.isActive, true),
+        eq(users.department, 'marketing')
+      ));
+
+    // Get monthly attendance for each employee
+    const employeeSummaries = await Promise.all(
+      marketingEmployees.map(async (employee) => {
+        const monthlyAttendance = await db
+          .select({ count: count() })
+          .from(marketingAttendance)
+          .where(and(
+            eq(marketingAttendance.userId, employee.id),
+            gte(marketingAttendance.date, thisMonthStart),
+            eq(marketingAttendance.attendanceStatus, 'present')
+          ));
+
+        const totalWorkingDays = today.getDate();
+        const attendanceRate = totalWorkingDays > 0 ? 
+          ((monthlyAttendance[0]?.count || 0) / totalWorkingDays * 100) : 0;
+
+        return {
+          employee: {
+            id: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            email: employee.email
+          },
+          monthlyAttendance: monthlyAttendance[0]?.count || 0,
+          attendanceRate: Math.round(attendanceRate * 100) / 100,
+          totalWorkingDays
+        };
+      })
+    );
+
+    return {
+      totalEmployees: marketingEmployees.length,
+      summaries: employeeSummaries,
+      month: today.toLocaleString('default', { month: 'long', year: 'numeric' })
+    };
+  }
+
+  // MARKETING ANALYTICS AND DASHBOARD METHODS
+  async getMarketingDashboardMetrics(): Promise<any> {
+    const today = new Date();
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+
+    // Get lead metrics
+    const leadMetrics = await this.getLeadsConversionMetrics();
+    
+    // Get visit metrics
+    const visitMetrics = await this.getVisitMetrics();
+    
+    // Get task metrics
+    const taskMetrics = await this.getTaskMetrics();
+    
+    // Get attendance metrics
+    const attendanceMetrics = await this.getMarketingAttendanceMetrics();
+
+    // Get this month's new leads
+    const monthlyNewLeads = await db
+      .select({ count: count() })
+      .from(leads)
+      .where(gte(leads.createdAt, thisMonthStart));
+
+    // Get this week's field visits
+    const weeklyVisits = await db
+      .select({ count: count() })
+      .from(fieldVisits)
+      .where(and(
+        gte(fieldVisits.plannedDate, thisWeekStart),
+        eq(fieldVisits.status, 'completed')
+      ));
+
+    // Get pending follow-ups
+    const pendingFollowUps = await db
+      .select({ count: count() })
+      .from(leads)
+      .where(and(
+        lte(leads.followUpDate, today),
+        sql`${leads.status} NOT IN ('converted', 'dropped')`,
+        eq(leads.isActive, true)
+      ));
+
+    return {
+      leads: {
+        total: leadMetrics.totalLeads,
+        active: leadMetrics.activeLeads,
+        converted: leadMetrics.convertedLeads,
+        conversionRate: leadMetrics.conversionRate,
+        monthlyNew: monthlyNewLeads[0]?.count || 0,
+        pendingFollowUps: pendingFollowUps[0]?.count || 0
+      },
+      visits: {
+        total: visitMetrics.totalVisits,
+        completed: visitMetrics.completedVisits,
+        today: visitMetrics.todayVisits,
+        successRate: visitMetrics.successRate,
+        weeklyCompleted: weeklyVisits[0]?.count || 0
+      },
+      tasks: {
+        total: taskMetrics.totalTasks,
+        completed: taskMetrics.completedTasks,
+        overdue: taskMetrics.overdueTasks,
+        today: taskMetrics.todayTasks,
+        completionRate: taskMetrics.completionRate
+      },
+      attendance: {
+        totalEmployees: attendanceMetrics.totalEmployees,
+        presentToday: attendanceMetrics.presentToday,
+        averageHoursThisWeek: attendanceMetrics.averageHoursThisWeek,
+        monthlyAttendanceCount: attendanceMetrics.monthlyAttendanceCount
+      }
+    };
+  }
+
+  async getLeadConversionRates(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Last 30 days
+    const last30DaysLeads = await db.select({ count: count() }).from(leads)
+      .where(gte(leads.createdAt, thirtyDaysAgo));
+    const last30DaysConverted = await db.select({ count: count() }).from(leads)
+      .where(and(
+        gte(leads.createdAt, thirtyDaysAgo),
+        eq(leads.status, 'converted')
+      ));
+
+    // Last 60 days
+    const last60DaysLeads = await db.select({ count: count() }).from(leads)
+      .where(gte(leads.createdAt, sixtyDaysAgo));
+    const last60DaysConverted = await db.select({ count: count() }).from(leads)
+      .where(and(
+        gte(leads.createdAt, sixtyDaysAgo),
+        eq(leads.status, 'converted')
+      ));
+
+    // Last 90 days
+    const last90DaysLeads = await db.select({ count: count() }).from(leads)
+      .where(gte(leads.createdAt, ninetyDaysAgo));
+    const last90DaysConverted = await db.select({ count: count() }).from(leads)
+      .where(and(
+        gte(leads.createdAt, ninetyDaysAgo),
+        eq(leads.status, 'converted')
+      ));
+
+    // Conversion by source
+    const conversionBySource = await db
+      .select({
+        source: leads.source,
+        total: count(),
+        converted: sum(sql`CASE WHEN ${leads.status} = 'converted' THEN 1 ELSE 0 END`)
+      })
+      .from(leads)
+      .groupBy(leads.source);
+
+    return {
+      last30Days: {
+        totalLeads: last30DaysLeads[0]?.count || 0,
+        convertedLeads: last30DaysConverted[0]?.count || 0,
+        conversionRate: last30DaysLeads[0]?.count ? 
+          ((last30DaysConverted[0]?.count || 0) / last30DaysLeads[0].count * 100) : 0
+      },
+      last60Days: {
+        totalLeads: last60DaysLeads[0]?.count || 0,
+        convertedLeads: last60DaysConverted[0]?.count || 0,
+        conversionRate: last60DaysLeads[0]?.count ? 
+          ((last60DaysConverted[0]?.count || 0) / last60DaysLeads[0].count * 100) : 0
+      },
+      last90Days: {
+        totalLeads: last90DaysLeads[0]?.count || 0,
+        convertedLeads: last90DaysConverted[0]?.count || 0,
+        conversionRate: last90DaysLeads[0]?.count ? 
+          ((last90DaysConverted[0]?.count || 0) / last90DaysLeads[0].count * 100) : 0
+      },
+      bySource: conversionBySource.map(item => ({
+        source: item.source,
+        totalLeads: item.total,
+        convertedLeads: parseInt(item.converted?.toString() || '0'),
+        conversionRate: item.total ? 
+          (parseInt(item.converted?.toString() || '0') / item.total * 100) : 0
+      }))
+    };
+  }
+
+  async getMarketingTeamPerformance(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get all marketing employees
+    const marketingEmployees = await db
+      .select()
+      .from(users)
+      .where(and(
+        eq(users.isActive, true),
+        eq(users.department, 'marketing')
+      ));
+
+    const performance = await Promise.all(
+      marketingEmployees.map(async (employee) => {
+        // Lead metrics
+        const assignedLeads = await db.select({ count: count() }).from(leads)
+          .where(eq(leads.assignedTo, employee.id));
+        const convertedLeads = await db.select({ count: count() }).from(leads)
+          .where(and(
+            eq(leads.assignedTo, employee.id),
+            eq(leads.status, 'converted')
+          ));
+
+        // Visit metrics
+        const totalVisits = await db.select({ count: count() }).from(fieldVisits)
+          .where(eq(fieldVisits.assignedTo, employee.id));
+        const completedVisits = await db.select({ count: count() }).from(fieldVisits)
+          .where(and(
+            eq(fieldVisits.assignedTo, employee.id),
+            eq(fieldVisits.status, 'completed')
+          ));
+
+        // Task metrics
+        const assignedTasks = await db.select({ count: count() }).from(marketingTasks)
+          .where(eq(marketingTasks.assignedTo, employee.id));
+        const completedTasks = await db.select({ count: count() }).from(marketingTasks)
+          .where(and(
+            eq(marketingTasks.assignedTo, employee.id),
+            eq(marketingTasks.status, 'completed')
+          ));
+
+        // Recent activity (last 30 days)
+        const recentLeads = await db.select({ count: count() }).from(leads)
+          .where(and(
+            eq(leads.assignedTo, employee.id),
+            gte(leads.createdAt, thirtyDaysAgo)
+          ));
+        const recentVisits = await db.select({ count: count() }).from(fieldVisits)
+          .where(and(
+            eq(fieldVisits.assignedTo, employee.id),
+            gte(fieldVisits.plannedDate, thirtyDaysAgo)
+          ));
+
+        const leadConversionRate = assignedLeads[0]?.count ? 
+          ((convertedLeads[0]?.count || 0) / assignedLeads[0].count * 100) : 0;
+        const visitSuccessRate = totalVisits[0]?.count ? 
+          ((completedVisits[0]?.count || 0) / totalVisits[0].count * 100) : 0;
+        const taskCompletionRate = assignedTasks[0]?.count ? 
+          ((completedTasks[0]?.count || 0) / assignedTasks[0].count * 100) : 0;
+
+        return {
+          employee: {
+            id: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            email: employee.email
+          },
+          leads: {
+            total: assignedLeads[0]?.count || 0,
+            converted: convertedLeads[0]?.count || 0,
+            conversionRate: Math.round(leadConversionRate * 100) / 100,
+            recent: recentLeads[0]?.count || 0
+          },
+          visits: {
+            total: totalVisits[0]?.count || 0,
+            completed: completedVisits[0]?.count || 0,
+            successRate: Math.round(visitSuccessRate * 100) / 100,
+            recent: recentVisits[0]?.count || 0
+          },
+          tasks: {
+            total: assignedTasks[0]?.count || 0,
+            completed: completedTasks[0]?.count || 0,
+            completionRate: Math.round(taskCompletionRate * 100) / 100
+          }
+        };
+      })
+    );
+
+    return {
+      teamSize: marketingEmployees.length,
+      performance: performance.sort((a, b) => b.leads.conversionRate - a.leads.conversionRate)
+    };
+  }
+
+  async getVisitSuccessRates(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Overall success rates
+    const totalVisits = await db.select({ count: count() }).from(fieldVisits);
+    const completedVisits = await db.select({ count: count() }).from(fieldVisits)
+      .where(eq(fieldVisits.status, 'completed'));
+    const successfulVisits = await db.select({ count: count() }).from(fieldVisits)
+      .where(sql`${fieldVisits.outcome} ILIKE '%success%' OR ${fieldVisits.outcome} ILIKE '%positive%'`);
+
+    // Recent trends (last 30 days)
+    const recentVisits = await db.select({ count: count() }).from(fieldVisits)
+      .where(gte(fieldVisits.plannedDate, thirtyDaysAgo));
+    const recentCompleted = await db.select({ count: count() }).from(fieldVisits)
+      .where(and(
+        gte(fieldVisits.plannedDate, thirtyDaysAgo),
+        eq(fieldVisits.status, 'completed')
+      ));
+
+    // Success by purpose
+    const successByPurpose = await db
+      .select({
+        purpose: fieldVisits.purpose,
+        total: count(),
+        completed: sum(sql`CASE WHEN ${fieldVisits.status} = 'completed' THEN 1 ELSE 0 END`)
+      })
+      .from(fieldVisits)
+      .groupBy(fieldVisits.purpose);
+
+    const overallSuccessRate = totalVisits[0]?.count ? 
+      ((completedVisits[0]?.count || 0) / totalVisits[0].count * 100) : 0;
+    const recentSuccessRate = recentVisits[0]?.count ? 
+      ((recentCompleted[0]?.count || 0) / recentVisits[0].count * 100) : 0;
+    const positiveOutcomeRate = totalVisits[0]?.count ? 
+      ((successfulVisits[0]?.count || 0) / totalVisits[0].count * 100) : 0;
+
+    return {
+      overall: {
+        totalVisits: totalVisits[0]?.count || 0,
+        completedVisits: completedVisits[0]?.count || 0,
+        successRate: Math.round(overallSuccessRate * 100) / 100,
+        positiveOutcomeRate: Math.round(positiveOutcomeRate * 100) / 100
+      },
+      recent: {
+        totalVisits: recentVisits[0]?.count || 0,
+        completedVisits: recentCompleted[0]?.count || 0,
+        successRate: Math.round(recentSuccessRate * 100) / 100
+      },
+      byPurpose: successByPurpose.map(item => ({
+        purpose: item.purpose,
+        totalVisits: item.total,
+        completedVisits: parseInt(item.completed?.toString() || '0'),
+        successRate: item.total ? 
+          (parseInt(item.completed?.toString() || '0') / item.total * 100) : 0
+      }))
+    };
   }
 }
 
