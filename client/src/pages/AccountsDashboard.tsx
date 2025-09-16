@@ -648,14 +648,14 @@ export default function AccountsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {orders?.filter(o => o.status === 'delivered').slice(0, 3).map((payment: any) => (
+                {invoices?.filter(i => i.status === 'paid').slice(0, 3).map((payment: any) => (
                   <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
                     <div>
                       <p className="text-sm font-medium">{payment.customer?.name || 'Unknown Customer'}</p>
-                      <p className="text-xs text-muted-foreground">{payment.orderNumber}</p>
+                      <p className="text-xs text-muted-foreground">{payment.invoiceNumber}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">${parseFloat(payment.totalAmount).toFixed(2)}</p>
+                      <p className="text-sm font-medium">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(payment.createdAt).toLocaleDateString()}
                       </p>
