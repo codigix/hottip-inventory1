@@ -73,7 +73,7 @@ export function FileUploader({
 
       // Handle upload completion
       xhr.addEventListener("load", () => {
-        if (xhr.status === 200) {
+        if (xhr.status >= 200 && xhr.status < 300) {
           toast({
             title: "Upload successful",
             description: `${selectedFile.name} has been uploaded successfully.`,
@@ -89,14 +89,36 @@ export function FileUploader({
           setSelectedFile(null);
           setUploadProgress(0);
         } else {
-          throw new Error(`Upload failed with status: ${xhr.status}`);
+          toast({
+            title: "Upload failed",
+            description: `Upload failed with status: ${xhr.status}. Please try again.`,
+            variant: "destructive",
+          });
+          setUploadProgress(0);
         }
         setIsUploading(false);
       });
 
       // Handle upload errors
       xhr.addEventListener("error", () => {
-        throw new Error("Upload failed");
+        toast({
+          title: "Upload failed",
+          description: "Network error occurred during upload. Please try again.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        setUploadProgress(0);
+      });
+
+      // Handle upload timeout
+      xhr.addEventListener("timeout", () => {
+        toast({
+          title: "Upload timeout",
+          description: "Upload took too long. Please try again.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        setUploadProgress(0);
       });
 
       // Start upload
