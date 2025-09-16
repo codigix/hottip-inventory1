@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Import marketing pages (placeholder imports)
+// Import marketing pages
 import MarketingDashboard from "@/pages/MarketingDashboard";
+import Leads from "./Leads";
 
 const sidebarItems = [
   {
@@ -168,16 +169,7 @@ export default function MarketingLayout() {
             <MarketingDashboard />
           </Route>
           <Route path="/marketing/leads">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Leads Management</h2>
-                  <p className="text-muted-foreground">
-                    Lead management and status workflow coming soon.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <Leads />
           </Route>
           <Route path="/marketing/field-visits">
             <div className="p-8">
