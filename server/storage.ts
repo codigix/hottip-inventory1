@@ -847,7 +847,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAccountsAttendance(filters: any): Promise<any[]> {
-    let query = db
+    const conditions = [];
+    
+    if (filters.startDate) {
+      conditions.push(gte(attendance.date, filters.startDate));
+    }
+    if (filters.endDate) {
+      conditions.push(lte(attendance.date, filters.endDate));
+    }
+    if (filters.department) {
+      conditions.push(eq(users.department, filters.department));
+    }
+
+    const query = db
       .select({
         id: attendance.id,
         userId: attendance.userId,
@@ -867,20 +879,8 @@ export class DatabaseStorage implements IStorage {
       .from(attendance)
       .leftJoin(users, eq(attendance.userId, users.id));
 
-    const conditions = [];
-    
-    if (filters.startDate) {
-      conditions.push(gte(attendance.date, filters.startDate));
-    }
-    if (filters.endDate) {
-      conditions.push(lte(attendance.date, filters.endDate));
-    }
-    if (filters.department) {
-      conditions.push(eq(users.department, filters.department));
-    }
-
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      return await query.where(and(...conditions)).orderBy(desc(attendance.date));
     }
 
     return await query.orderBy(desc(attendance.date));
@@ -3264,8 +3264,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMarketingTask(insertTask: InsertMarketingTask): Promise<MarketingTask> {
-    const [task] = await db.insert(marketingTasks).values(insertTask).returning();
-    return task;
+    const result = await db.insert(marketingTasks).values(insertTask).returning();
+    return result[0];
   }
 
   async updateMarketingTask(id: string, updateTask: Partial<InsertMarketingTask>): Promise<MarketingTask> {
@@ -3707,28 +3707,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEmployeeAttendanceHistory(userId: string, filters: any): Promise<any[]> {
-    let query = db
-      .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(eq(marketingAttendance.userId, userId));
+    // Build conditions array
+    const conditions = [eq(marketingAttendance.userId, userId)];
 
     if (filters.startDate && filters.endDate) {
-      query = query.where(and(
-        eq(marketingAttendance.userId, userId),
+      conditions.push(
         gte(marketingAttendance.date, filters.startDate),
         lte(marketingAttendance.date, filters.endDate)
-      ));
+      );
     }
 
     if (filters.status) {
-      query = query.where(and(
-        eq(marketingAttendance.userId, userId),
-        eq(marketingAttendance.attendanceStatus, filters.status)
-      ));
+      conditions.push(eq(marketingAttendance.attendanceStatus, filters.status));
     }
 
-    const attendanceData = await query.orderBy(desc(marketingAttendance.date));
+    const attendanceData = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(marketingAttendance.date));
 
     return attendanceData.map(a => ({
       ...a.marketing_attendance,
