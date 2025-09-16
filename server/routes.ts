@@ -11,7 +11,10 @@ import {
   insertShipmentSchema, insertTaskSchema, insertAttendanceSchema,
   insertOutboundQuotationSchema, insertQuotationItemSchema,
   insertInboundQuotationSchema, insertInboundQuotationItemSchema,
-  insertInvoiceSchema, insertInvoiceItemSchema
+  insertInvoiceSchema, insertInvoiceItemSchema,
+  insertStockTransactionSchema, insertSparePartSchema, insertBatchSchema,
+  insertBarcodeSchema, insertFabricationOrderSchema, insertReorderPointSchema,
+  insertVendorCommunicationSchema, insertInventoryTaskSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -739,6 +742,500 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating quotation attachment:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Stock Transactions Routes
+  app.get("/api/stock-transactions", async (req, res) => {
+    try {
+      const transactions = await storage.getStockTransactions();
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock transactions" });
+    }
+  });
+
+  app.get("/api/stock-transactions/:id", async (req, res) => {
+    try {
+      const transaction = await storage.getStockTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ error: "Stock transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stock transaction" });
+    }
+  });
+
+  app.post("/api/stock-transactions", async (req, res) => {
+    try {
+      const transactionData = insertStockTransactionSchema.parse(req.body);
+      const transaction = await storage.createStockTransaction(transactionData);
+      await storage.createActivity({
+        userId: transaction.userId,
+        action: "CREATE_STOCK_TRANSACTION",
+        entityType: "stock_transaction",
+        entityId: transaction.id,
+        details: `Created stock transaction: ${transaction.type} ${transaction.quantity} units`,
+      });
+      res.status(201).json(transaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid transaction data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create stock transaction" });
+    }
+  });
+
+  app.put("/api/stock-transactions/:id", async (req, res) => {
+    try {
+      const transactionData = insertStockTransactionSchema.partial().parse(req.body);
+      const transaction = await storage.updateStockTransaction(req.params.id, transactionData);
+      res.json(transaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update stock transaction" });
+    }
+  });
+
+  app.delete("/api/stock-transactions/:id", async (req, res) => {
+    try {
+      await storage.deleteStockTransaction(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete stock transaction" });
+    }
+  });
+
+  // Spare Parts Routes
+  app.get("/api/spare-parts", async (req, res) => {
+    try {
+      const spareParts = await storage.getSpareParts();
+      res.json(spareParts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch spare parts" });
+    }
+  });
+
+  app.get("/api/spare-parts/low-stock", async (req, res) => {
+    try {
+      const spareParts = await storage.getLowStockSpareParts();
+      res.json(spareParts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch low stock spare parts" });
+    }
+  });
+
+  app.get("/api/spare-parts/:id", async (req, res) => {
+    try {
+      const sparePart = await storage.getSparePart(req.params.id);
+      if (!sparePart) {
+        return res.status(404).json({ error: "Spare part not found" });
+      }
+      res.json(sparePart);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch spare part" });
+    }
+  });
+
+  app.post("/api/spare-parts", async (req, res) => {
+    try {
+      const sparePartData = insertSparePartSchema.parse(req.body);
+      const sparePart = await storage.createSparePart(sparePartData);
+      await storage.createActivity({
+        userId: null,
+        action: "CREATE_SPARE_PART",
+        entityType: "spare_part",
+        entityId: sparePart.id,
+        details: `Created spare part: ${sparePart.name}`,
+      });
+      res.status(201).json(sparePart);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid spare part data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create spare part" });
+    }
+  });
+
+  app.put("/api/spare-parts/:id", async (req, res) => {
+    try {
+      const sparePartData = insertSparePartSchema.partial().parse(req.body);
+      const sparePart = await storage.updateSparePart(req.params.id, sparePartData);
+      res.json(sparePart);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update spare part" });
+    }
+  });
+
+  app.delete("/api/spare-parts/:id", async (req, res) => {
+    try {
+      await storage.deleteSparePart(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete spare part" });
+    }
+  });
+
+  // Batches Routes
+  app.get("/api/batches", async (req, res) => {
+    try {
+      const batches = await storage.getBatches();
+      res.json(batches);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch batches" });
+    }
+  });
+
+  app.get("/api/batches/:id", async (req, res) => {
+    try {
+      const batch = await storage.getBatch(req.params.id);
+      if (!batch) {
+        return res.status(404).json({ error: "Batch not found" });
+      }
+      res.json(batch);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch batch" });
+    }
+  });
+
+  app.post("/api/batches", async (req, res) => {
+    try {
+      const batchData = insertBatchSchema.parse(req.body);
+      const batch = await storage.createBatch(batchData);
+      await storage.createActivity({
+        userId: null,
+        action: "CREATE_BATCH",
+        entityType: "batch",
+        entityId: batch.id,
+        details: `Created batch: ${batch.batchNumber}`,
+      });
+      res.status(201).json(batch);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid batch data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create batch" });
+    }
+  });
+
+  app.put("/api/batches/:id", async (req, res) => {
+    try {
+      const batchData = insertBatchSchema.partial().parse(req.body);
+      const batch = await storage.updateBatch(req.params.id, batchData);
+      res.json(batch);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update batch" });
+    }
+  });
+
+  app.delete("/api/batches/:id", async (req, res) => {
+    try {
+      await storage.deleteBatch(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete batch" });
+    }
+  });
+
+  // Barcodes Routes
+  app.get("/api/barcodes", async (req, res) => {
+    try {
+      const barcodes = await storage.getBarcodes();
+      res.json(barcodes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch barcodes" });
+    }
+  });
+
+  app.get("/api/barcodes/:id", async (req, res) => {
+    try {
+      const barcode = await storage.getBarcode(req.params.id);
+      if (!barcode) {
+        return res.status(404).json({ error: "Barcode not found" });
+      }
+      res.json(barcode);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch barcode" });
+    }
+  });
+
+  app.get("/api/barcodes/scan/:code", async (req, res) => {
+    try {
+      const barcode = await storage.getBarcodeByCode(req.params.code);
+      if (!barcode) {
+        return res.status(404).json({ error: "Barcode not found" });
+      }
+      res.json(barcode);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to scan barcode" });
+    }
+  });
+
+  app.post("/api/barcodes", async (req, res) => {
+    try {
+      const barcodeData = insertBarcodeSchema.parse(req.body);
+      const barcode = await storage.createBarcode(barcodeData);
+      res.status(201).json(barcode);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid barcode data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create barcode" });
+    }
+  });
+
+  app.delete("/api/barcodes/:id", async (req, res) => {
+    try {
+      await storage.deleteBarcode(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete barcode" });
+    }
+  });
+
+  // Fabrication Orders Routes
+  app.get("/api/fabrication-orders", async (req, res) => {
+    try {
+      const orders = await storage.getFabricationOrders();
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fabrication orders" });
+    }
+  });
+
+  app.get("/api/fabrication-orders/:id", async (req, res) => {
+    try {
+      const order = await storage.getFabricationOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Fabrication order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fabrication order" });
+    }
+  });
+
+  app.post("/api/fabrication-orders", async (req, res) => {
+    try {
+      const orderData = insertFabricationOrderSchema.parse(req.body);
+      const order = await storage.createFabricationOrder(orderData);
+      await storage.createActivity({
+        userId: order.createdBy,
+        action: "CREATE_FABRICATION_ORDER",
+        entityType: "fabrication_order",
+        entityId: order.id,
+        details: `Created fabrication order: ${order.orderNumber}`,
+      });
+      res.status(201).json(order);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid fabrication order data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create fabrication order" });
+    }
+  });
+
+  app.put("/api/fabrication-orders/:id", async (req, res) => {
+    try {
+      const orderData = insertFabricationOrderSchema.partial().parse(req.body);
+      const order = await storage.updateFabricationOrder(req.params.id, orderData);
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update fabrication order" });
+    }
+  });
+
+  app.delete("/api/fabrication-orders/:id", async (req, res) => {
+    try {
+      await storage.deleteFabricationOrder(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete fabrication order" });
+    }
+  });
+
+  // Reorder Points Routes
+  app.get("/api/reorder-points", async (req, res) => {
+    try {
+      const reorderPoints = await storage.getReorderPoints();
+      res.json(reorderPoints);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reorder points" });
+    }
+  });
+
+  app.get("/api/reorder-points/triggered", async (req, res) => {
+    try {
+      const triggeredPoints = await storage.getTriggeredReorderPoints();
+      res.json(triggeredPoints);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch triggered reorder points" });
+    }
+  });
+
+  app.get("/api/reorder-points/:id", async (req, res) => {
+    try {
+      const reorderPoint = await storage.getReorderPoint(req.params.id);
+      if (!reorderPoint) {
+        return res.status(404).json({ error: "Reorder point not found" });
+      }
+      res.json(reorderPoint);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reorder point" });
+    }
+  });
+
+  app.post("/api/reorder-points", async (req, res) => {
+    try {
+      const reorderPointData = insertReorderPointSchema.parse(req.body);
+      const reorderPoint = await storage.createReorderPoint(reorderPointData);
+      res.status(201).json(reorderPoint);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid reorder point data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create reorder point" });
+    }
+  });
+
+  app.put("/api/reorder-points/:id", async (req, res) => {
+    try {
+      const reorderPointData = insertReorderPointSchema.partial().parse(req.body);
+      const reorderPoint = await storage.updateReorderPoint(req.params.id, reorderPointData);
+      res.json(reorderPoint);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update reorder point" });
+    }
+  });
+
+  app.delete("/api/reorder-points/:id", async (req, res) => {
+    try {
+      await storage.deleteReorderPoint(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete reorder point" });
+    }
+  });
+
+  // Vendor Communications Routes
+  app.get("/api/vendor-communications", async (req, res) => {
+    try {
+      const communications = await storage.getVendorCommunications();
+      res.json(communications);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch vendor communications" });
+    }
+  });
+
+  app.get("/api/vendor-communications/:id", async (req, res) => {
+    try {
+      const communication = await storage.getVendorCommunication(req.params.id);
+      if (!communication) {
+        return res.status(404).json({ error: "Vendor communication not found" });
+      }
+      res.json(communication);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch vendor communication" });
+    }
+  });
+
+  app.post("/api/vendor-communications", async (req, res) => {
+    try {
+      const communicationData = insertVendorCommunicationSchema.parse(req.body);
+      const communication = await storage.createVendorCommunication(communicationData);
+      await storage.createActivity({
+        userId: communication.userId,
+        action: "CREATE_VENDOR_COMMUNICATION",
+        entityType: "vendor_communication",
+        entityId: communication.id,
+        details: `Created vendor communication: ${communication.subject}`,
+      });
+      res.status(201).json(communication);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid communication data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create vendor communication" });
+    }
+  });
+
+  app.put("/api/vendor-communications/:id", async (req, res) => {
+    try {
+      const communicationData = insertVendorCommunicationSchema.partial().parse(req.body);
+      const communication = await storage.updateVendorCommunication(req.params.id, communicationData);
+      res.json(communication);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update vendor communication" });
+    }
+  });
+
+  app.delete("/api/vendor-communications/:id", async (req, res) => {
+    try {
+      await storage.deleteVendorCommunication(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete vendor communication" });
+    }
+  });
+
+  // Inventory Tasks Routes
+  app.get("/api/inventory-tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getInventoryTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inventory tasks" });
+    }
+  });
+
+  app.get("/api/inventory-tasks/:id", async (req, res) => {
+    try {
+      const task = await storage.getInventoryTask(req.params.id);
+      if (!task) {
+        return res.status(404).json({ error: "Inventory task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inventory task" });
+    }
+  });
+
+  app.post("/api/inventory-tasks", async (req, res) => {
+    try {
+      const taskData = insertInventoryTaskSchema.parse(req.body);
+      const task = await storage.createInventoryTask(taskData);
+      await storage.createActivity({
+        userId: task.assignedBy,
+        action: "CREATE_INVENTORY_TASK",
+        entityType: "inventory_task",
+        entityId: task.id,
+        details: `Created inventory task: ${task.title}`,
+      });
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create inventory task" });
+    }
+  });
+
+  app.put("/api/inventory-tasks/:id", async (req, res) => {
+    try {
+      const taskData = insertInventoryTaskSchema.partial().parse(req.body);
+      const task = await storage.updateInventoryTask(req.params.id, taskData);
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update inventory task" });
+    }
+  });
+
+  app.delete("/api/inventory-tasks/:id", async (req, res) => {
+    try {
+      await storage.deleteInventoryTask(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete inventory task" });
     }
   });
 

@@ -460,6 +460,63 @@ export const reorderPoints = pgTable("reorder_points", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Fabrication Orders - For custom fabrication workflow
+export const fabricationOrderStatusEnum = pgEnum('fabrication_order_status', ['pending', 'in_progress', 'quality_check', 'completed', 'cancelled']);
+export const fabricationOrderPriorityEnum = pgEnum('fabrication_order_priority', ['low', 'normal', 'high', 'urgent']);
+
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderNumber: text("order_number").notNull().unique(),
+  sparePartId: uuid("spare_part_id").references(() => spareParts.id).notNull(),
+  customerId: uuid("customer_id").references(() => customers.id),
+  quantity: integer("quantity").notNull(),
+  status: fabricationOrderStatusEnum("status").notNull().default('pending'),
+  priority: fabricationOrderPriorityEnum("priority").notNull().default('normal'),
+  estimatedHours: integer("estimated_hours"),
+  actualHours: integer("actual_hours"),
+  startDate: timestamp("start_date"),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  assignedTo: uuid("assigned_to").references(() => users.id),
+  specifications: text("specifications"),
+  notes: text("notes"),
+  qualityCheckPassed: boolean("quality_check_passed"),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Inventory Tasks - For task assignment to inventory staff
+export const inventoryTaskTypeEnum = pgEnum('inventory_task_type', ['stock_count', 'reorder', 'quality_check', 'location_move', 'maintenance', 'fabrication']);
+export const inventoryTaskStatusEnum = pgEnum('inventory_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
+
+export const inventoryTasks = pgTable("inventory_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: inventoryTaskTypeEnum("type").notNull(),
+  status: inventoryTaskStatusEnum("status").notNull().default('pending'),
+  priority: taskPriorityEnum("priority").notNull().default('medium'),
+  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  // Related entities
+  productId: uuid("product_id").references(() => products.id),
+  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
+  batchId: uuid("batch_id").references(() => batches.id),
+  fabricationOrderId: uuid("fabrication_order_id").references(() => fabricationOrders.id),
+  // Task details
+  expectedQuantity: integer("expected_quantity"),
+  actualQuantity: integer("actual_quantity"),
+  fromLocation: text("from_location"),
+  toLocation: text("to_location"),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  notes: text("notes"),
+  attachmentPath: text("attachment_path"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
@@ -812,6 +869,18 @@ export const insertReorderPointSchema = createInsertSchema(reorderPoints).omit({
   updatedAt: true,
 });
 
+export const insertFabricationOrderSchema = createInsertSchema(fabricationOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryTaskSchema = createInsertSchema(inventoryTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -878,3 +947,9 @@ export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
+
+export type FabricationOrder = typeof fabricationOrders.$inferSelect;
+export type InsertFabricationOrder = z.infer<typeof insertFabricationOrderSchema>;
+
+export type InventoryTask = typeof inventoryTasks.$inferSelect;
+export type InsertInventoryTask = z.infer<typeof insertInventoryTaskSchema>;

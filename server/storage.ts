@@ -2,7 +2,8 @@ import {
   users, products, customers, orders, orderItems, suppliers, 
   purchaseOrders, shipments, tasks, attendance, activityLog,
   outboundQuotations, quotationItems, inboundQuotations, inboundQuotationItems,
-  invoices, invoiceItems,
+  invoices, invoiceItems, stockTransactions, spareParts, batches, barcodes,
+  vendorCommunications, reorderPoints, fabricationOrders, inventoryTasks,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -12,7 +13,11 @@ import {
   type QuotationItem, type InsertQuotationItem,
   type InboundQuotation, type InsertInboundQuotation,
   type InboundQuotationItem, type InsertInboundQuotationItem,
-  type Invoice, type InsertInvoice, type InvoiceItem, type InsertInvoiceItem
+  type Invoice, type InsertInvoice, type InvoiceItem, type InsertInvoiceItem,
+  type StockTransaction, type InsertStockTransaction, type SparePart, type InsertSparePart,
+  type Batch, type InsertBatch, type Barcode, type InsertBarcode,
+  type VendorCommunication, type InsertVendorCommunication, type ReorderPoint, type InsertReorderPoint,
+  type FabricationOrder, type InsertFabricationOrder, type InventoryTask, type InsertInventoryTask
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, like, count, sum, sql } from "drizzle-orm";
@@ -132,6 +137,79 @@ export interface IStorage {
   getInvoiceItems(invoiceId: string): Promise<any[]>;
   deleteInvoiceItems(invoiceId: string): Promise<void>;
   updateInvoiceItem(id: string, item: Partial<InsertInvoiceItem>): Promise<InvoiceItem>;
+
+  // Stock Transactions
+  getStockTransaction(id: string): Promise<any>;
+  getStockTransactions(): Promise<any[]>;
+  createStockTransaction(transaction: InsertStockTransaction): Promise<StockTransaction>;
+  updateStockTransaction(id: string, transaction: Partial<InsertStockTransaction>): Promise<StockTransaction>;
+  deleteStockTransaction(id: string): Promise<void>;
+  getStockTransactionsByProduct(productId: string): Promise<any[]>;
+  getStockTransactionsByType(type: string): Promise<any[]>;
+
+  // Spare Parts
+  getSparePart(id: string): Promise<SparePart | undefined>;
+  getSpareParts(): Promise<SparePart[]>;
+  createSparePart(sparePart: InsertSparePart): Promise<SparePart>;
+  updateSparePart(id: string, sparePart: Partial<InsertSparePart>): Promise<SparePart>;
+  deleteSparePart(id: string): Promise<void>;
+  getSparePartsByStatus(status: string): Promise<SparePart[]>;
+  getLowStockSpareParts(): Promise<SparePart[]>;
+
+  // Batches
+  getBatch(id: string): Promise<any>;
+  getBatches(): Promise<any[]>;
+  createBatch(batch: InsertBatch): Promise<Batch>;
+  updateBatch(id: string, batch: Partial<InsertBatch>): Promise<Batch>;
+  deleteBatch(id: string): Promise<void>;
+  getBatchesByProduct(productId: string): Promise<any[]>;
+  getBatchesByQualityStatus(status: string): Promise<any[]>;
+
+  // Barcodes
+  getBarcode(id: string): Promise<Barcode | undefined>;
+  getBarcodes(): Promise<Barcode[]>;
+  createBarcode(barcode: InsertBarcode): Promise<Barcode>;
+  updateBarcode(id: string, barcode: Partial<InsertBarcode>): Promise<Barcode>;
+  deleteBarcode(id: string): Promise<void>;
+  getBarcodeByCode(code: string): Promise<Barcode | undefined>;
+  getBarcodesByEntityType(entityType: string): Promise<Barcode[]>;
+
+  // Fabrication Orders
+  getFabricationOrder(id: string): Promise<any>;
+  getFabricationOrders(): Promise<any[]>;
+  createFabricationOrder(order: InsertFabricationOrder): Promise<FabricationOrder>;
+  updateFabricationOrder(id: string, order: Partial<InsertFabricationOrder>): Promise<FabricationOrder>;
+  deleteFabricationOrder(id: string): Promise<void>;
+  getFabricationOrdersByStatus(status: string): Promise<any[]>;
+  getFabricationOrdersByAssignee(assigneeId: string): Promise<any[]>;
+
+  // Reorder Points
+  getReorderPoint(id: string): Promise<ReorderPoint | undefined>;
+  getReorderPoints(): Promise<ReorderPoint[]>;
+  createReorderPoint(reorderPoint: InsertReorderPoint): Promise<ReorderPoint>;
+  updateReorderPoint(id: string, reorderPoint: Partial<InsertReorderPoint>): Promise<ReorderPoint>;
+  deleteReorderPoint(id: string): Promise<void>;
+  getActiveReorderPoints(): Promise<ReorderPoint[]>;
+  getTriggeredReorderPoints(): Promise<any[]>;
+
+  // Vendor Communications
+  getVendorCommunication(id: string): Promise<any>;
+  getVendorCommunications(): Promise<any[]>;
+  createVendorCommunication(communication: InsertVendorCommunication): Promise<VendorCommunication>;
+  updateVendorCommunication(id: string, communication: Partial<InsertVendorCommunication>): Promise<VendorCommunication>;
+  deleteVendorCommunication(id: string): Promise<void>;
+  getVendorCommunicationsBySupplier(supplierId: string): Promise<any[]>;
+  getVendorCommunicationsByStatus(status: string): Promise<any[]>;
+
+  // Inventory Tasks
+  getInventoryTask(id: string): Promise<any>;
+  getInventoryTasks(): Promise<any[]>;
+  createInventoryTask(task: InsertInventoryTask): Promise<InventoryTask>;
+  updateInventoryTask(id: string, task: Partial<InsertInventoryTask>): Promise<InventoryTask>;
+  deleteInventoryTask(id: string): Promise<void>;
+  getInventoryTasksByAssignee(assigneeId: string): Promise<any[]>;
+  getInventoryTasksByStatus(status: string): Promise<any[]>;
+  getInventoryTasksByType(type: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -949,6 +1027,534 @@ export class DatabaseStorage implements IStorage {
       .where(eq(invoiceItems.id, id))
       .returning();
     return item;
+  }
+
+  // Stock Transactions
+  async getStockTransaction(id: string): Promise<any> {
+    const [transaction] = await db
+      .select()
+      .from(stockTransactions)
+      .leftJoin(products, eq(stockTransactions.productId, products.id))
+      .leftJoin(batches, eq(stockTransactions.batchId, batches.id))
+      .leftJoin(users, eq(stockTransactions.userId, users.id))
+      .where(eq(stockTransactions.id, id));
+    
+    if (!transaction) return undefined;
+    
+    return {
+      ...transaction.stock_transactions,
+      product: transaction.products,
+      batch: transaction.batches,
+      user: transaction.users
+    };
+  }
+
+  async getStockTransactions(): Promise<any[]> {
+    const transactions = await db
+      .select()
+      .from(stockTransactions)
+      .leftJoin(products, eq(stockTransactions.productId, products.id))
+      .leftJoin(batches, eq(stockTransactions.batchId, batches.id))
+      .leftJoin(users, eq(stockTransactions.userId, users.id))
+      .orderBy(desc(stockTransactions.createdAt));
+
+    return transactions.map(t => ({
+      ...t.stock_transactions,
+      product: t.products,
+      batch: t.batches,
+      user: t.users
+    }));
+  }
+
+  async createStockTransaction(insertTransaction: InsertStockTransaction): Promise<StockTransaction> {
+    const [transaction] = await db.insert(stockTransactions).values(insertTransaction).returning();
+    return transaction;
+  }
+
+  async updateStockTransaction(id: string, updateTransaction: Partial<InsertStockTransaction>): Promise<StockTransaction> {
+    const [transaction] = await db
+      .update(stockTransactions)
+      .set(updateTransaction)
+      .where(eq(stockTransactions.id, id))
+      .returning();
+    return transaction;
+  }
+
+  async deleteStockTransaction(id: string): Promise<void> {
+    await db.delete(stockTransactions).where(eq(stockTransactions.id, id));
+  }
+
+  async getStockTransactionsByProduct(productId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(stockTransactions)
+      .leftJoin(products, eq(stockTransactions.productId, products.id))
+      .leftJoin(users, eq(stockTransactions.userId, users.id))
+      .where(eq(stockTransactions.productId, productId))
+      .orderBy(desc(stockTransactions.createdAt));
+  }
+
+  async getStockTransactionsByType(type: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(stockTransactions)
+      .leftJoin(products, eq(stockTransactions.productId, products.id))
+      .leftJoin(users, eq(stockTransactions.userId, users.id))
+      .where(eq(stockTransactions.type, type as any))
+      .orderBy(desc(stockTransactions.createdAt));
+  }
+
+  // Spare Parts
+  async getSparePart(id: string): Promise<SparePart | undefined> {
+    const [sparePart] = await db.select().from(spareParts).where(eq(spareParts.id, id));
+    return sparePart || undefined;
+  }
+
+  async getSpareParts(): Promise<SparePart[]> {
+    return await db.select().from(spareParts).orderBy(desc(spareParts.createdAt));
+  }
+
+  async createSparePart(insertSparePart: InsertSparePart): Promise<SparePart> {
+    const [sparePart] = await db.insert(spareParts).values(insertSparePart).returning();
+    return sparePart;
+  }
+
+  async updateSparePart(id: string, updateSparePart: Partial<InsertSparePart>): Promise<SparePart> {
+    const [sparePart] = await db
+      .update(spareParts)
+      .set({ ...updateSparePart, updatedAt: new Date() })
+      .where(eq(spareParts.id, id))
+      .returning();
+    return sparePart;
+  }
+
+  async deleteSparePart(id: string): Promise<void> {
+    await db.delete(spareParts).where(eq(spareParts.id, id));
+  }
+
+  async getSparePartsByStatus(status: string): Promise<SparePart[]> {
+    return await db
+      .select()
+      .from(spareParts)
+      .where(eq(spareParts.status, status as any))
+      .orderBy(desc(spareParts.createdAt));
+  }
+
+  async getLowStockSpareParts(): Promise<SparePart[]> {
+    return await db
+      .select()
+      .from(spareParts)
+      .where(sql`${spareParts.stock} <= ${spareParts.minStock}`);
+  }
+
+  // Batches
+  async getBatch(id: string): Promise<any> {
+    const [batch] = await db
+      .select()
+      .from(batches)
+      .leftJoin(products, eq(batches.productId, products.id))
+      .leftJoin(spareParts, eq(batches.sparePartId, spareParts.id))
+      .leftJoin(suppliers, eq(batches.supplierId, suppliers.id))
+      .where(eq(batches.id, id));
+    
+    if (!batch) return undefined;
+    
+    return {
+      ...batch.batches,
+      product: batch.products,
+      sparePart: batch.spare_parts,
+      supplier: batch.suppliers
+    };
+  }
+
+  async getBatches(): Promise<any[]> {
+    const batches_data = await db
+      .select()
+      .from(batches)
+      .leftJoin(products, eq(batches.productId, products.id))
+      .leftJoin(spareParts, eq(batches.sparePartId, spareParts.id))
+      .leftJoin(suppliers, eq(batches.supplierId, suppliers.id))
+      .orderBy(desc(batches.createdAt));
+
+    return batches_data.map(b => ({
+      ...b.batches,
+      product: b.products,
+      sparePart: b.spare_parts,
+      supplier: b.suppliers
+    }));
+  }
+
+  async createBatch(insertBatch: InsertBatch): Promise<Batch> {
+    const [batch] = await db.insert(batches).values(insertBatch).returning();
+    return batch;
+  }
+
+  async updateBatch(id: string, updateBatch: Partial<InsertBatch>): Promise<Batch> {
+    const [batch] = await db
+      .update(batches)
+      .set({ ...updateBatch, updatedAt: new Date() })
+      .where(eq(batches.id, id))
+      .returning();
+    return batch;
+  }
+
+  async deleteBatch(id: string): Promise<void> {
+    await db.delete(batches).where(eq(batches.id, id));
+  }
+
+  async getBatchesByProduct(productId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(batches)
+      .leftJoin(products, eq(batches.productId, products.id))
+      .where(eq(batches.productId, productId))
+      .orderBy(desc(batches.createdAt));
+  }
+
+  async getBatchesByQualityStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(batches)
+      .leftJoin(products, eq(batches.productId, products.id))
+      .where(eq(batches.qualityStatus, status))
+      .orderBy(desc(batches.createdAt));
+  }
+
+  // Barcodes
+  async getBarcode(id: string): Promise<Barcode | undefined> {
+    const [barcode] = await db.select().from(barcodes).where(eq(barcodes.id, id));
+    return barcode || undefined;
+  }
+
+  async getBarcodes(): Promise<Barcode[]> {
+    return await db.select().from(barcodes).orderBy(desc(barcodes.generatedAt));
+  }
+
+  async createBarcode(insertBarcode: InsertBarcode): Promise<Barcode> {
+    const [barcode] = await db.insert(barcodes).values(insertBarcode).returning();
+    return barcode;
+  }
+
+  async updateBarcode(id: string, updateBarcode: Partial<InsertBarcode>): Promise<Barcode> {
+    const [barcode] = await db
+      .update(barcodes)
+      .set(updateBarcode)
+      .where(eq(barcodes.id, id))
+      .returning();
+    return barcode;
+  }
+
+  async deleteBarcode(id: string): Promise<void> {
+    await db.delete(barcodes).where(eq(barcodes.id, id));
+  }
+
+  async getBarcodeByCode(code: string): Promise<Barcode | undefined> {
+    const [barcode] = await db.select().from(barcodes).where(eq(barcodes.barcode, code));
+    return barcode || undefined;
+  }
+
+  async getBarcodesByEntityType(entityType: string): Promise<Barcode[]> {
+    return await db
+      .select()
+      .from(barcodes)
+      .where(eq(barcodes.entityType, entityType))
+      .orderBy(desc(barcodes.generatedAt));
+  }
+
+  // Fabrication Orders
+  async getFabricationOrder(id: string): Promise<any> {
+    const [order] = await db
+      .select()
+      .from(fabricationOrders)
+      .leftJoin(spareParts, eq(fabricationOrders.sparePartId, spareParts.id))
+      .leftJoin(customers, eq(fabricationOrders.customerId, customers.id))
+      .leftJoin(users, eq(fabricationOrders.assignedTo, users.id))
+      .where(eq(fabricationOrders.id, id));
+    
+    if (!order) return undefined;
+    
+    return {
+      ...order.fabrication_orders,
+      sparePart: order.spare_parts,
+      customer: order.customers,
+      assignedUser: order.users
+    };
+  }
+
+  async getFabricationOrders(): Promise<any[]> {
+    const orders = await db
+      .select()
+      .from(fabricationOrders)
+      .leftJoin(spareParts, eq(fabricationOrders.sparePartId, spareParts.id))
+      .leftJoin(customers, eq(fabricationOrders.customerId, customers.id))
+      .leftJoin(users, eq(fabricationOrders.assignedTo, users.id))
+      .orderBy(desc(fabricationOrders.createdAt));
+
+    return orders.map(o => ({
+      ...o.fabrication_orders,
+      sparePart: o.spare_parts,
+      customer: o.customers,
+      assignedUser: o.users
+    }));
+  }
+
+  async createFabricationOrder(insertOrder: InsertFabricationOrder): Promise<FabricationOrder> {
+    const [order] = await db.insert(fabricationOrders).values(insertOrder).returning();
+    return order;
+  }
+
+  async updateFabricationOrder(id: string, updateOrder: Partial<InsertFabricationOrder>): Promise<FabricationOrder> {
+    const [order] = await db
+      .update(fabricationOrders)
+      .set({ ...updateOrder, updatedAt: new Date() })
+      .where(eq(fabricationOrders.id, id))
+      .returning();
+    return order;
+  }
+
+  async deleteFabricationOrder(id: string): Promise<void> {
+    await db.delete(fabricationOrders).where(eq(fabricationOrders.id, id));
+  }
+
+  async getFabricationOrdersByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(fabricationOrders)
+      .leftJoin(spareParts, eq(fabricationOrders.sparePartId, spareParts.id))
+      .where(eq(fabricationOrders.status, status as any))
+      .orderBy(desc(fabricationOrders.createdAt));
+  }
+
+  async getFabricationOrdersByAssignee(assigneeId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(fabricationOrders)
+      .leftJoin(spareParts, eq(fabricationOrders.sparePartId, spareParts.id))
+      .where(eq(fabricationOrders.assignedTo, assigneeId))
+      .orderBy(desc(fabricationOrders.createdAt));
+  }
+
+  // Reorder Points
+  async getReorderPoint(id: string): Promise<ReorderPoint | undefined> {
+    const [reorderPoint] = await db.select().from(reorderPoints).where(eq(reorderPoints.id, id));
+    return reorderPoint || undefined;
+  }
+
+  async getReorderPoints(): Promise<ReorderPoint[]> {
+    return await db.select().from(reorderPoints).orderBy(desc(reorderPoints.createdAt));
+  }
+
+  async createReorderPoint(insertReorderPoint: InsertReorderPoint): Promise<ReorderPoint> {
+    const [reorderPoint] = await db.insert(reorderPoints).values(insertReorderPoint).returning();
+    return reorderPoint;
+  }
+
+  async updateReorderPoint(id: string, updateReorderPoint: Partial<InsertReorderPoint>): Promise<ReorderPoint> {
+    const [reorderPoint] = await db
+      .update(reorderPoints)
+      .set({ ...updateReorderPoint, updatedAt: new Date() })
+      .where(eq(reorderPoints.id, id))
+      .returning();
+    return reorderPoint;
+  }
+
+  async deleteReorderPoint(id: string): Promise<void> {
+    await db.delete(reorderPoints).where(eq(reorderPoints.id, id));
+  }
+
+  async getActiveReorderPoints(): Promise<ReorderPoint[]> {
+    return await db
+      .select()
+      .from(reorderPoints)
+      .where(eq(reorderPoints.isActive, true))
+      .orderBy(desc(reorderPoints.createdAt));
+  }
+
+  async getTriggeredReorderPoints(): Promise<any[]> {
+    // Join with products and spare parts to check current stock levels
+    const productReorders = await db
+      .select()
+      .from(reorderPoints)
+      .leftJoin(products, eq(reorderPoints.productId, products.id))
+      .where(
+        and(
+          eq(reorderPoints.isActive, true),
+          sql`${products.stock} <= ${reorderPoints.minQuantity}`
+        )
+      );
+
+    const sparePartReorders = await db
+      .select()
+      .from(reorderPoints)
+      .leftJoin(spareParts, eq(reorderPoints.sparePartId, spareParts.id))
+      .where(
+        and(
+          eq(reorderPoints.isActive, true),
+          sql`${spareParts.stock} <= ${reorderPoints.minQuantity}`
+        )
+      );
+
+    return [...productReorders, ...sparePartReorders];
+  }
+
+  // Vendor Communications
+  async getVendorCommunication(id: string): Promise<any> {
+    const [communication] = await db
+      .select()
+      .from(vendorCommunications)
+      .leftJoin(suppliers, eq(vendorCommunications.supplierId, suppliers.id))
+      .leftJoin(users, eq(vendorCommunications.userId, users.id))
+      .where(eq(vendorCommunications.id, id));
+    
+    if (!communication) return undefined;
+    
+    return {
+      ...communication.vendor_communications,
+      supplier: communication.suppliers,
+      user: communication.users
+    };
+  }
+
+  async getVendorCommunications(): Promise<any[]> {
+    const communications = await db
+      .select()
+      .from(vendorCommunications)
+      .leftJoin(suppliers, eq(vendorCommunications.supplierId, suppliers.id))
+      .leftJoin(users, eq(vendorCommunications.userId, users.id))
+      .orderBy(desc(vendorCommunications.createdAt));
+
+    return communications.map(c => ({
+      ...c.vendor_communications,
+      supplier: c.suppliers,
+      user: c.users
+    }));
+  }
+
+  async createVendorCommunication(insertCommunication: InsertVendorCommunication): Promise<VendorCommunication> {
+    const [communication] = await db.insert(vendorCommunications).values(insertCommunication).returning();
+    return communication;
+  }
+
+  async updateVendorCommunication(id: string, updateCommunication: Partial<InsertVendorCommunication>): Promise<VendorCommunication> {
+    const [communication] = await db
+      .update(vendorCommunications)
+      .set({ ...updateCommunication, updatedAt: new Date() })
+      .where(eq(vendorCommunications.id, id))
+      .returning();
+    return communication;
+  }
+
+  async deleteVendorCommunication(id: string): Promise<void> {
+    await db.delete(vendorCommunications).where(eq(vendorCommunications.id, id));
+  }
+
+  async getVendorCommunicationsBySupplier(supplierId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(vendorCommunications)
+      .leftJoin(suppliers, eq(vendorCommunications.supplierId, suppliers.id))
+      .leftJoin(users, eq(vendorCommunications.userId, users.id))
+      .where(eq(vendorCommunications.supplierId, supplierId))
+      .orderBy(desc(vendorCommunications.createdAt));
+  }
+
+  async getVendorCommunicationsByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(vendorCommunications)
+      .leftJoin(suppliers, eq(vendorCommunications.supplierId, suppliers.id))
+      .where(eq(vendorCommunications.status, status as any))
+      .orderBy(desc(vendorCommunications.createdAt));
+  }
+
+  // Inventory Tasks
+  async getInventoryTask(id: string): Promise<any> {
+    const [task] = await db
+      .select()
+      .from(inventoryTasks)
+      .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
+      .leftJoin(products, eq(inventoryTasks.productId, products.id))
+      .leftJoin(spareParts, eq(inventoryTasks.sparePartId, spareParts.id))
+      .leftJoin(batches, eq(inventoryTasks.batchId, batches.id))
+      .leftJoin(fabricationOrders, eq(inventoryTasks.fabricationOrderId, fabricationOrders.id))
+      .where(eq(inventoryTasks.id, id));
+    
+    if (!task) return undefined;
+    
+    return {
+      ...task.inventory_tasks,
+      assignedUser: task.users,
+      product: task.products,
+      sparePart: task.spare_parts,
+      batch: task.batches,
+      fabricationOrder: task.fabrication_orders
+    };
+  }
+
+  async getInventoryTasks(): Promise<any[]> {
+    const tasks = await db
+      .select()
+      .from(inventoryTasks)
+      .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
+      .leftJoin(products, eq(inventoryTasks.productId, products.id))
+      .leftJoin(spareParts, eq(inventoryTasks.sparePartId, spareParts.id))
+      .leftJoin(batches, eq(inventoryTasks.batchId, batches.id))
+      .orderBy(desc(inventoryTasks.createdAt));
+
+    return tasks.map(t => ({
+      ...t.inventory_tasks,
+      assignedUser: t.users,
+      product: t.products,
+      sparePart: t.spare_parts,
+      batch: t.batches
+    }));
+  }
+
+  async createInventoryTask(insertTask: InsertInventoryTask): Promise<InventoryTask> {
+    const [task] = await db.insert(inventoryTasks).values(insertTask).returning();
+    return task;
+  }
+
+  async updateInventoryTask(id: string, updateTask: Partial<InsertInventoryTask>): Promise<InventoryTask> {
+    const [task] = await db
+      .update(inventoryTasks)
+      .set({ ...updateTask, updatedAt: new Date() })
+      .where(eq(inventoryTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async deleteInventoryTask(id: string): Promise<void> {
+    await db.delete(inventoryTasks).where(eq(inventoryTasks.id, id));
+  }
+
+  async getInventoryTasksByAssignee(assigneeId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(inventoryTasks)
+      .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
+      .leftJoin(products, eq(inventoryTasks.productId, products.id))
+      .leftJoin(spareParts, eq(inventoryTasks.sparePartId, spareParts.id))
+      .where(eq(inventoryTasks.assignedTo, assigneeId))
+      .orderBy(desc(inventoryTasks.createdAt));
+  }
+
+  async getInventoryTasksByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(inventoryTasks)
+      .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
+      .where(eq(inventoryTasks.status, status as any))
+      .orderBy(desc(inventoryTasks.createdAt));
+  }
+
+  async getInventoryTasksByType(type: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(inventoryTasks)
+      .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
+      .where(eq(inventoryTasks.type, type as any))
+      .orderBy(desc(inventoryTasks.createdAt));
   }
 }
 

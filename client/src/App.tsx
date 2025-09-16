@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlobalNavbar } from "@/components/GlobalNavbar";
 import Dashboard from "@/pages/Dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
-import InventoryDashboard from "@/pages/InventoryDashboard";
+import InventoryLayout from "@/pages/inventory/InventoryLayout";
 import SalesLayout from "@/pages/sales/SalesLayout";
 import AccountsDashboard from "@/pages/AccountsDashboard";
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
@@ -20,7 +20,8 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/admin" component={AdminDashboard} />
-        <Route path="/inventory" component={InventoryDashboard} />
+        <Route path="/inventory" component={InventoryLayout} />
+        <Route path="/inventory/*" component={InventoryLayout} />
         <Route path="/sales" component={SalesLayout} />
         <Route path="/sales/*" component={SalesLayout} />
         <Route path="/accounts" component={AccountsDashboard} />
