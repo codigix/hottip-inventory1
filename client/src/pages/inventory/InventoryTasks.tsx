@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,48 +16,82 @@ import { ClipboardList, Plus, User, Clock, CheckCircle, AlertTriangle, Calendar 
 
 export default function InventoryTasks() {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isUpdateTaskDialogOpen, setIsUpdateTaskDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskStatus, setTaskStatus] = useState('');
+  const [taskNotes, setTaskNotes] = useState('');
+  const [timeSpent, setTimeSpent] = useState('');
+  const { toast } = useToast();
 
-  // Fetch tasks (using existing tasks endpoint)
+  // Fetch inventory tasks
   const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ["/api/tasks"],
+    queryKey: ["/api/inventory-tasks"],
   });
 
-  // Mock inventory-specific tasks
-  const inventoryTasks = [
-    {
-      id: "1",
-      title: "Stock Count - Warehouse A",
-      description: "Perform physical stock count for all items in Warehouse A",
-      assignedTo: "John Smith",
-      assignedBy: "Manager",
-      status: "in_progress",
-      priority: "high",
-      dueDate: "2024-01-25",
-      category: "stock_count"
+  // Task update mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest(`/api/inventory-tasks/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
     },
-    {
-      id: "2",
-      title: "Vendor Follow-up - Steel Supplies",
-      description: "Follow up on delayed delivery from Steel Supplies Ltd",
-      assignedTo: "Sarah Johnson", 
-      assignedBy: "Manager",
-      status: "new",
-      priority: "medium",
-      dueDate: "2024-01-22",
-      category: "vendor_follow_up"
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      });
+      setIsUpdateTaskDialogOpen(false);
+      resetUpdateForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory-tasks"] });
     },
-    {
-      id: "3",
-      title: "Fabrication Check - Custom Valves",
-      description: "Quality check on completed custom valve fabrication",
-      assignedTo: "Mike Chen",
-      assignedBy: "Supervisor",
-      status: "completed",
-      priority: "urgent",
-      dueDate: "2024-01-20",
-      category: "fabrication_check"
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetUpdateForm = () => {
+    setSelectedTask(null);
+    setTaskStatus('');
+    setTaskNotes('');
+    setTimeSpent('');
+  };
+
+  const handleUpdateTask = () => {
+    if (!selectedTask || !taskStatus) {
+      toast({
+        title: "Error",
+        description: "Please select status",
+        variant: "destructive",
+      });
+      return;
     }
-  ];
+
+    const updateData = {
+      id: selectedTask.id,
+      status: taskStatus,
+      notes: taskNotes,
+      timeSpent: timeSpent ? parseInt(timeSpent) : null,
+      completedAt: taskStatus === 'completed' ? new Date().toISOString() : null,
+    };
+
+    updateTaskMutation.mutate(updateData);
+  };
+
+  const openUpdateDialog = (task: any) => {
+    setSelectedTask(task);
+    setTaskStatus(task.status);
+    setTaskNotes(task.notes || '');
+    setTimeSpent(task.timeSpent?.toString() || '');
+    setIsUpdateTaskDialogOpen(true);
+  };
+
+  // Use real API data or empty array as fallback
+  const inventoryTasks = Array.isArray(tasks) ? tasks : [];
 
   const taskColumns = [
     {
@@ -224,6 +260,69 @@ export default function InventoryTasks() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={isUpdateTaskDialogOpen} onOpenChange={setIsUpdateTaskDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Update Task Status</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedTask && (
+                  <div className="bg-muted/30 p-3 rounded-lg">
+                    <p className="font-medium">{selectedTask.title}</p>
+                    <p className="text-sm text-muted-foreground">{selectedTask.description}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="status">Status *</Label>
+                  <Select value={taskStatus} onValueChange={setTaskStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="timeSpent">Time Spent (hours)</Label>
+                  <Input 
+                    id="timeSpent" 
+                    type="number" 
+                    placeholder="Hours worked on this task" 
+                    value={timeSpent}
+                    onChange={(e) => setTimeSpent(e.target.value)}
+                    data-testid="input-time-spent"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="taskNotes">Progress Notes</Label>
+                  <Textarea 
+                    id="taskNotes" 
+                    placeholder="Add notes about progress, issues, or completion details..." 
+                    value={taskNotes}
+                    onChange={(e) => setTaskNotes(e.target.value)}
+                    data-testid="textarea-task-notes"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsUpdateTaskDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleUpdateTask}
+                    disabled={updateTaskMutation.isPending}
+                    data-testid="button-update-task"
+                  >
+                    {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           <Button variant="outline" data-testid="button-task-reports">
             <Calendar className="h-4 w-4 mr-2" />
             Task Reports
@@ -305,7 +404,7 @@ export default function InventoryTasks() {
                 columns={taskColumns}
                 searchable={true}
                 searchKey="title"
-                onEdit={() => {}}
+                onEdit={(task) => openUpdateDialog(task)}
                 onView={() => {}}
               />
             </CardContent>

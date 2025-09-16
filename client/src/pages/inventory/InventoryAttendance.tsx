@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,45 +16,103 @@ import { Calendar, Clock, User, Plus, CheckCircle, XCircle, CalendarDays } from 
 
 export default function InventoryAttendance() {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [attendanceAction, setAttendanceAction] = useState<'check_in' | 'check_out'>('check_in');
+  const [location, setLocation] = useState('');
+  const { toast } = useToast();
 
-  // Fetch attendance data (using existing attendance endpoint)
-  const { data: attendance, isLoading: attendanceLoading } = useQuery({
+  // Fetch attendance data
+  const { data: attendance, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
     queryKey: ["/api/attendance"],
   });
 
-  // Mock inventory staff attendance data
-  const inventoryStaff = [
-    {
-      id: "1",
-      name: "John Smith",
-      department: "Inventory",
-      checkIn: "09:00 AM",
-      checkOut: "06:00 PM",
-      status: "present",
-      date: "2024-01-25",
-      location: "Warehouse A"
+  // Check-in/check-out mutation
+  const attendanceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('/api/attendance', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
-    {
-      id: "2", 
-      name: "Sarah Johnson",
-      department: "Inventory",
-      checkIn: "08:45 AM",
-      checkOut: "-",
-      status: "present",
-      date: "2024-01-25",
-      location: "Warehouse B"
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `${attendanceAction === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
+      });
+      setIsCheckInDialogOpen(false);
+      resetAttendanceForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
-    {
-      id: "3",
-      name: "Mike Chen",
-      department: "Inventory",
-      checkIn: "-",
-      checkOut: "-", 
-      status: "leave",
-      date: "2024-01-25",
-      location: "-"
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record attendance",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetAttendanceForm = () => {
+    setSelectedEmployee('');
+    setLocation('');
+  };
+
+  const handleAttendanceAction = () => {
+    if (!selectedEmployee || !location) {
+      toast({
+        title: "Error",
+        description: "Please select employee and location",
+        variant: "destructive",
+      });
+      return;
     }
-  ];
+
+    const attendanceData = {
+      employeeId: selectedEmployee,
+      action: attendanceAction,
+      location,
+      timestamp: new Date().toISOString(),
+      department: 'Inventory',
+    };
+
+    attendanceMutation.mutate(attendanceData);
+  };
+
+  const generateAttendanceReport = () => {
+    // Generate CSV report
+    const reportData = attendance || [];
+    const csvContent = [
+      ['Employee', 'Date', 'Check In', 'Check Out', 'Location', 'Hours Worked', 'Status'],
+      ...reportData.map((record: any) => [
+        record.name || record.employee,
+        new Date(record.date).toLocaleDateString(),
+        record.checkIn || '-',
+        record.checkOut || '-',
+        record.location || '-',
+        record.hoursWorked || '-',
+        record.status
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-report-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Success",
+      description: "Attendance report downloaded successfully",
+    });
+  };
+
+  // Use real API data or empty array as fallback
+  const inventoryStaff = Array.isArray(attendance) ? attendance : [];
 
   const leaveRequests = [
     {
@@ -252,13 +312,84 @@ export default function InventoryAttendance() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" data-testid="button-mark-attendance">
-            <Clock className="h-4 w-4 mr-2" />
-            Mark Attendance
-          </Button>
-          <Button variant="outline" data-testid="button-attendance-report">
+          <Dialog open={isCheckInDialogOpen} onOpenChange={setIsCheckInDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-check-in">
+                <Clock className="h-4 w-4 mr-2" />
+                Check In/Out
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Employee Check In/Out</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="action">Action</Label>
+                  <Select value={attendanceAction} onValueChange={setAttendanceAction as any}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="check_in">Check In</SelectItem>
+                      <SelectItem value="check_out">Check Out</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="employee">Employee</Label>
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select employee..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="emp1">John Smith</SelectItem>
+                      <SelectItem value="emp2">Sarah Johnson</SelectItem>
+                      <SelectItem value="emp3">Mike Chen</SelectItem>
+                      <SelectItem value="emp4">Lisa Wang</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Select value={location} onValueChange={setLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="warehouse-a">Warehouse A</SelectItem>
+                      <SelectItem value="warehouse-b">Warehouse B</SelectItem>
+                      <SelectItem value="office">Office</SelectItem>
+                      <SelectItem value="fabrication">Fabrication Unit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <p className="text-sm font-medium">Current Time: {new Date().toLocaleString()}</p>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsCheckInDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleAttendanceAction}
+                    disabled={attendanceMutation.isPending}
+                    data-testid="button-record-attendance"
+                  >
+                    {attendanceMutation.isPending ? "Recording..." : `Record ${attendanceAction === 'check_in' ? 'Check In' : 'Check Out'}`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button 
+            variant="outline" 
+            onClick={generateAttendanceReport}
+            data-testid="button-attendance-report"
+          >
             <CalendarDays className="h-4 w-4 mr-2" />
-            Attendance Report
+            Generate Report
           </Button>
         </div>
       </div>

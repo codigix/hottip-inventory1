@@ -17,6 +17,11 @@ import { Plus, Package, TrendingDown, TrendingUp, AlertTriangle, RefreshCw } fro
 export default function StockManagement() {
   const [isStockTransactionDialogOpen, setIsStockTransactionDialogOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'in' | 'out'>('in');
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [notes, setNotes] = useState('');
   const { toast } = useToast();
 
   // Fetch products for stock management
@@ -30,9 +35,78 @@ export default function StockManagement() {
   });
 
   // Fetch reorder points
-  const { data: reorderPoints, isLoading: reorderLoading } = useQuery({
+  const { data: reorderPoints, isLoading: reorderLoading, refetch: refetchReorderPoints } = useQuery({
     queryKey: ["/api/reorder-points"],
   });
+
+  // Stock transaction mutation
+  const stockTransactionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('/api/stock-transactions', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `Stock ${transactionType === 'in' ? 'received' : 'issued'} successfully`,
+      });
+      setIsStockTransactionDialogOpen(false);
+      resetForm();
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ["/api/stock-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reorder-points"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error", 
+        description: error.message || "Failed to record stock transaction",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setSelectedProduct('');
+    setQuantity('');
+    setReason('');
+    setReferenceNumber('');
+    setNotes('');
+  };
+
+  const handleStockTransaction = () => {
+    if (!selectedProduct || !quantity || !reason) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const transactionData = {
+      productId: selectedProduct,
+      type: transactionType,
+      quantity: parseInt(quantity),
+      reason,
+      referenceNumber: referenceNumber || `${transactionType.toUpperCase()}-${Date.now()}`,
+      notes,
+    };
+
+    stockTransactionMutation.mutate(transactionData);
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/stock-transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/reorder-points"] });
+    toast({
+      title: "Refreshed",
+      description: "Stock data has been refreshed",
+    });
+  };
 
   // Product columns for stock overview
   const productColumns = [
@@ -125,12 +199,15 @@ export default function StockManagement() {
   ];
 
   // Calculate metrics
-  const totalProducts = (products || []).length;
-  const lowStockProducts = (products || []).filter((p: any) => p.stock <= p.lowStockThreshold).length;
-  const totalValue = (products || []).reduce((sum: number, product: any) => {
-    return sum + (parseFloat(product.price) * product.stock);
+  const productsArray = Array.isArray(products) ? products : [];
+  const stockTransactionsArray = Array.isArray(stockTransactions) ? stockTransactions : [];
+  
+  const totalProducts = productsArray.length;
+  const lowStockProducts = productsArray.filter((p: any) => p.stock <= p.lowStockThreshold).length;
+  const totalValue = productsArray.reduce((sum: number, product: any) => {
+    return sum + (parseFloat(product.price || 0) * (product.stock || 0));
   }, 0);
-  const totalTransactions = (stockTransactions || []).length;
+  const totalTransactions = stockTransactionsArray.length;
 
   if (productsLoading) {
     return (
@@ -183,12 +260,12 @@ export default function StockManagement() {
                 </div>
                 <div>
                   <Label htmlFor="product">Product</Label>
-                  <Select>
+                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select product..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(products || []).map((product: any) => (
+                      {productsArray.map((product: any) => (
                         <SelectItem key={product.id} value={product.id}>
                           {product.name} - {product.sku}
                         </SelectItem>
@@ -197,63 +274,82 @@ export default function StockManagement() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    placeholder="Enter quantity..."
+                  <Label htmlFor="quantity">Quantity *</Label>
+                  <Input 
+                    id="quantity" 
+                    type="number" 
+                    placeholder="Enter quantity" 
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
                     data-testid="input-quantity"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="reason">Reason</Label>
-                  <Select>
+                  <Label htmlFor="reason">Reason *</Label>
+                  <Select value={reason} onValueChange={setReason}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select reason..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="purchase">Purchase</SelectItem>
-                      <SelectItem value="sale">Sale</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                      <SelectItem value="damage">Damage</SelectItem>
                       <SelectItem value="return">Return</SelectItem>
+                      <SelectItem value="sale">Sale</SelectItem>
+                      <SelectItem value="damage">Damage</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="reference">Reference Number</Label>
-                  <Input
-                    id="reference"
-                    placeholder="PO number, invoice, etc..."
-                    data-testid="input-reference"
+                  <Label htmlFor="referenceNumber">Reference Number</Label>
+                  <Input 
+                    id="referenceNumber" 
+                    placeholder="PO/Invoice number" 
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Additional notes..."
-                    data-testid="textarea-notes"
+                  <Textarea 
+                    id="notes" 
+                    placeholder="Additional notes..." 
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsStockTransactionDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button data-testid="button-save-transaction">
-                    Record Transaction
+                  <Button 
+                    onClick={handleStockTransaction}
+                    disabled={stockTransactionMutation.isPending}
+                    data-testid="button-save-transaction"
+                  >
+                    {stockTransactionMutation.isPending ? "Processing..." : "Record Transaction"}
                   </Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
           
-          <Button variant="outline" data-testid="button-stock-out">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setTransactionType('out');
+              setIsStockTransactionDialogOpen(true);
+            }}
+            data-testid="button-stock-out"
+          >
             <TrendingDown className="h-4 w-4 mr-2" />
             Stock Out
           </Button>
-          
-          <Button variant="outline" data-testid="button-refresh-stock">
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            data-testid="button-refresh-stock"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
