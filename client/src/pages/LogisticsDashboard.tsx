@@ -45,11 +45,11 @@ export default function LogisticsDashboard() {
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const { toast } = useToast();
 
-  const { data: shipments, isLoading: shipmentsLoading } = useQuery({
-    queryKey: ["/api/shipments"],
+  const { data: shipments = [], isLoading: shipmentsLoading } = useQuery({
+    queryKey: ["/api/logistics/shipments"],
   });
 
-  const { data: orders, isLoading: ordersLoading } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ["/api/orders"],
   });
 
@@ -67,10 +67,10 @@ export default function LogisticsDashboard() {
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("POST", "/api/shipments", data);
+      return await apiRequest("POST", "/api/logistics/shipments", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
       setIsShipmentDialogOpen(false);
       form.reset();
       toast({
@@ -89,10 +89,10 @@ export default function LogisticsDashboard() {
 
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest("PUT", `/api/shipments/${id}`, data);
+      return await apiRequest("PUT", `/api/logistics/shipments/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
       setEditingShipment(null);
       form.reset();
       toast({

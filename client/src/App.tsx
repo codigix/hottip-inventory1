@@ -10,6 +10,7 @@ import InventoryLayout from "@/pages/inventory/InventoryLayout";
 import SalesLayout from "@/pages/sales/SalesLayout";
 import AccountsLayout from "@/pages/accounts/AccountsLayout";
 import MarketingLayout from "@/pages/marketing/MarketingLayout";
+import LogisticsLayout from "@/pages/logistics/LogisticsLayout";
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import EmployeesDashboard from "@/pages/EmployeesDashboard";
 import NotFound from "@/pages/not-found";
@@ -30,7 +31,8 @@ function AppRouter() {
         <Route path="/accounts/*" component={AccountsLayout} />
         <Route path="/marketing" component={MarketingLayout} />
         <Route path="/marketing/*" component={MarketingLayout} />
-        <Route path="/logistics" component={LogisticsDashboard} />
+        <Route path="/logistics" component={LogisticsLayout} />
+        <Route path="/logistics/*" component={LogisticsLayout} />
         <Route path="/employees" component={EmployeesDashboard} />
         <Route component={NotFound} />
       </Switch>
