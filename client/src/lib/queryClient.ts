@@ -1,8 +1,24 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Helper function to get auth token
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('auth_token');
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    
+    // Handle auth errors globally
+    if (res.status === 401) {
+      // Clear invalid token
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+      }
+    }
+    
     throw new Error(`${res.status}: ${text}`);
   }
 }
@@ -17,10 +33,14 @@ export async function apiRequest(
 ): Promise<Response> {
   const { method = "GET", body, headers = {} } = options || {};
   
+  // Get auth token and include in headers
+  const token = getAuthToken();
+  
   const res = await fetch(url, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...headers,
     },
     body,
@@ -37,7 +57,13 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // Get auth token and include in headers
+    const token = getAuthToken();
+    
     const res = await fetch(queryKey.join("/") as string, {
+      headers: {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       credentials: "include",
     });
 
