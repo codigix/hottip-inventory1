@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, uuid, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, uuid, pgEnum, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -517,6 +517,151 @@ export const inventoryTasks = pgTable("inventory_tasks", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ===== ACCOUNTS MODULE TABLES =====
+
+// Enums for Accounts
+export const receivableStatusEnum = pgEnum('receivable_status', ['pending', 'partial', 'paid', 'overdue']);
+export const payableStatusEnum = pgEnum('payable_status', ['pending', 'partial', 'paid', 'overdue']);
+export const paymentKindEnum = pgEnum('payment_kind', ['receive', 'pay']);
+export const paymentMethodEnum = pgEnum('payment_method', ['cash', 'bank', 'upi', 'cheque']);
+export const paymentLinkedTypeEnum = pgEnum('payment_linked_type', ['invoice', 'po', 'inbound_quotation']);
+export const bankTransactionTypeEnum = pgEnum('bank_transaction_type', ['credit', 'debit']);
+export const gstFrequencyEnum = pgEnum('gst_frequency', ['monthly', 'quarterly']);
+export const gstStatusEnum = pgEnum('gst_status', ['draft', 'filed', 'paid', 'reconciled']);
+export const reminderTargetTypeEnum = pgEnum('reminder_target_type', ['receivable', 'payable', 'gst']);
+export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms', 'whatsapp']);
+export const reminderStatusEnum = pgEnum('reminder_status', ['pending', 'sent', 'stopped']);
+export const accountTaskTypeEnum = pgEnum('account_task_type', ['reconcile', 'send_reminder', 'file_gst']);
+export const accountTaskStatusEnum = pgEnum('account_task_status', ['open', 'in_progress', 'done']);
+
+// Accounts Receivables - Client payments linked to invoices
+export const accountsReceivables = pgTable("accounts_receivables", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: uuid("invoice_id").references(() => invoices.id).notNull(),
+  customerId: uuid("customer_id").references(() => customers.id).notNull(),
+  amountDue: decimal("amount_due", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull().default('0'),
+  dueDate: timestamp("due_date").notNull(),
+  status: receivableStatusEnum("status").notNull().default('pending'),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Accounts Payables - Vendor payments linked to POs/quotations
+export const accountsPayables = pgTable("accounts_payables", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  poId: uuid("po_id").references(() => purchaseOrders.id),
+  inboundQuotationId: uuid("inbound_quotation_id").references(() => inboundQuotations.id),
+  supplierId: uuid("supplier_id").references(() => suppliers.id).notNull(),
+  amountDue: decimal("amount_due", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull().default('0'),
+  dueDate: timestamp("due_date").notNull(),
+  status: payableStatusEnum("status").notNull().default('pending'),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  // Ensure at least one of poId or inboundQuotationId is not null
+  sourceDocCheck: check('accounts_payables_source_doc_check', sql`(${table.poId} IS NOT NULL OR ${table.inboundQuotationId} IS NOT NULL)`),
+}));
+
+// Bank Accounts - Manage company bank details (defined first for references)
+export const bankAccounts = pgTable("bank_accounts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Account nickname
+  bankName: text("bank_name").notNull(),
+  accountNumberMasked: text("account_number_masked").notNull(), // Only last 4 digits visible
+  ifsc: text("ifsc").notNull(),
+  upiId: text("upi_id"),
+  openingBalance: decimal("opening_balance", { precision: 10, scale: 2 }).notNull().default('0'),
+  currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).notNull().default('0'),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Payments - Record of all payments (receivables and payables)
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  kind: paymentKindEnum("kind").notNull(), // receive or pay
+  method: paymentMethodEnum("method").notNull(),
+  bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  reference: text("reference"), // Cheque number, transaction ID, etc.
+  linkedType: paymentLinkedTypeEnum("linked_type").notNull(),
+  linkedId: uuid("linked_id").notNull(), // Invoice ID, PO ID, etc.
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Bank Transactions - Track all bank account transactions
+export const bankTransactions = pgTable("bank_transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id).notNull(),
+  date: timestamp("date").notNull(),
+  type: bankTransactionTypeEnum("type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  paymentId: uuid("payment_id").references(() => payments.id), // Link to payment if applicable
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(), // Running balance
+  reference: text("reference"), // Bank reference number
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// GST Returns - Track GST filing and reconciliation
+export const gstReturns = pgTable("gst_returns", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  frequency: gstFrequencyEnum("frequency").notNull(),
+  outputTax: decimal("output_tax", { precision: 10, scale: 2 }).notNull().default('0'), // Tax collected on sales
+  inputTax: decimal("input_tax", { precision: 10, scale: 2 }).notNull().default('0'), // Tax paid on purchases
+  liability: decimal("liability", { precision: 10, scale: 2 }).notNull().default('0'), // Net GST liability
+  status: gstStatusEnum("status").notNull().default('draft'),
+  filedAt: timestamp("filed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Account Reminders - Automated payment reminders
+export const accountReminders = pgTable("account_reminders", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetType: reminderTargetTypeEnum("target_type").notNull(),
+  targetId: uuid("target_id").notNull(), // Receivable ID, Payable ID, or GST Return ID
+  dueDate: timestamp("due_date").notNull(),
+  nextReminderAt: timestamp("next_reminder_at").notNull(),
+  lastSentAt: timestamp("last_sent_at"),
+  channel: reminderChannelEnum("channel").notNull(),
+  status: reminderStatusEnum("status").notNull().default('pending'),
+  template: text("template"), // Message template
+  frequency: integer("frequency").notNull().default(7), // Days between reminders
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Account Tasks - Assign tasks to accounts staff
+export const accountTasks = pgTable("account_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: accountTaskTypeEnum("type").notNull(),
+  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  status: accountTaskStatusEnum("status").notNull().default('open'),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  relatedType: text("related_type"), // 'invoice', 'po', 'gst_return', etc.
+  relatedId: uuid("related_id"), // ID of related entity
+  notes: text("notes"),
+  priority: taskPriorityEnum("priority").notNull().default('medium'),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
@@ -749,6 +894,75 @@ export const reorderPointsRelations = relations(reorderPoints, ({ one }) => ({
   }),
 }));
 
+// Accounts Relations
+export const accountsReceivablesRelations = relations(accountsReceivables, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [accountsReceivables.invoiceId],
+    references: [invoices.id],
+  }),
+  customer: one(customers, {
+    fields: [accountsReceivables.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const accountsPayablesRelations = relations(accountsPayables, ({ one }) => ({
+  purchaseOrder: one(purchaseOrders, {
+    fields: [accountsPayables.poId],
+    references: [purchaseOrders.id],
+  }),
+  inboundQuotation: one(inboundQuotations, {
+    fields: [accountsPayables.inboundQuotationId],
+    references: [inboundQuotations.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [accountsPayables.supplierId],
+    references: [suppliers.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  bankAccount: one(bankAccounts, {
+    fields: [payments.bankAccountId],
+    references: [bankAccounts.id],
+  }),
+}));
+
+export const bankAccountsRelations = relations(bankAccounts, ({ many }) => ({
+  payments: many(payments),
+  bankTransactions: many(bankTransactions),
+}));
+
+export const bankTransactionsRelations = relations(bankTransactions, ({ one }) => ({
+  bankAccount: one(bankAccounts, {
+    fields: [bankTransactions.bankAccountId],
+    references: [bankAccounts.id],
+  }),
+  payment: one(payments, {
+    fields: [bankTransactions.paymentId],
+    references: [payments.id],
+  }),
+}));
+
+export const gstReturnsRelations = relations(gstReturns, ({ many }) => ({
+  reminders: many(accountReminders),
+}));
+
+export const accountRemindersRelations = relations(accountReminders, ({ one }) => ({
+  // Generic relation - targetType determines which table
+}));
+
+export const accountTasksRelations = relations(accountTasks, ({ one }) => ({
+  assignedToUser: one(users, {
+    fields: [accountTasks.assignedTo],
+    references: [users.id],
+  }),
+  assignedByUser: one(users, {
+    fields: [accountTasks.assignedBy],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -881,6 +1095,53 @@ export const insertInventoryTaskSchema = createInsertSchema(inventoryTasks).omit
   updatedAt: true,
 });
 
+// Accounts Insert Schemas
+export const insertAccountsReceivableSchema = createInsertSchema(accountsReceivables).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAccountsPayableSchema = createInsertSchema(accountsPayables).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGstReturnSchema = createInsertSchema(gstReturns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAccountReminderSchema = createInsertSchema(accountReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAccountTaskSchema = createInsertSchema(accountTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -953,3 +1214,28 @@ export type InsertFabricationOrder = z.infer<typeof insertFabricationOrderSchema
 
 export type InventoryTask = typeof inventoryTasks.$inferSelect;
 export type InsertInventoryTask = z.infer<typeof insertInventoryTaskSchema>;
+
+// Accounts Types
+export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
+export type InsertAccountsReceivable = z.infer<typeof insertAccountsReceivableSchema>;
+
+export type AccountsPayable = typeof accountsPayables.$inferSelect;
+export type InsertAccountsPayable = z.infer<typeof insertAccountsPayableSchema>;
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type BankAccount = typeof bankAccounts.$inferSelect;
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
+
+export type GstReturn = typeof gstReturns.$inferSelect;
+export type InsertGstReturn = z.infer<typeof insertGstReturnSchema>;
+
+export type AccountReminder = typeof accountReminders.$inferSelect;
+export type InsertAccountReminder = z.infer<typeof insertAccountReminderSchema>;
+
+export type AccountTask = typeof accountTasks.$inferSelect;
+export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
