@@ -13,6 +13,7 @@ import {
   Bell,
   User,
   Menu,
+  Megaphone,
 } from "lucide-react";
 
 const departments = [
@@ -20,6 +21,7 @@ const departments = [
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Sales", href: "/sales", icon: TrendingUp },
   { name: "Accounts", href: "/accounts", icon: Calculator },
+  { name: "Marketing", href: "/marketing", icon: Megaphone },
   { name: "Logistics", href: "/logistics", icon: Truck },
   { name: "Employees", href: "/employees", icon: Users },
 ];
