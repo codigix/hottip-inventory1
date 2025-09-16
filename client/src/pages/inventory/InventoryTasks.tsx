@@ -31,10 +31,7 @@ export default function InventoryTasks() {
   // Task update mutation
   const updateTaskMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest(`/api/inventory-tasks/${data.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('PUT', `/api/inventory-tasks/${data.id}`, data);
     },
     onSuccess: () => {
       toast({

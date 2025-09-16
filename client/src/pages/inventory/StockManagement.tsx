@@ -42,10 +42,7 @@ export default function StockManagement() {
   // Stock transaction mutation
   const stockTransactionMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/stock-transactions', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/stock-transactions', data);
     },
     onSuccess: () => {
       toast({
@@ -87,6 +84,7 @@ export default function StockManagement() {
     }
 
     const transactionData = {
+      userId: 'current-user', // Default user for now - should be from auth context in production
       productId: selectedProduct,
       type: transactionType,
       quantity: parseInt(quantity),

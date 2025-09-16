@@ -30,10 +30,7 @@ export default function InventoryAttendance() {
   // Check-in/check-out mutation
   const attendanceMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/attendance', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/attendance', data);
     },
     onSuccess: () => {
       toast({
@@ -69,9 +66,10 @@ export default function InventoryAttendance() {
     }
 
     const attendanceData = {
-      employeeId: selectedEmployee,
+      userId: selectedEmployee,
       action: attendanceAction,
       location,
+      date: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
       timestamp: new Date().toISOString(),
       department: 'Inventory',
     };
