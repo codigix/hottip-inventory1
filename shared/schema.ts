@@ -517,6 +517,254 @@ export const inventoryTasks = pgTable("inventory_tasks", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ===== MARKETING MODULE TABLES =====
+
+// Marketing Enums
+export const leadStatusEnum = pgEnum('lead_status', ['new', 'contacted', 'in_progress', 'converted', 'dropped']);
+export const leadSourceEnum = pgEnum('lead_source', ['website', 'referral', 'advertisement', 'social_media', 'trade_show', 'cold_call', 'email_campaign', 'other']);
+export const leadPriorityEnum = pgEnum('lead_priority', ['low', 'medium', 'high', 'urgent']);
+
+export const fieldVisitStatusEnum = pgEnum('field_visit_status', ['scheduled', 'in_progress', 'completed', 'cancelled']);
+export const visitPurposeEnum = pgEnum('visit_purpose', ['initial_meeting', 'demo', 'follow_up', 'quotation_discussion', 'negotiation', 'closing', 'support', 'other']);
+
+export const marketingTaskTypeEnum = pgEnum('marketing_task_type', ['visit_client', 'follow_up', 'demo', 'presentation', 'proposal', 'phone_call', 'email_campaign', 'market_research', 'other']);
+export const marketingTaskStatusEnum = pgEnum('marketing_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
+
+export const leaveTypeEnum = pgEnum('leave_type', ['sick', 'vacation', 'personal', 'emergency', 'training', 'other']);
+export const leaveStatusEnum = pgEnum('leave_status', ['pending', 'approved', 'rejected', 'cancelled']);
+
+// Leads - Comprehensive lead management
+export const leads = pgTable("leads", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Basic Lead Information
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  companyName: text("company_name"),
+  email: text("email"),
+  phone: text("phone"),
+  alternatePhone: text("alternate_phone"),
+  
+  // Address Information
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  country: text("country").notNull().default('India'),
+  
+  // Lead Source and Tracking
+  source: leadSourceEnum("source").notNull().default('other'),
+  sourceDetails: text("source_details"), // Additional source information
+  referredBy: text("referred_by"), // Name of person who referred
+  
+  // Requirement Details
+  requirementDescription: text("requirement_description"),
+  estimatedBudget: decimal("estimated_budget", { precision: 10, scale: 2 }),
+  budgetRange: text("budget_range"), // e.g., "10L-50L", "50L-1Cr"
+  priority: leadPriorityEnum("priority").notNull().default('medium'),
+  
+  // Status and Assignment
+  status: leadStatusEnum("status").notNull().default('new'),
+  assignedTo: uuid("assigned_to").references(() => users.id),
+  assignedBy: uuid("assigned_by").references(() => users.id),
+  assignedDate: timestamp("assigned_date"),
+  
+  // Important Dates
+  lastContactedDate: timestamp("last_contacted_date"),
+  followUpDate: timestamp("follow_up_date"),
+  conversionDate: timestamp("conversion_date"),
+  expectedClosingDate: timestamp("expected_closing_date"),
+  
+  // Additional Information
+  notes: text("notes"),
+  tags: text("tags").array(), // Array of tags for categorization
+  isActive: boolean("is_active").notNull().default(true),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Field Visits - Comprehensive visit management
+export const fieldVisits = pgTable("field_visits", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  visitNumber: text("visit_number").notNull().unique(), // Auto-generated unique number
+  
+  // Related Lead
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  
+  // Visit Scheduling
+  plannedDate: timestamp("planned_date").notNull(),
+  plannedStartTime: timestamp("planned_start_time"),
+  plannedEndTime: timestamp("planned_end_time"),
+  actualDate: timestamp("actual_date"),
+  actualStartTime: timestamp("actual_start_time"),
+  actualEndTime: timestamp("actual_end_time"),
+  
+  // Employee Assignment
+  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  
+  // Visit Location
+  visitAddress: text("visit_address").notNull(),
+  visitCity: text("visit_city"),
+  visitState: text("visit_state"),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }), // GPS coordinates
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Visit Details
+  purpose: visitPurposeEnum("purpose").notNull().default('initial_meeting'),
+  status: fieldVisitStatusEnum("status").notNull().default('scheduled'),
+  
+  // Visit Notes and Outcomes
+  preVisitNotes: text("pre_visit_notes"), // Notes before visit
+  visitNotes: text("visit_notes"), // Notes during/after visit
+  clientFeedback: text("client_feedback"),
+  nextAction: text("next_action"),
+  outcome: text("outcome"), // Success, follow-up needed, etc.
+  
+  // Proof and Attachments
+  checkInPhotoPath: text("check_in_photo_path"), // Photo at check-in
+  checkOutPhotoPath: text("check_out_photo_path"), // Photo at check-out
+  attachmentPaths: text("attachment_paths").array(), // Multiple file paths
+  
+  // Check-in/Check-out Details
+  checkInLocation: text("check_in_location"),
+  checkOutLocation: text("check_out_location"),
+  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
+  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
+  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
+  
+  // Travel Information
+  travelDistance: decimal("travel_distance", { precision: 8, scale: 2 }), // in km
+  travelExpense: decimal("travel_expense", { precision: 10, scale: 2 }),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Marketing Tasks - Comprehensive task management
+export const marketingTasks = pgTable("marketing_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Task Details
+  title: text("title").notNull(),
+  description: text("description"),
+  type: marketingTaskTypeEnum("type").notNull().default('follow_up'),
+  
+  // Assignment and Priority
+  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  priority: leadPriorityEnum("priority").notNull().default('medium'),
+  
+  // Status and Dates
+  status: marketingTaskStatusEnum("status").notNull().default('pending'),
+  dueDate: timestamp("due_date"),
+  startedDate: timestamp("started_date"),
+  completedDate: timestamp("completed_date"),
+  
+  // Related Entities
+  leadId: uuid("lead_id").references(() => leads.id),
+  fieldVisitId: uuid("field_visit_id").references(() => fieldVisits.id),
+  customerId: uuid("customer_id").references(() => customers.id), // If converted lead
+  
+  // Task Execution Details
+  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
+  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
+  
+  // Completion Details
+  completionNotes: text("completion_notes"),
+  outcome: text("outcome"),
+  nextAction: text("next_action"),
+  
+  // Attachments and Files
+  attachmentPaths: text("attachment_paths").array(),
+  
+  // Additional Information
+  tags: text("tags").array(),
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringFrequency: text("recurring_frequency"), // daily, weekly, monthly
+  parentTaskId: uuid("parent_task_id").references(() => marketingTasks.id), // For recurring tasks
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Marketing Attendance - Comprehensive attendance and leave management
+export const marketingAttendance = pgTable("marketing_attendance", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Employee Reference
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  
+  // Date and Attendance
+  date: timestamp("date").notNull(),
+  
+  // Check-in/Check-out Times
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
+  
+  // Location Tracking
+  checkInLocation: text("check_in_location"),
+  checkOutLocation: text("check_out_location"),
+  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
+  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
+  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
+  
+  // Live Location (for real-time tracking)
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  locationLastUpdated: timestamp("location_last_updated"),
+  
+  // Work Hours Calculation
+  regularHours: decimal("regular_hours", { precision: 5, scale: 2 }).default('0'),
+  overtimeHours: decimal("overtime_hours", { precision: 5, scale: 2 }).default('0'),
+  totalHours: decimal("total_hours", { precision: 5, scale: 2 }).default('0'),
+  
+  // Break Times
+  breakStartTime: timestamp("break_start_time"),
+  breakEndTime: timestamp("break_end_time"),
+  breakDuration: integer("break_duration").default(0), // in minutes
+  
+  // Attendance Status
+  attendanceStatus: text("attendance_status").notNull().default('present'), // present, absent, half_day, late, holiday
+  
+  // Leave Management
+  isOnLeave: boolean("is_on_leave").notNull().default(false),
+  leaveType: leaveTypeEnum("leave_type"),
+  leaveStartDate: timestamp("leave_start_date"),
+  leaveEndDate: timestamp("leave_end_date"),
+  leaveReason: text("leave_reason"),
+  leaveStatus: leaveStatusEnum("leave_status"),
+  leaveApprovedBy: uuid("leave_approved_by").references(() => users.id),
+  leaveApprovedDate: timestamp("leave_approved_date"),
+  
+  // Work Details
+  workDescription: text("work_description"), // What they worked on today
+  visitCount: integer("visit_count").default(0), // Number of client visits
+  tasksCompleted: integer("tasks_completed").default(0),
+  
+  // Photo Proof
+  checkInPhotoPath: text("check_in_photo_path"),
+  checkOutPhotoPath: text("check_out_photo_path"),
+  
+  // Additional Notes
+  notes: text("notes"),
+  managerNotes: text("manager_notes"), // Notes from manager/supervisor
+  
+  // Approval Workflow
+  isApproved: boolean("is_approved").default(false),
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedDate: timestamp("approved_date"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ===== ACCOUNTS MODULE TABLES =====
 
 // Enums for Accounts
@@ -1125,6 +1373,31 @@ export const insertInventoryTaskSchema = createInsertSchema(inventoryTasks).omit
   updatedAt: true,
 });
 
+// Marketing Insert Schemas
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFieldVisitSchema = createInsertSchema(fieldVisits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMarketingTaskSchema = createInsertSchema(marketingTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMarketingAttendanceSchema = createInsertSchema(marketingAttendance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Accounts Insert Schemas
 export const insertAccountsReceivableSchema = createInsertSchema(accountsReceivables).omit({
   id: true,
@@ -1251,6 +1524,19 @@ export type InsertFabricationOrder = z.infer<typeof insertFabricationOrderSchema
 
 export type InventoryTask = typeof inventoryTasks.$inferSelect;
 export type InsertInventoryTask = z.infer<typeof insertInventoryTaskSchema>;
+
+// Marketing Types
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+
+export type FieldVisit = typeof fieldVisits.$inferSelect;
+export type InsertFieldVisit = z.infer<typeof insertFieldVisitSchema>;
+
+export type MarketingTask = typeof marketingTasks.$inferSelect;
+export type InsertMarketingTask = z.infer<typeof insertMarketingTaskSchema>;
+
+export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
+export type InsertMarketingAttendance = z.infer<typeof insertMarketingAttendanceSchema>;
 
 // Accounts Types
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
