@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -287,6 +287,9 @@ export default function AccountsPayables() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Payable</DialogTitle>
+              <DialogDescription>
+                Create a new accounts payable entry for vendor payments.
+              </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
@@ -327,7 +330,7 @@ export default function AccountsPayables() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No PO</SelectItem>
+                          <SelectItem value="none">No PO</SelectItem>
                           {purchaseOrders.map((po: any) => (
                             <SelectItem key={po.id} value={po.id}>
                               {po.number} - ₹{po.total}
@@ -352,7 +355,7 @@ export default function AccountsPayables() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Quotation</SelectItem>
+                          <SelectItem value="none">No Quotation</SelectItem>
                           {inboundQuotations.map((quotation: any) => (
                             <SelectItem key={quotation.id} value={quotation.id}>
                               {quotation.number} - ₹{quotation.total}
@@ -652,6 +655,9 @@ export default function AccountsPayables() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Payable</DialogTitle>
+            <DialogDescription>
+              Update the accounts payable information.
+            </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
@@ -754,6 +760,9 @@ export default function AccountsPayables() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              Record a payment against this accounts payable entry.
+            </DialogDescription>
           </DialogHeader>
           {selectedPayable && (
             <div className="mb-4 p-4 bg-muted rounded-lg">
