@@ -533,6 +533,29 @@ export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms', '
 export const reminderStatusEnum = pgEnum('reminder_status', ['pending', 'sent', 'stopped']);
 export const accountTaskTypeEnum = pgEnum('account_task_type', ['reconcile', 'send_reminder', 'file_gst']);
 export const accountTaskStatusEnum = pgEnum('account_task_status', ['open', 'in_progress', 'done']);
+export const reportTypeEnum = pgEnum('report_type', ['daily_collections', 'receivables', 'payables', 'gst_filing', 'cash_flow', 'profit_loss']);
+export const reportStatusEnum = pgEnum('report_status', ['generating', 'generated', 'failed']);
+
+// Account Reports - Generated financial reports
+export const accountReports = pgTable("account_reports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportType: reportTypeEnum("report_type").notNull(),
+  title: text("title").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: reportStatusEnum("status").notNull().default('generating'),
+  fileUrl: text("file_url"),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"), // in bytes
+  generatedBy: uuid("generated_by").references(() => users.id),
+  downloadCount: integer("download_count").notNull().default(0),
+  parameters: text("parameters"), // JSON string for report parameters
+  summary: text("summary"), // Brief summary of the report content
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration for temporary reports
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
 // Accounts Receivables - Client payments linked to invoices
 export const accountsReceivables = pgTable("accounts_receivables", {
@@ -963,6 +986,13 @@ export const accountTasksRelations = relations(accountTasks, ({ one }) => ({
   }),
 }));
 
+export const accountReportsRelations = relations(accountReports, ({ one }) => ({
+  generatedByUser: one(users, {
+    fields: [accountReports.generatedBy],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1142,6 +1172,13 @@ export const insertAccountTaskSchema = createInsertSchema(accountTasks).omit({
   updatedAt: true,
 });
 
+export const insertAccountReportSchema = createInsertSchema(accountReports).omit({
+  id: true,
+  generatedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -1239,3 +1276,6 @@ export type InsertAccountReminder = z.infer<typeof insertAccountReminderSchema>;
 
 export type AccountTask = typeof accountTasks.$inferSelect;
 export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
+
+export type AccountReport = typeof accountReports.$inferSelect;
+export type InsertAccountReport = z.infer<typeof insertAccountReportSchema>;

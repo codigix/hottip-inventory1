@@ -6,7 +6,7 @@ import {
   vendorCommunications, reorderPoints, fabricationOrders, inventoryTasks,
   // Accounts entities
   accountsReceivables, accountsPayables, payments, bankAccounts, bankTransactions,
-  gstReturns, accountReminders, accountTasks,
+  gstReturns, accountReminders, accountTasks, accountReports,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -25,7 +25,8 @@ import {
   type AccountsReceivable, type InsertAccountsReceivable, type AccountsPayable, type InsertAccountsPayable,
   type Payment, type InsertPayment, type BankAccount, type InsertBankAccount,
   type BankTransaction, type InsertBankTransaction, type GstReturn, type InsertGstReturn,
-  type AccountReminder, type InsertAccountReminder, type AccountTask, type InsertAccountTask
+  type AccountReminder, type InsertAccountReminder, type AccountTask, type InsertAccountTask,
+  type AccountReport, type InsertAccountReport
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, like, count, sum, sql } from "drizzle-orm";
@@ -302,6 +303,17 @@ export interface IStorage {
   getTotalReceivablesAmount(): Promise<number>;
   getTotalPayablesAmount(): Promise<number>;
   getCashFlowSummary(): Promise<any>;
+
+  // Account Reports
+  getAccountReport(id: string): Promise<any>;
+  getAccountReports(): Promise<any[]>;
+  createAccountReport(report: InsertAccountReport): Promise<AccountReport>;
+  updateAccountReport(id: string, report: Partial<InsertAccountReport>): Promise<AccountReport>;
+  deleteAccountReport(id: string): Promise<void>;
+  getReportsByType(type: string): Promise<any[]>;
+  getReportsByStatus(status: string): Promise<any[]>;
+  exportReport(id: string, format: string): Promise<{ url: string; fileName: string }>;
+  incrementReportDownload(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2303,6 +2315,116 @@ export class DatabaseStorage implements IStorage {
       paymentsMade: parseFloat(paymentsMade[0]?.sum || '0'),
       netCashFlow: parseFloat(paymentsReceived[0]?.sum || '0') - parseFloat(paymentsMade[0]?.sum || '0')
     };
+  }
+
+  // Account Reports
+  async getAccountReport(id: string): Promise<any> {
+    const [report] = await db
+      .select()
+      .from(accountReports)
+      .leftJoin(users, eq(accountReports.generatedBy, users.id))
+      .where(eq(accountReports.id, id));
+
+    if (!report) return undefined;
+
+    return {
+      ...report.account_reports,
+      generatedByUser: report.users
+    };
+  }
+
+  async getAccountReports(): Promise<any[]> {
+    const reports = await db
+      .select()
+      .from(accountReports)
+      .leftJoin(users, eq(accountReports.generatedBy, users.id))
+      .orderBy(desc(accountReports.createdAt));
+
+    return reports.map(r => ({
+      ...r.account_reports,
+      generatedByUser: r.users
+    }));
+  }
+
+  async createAccountReport(report: InsertAccountReport): Promise<AccountReport> {
+    const [newReport] = await db
+      .insert(accountReports)
+      .values(report)
+      .returning();
+    return newReport;
+  }
+
+  async updateAccountReport(id: string, report: Partial<InsertAccountReport>): Promise<AccountReport> {
+    const [updated] = await db
+      .update(accountReports)
+      .set({ ...report, updatedAt: new Date() })
+      .where(eq(accountReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAccountReport(id: string): Promise<void> {
+    await db.delete(accountReports).where(eq(accountReports.id, id));
+  }
+
+  async getReportsByType(type: string): Promise<any[]> {
+    const reports = await db
+      .select()
+      .from(accountReports)
+      .leftJoin(users, eq(accountReports.generatedBy, users.id))
+      .where(eq(accountReports.reportType, type as any))
+      .orderBy(desc(accountReports.createdAt));
+
+    return reports.map(r => ({
+      ...r.account_reports,
+      generatedByUser: r.users
+    }));
+  }
+
+  async getReportsByStatus(status: string): Promise<any[]> {
+    const reports = await db
+      .select()
+      .from(accountReports)
+      .leftJoin(users, eq(accountReports.generatedBy, users.id))
+      .where(eq(accountReports.status, status as any))
+      .orderBy(desc(accountReports.createdAt));
+
+    return reports.map(r => ({
+      ...r.account_reports,
+      generatedByUser: r.users
+    }));
+  }
+
+  async exportReport(id: string, format: string): Promise<{ url: string; fileName: string }> {
+    // This would typically integrate with a report generation service
+    // For now, we'll simulate the file generation process
+    const report = await this.getAccountReport(id);
+    if (!report) throw new Error('Report not found');
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const fileName = `${report.reportType}_${timestamp}.${format}`;
+    
+    // In a real implementation, this would:
+    // 1. Generate the actual file (PDF/Excel/CSV)
+    // 2. Upload to cloud storage or serve from filesystem
+    // 3. Return the actual download URL
+    
+    const simulatedUrl = `/downloads/reports/${fileName}`;
+    
+    return {
+      url: simulatedUrl,
+      fileName: fileName
+    };
+  }
+
+  async incrementReportDownload(id: string): Promise<void> {
+    await db
+      .update(accountReports)
+      .set({ 
+        downloadCount: sql`${accountReports.downloadCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(accountReports.id, id));
   }
 }
 

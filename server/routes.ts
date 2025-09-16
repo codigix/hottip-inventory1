@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
@@ -18,9 +18,73 @@ import {
   // Accounts schemas
   insertAccountsReceivableSchema, insertAccountsPayableSchema, insertPaymentSchema,
   insertBankAccountSchema, insertBankTransactionSchema, insertGstReturnSchema,
-  insertAccountReminderSchema, insertAccountTaskSchema
+  insertAccountReminderSchema, insertAccountTaskSchema, insertAccountReportSchema
 } from "@shared/schema";
 import { z } from "zod";
+
+// Authentication and Authorization Middleware
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+    username: string;
+  };
+}
+
+// Basic authentication middleware - checks for user session/token
+const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    // For now, we'll use a simple header-based auth
+    // In production, this should be replaced with proper JWT/session handling
+    const authHeader = req.headers.authorization;
+    const userId = req.headers['x-user-id'] as string;
+    
+    if (!authHeader && !userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    // If userId is provided in header (for development/testing), fetch user
+    if (userId) {
+      const user = await storage.getUser(userId);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ error: "Invalid or inactive user" });
+      }
+      req.user = {
+        id: user.id,
+        role: user.role,
+        username: user.username
+      };
+      return next();
+    }
+
+    // For production, implement proper token validation here
+    return res.status(401).json({ error: "Authentication token required" });
+  } catch (error) {
+    return res.status(401).json({ error: "Authentication failed" });
+  }
+};
+
+// Role-based authorization middleware for financial/accounts access
+const requireAccountsAccess = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  const { role } = req.user;
+  const allowedRoles = ['admin', 'manager']; // Only admin and manager can access financial reports
+  
+  if (!allowedRoles.includes(role)) {
+    return res.status(403).json({ 
+      error: "Insufficient permissions", 
+      message: "Access to financial reports requires admin or manager role" 
+    });
+  }
+
+  next();
+};
+
+// Combined middleware for reports access
+const requireReportsAccess = [requireAuth, requireAccountsAccess];
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Users Routes
@@ -1780,6 +1844,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete account reminder" });
+    }
+  });
+
+  // Account Reports Routes - Protected with authentication and authorization
+  app.get("/api/reports", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reports = await storage.getAccountReports();
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  app.get("/api/reports/type/:type", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reports = await storage.getReportsByType(req.params.type);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reports by type" });
+    }
+  });
+
+  app.get("/api/reports/status/:status", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reports = await storage.getReportsByStatus(req.params.status);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reports by status" });
+    }
+  });
+
+  app.get("/api/reports/:id", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const report = await storage.getAccountReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch report" });
+    }
+  });
+
+  app.post("/api/reports", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reportData = insertAccountReportSchema.parse(req.body);
+      const report = await storage.createAccountReport(reportData);
+      await storage.createActivity({
+        userId: report.generatedBy,
+        action: "CREATE_ACCOUNT_REPORT",
+        entityType: "account_report",
+        entityId: report.id,
+        details: `Generated ${report.reportType} report: ${report.title}`,
+      });
+      res.status(201).json(report);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid report data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  app.put("/api/reports/:id", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reportData = insertAccountReportSchema.partial().parse(req.body);
+      const report = await storage.updateAccountReport(req.params.id, reportData);
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update report" });
+    }
+  });
+
+  app.delete("/api/reports/:id", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteAccountReport(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete report" });
+    }
+  });
+
+  app.get("/api/reports/:id/export", ...requireReportsAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const format = req.query.format as string || 'pdf';
+      const report = await storage.getAccountReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      // Generate export file (this would typically call a service to generate PDF/Excel/CSV)
+      const exportData = await storage.exportReport(req.params.id, format);
+      
+      // Track download
+      await storage.incrementReportDownload(req.params.id);
+      
+      res.json({
+        success: true,
+        format,
+        downloadUrl: exportData.url,
+        fileName: exportData.fileName,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to export report" });
     }
   });
 
