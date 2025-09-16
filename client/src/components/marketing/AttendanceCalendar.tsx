@@ -211,7 +211,7 @@ export default function AttendanceCalendar({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Team Members</SelectItem>
-                    {users.map((user) => (
+                    {users.filter(user => user.id && user.id.trim() !== '').map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-5 w-5">
