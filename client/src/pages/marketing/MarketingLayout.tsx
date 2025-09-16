@@ -19,6 +19,8 @@ import MarketingDashboard from "@/pages/MarketingDashboard";
 import Leads from "./Leads";
 import FieldVisits from "./FieldVisits";
 import MarketingTasks from "./MarketingTasks";
+import Reports from "./Reports";
+import MarketingAttendance from "./MarketingAttendance";
 
 const sidebarItems = [
   {
@@ -180,28 +182,10 @@ export default function MarketingLayout() {
             <MarketingTasks />
           </Route>
           <Route path="/marketing/reports">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Marketing Reports</h2>
-                  <p className="text-muted-foreground">
-                    Conversion rates and analytics coming soon.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <Reports />
           </Route>
           <Route path="/marketing/attendance">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Marketing Attendance</h2>
-                  <p className="text-muted-foreground">
-                    Team attendance and leave tracking coming soon.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <MarketingAttendance />
           </Route>
           <Route>
             <div className="p-8">
