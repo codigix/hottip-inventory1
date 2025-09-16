@@ -115,7 +115,7 @@ export function LoginForm() {
           
           <div className="mt-4 p-3 bg-muted rounded-md">
             <p className="text-xs text-muted-foreground text-center" data-testid="text-demo-credentials">
-              Demo credentials: admin / admin123
+              Demo credentials: admin_user / admin123
             </p>
           </div>
         </CardContent>
