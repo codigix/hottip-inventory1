@@ -1514,6 +1514,21 @@ export const insertLogisticsCheckpointSchema = createInsertSchema(logisticsCheck
   createdAt: true,
 });
 
+// Additional Logistics Schemas for API routes
+export const updateLogisticsShipmentSchema = createInsertSchema(logisticsShipments).partial().omit({
+  id: true,
+  createdAt: true,
+});
+
+export const logisticsShipmentFilterSchema = z.object({
+  status: z.string().optional(),
+  employeeId: z.string().uuid().optional(),
+  clientId: z.string().uuid().optional(),
+  vendorId: z.string().uuid().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
 // Workflow Validation Schemas for Logistics Operations
 export const updateLogisticsShipmentStatusSchema = z.object({
   status: z.enum(['created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed']),
@@ -1778,6 +1793,7 @@ export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
 
 export type AccountReport = typeof accountReports.$inferSelect;
 export type InsertAccountReport = z.infer<typeof insertAccountReportSchema>;
+
 
 // Logistics Operation Interfaces
 export interface LogisticsStatusData {

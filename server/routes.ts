@@ -477,6 +477,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn("⚠️ Marketing routes registry not available:", error);
   }
 
+  // Import and register logistics routes safely
+  try {
+    const { registerLogisticsRoutes } = await import("./logistics-routes-registry");
+    registerLogisticsRoutes(app, { requireAuth });
+    console.log("✅ Logistics routes registered successfully");
+  } catch (error) {
+    console.warn("⚠️ Logistics routes registry not available:", error);
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }
