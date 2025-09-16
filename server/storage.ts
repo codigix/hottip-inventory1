@@ -4,6 +4,9 @@ import {
   outboundQuotations, quotationItems, inboundQuotations, inboundQuotationItems,
   invoices, invoiceItems, stockTransactions, spareParts, batches, barcodes,
   vendorCommunications, reorderPoints, fabricationOrders, inventoryTasks,
+  // Accounts entities
+  accountsReceivables, accountsPayables, payments, bankAccounts, bankTransactions,
+  gstReturns, accountReminders, accountTasks,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -17,7 +20,12 @@ import {
   type StockTransaction, type InsertStockTransaction, type SparePart, type InsertSparePart,
   type Batch, type InsertBatch, type Barcode, type InsertBarcode,
   type VendorCommunication, type InsertVendorCommunication, type ReorderPoint, type InsertReorderPoint,
-  type FabricationOrder, type InsertFabricationOrder, type InventoryTask, type InsertInventoryTask
+  type FabricationOrder, type InsertFabricationOrder, type InventoryTask, type InsertInventoryTask,
+  // Accounts types
+  type AccountsReceivable, type InsertAccountsReceivable, type AccountsPayable, type InsertAccountsPayable,
+  type Payment, type InsertPayment, type BankAccount, type InsertBankAccount,
+  type BankTransaction, type InsertBankTransaction, type GstReturn, type InsertGstReturn,
+  type AccountReminder, type InsertAccountReminder, type AccountTask, type InsertAccountTask
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, like, count, sum, sql } from "drizzle-orm";
@@ -210,6 +218,90 @@ export interface IStorage {
   getInventoryTasksByAssignee(assigneeId: string): Promise<any[]>;
   getInventoryTasksByStatus(status: string): Promise<any[]>;
   getInventoryTasksByType(type: string): Promise<any[]>;
+
+  // ===== ACCOUNTS MODULE METHODS =====
+
+  // Accounts Receivables
+  getAccountsReceivable(id: string): Promise<any>;
+  getAccountsReceivables(): Promise<any[]>;
+  createAccountsReceivable(receivable: InsertAccountsReceivable): Promise<AccountsReceivable>;
+  updateAccountsReceivable(id: string, receivable: Partial<InsertAccountsReceivable>): Promise<AccountsReceivable>;
+  deleteAccountsReceivable(id: string): Promise<void>;
+  getAccountsReceivablesByCustomer(customerId: string): Promise<any[]>;
+  getAccountsReceivablesByStatus(status: string): Promise<any[]>;
+  getOverdueReceivables(): Promise<any[]>;
+
+  // Accounts Payables
+  getAccountsPayable(id: string): Promise<any>;
+  getAccountsPayables(): Promise<any[]>;
+  createAccountsPayable(payable: InsertAccountsPayable): Promise<AccountsPayable>;
+  updateAccountsPayable(id: string, payable: Partial<InsertAccountsPayable>): Promise<AccountsPayable>;
+  deleteAccountsPayable(id: string): Promise<void>;
+  getAccountsPayablesBySupplier(supplierId: string): Promise<any[]>;
+  getAccountsPayablesByStatus(status: string): Promise<any[]>;
+  getOverduePayables(): Promise<any[]>;
+
+  // Payments
+  getPayment(id: string): Promise<any>;
+  getPayments(): Promise<any[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment>;
+  deletePayment(id: string): Promise<void>;
+  getPaymentsByKind(kind: string): Promise<any[]>;
+  getPaymentsByMethod(method: string): Promise<any[]>;
+  getPaymentsByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
+
+  // Bank Accounts
+  getBankAccount(id: string): Promise<any>;
+  getBankAccounts(): Promise<any[]>;
+  createBankAccount(account: InsertBankAccount): Promise<BankAccount>;
+  updateBankAccount(id: string, account: Partial<InsertBankAccount>): Promise<BankAccount>;
+  deleteBankAccount(id: string): Promise<void>;
+  getDefaultBankAccount(): Promise<BankAccount | undefined>;
+  getActiveBankAccounts(): Promise<any[]>;
+
+  // Bank Transactions
+  getBankTransaction(id: string): Promise<any>;
+  getBankTransactions(): Promise<any[]>;
+  createBankTransaction(transaction: InsertBankTransaction): Promise<BankTransaction>;
+  updateBankTransaction(id: string, transaction: Partial<InsertBankTransaction>): Promise<BankTransaction>;
+  deleteBankTransaction(id: string): Promise<void>;
+  getBankTransactionsByAccount(bankAccountId: string): Promise<any[]>;
+  getBankTransactionsByDateRange(bankAccountId: string, startDate: Date, endDate: Date): Promise<any[]>;
+
+  // GST Returns
+  getGstReturn(id: string): Promise<any>;
+  getGstReturns(): Promise<any[]>;
+  createGstReturn(gstReturn: InsertGstReturn): Promise<GstReturn>;
+  updateGstReturn(id: string, gstReturn: Partial<InsertGstReturn>): Promise<GstReturn>;
+  deleteGstReturn(id: string): Promise<void>;
+  getGstReturnsByStatus(status: string): Promise<any[]>;
+  getGstReturnsByPeriod(startDate: Date, endDate: Date): Promise<any[]>;
+
+  // Account Reminders
+  getAccountReminder(id: string): Promise<any>;
+  getAccountReminders(): Promise<any[]>;
+  createAccountReminder(reminder: InsertAccountReminder): Promise<AccountReminder>;
+  updateAccountReminder(id: string, reminder: Partial<InsertAccountReminder>): Promise<AccountReminder>;
+  deleteAccountReminder(id: string): Promise<void>;
+  getPendingReminders(): Promise<any[]>;
+  getRemindersByTargetType(targetType: string): Promise<any[]>;
+
+  // Account Tasks
+  getAccountTask(id: string): Promise<any>;
+  getAccountTasks(): Promise<any[]>;
+  createAccountTask(task: InsertAccountTask): Promise<AccountTask>;
+  updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
+  deleteAccountTask(id: string): Promise<void>;
+  getAccountTasksByAssignee(assigneeId: string): Promise<any[]>;
+  getAccountTasksByStatus(status: string): Promise<any[]>;
+  getAccountTasksByType(type: string): Promise<any[]>;
+
+  // Accounts Analytics
+  getAccountsDashboardMetrics(): Promise<any>;
+  getTotalReceivablesAmount(): Promise<number>;
+  getTotalPayablesAmount(): Promise<number>;
+  getCashFlowSummary(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1555,6 +1647,662 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(inventoryTasks.assignedTo, users.id))
       .where(eq(inventoryTasks.type, type as any))
       .orderBy(desc(inventoryTasks.createdAt));
+  }
+
+  // ===== ACCOUNTS MODULE IMPLEMENTATIONS =====
+
+  // Accounts Receivables
+  async getAccountsReceivable(id: string): Promise<any> {
+    const [receivable] = await db
+      .select()
+      .from(accountsReceivables)
+      .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+      .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+      .where(eq(accountsReceivables.id, id));
+
+    if (!receivable) return undefined;
+
+    return {
+      ...receivable.accounts_receivables,
+      invoice: receivable.invoices,
+      customer: receivable.customers
+    };
+  }
+
+  async getAccountsReceivables(): Promise<any[]> {
+    const receivables = await db
+      .select()
+      .from(accountsReceivables)
+      .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+      .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+      .orderBy(desc(accountsReceivables.dueDate));
+
+    return receivables.map(r => ({
+      ...r.accounts_receivables,
+      invoice: r.invoices,
+      customer: r.customers
+    }));
+  }
+
+  async createAccountsReceivable(receivable: InsertAccountsReceivable): Promise<AccountsReceivable> {
+    const [newReceivable] = await db
+      .insert(accountsReceivables)
+      .values(receivable)
+      .returning();
+    return newReceivable;
+  }
+
+  async updateAccountsReceivable(id: string, receivable: Partial<InsertAccountsReceivable>): Promise<AccountsReceivable> {
+    const [updated] = await db
+      .update(accountsReceivables)
+      .set({ ...receivable, updatedAt: new Date() })
+      .where(eq(accountsReceivables.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAccountsReceivable(id: string): Promise<void> {
+    await db.delete(accountsReceivables).where(eq(accountsReceivables.id, id));
+  }
+
+  async getAccountsReceivablesByCustomer(customerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountsReceivables)
+      .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+      .where(eq(accountsReceivables.customerId, customerId))
+      .orderBy(desc(accountsReceivables.dueDate));
+  }
+
+  async getAccountsReceivablesByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountsReceivables)
+      .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+      .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+      .where(eq(accountsReceivables.status, status as any))
+      .orderBy(desc(accountsReceivables.dueDate));
+  }
+
+  async getOverdueReceivables(): Promise<any[]> {
+    const today = new Date();
+    return await db
+      .select()
+      .from(accountsReceivables)
+      .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+      .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+      .where(and(
+        lte(accountsReceivables.dueDate, today),
+        eq(accountsReceivables.status, 'overdue')
+      ))
+      .orderBy(desc(accountsReceivables.dueDate));
+  }
+
+  // Accounts Payables
+  async getAccountsPayable(id: string): Promise<any> {
+    const [payable] = await db
+      .select()
+      .from(accountsPayables)
+      .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+      .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+      .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+      .where(eq(accountsPayables.id, id));
+
+    if (!payable) return undefined;
+
+    return {
+      ...payable.accounts_payables,
+      purchaseOrder: payable.purchase_orders,
+      inboundQuotation: payable.inbound_quotations,
+      supplier: payable.suppliers
+    };
+  }
+
+  async getAccountsPayables(): Promise<any[]> {
+    const payables = await db
+      .select()
+      .from(accountsPayables)
+      .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+      .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+      .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+      .orderBy(desc(accountsPayables.dueDate));
+
+    return payables.map(p => ({
+      ...p.accounts_payables,
+      purchaseOrder: p.purchase_orders,
+      inboundQuotation: p.inbound_quotations,
+      supplier: p.suppliers
+    }));
+  }
+
+  async createAccountsPayable(payable: InsertAccountsPayable): Promise<AccountsPayable> {
+    const [newPayable] = await db
+      .insert(accountsPayables)
+      .values(payable)
+      .returning();
+    return newPayable;
+  }
+
+  async updateAccountsPayable(id: string, payable: Partial<InsertAccountsPayable>): Promise<AccountsPayable> {
+    const [updated] = await db
+      .update(accountsPayables)
+      .set({ ...payable, updatedAt: new Date() })
+      .where(eq(accountsPayables.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAccountsPayable(id: string): Promise<void> {
+    await db.delete(accountsPayables).where(eq(accountsPayables.id, id));
+  }
+
+  async getAccountsPayablesBySupplier(supplierId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountsPayables)
+      .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+      .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+      .where(eq(accountsPayables.supplierId, supplierId))
+      .orderBy(desc(accountsPayables.dueDate));
+  }
+
+  async getAccountsPayablesByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountsPayables)
+      .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+      .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+      .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+      .where(eq(accountsPayables.status, status as any))
+      .orderBy(desc(accountsPayables.dueDate));
+  }
+
+  async getOverduePayables(): Promise<any[]> {
+    const today = new Date();
+    return await db
+      .select()
+      .from(accountsPayables)
+      .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+      .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+      .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+      .where(and(
+        lte(accountsPayables.dueDate, today),
+        eq(accountsPayables.status, 'overdue')
+      ))
+      .orderBy(desc(accountsPayables.dueDate));
+  }
+
+  // Payments
+  async getPayment(id: string): Promise<any> {
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .leftJoin(bankAccounts, eq(payments.bankAccountId, bankAccounts.id))
+      .where(eq(payments.id, id));
+
+    if (!payment) return undefined;
+
+    return {
+      ...payment.payments,
+      bankAccount: payment.bank_accounts
+    };
+  }
+
+  async getPayments(): Promise<any[]> {
+    const paymentsList = await db
+      .select()
+      .from(payments)
+      .leftJoin(bankAccounts, eq(payments.bankAccountId, bankAccounts.id))
+      .orderBy(desc(payments.date));
+
+    return paymentsList.map(p => ({
+      ...p.payments,
+      bankAccount: p.bank_accounts
+    }));
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [newPayment] = await db
+      .insert(payments)
+      .values(payment)
+      .returning();
+    return newPayment;
+  }
+
+  async updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment> {
+    const [updated] = await db
+      .update(payments)
+      .set(payment)
+      .where(eq(payments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePayment(id: string): Promise<void> {
+    await db.delete(payments).where(eq(payments.id, id));
+  }
+
+  async getPaymentsByKind(kind: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(payments)
+      .leftJoin(bankAccounts, eq(payments.bankAccountId, bankAccounts.id))
+      .where(eq(payments.kind, kind as any))
+      .orderBy(desc(payments.date));
+  }
+
+  async getPaymentsByMethod(method: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(payments)
+      .leftJoin(bankAccounts, eq(payments.bankAccountId, bankAccounts.id))
+      .where(eq(payments.method, method as any))
+      .orderBy(desc(payments.date));
+  }
+
+  async getPaymentsByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    return await db
+      .select()
+      .from(payments)
+      .leftJoin(bankAccounts, eq(payments.bankAccountId, bankAccounts.id))
+      .where(and(
+        gte(payments.date, startDate),
+        lte(payments.date, endDate)
+      ))
+      .orderBy(desc(payments.date));
+  }
+
+  // Bank Accounts
+  async getBankAccount(id: string): Promise<any> {
+    const [account] = await db
+      .select()
+      .from(bankAccounts)
+      .where(eq(bankAccounts.id, id));
+    return account;
+  }
+
+  async getBankAccounts(): Promise<any[]> {
+    return await db
+      .select()
+      .from(bankAccounts)
+      .orderBy(desc(bankAccounts.isDefault), desc(bankAccounts.createdAt));
+  }
+
+  async createBankAccount(account: InsertBankAccount): Promise<BankAccount> {
+    const [newAccount] = await db
+      .insert(bankAccounts)
+      .values(account)
+      .returning();
+    return newAccount;
+  }
+
+  async updateBankAccount(id: string, account: Partial<InsertBankAccount>): Promise<BankAccount> {
+    const [updated] = await db
+      .update(bankAccounts)
+      .set({ ...account, updatedAt: new Date() })
+      .where(eq(bankAccounts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBankAccount(id: string): Promise<void> {
+    await db.delete(bankAccounts).where(eq(bankAccounts.id, id));
+  }
+
+  async getDefaultBankAccount(): Promise<BankAccount | undefined> {
+    const [account] = await db
+      .select()
+      .from(bankAccounts)
+      .where(eq(bankAccounts.isDefault, true))
+      .limit(1);
+    return account;
+  }
+
+  async getActiveBankAccounts(): Promise<any[]> {
+    return await db
+      .select()
+      .from(bankAccounts)
+      .where(eq(bankAccounts.isActive, true))
+      .orderBy(desc(bankAccounts.isDefault), desc(bankAccounts.createdAt));
+  }
+
+  // Bank Transactions
+  async getBankTransaction(id: string): Promise<any> {
+    const [transaction] = await db
+      .select()
+      .from(bankTransactions)
+      .leftJoin(bankAccounts, eq(bankTransactions.bankAccountId, bankAccounts.id))
+      .leftJoin(payments, eq(bankTransactions.paymentId, payments.id))
+      .where(eq(bankTransactions.id, id));
+
+    if (!transaction) return undefined;
+
+    return {
+      ...transaction.bank_transactions,
+      bankAccount: transaction.bank_accounts,
+      payment: transaction.payments
+    };
+  }
+
+  async getBankTransactions(): Promise<any[]> {
+    const transactions = await db
+      .select()
+      .from(bankTransactions)
+      .leftJoin(bankAccounts, eq(bankTransactions.bankAccountId, bankAccounts.id))
+      .leftJoin(payments, eq(bankTransactions.paymentId, payments.id))
+      .orderBy(desc(bankTransactions.date));
+
+    return transactions.map(t => ({
+      ...t.bank_transactions,
+      bankAccount: t.bank_accounts,
+      payment: t.payments
+    }));
+  }
+
+  async createBankTransaction(transaction: InsertBankTransaction): Promise<BankTransaction> {
+    const [newTransaction] = await db
+      .insert(bankTransactions)
+      .values(transaction)
+      .returning();
+    return newTransaction;
+  }
+
+  async updateBankTransaction(id: string, transaction: Partial<InsertBankTransaction>): Promise<BankTransaction> {
+    const [updated] = await db
+      .update(bankTransactions)
+      .set(transaction)
+      .where(eq(bankTransactions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBankTransaction(id: string): Promise<void> {
+    await db.delete(bankTransactions).where(eq(bankTransactions.id, id));
+  }
+
+  async getBankTransactionsByAccount(bankAccountId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(bankTransactions)
+      .leftJoin(payments, eq(bankTransactions.paymentId, payments.id))
+      .where(eq(bankTransactions.bankAccountId, bankAccountId))
+      .orderBy(desc(bankTransactions.date));
+  }
+
+  async getBankTransactionsByDateRange(bankAccountId: string, startDate: Date, endDate: Date): Promise<any[]> {
+    return await db
+      .select()
+      .from(bankTransactions)
+      .leftJoin(payments, eq(bankTransactions.paymentId, payments.id))
+      .where(and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        gte(bankTransactions.date, startDate),
+        lte(bankTransactions.date, endDate)
+      ))
+      .orderBy(desc(bankTransactions.date));
+  }
+
+  // GST Returns
+  async getGstReturn(id: string): Promise<any> {
+    const [gstReturn] = await db
+      .select()
+      .from(gstReturns)
+      .where(eq(gstReturns.id, id));
+    return gstReturn;
+  }
+
+  async getGstReturns(): Promise<any[]> {
+    return await db
+      .select()
+      .from(gstReturns)
+      .orderBy(desc(gstReturns.periodEnd));
+  }
+
+  async createGstReturn(gstReturn: InsertGstReturn): Promise<GstReturn> {
+    const [newGstReturn] = await db
+      .insert(gstReturns)
+      .values(gstReturn)
+      .returning();
+    return newGstReturn;
+  }
+
+  async updateGstReturn(id: string, gstReturn: Partial<InsertGstReturn>): Promise<GstReturn> {
+    const [updated] = await db
+      .update(gstReturns)
+      .set({ ...gstReturn, updatedAt: new Date() })
+      .where(eq(gstReturns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteGstReturn(id: string): Promise<void> {
+    await db.delete(gstReturns).where(eq(gstReturns.id, id));
+  }
+
+  async getGstReturnsByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(gstReturns)
+      .where(eq(gstReturns.status, status as any))
+      .orderBy(desc(gstReturns.periodEnd));
+  }
+
+  async getGstReturnsByPeriod(startDate: Date, endDate: Date): Promise<any[]> {
+    return await db
+      .select()
+      .from(gstReturns)
+      .where(and(
+        gte(gstReturns.periodStart, startDate),
+        lte(gstReturns.periodEnd, endDate)
+      ))
+      .orderBy(desc(gstReturns.periodEnd));
+  }
+
+  // Account Reminders
+  async getAccountReminder(id: string): Promise<any> {
+    const [reminder] = await db
+      .select()
+      .from(accountReminders)
+      .where(eq(accountReminders.id, id));
+    return reminder;
+  }
+
+  async getAccountReminders(): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountReminders)
+      .orderBy(desc(accountReminders.nextReminderAt));
+  }
+
+  async createAccountReminder(reminder: InsertAccountReminder): Promise<AccountReminder> {
+    const [newReminder] = await db
+      .insert(accountReminders)
+      .values(reminder)
+      .returning();
+    return newReminder;
+  }
+
+  async updateAccountReminder(id: string, reminder: Partial<InsertAccountReminder>): Promise<AccountReminder> {
+    const [updated] = await db
+      .update(accountReminders)
+      .set({ ...reminder, updatedAt: new Date() })
+      .where(eq(accountReminders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAccountReminder(id: string): Promise<void> {
+    await db.delete(accountReminders).where(eq(accountReminders.id, id));
+  }
+
+  async getPendingReminders(): Promise<any[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(accountReminders)
+      .where(and(
+        eq(accountReminders.status, 'pending'),
+        lte(accountReminders.nextReminderAt, now)
+      ))
+      .orderBy(desc(accountReminders.nextReminderAt));
+  }
+
+  async getRemindersByTargetType(targetType: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountReminders)
+      .where(eq(accountReminders.targetType, targetType as any))
+      .orderBy(desc(accountReminders.nextReminderAt));
+  }
+
+  // Account Tasks
+  async getAccountTask(id: string): Promise<any> {
+    const [task] = await db
+      .select()
+      .from(accountTasks)
+      .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+      .where(eq(accountTasks.id, id));
+
+    if (!task) return undefined;
+
+    return {
+      ...task.account_tasks,
+      assignedToUser: task.users
+    };
+  }
+
+  async getAccountTasks(): Promise<any[]> {
+    const tasks = await db
+      .select()
+      .from(accountTasks)
+      .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+      .orderBy(desc(accountTasks.createdAt));
+
+    return tasks.map(t => ({
+      ...t.account_tasks,
+      assignedToUser: t.users
+    }));
+  }
+
+  async createAccountTask(task: InsertAccountTask): Promise<AccountTask> {
+    const [newTask] = await db
+      .insert(accountTasks)
+      .values(task)
+      .returning();
+    return newTask;
+  }
+
+  async updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask> {
+    const [updated] = await db
+      .update(accountTasks)
+      .set({ ...task, updatedAt: new Date() })
+      .where(eq(accountTasks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAccountTask(id: string): Promise<void> {
+    await db.delete(accountTasks).where(eq(accountTasks.id, id));
+  }
+
+  async getAccountTasksByAssignee(assigneeId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountTasks)
+      .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+      .where(eq(accountTasks.assignedTo, assigneeId))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async getAccountTasksByStatus(status: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountTasks)
+      .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+      .where(eq(accountTasks.status, status as any))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async getAccountTasksByType(type: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(accountTasks)
+      .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+      .where(eq(accountTasks.type, type as any))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  // Accounts Analytics
+  async getAccountsDashboardMetrics(): Promise<any> {
+    const totalReceivables = await db
+      .select({ sum: sum(accountsReceivables.amountDue) })
+      .from(accountsReceivables)
+      .where(eq(accountsReceivables.status, 'pending'));
+
+    const totalPayables = await db
+      .select({ sum: sum(accountsPayables.amountDue) })
+      .from(accountsPayables)
+      .where(eq(accountsPayables.status, 'pending'));
+
+    const overdueReceivables = await db
+      .select({ count: count() })
+      .from(accountsReceivables)
+      .where(eq(accountsReceivables.status, 'overdue'));
+
+    const overduePayables = await db
+      .select({ count: count() })
+      .from(accountsPayables)
+      .where(eq(accountsPayables.status, 'overdue'));
+
+    return {
+      totalReceivables: totalReceivables[0]?.sum || 0,
+      totalPayables: totalPayables[0]?.sum || 0,
+      overdueReceivables: overdueReceivables[0]?.count || 0,
+      overduePayables: overduePayables[0]?.count || 0
+    };
+  }
+
+  async getTotalReceivablesAmount(): Promise<number> {
+    const result = await db
+      .select({ sum: sum(accountsReceivables.amountDue) })
+      .from(accountsReceivables)
+      .where(eq(accountsReceivables.status, 'pending'));
+    return parseFloat(result[0]?.sum || '0');
+  }
+
+  async getTotalPayablesAmount(): Promise<number> {
+    const result = await db
+      .select({ sum: sum(accountsPayables.amountDue) })
+      .from(accountsPayables)
+      .where(eq(accountsPayables.status, 'pending'));
+    return parseFloat(result[0]?.sum || '0');
+  }
+
+  async getCashFlowSummary(): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const paymentsReceived = await db
+      .select({ sum: sum(payments.amount) })
+      .from(payments)
+      .where(and(
+        eq(payments.kind, 'receive'),
+        gte(payments.date, thirtyDaysAgo)
+      ));
+
+    const paymentsMade = await db
+      .select({ sum: sum(payments.amount) })
+      .from(payments)
+      .where(and(
+        eq(payments.kind, 'pay'),
+        gte(payments.date, thirtyDaysAgo)
+      ));
+
+    return {
+      paymentsReceived: parseFloat(paymentsReceived[0]?.sum || '0'),
+      paymentsMade: parseFloat(paymentsMade[0]?.sum || '0'),
+      netCashFlow: parseFloat(paymentsReceived[0]?.sum || '0') - parseFloat(paymentsMade[0]?.sum || '0')
+    };
   }
 }
 
