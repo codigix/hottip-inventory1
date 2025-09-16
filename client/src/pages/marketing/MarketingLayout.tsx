@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Import marketing pages
 import MarketingDashboard from "@/pages/MarketingDashboard";
 import Leads from "./Leads";
+import FieldVisits from "./FieldVisits";
 
 const sidebarItems = [
   {
@@ -172,16 +173,7 @@ export default function MarketingLayout() {
             <Leads />
           </Route>
           <Route path="/marketing/field-visits">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Field Visits</h2>
-                  <p className="text-muted-foreground">
-                    Scheduling and geo-tracking coming soon.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <FieldVisits />
           </Route>
           <Route path="/marketing/tasks">
             <div className="p-8">
