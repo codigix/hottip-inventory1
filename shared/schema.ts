@@ -531,6 +531,11 @@ export const marketingTaskTypeEnum = pgEnum('marketing_task_type', ['visit_clien
 export const marketingTaskStatusEnum = pgEnum('marketing_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
 
 export const leaveTypeEnum = pgEnum('leave_type', ['sick', 'vacation', 'personal', 'emergency', 'training', 'other']);
+
+// ===== LOGISTICS MODULE ENUMS =====
+export const logisticsShipmentStatusEnum = pgEnum('logistics_shipment_status', [
+  'created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed'
+]);
 export const leaveStatusEnum = pgEnum('leave_status', ['pending', 'approved', 'rejected', 'cancelled']);
 
 // Leads - Comprehensive lead management
@@ -763,6 +768,100 @@ export const marketingAttendance = pgTable("marketing_attendance", {
   // Timestamps
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ===== LOGISTICS MODULE TABLES =====
+
+// Logistics Shipments - Manual shipment and delivery management
+export const logisticsShipments = pgTable("logistics_shipments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Shipment Details
+  consignmentNumber: text("consignment_number").notNull().unique(),
+  source: text("source").notNull(),
+  destination: text("destination").notNull(),
+  
+  // Client/Vendor Links
+  clientId: uuid("client_id").references(() => customers.id),
+  vendorId: uuid("vendor_id").references(() => suppliers.id),
+  
+  // Dates
+  dispatchDate: timestamp("dispatch_date"),
+  expectedDeliveryDate: timestamp("expected_delivery_date"),
+  deliveredAt: timestamp("delivered_at"),
+  closedAt: timestamp("closed_at"),
+  
+  // Status and Workflow
+  currentStatus: logisticsShipmentStatusEnum("current_status").notNull().default('created'),
+  
+  // Additional Details
+  notes: text("notes"),
+  weight: decimal("weight", { precision: 10, scale: 2 }),
+  volume: decimal("volume", { precision: 10, scale: 2 }),
+  value: decimal("value", { precision: 10, scale: 2 }),
+  
+  // Tracking
+  trackingUrl: text("tracking_url"),
+  priority: text("priority").notNull().default('normal'), // normal, high, urgent
+  
+  // POD (Proof of Delivery)
+  podObjectKey: text("pod_object_key"), // Object storage key for POD document
+  podUploadedAt: timestamp("pod_uploaded_at"),
+  podUploadedBy: uuid("pod_uploaded_by").references(() => users.id),
+  
+  // Assignment
+  assignedTo: uuid("assigned_to").references(() => users.id),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Logistics Status Updates - Timeline history for each shipment
+export const logisticsStatusUpdates = pgTable("logistics_status_updates", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Reference to shipment
+  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id).notNull(),
+  
+  // Status Details
+  status: logisticsShipmentStatusEnum("status").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  location: text("location"),
+  notes: text("notes"),
+  
+  // POD Upload (for delivered/closed status)
+  podObjectKey: text("pod_object_key"), // Object storage key
+  
+  // User who made the update
+  updatedBy: uuid("updated_by").references(() => users.id).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Logistics Checkpoints - In-transit tracking points
+export const logisticsCheckpoints = pgTable("logistics_checkpoints", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Reference to shipment
+  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id).notNull(),
+  
+  // Checkpoint Details
+  checkpointTime: timestamp("checkpoint_time").notNull(),
+  location: text("location").notNull(),
+  notes: text("notes"),
+  
+  // GPS Coordinates
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // User who added checkpoint
+  addedBy: uuid("added_by").references(() => users.id).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ===== ACCOUNTS MODULE TABLES =====
@@ -1398,6 +1497,43 @@ export const insertMarketingAttendanceSchema = createInsertSchema(marketingAtten
   updatedAt: true,
 });
 
+// Logistics Insert Schemas
+export const insertLogisticsShipmentSchema = createInsertSchema(logisticsShipments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLogisticsStatusUpdateSchema = createInsertSchema(logisticsStatusUpdates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLogisticsCheckpointSchema = createInsertSchema(logisticsCheckpoints).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Workflow Validation Schemas for Logistics Operations
+export const updateLogisticsShipmentStatusSchema = z.object({
+  status: z.enum(['created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed']),
+  location: z.string().optional(),
+  notes: z.string().optional(),
+  podObjectKey: z.string().optional(),
+});
+
+export const logisticsCheckpointSchema = z.object({
+  location: z.string().min(1, "Location is required"),
+  notes: z.string().optional(),
+  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90").optional(),
+  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180").optional(),
+});
+
+export const closePodUploadSchema = z.object({
+  podObjectKey: z.string().min(1, "POD document is required"),
+  notes: z.string().optional(),
+});
+
 // Workflow Validation Schemas for Marketing Operations
 // Status Update Schemas
 export const updateLeadStatusSchema = z.object({
@@ -1604,6 +1740,16 @@ export type InsertMarketingTask = z.infer<typeof insertMarketingTaskSchema>;
 
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = z.infer<typeof insertMarketingAttendanceSchema>;
+
+// Logistics Types
+export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
+export type InsertLogisticsShipment = z.infer<typeof insertLogisticsShipmentSchema>;
+
+export type LogisticsStatusUpdate = typeof logisticsStatusUpdates.$inferSelect;
+export type InsertLogisticsStatusUpdate = z.infer<typeof insertLogisticsStatusUpdateSchema>;
+
+export type LogisticsCheckpoint = typeof logisticsCheckpoints.$inferSelect;
+export type InsertLogisticsCheckpoint = z.infer<typeof insertLogisticsCheckpointSchema>;
 
 // Accounts Types
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;

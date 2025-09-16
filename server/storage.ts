@@ -34,7 +34,7 @@ import {
   type MarketingTask, type InsertMarketingTask, type MarketingAttendance, type InsertMarketingAttendance
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -3523,25 +3523,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMarketingAttendanceByDate(date: Date): Promise<any[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    try {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    const attendanceData = await db
-      .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(and(
-        gte(marketingAttendance.date, startOfDay),
-        lte(marketingAttendance.date, endOfDay)
-      ))
-      .orderBy(marketingAttendance.checkInTime);
+      console.log('getMarketingAttendanceByDate:', {
+        method: 'getMarketingAttendanceByDate',
+        date,
+        startOfDay,
+        endOfDay
+      });
 
-    return attendanceData.map(a => ({
-      ...a.marketing_attendance,
-      user: a.users
-    }));
+      const attendanceData = await db
+        .select()
+        .from(marketingAttendance)
+        .leftJoin(users, eq(marketingAttendance.userId, users.id))
+        .where(and(
+          gte(marketingAttendance.date, startOfDay),
+          lte(marketingAttendance.date, endOfDay)
+        ))
+        .orderBy(asc(marketingAttendance.checkInTime));
+
+      console.log('Query result:', { rowCount: attendanceData.length });
+
+      return attendanceData.map(a => ({
+        ...(a.marketing_attendance ?? a.marketingAttendance ?? a),
+        user: a.users ?? undefined
+      }));
+    } catch (error) {
+      console.error('getMarketingAttendanceByDate error:', {
+        method: 'getMarketingAttendanceByDate',
+        error: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   async getMarketingAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
@@ -3655,16 +3674,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMarketingAttendanceMetrics(): Promise<any> {
-    const today = new Date();
-    const thisWeekStart = new Date(today);
-    thisWeekStart.setDate(today.getDate() - today.getDay());
-    thisWeekStart.setHours(0, 0, 0, 0);
+    try {
+      const today = new Date();
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - today.getDay());
+      thisWeekStart.setHours(0, 0, 0, 0);
 
-    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Today's attendance
-    const todayAttendance = await this.getTodayMarketingAttendance();
-    const presentToday = todayAttendance.filter(a => a.attendanceStatus === 'present').length;
+      console.log('getMarketingAttendanceMetrics:', {
+        method: 'getMarketingAttendanceMetrics',
+        today,
+        thisWeekStart,
+        thisMonthStart
+      });
+
+      // Today's attendance
+      const todayAttendance = await this.getTodayMarketingAttendance();
+      console.log('Today attendance:', { count: todayAttendance.length, sample: todayAttendance[0] });
+      
+      const presentToday = todayAttendance.filter(a => a.attendanceStatus === 'present' || a.status === 'present').length;
 
     // This week's average hours
     const weeklyHours = await db
@@ -3697,13 +3726,22 @@ export class DatabaseStorage implements IStorage {
     const avgHours = weeklyHours[0]?.avgHours ? 
       Math.round(parseFloat(weeklyHours[0].avgHours) * 100) / 100 : 0;
 
-    return {
-      totalEmployees: totalMarketingEmployees[0]?.count || 0,
-      presentToday: presentToday,
-      averageHoursThisWeek: avgHours,
-      monthlyAttendanceCount: monthlyAttendance[0]?.count || 0,
-      todayTotal: todayAttendance.length
-    };
+      return {
+        totalEmployees: totalMarketingEmployees[0]?.count || 0,
+        presentToday: presentToday,
+        averageHoursThisWeek: avgHours,
+        monthlyAttendanceCount: monthlyAttendance[0]?.count || 0,
+        todayTotal: todayAttendance.length
+      };
+    } catch (error) {
+      console.error('getMarketingAttendanceMetrics error:', {
+        method: 'getMarketingAttendanceMetrics',
+        error: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   async getEmployeeAttendanceHistory(userId: string, filters: any): Promise<any[]> {
