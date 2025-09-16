@@ -23,7 +23,7 @@ interface AuthenticatedRequest extends Request {
 // LEADS HANDLERS
 // ==========================================
 
-export const getLeads = async (req: AuthenticatedRequest, res: Response) => {
+export const getLeads = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = leadFilterSchema.parse(req.query);
     let leads;
@@ -45,7 +45,7 @@ export const getLeads = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const getLead = async (req: AuthenticatedRequest, res: Response) => {
+export const getLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       return res.status(400).json({ error: "Invalid lead ID format" });
@@ -61,7 +61,7 @@ export const getLead = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const createLead = async (req: AuthenticatedRequest, res: Response) => {
+export const createLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const leadData = insertLeadSchema.parse(req.body);
     
@@ -85,7 +85,7 @@ export const createLead = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const updateLead = async (req: AuthenticatedRequest, res: Response) => {
+export const updateLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       return res.status(400).json({ error: "Invalid lead ID format" });
@@ -114,7 +114,7 @@ export const updateLead = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const deleteLead = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       return res.status(400).json({ error: "Invalid lead ID format" });
@@ -139,7 +139,7 @@ export const deleteLead = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const updateLeadStatus = async (req: AuthenticatedRequest, res: Response) => {
+export const updateLeadStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       return res.status(400).json({ error: "Invalid lead ID format" });
@@ -822,18 +822,18 @@ export const checkOutMarketingAttendance = async (req: AuthenticatedRequest, res
   }
 };
 
-export const getTodayMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const getTodayMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const attendance = await storage.getMarketingAttendances();
+    const attendance = await storage.getTodayMarketingAttendance();
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch today's attendance" });
   }
 };
 
-export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const metrics = await storage.getAttendanceMetrics();
+    const metrics = await storage.getMarketingAttendanceMetrics();
     res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch attendance metrics" });
@@ -844,7 +844,7 @@ export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, r
 // MARKETING ANALYTICS HANDLERS
 // ==========================================
 
-export const getMarketingDashboard = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingDashboard = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const dashboard = await storage.getMarketingDashboardMetrics();
     res.json(dashboard);
@@ -853,7 +853,7 @@ export const getMarketingDashboard = async (req: AuthenticatedRequest, res: Resp
   }
 };
 
-export const getMarketingConversionRates = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingConversionRates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const conversionRates = await storage.getLeadConversionRates();
     res.json(conversionRates);
@@ -862,7 +862,7 @@ export const getMarketingConversionRates = async (req: AuthenticatedRequest, res
   }
 };
 
-export const getMarketingTeamPerformance = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingTeamPerformance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const teamPerformance = await storage.getMarketingTeamPerformance();
     res.json(teamPerformance);
@@ -871,7 +871,7 @@ export const getMarketingTeamPerformance = async (req: AuthenticatedRequest, res
   }
 };
 
-export const getMarketingVisitSuccessRates = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingVisitSuccessRates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const successRates = await storage.getVisitSuccessRates();
     res.json(successRates);
