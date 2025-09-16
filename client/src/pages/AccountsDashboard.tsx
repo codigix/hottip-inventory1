@@ -29,12 +29,21 @@ import {
   Clock,
 } from "lucide-react";
 
-const invoiceFormSchema = z.object({
+// Import shared schema for consistency
+import { insertInvoiceSchema } from "@shared/schema";
+
+// Extend shared schema for UI validation
+const invoiceFormSchema = insertInvoiceSchema.omit({
+  id: true,
+  invoiceNumber: true, // Server generates
+  userId: true, // Server determines from auth
+  paidAmount: true,
+  balanceAmount: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   customerId: z.string().min(1, "Customer is required"),
-  amount: z.string().min(1, "Amount is required"),
-  dueDate: z.string().min(1, "Due date is required"),
-  description: z.string().optional(),
-  type: z.enum(["invoice", "proforma", "tax", "eway"]),
+  subtotalAmount: z.string().min(1, "Subtotal amount is required"),
 });
 
 type InvoiceForm = z.infer<typeof invoiceFormSchema>;
@@ -44,8 +53,8 @@ export default function AccountsDashboard() {
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const { toast } = useToast();
 
-  const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["/api/orders"],
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ["/api/invoices"],
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -56,29 +65,53 @@ export default function AccountsDashboard() {
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
       customerId: "",
-      amount: "",
-      dueDate: "",
-      description: "",
-      type: "invoice",
+      subtotalAmount: "",
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      status: "draft",
+      cgstAmount: "0",
+      sgstAmount: "0",
+      igstAmount: "0",
+      discountAmount: "0",
+      notes: "",
+      paymentTerms: "30 days",
     },
   });
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: InvoiceForm) => {
-      // Create order as invoice placeholder since we don't have invoices table
-      const orderData = {
+      // Generate invoice number
+      const invoiceCount = (invoices || []).length;
+      const invoiceNumber = `INV${String(invoiceCount + 1).padStart(6, '0')}`;
+      
+      // Calculate total amount - let server handle invoice number generation
+      const subtotal = parseFloat(data.subtotalAmount);
+      const cgst = parseFloat(data.cgstAmount || '0');
+      const sgst = parseFloat(data.sgstAmount || '0');
+      const igst = parseFloat(data.igstAmount || '0');
+      const discount = parseFloat(data.discountAmount || '0');
+      const totalAmount = (subtotal + cgst + sgst + igst - discount).toString();
+      
+      const invoiceData = {
         customerId: data.customerId,
-        userId: "temp-user-id",
-        totalAmount: data.amount,
-        taxAmount: "0",
-        discountAmount: "0",
-        notes: `${data.type.toUpperCase()}: ${data.description || ''}`,
-        status: "pending",
+        // userId will be determined server-side from authentication
+        status: data.status,
+        invoiceDate: new Date(),
+        dueDate: data.dueDate,
+        subtotalAmount: data.subtotalAmount,
+        cgstAmount: data.cgstAmount || '0',
+        sgstAmount: data.sgstAmount || '0',
+        igstAmount: data.igstAmount || '0',
+        discountAmount: data.discountAmount || '0',
+        totalAmount: totalAmount,
+        paidAmount: '0',
+        balanceAmount: totalAmount,
+        paymentTerms: data.paymentTerms || '30 days',
+        notes: data.notes,
       };
-      return await apiRequest("POST", "/api/orders", orderData);
+      return await apiRequest("POST", "/api/invoices", invoiceData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setIsInvoiceDialogOpen(false);
       form.reset();
       toast({
@@ -87,6 +120,7 @@ export default function AccountsDashboard() {
       });
     },
     onError: (error: any) => {
+      console.error('Failed to create invoice:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create invoice",
@@ -99,81 +133,85 @@ export default function AccountsDashboard() {
     createInvoiceMutation.mutate(data);
   };
 
-  const handleEdit = (order: any) => {
-    setEditingInvoice(order);
+  const handleEdit = (invoice: any) => {
+    setEditingInvoice(invoice);
     form.reset({
-      customerId: order.customer?.id || "",
-      amount: order.totalAmount.toString(),
-      dueDate: new Date().toISOString().split('T')[0],
-      description: order.notes || "",
-      type: "invoice",
+      customerId: invoice.customer?.id || "",
+      subtotalAmount: invoice.subtotalAmount.toString(),
+      dueDate: new Date(invoice.dueDate),
+      status: invoice.status,
+      cgstAmount: invoice.cgstAmount?.toString() || '0',
+      sgstAmount: invoice.sgstAmount?.toString() || '0',
+      igstAmount: invoice.igstAmount?.toString() || '0',
+      discountAmount: invoice.discountAmount?.toString() || '0',
+      notes: invoice.notes || "",
+      paymentTerms: invoice.paymentTerms || "30 days",
     });
   };
 
   const invoiceColumns = [
     {
-      key: "orderNumber",
+      key: "invoiceNumber",
       header: "Invoice #",
     },
     {
       key: "customer.name",
       header: "Customer",
+      cell: (invoice: any) => invoice.customer?.name || 'Unknown Customer',
     },
     {
       key: "totalAmount",
       header: "Amount",
-      cell: (order: any) => `$${parseFloat(order.totalAmount).toFixed(2)}`,
+      cell: (invoice: any) => `₹${parseFloat(invoice.totalAmount).toLocaleString('en-IN')}`,
+    },
+    {
+      key: "balanceAmount",
+      header: "Balance",
+      cell: (invoice: any) => `₹${parseFloat(invoice.balanceAmount).toLocaleString('en-IN')}`,
     },
     {
       key: "status",
       header: "Status",
-      cell: (order: any) => {
+      cell: (invoice: any) => {
         const statusColors = {
-          pending: "bg-yellow-100 text-yellow-800",
-          processing: "bg-blue-100 text-blue-800",
-          delivered: "bg-green-100 text-green-800",
+          draft: "bg-gray-100 text-gray-800",
+          sent: "bg-blue-100 text-blue-800",
+          paid: "bg-green-100 text-green-800",
+          overdue: "bg-red-100 text-red-800",
           cancelled: "bg-red-100 text-red-800",
-        };
-        
-        const statusLabels = {
-          pending: "Unpaid",
-          processing: "Partial",
-          delivered: "Paid",
-          cancelled: "Cancelled",
         };
 
         return (
-          <Badge className={statusColors[order.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}>
-            {statusLabels[order.status as keyof typeof statusLabels] || order.status}
+          <Badge className={statusColors[invoice.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}>
+            {invoice.status?.toUpperCase() || 'DRAFT'}
           </Badge>
         );
       },
     },
     {
-      key: "createdAt",
-      header: "Date",
-      cell: (order: any) => new Date(order.createdAt).toLocaleDateString(),
+      key: "dueDate",
+      header: "Due Date",
+      cell: (invoice: any) => new Date(invoice.dueDate).toLocaleDateString(),
     },
   ];
 
   // Calculate financial metrics
-  const totalRevenue = (orders || []).reduce((sum: number, order: any) => {
-    return order.status === 'delivered' ? sum + parseFloat(order.totalAmount) : sum;
+  const totalRevenue = (invoices || []).reduce((sum: number, invoice: any) => {
+    return invoice.status === 'paid' ? sum + parseFloat(invoice.totalAmount) : sum;
   }, 0);
 
-  const pendingPayments = (orders || []).reduce((sum: number, order: any) => {
-    return order.status === 'pending' ? sum + parseFloat(order.totalAmount) : sum;
+  const pendingPayments = (invoices || []).reduce((sum: number, invoice: any) => {
+    return invoice.status !== 'paid' && invoice.status !== 'cancelled' ? sum + parseFloat(invoice.balanceAmount) : sum;
   }, 0);
 
-  const totalInvoices = (orders || []).length;
-  const overdueInvoices = (orders || []).filter((order: any) => {
-    const orderDate = new Date(order.createdAt);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return order.status === 'pending' && orderDate < thirtyDaysAgo;
+  const totalInvoices = (invoices || []).length;
+  const overdueInvoices = (invoices || []).filter((invoice: any) => {
+    const dueDate = new Date(invoice.dueDate);
+    const today = new Date();
+    return (invoice.status === 'sent' || invoice.status === 'draft') && dueDate < today;
   }).length;
 
-  if (ordersLoading) {
+  if (invoicesLoading) {
     return (
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="space-y-6">
@@ -241,12 +279,12 @@ export default function AccountsDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="amount"
+                    name="subtotalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Amount ($)</FormLabel>
+                        <FormLabel>Subtotal Amount (₹)</FormLabel>
                         <FormControl>
-                          <Input {...field} type="number" step="0.01" data-testid="input-amount" />
+                          <Input {...field} type="number" step="0.01" placeholder="10000.00" data-testid="input-subtotal-amount" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -259,7 +297,12 @@ export default function AccountsDashboard() {
                       <FormItem>
                         <FormLabel>Due Date</FormLabel>
                         <FormControl>
-                          <Input {...field} type="date" data-testid="input-due-date" />
+                          <Input 
+                            type="date" 
+                            value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            data-testid="input-due-date" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -267,25 +310,97 @@ export default function AccountsDashboard() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Invoice Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="sent">Sent</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="overdue">Overdue</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="paymentTerms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Terms</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="30 days" data-testid="input-payment-terms" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="cgstAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CGST (₹)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" placeholder="900.00" data-testid="input-cgst" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="sgstAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SGST (₹)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" placeholder="900.00" data-testid="input-sgst" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="igstAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IGST (₹)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" placeholder="1800.00" data-testid="input-igst" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
                 <FormField
                   control={form.control}
-                  name="type"
+                  name="discountAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invoice Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-type">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="invoice">Regular Invoice</SelectItem>
-                          <SelectItem value="proforma">Proforma Invoice</SelectItem>
-                          <SelectItem value="tax">Tax Invoice</SelectItem>
-                          <SelectItem value="eway">E-Way Bill</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Discount Amount (₹)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-discount" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -293,12 +408,12 @@ export default function AccountsDashboard() {
 
                 <FormField
                   control={form.control}
-                  name="description"
+                  name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea {...field} data-testid="input-description" />
+                        <Textarea {...field} placeholder="Additional invoice notes..." data-testid="input-notes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -335,7 +450,7 @@ export default function AccountsDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-foreground">${totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">₹{totalRevenue.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-green-600 flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1" />
                   +12.5% from last month
@@ -353,7 +468,7 @@ export default function AccountsDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Pending Payments</p>
-                <p className="text-2xl font-bold text-foreground">${pendingPayments.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">₹{pendingPayments.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <Clock className="h-3 w-3 mr-1" />
                   Requires follow-up
@@ -415,11 +530,11 @@ export default function AccountsDashboard() {
             </CardHeader>
             <CardContent>
               <DataTable
-                data={(orders || [])}
+                data={(invoices || [])}
                 columns={invoiceColumns}
                 onEdit={handleEdit}
                 searchable={true}
-                searchKey="orderNumber"
+                searchKey="invoiceNumber"
               />
             </CardContent>
           </Card>
@@ -490,7 +605,7 @@ export default function AccountsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-foreground">
-                    {orders?.filter(o => o.status === 'delivered').length || 0}
+                    {invoices?.filter(i => i.status === 'paid').length || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">invoices</p>
                 </div>
@@ -505,7 +620,7 @@ export default function AccountsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-foreground">
-                    {orders?.filter(o => o.status === 'pending').length || 0}
+                    {invoices?.filter(i => i.status === 'sent' || i.status === 'draft').length || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">invoices</p>
                 </div>
