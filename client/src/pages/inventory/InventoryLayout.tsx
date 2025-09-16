@@ -179,7 +179,7 @@ export default function InventoryLayout() {
       {/* Main Content */}
       <div className="flex-1">
         <Switch>
-          <Route path="/inventory" exact>
+          <Route path="/inventory">
             <InventoryDashboard />
           </Route>
           <Route path="/inventory/stock">
