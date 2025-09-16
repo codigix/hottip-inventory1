@@ -1,15 +1,91 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { FileUploader } from "@/components/FileUploader";
 import { Plus, FileDown, Eye, Upload, CheckCircle, XCircle } from "lucide-react";
+import { insertInboundQuotationSchema, type InsertInboundQuotation } from "@shared/schema";
+import { z } from "zod";
 
 export default function InboundQuotations() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ uploadURL: string; fileName: string } | null>(null);
+  const { toast } = useToast();
+
   const { data: quotations, isLoading } = useQuery({
     queryKey: ["/api/inbound-quotations"],
   });
+
+  const quotationFormSchema = insertInboundQuotationSchema.extend({
+    quotationNumber: z.string().min(1, "Quotation number is required"),
+    sender: z.string().min(1, "Sender name is required"),
+    quotationDate: z.date(),
+    totalAmount: z.string().min(1, "Total amount is required"),
+  });
+
+  const form = useForm<z.infer<typeof quotationFormSchema>>({
+    resolver: zodResolver(quotationFormSchema),
+    defaultValues: {
+      quotationNumber: "",
+      sender: "",
+      senderType: "vendor",
+      quotationDate: new Date(),
+      totalAmount: "",
+      status: "received",
+      notes: "",
+    },
+  });
+
+  const createQuotationMutation = useMutation({
+    mutationFn: (data: InsertInboundQuotation) => 
+      apiRequest('POST', '/api/inbound-quotations', {
+        ...data,
+        userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3', // Use the test user ID
+        attachmentPath: uploadedFile ? '/objects/' + uploadedFile.uploadURL.split('/uploads/')[1] : null,
+        attachmentName: uploadedFile ? uploadedFile.fileName : null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: "Inbound quotation created successfully.",
+      });
+      setIsModalOpen(false);
+      form.reset();
+      setUploadedFile(null);
+    },
+    onError: (error) => {
+      console.error('Failed to create quotation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create quotation. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof quotationFormSchema>) => {
+    createQuotationMutation.mutate(values);
+  };
+
+  const handleFileUpload = (result: { uploadURL: string; fileName: string }) => {
+    setUploadedFile(result);
+    toast({
+      title: "File uploaded",
+      description: `${result.fileName} uploaded successfully. You can now submit the quotation.`,
+    });
+  };
 
   const columns = [
     {
@@ -88,10 +164,161 @@ export default function InboundQuotations() {
             Manage quotations received from clients and vendors
           </p>
         </div>
-        <Button data-testid="button-upload-inbound-quotation">
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Quotation
-        </Button>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-upload-inbound-quotation">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Quotation
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload Inbound Quotation</DialogTitle>
+              <DialogDescription>
+                Upload a quotation received from a client or vendor along with quotation details.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="quotationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quotation Number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., INB-2025-001" 
+                            {...field} 
+                            data-testid="input-quotation-number"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="sender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sender Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., ABC Corporation" 
+                            {...field} 
+                            data-testid="input-sender"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="senderType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sender Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-sender-type">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="client">Client</SelectItem>
+                            <SelectItem value="vendor">Vendor</SelectItem>
+                            <SelectItem value="supplier">Supplier</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="totalAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Amount</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., 1500.00" 
+                            {...field} 
+                            data-testid="input-total-amount"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Any additional notes about this quotation..." 
+                          {...field} 
+                          data-testid="textarea-notes"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3">Upload Quotation File</h4>
+                  <FileUploader 
+                    onUploadComplete={handleFileUpload}
+                    acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    className="w-full"
+                  />
+                  {uploadedFile && (
+                    <div className="mt-2 text-sm text-green-600" data-testid="text-upload-success">
+                      ✓ File uploaded: {uploadedFile.fileName}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      form.reset();
+                      setUploadedFile(null);
+                    }}
+                    data-testid="button-cancel"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createQuotationMutation.isPending}
+                    data-testid="button-create-quotation"
+                  >
+                    {createQuotationMutation.isPending ? "Creating..." : "Create Quotation"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
