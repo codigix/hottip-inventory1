@@ -1,6 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import {
+  ObjectStorageService,
+  ObjectNotFoundError,
+} from "./objectStorage";
 import { 
   insertUserSchema, insertProductSchema, insertCustomerSchema,
   insertOrderSchema, insertOrderItemSchema, insertSupplierSchema,
@@ -676,6 +680,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(activities);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch activities" });
+    }
+  });
+
+  // Object Storage Routes for File Upload
+  
+  // This endpoint is used to serve private objects (quotation attachments)
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // This endpoint is used to get the upload URL for an object entity
+  app.post("/api/objects/upload", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Update inbound quotation with attachment info after upload
+  app.put("/api/inbound-quotations/:id/attachment", async (req, res) => {
+    if (!req.body.attachmentURL) {
+      return res.status(400).json({ error: "attachmentURL is required" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(
+        req.body.attachmentURL,
+      );
+      
+      // Update the inbound quotation with attachment info
+      const quotation = await storage.updateInboundQuotation(req.params.id, {
+        attachmentPath: objectPath,
+        attachmentName: req.body.attachmentName || "uploaded-file",
+      });
+
+      res.status(200).json({
+        objectPath: objectPath,
+        quotation: quotation,
+      });
+    } catch (error) {
+      console.error("Error updating quotation attachment:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
