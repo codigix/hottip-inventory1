@@ -383,11 +383,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
   };
 
-  // Users Routes - SECURED: Only admin can access user management
-  app.get("/api/users", requireAuth, requireAdminAccess, async (req, res) => {
+  // Users Routes - SECURED: Role-based scoping for user access
+  app.get("/api/users", requireAuth, async (req, res) => {
     try {
-      const users = await storage.getUsers();
-      res.json(users);
+      const userRole = req.user!.role;
+      const currentUserId = req.user!.id;
+
+      let users = await storage.getUsers();
+
+      // Apply role-based filtering
+      if (userRole === 'admin') {
+        // Admins can see all users with full details
+        res.json(users);
+      } else if (userRole === 'manager') {
+        // Managers can see all users but with limited details
+        const filteredUsers = users.map(user => ({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          isActive: user.isActive
+        }));
+        res.json(filteredUsers);
+      } else {
+        // Regular employees can see basic user info for team assignments and views
+        const filteredUsers = users
+          .filter(user => user.isActive) // Only show active users
+          .map(user => ({
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            role: user.role,
+            department: user.department
+          }));
+        res.json(filteredUsers);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapPin, Clock, Camera, Upload, AlertTriangle, CheckCircle, LogOut, Target, FileText } from "lucide-react";
+import { uploadMarketingAttendancePhoto } from "@/lib/marketingPhotoUpload";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -35,13 +36,12 @@ interface CheckOutModalProps {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
     visitCount?: number;
     tasksCompleted?: number;
     outcome?: string;
     nextAction?: string;
-  }) => void;
+  }) => Promise<{ attendanceId: string; success: boolean; error?: string }>;
   isLoading?: boolean;
   userId?: string;
   userName?: string;
@@ -79,6 +79,9 @@ export default function CheckOutModal({
   
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string>('');
+  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string>('');
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -93,6 +96,9 @@ export default function CheckOutModal({
       setNextAction('');
       setUploadedPhoto(null);
       setPhotoPreview('');
+      setIsUploadingPhoto(false);
+      setPhotoUploadError('');
+      setUploadedPhotoPath('');
       getCurrentLocation();
     }
   }, [open]);
@@ -246,26 +252,79 @@ export default function CheckOutModal({
     }
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // Handle form submission - FIXED: Create attendance record first, then upload photo
+  const handleSubmit = async () => {
     if (!currentLocation) {
       alert('Please get your current location first');
       return;
     }
 
-    const checkOutData = {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      location: address,
-      photoPath: uploadedPhoto ? URL.createObjectURL(uploadedPhoto) : undefined,
-      workDescription: workDescription.trim() || undefined,
-      visitCount: visitCount > 0 ? visitCount : undefined,
-      tasksCompleted: tasksCompleted > 0 ? tasksCompleted : undefined,
-      outcome: outcome || undefined,
-      nextAction: nextAction.trim() || undefined
-    };
+    try {
+      // Step 1: Create attendance record first (without photo)
+      const checkOutData = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        location: address,
+        workDescription: workDescription.trim() || undefined,
+        visitCount: visitCount > 0 ? visitCount : undefined,
+        tasksCompleted: tasksCompleted > 0 ? tasksCompleted : undefined,
+        outcome: outcome || undefined,
+        nextAction: nextAction.trim() || undefined
+      };
 
-    onCheckOut(checkOutData);
+      const result = await onCheckOut(checkOutData);
+      
+      if (!result.success) {
+        alert(result.error || 'Failed to check out. Please try again.');
+        return;
+      }
+
+      // Step 2: Upload photo if one is selected, using the real attendanceId
+      if (uploadedPhoto && !uploadedPhotoPath) {
+        setIsUploadingPhoto(true);
+        setPhotoUploadError('');
+        
+        try {
+          const photoResult = await uploadMarketingAttendancePhoto({
+            file: uploadedPhoto,
+            attendanceId: result.attendanceId,
+            photoType: 'check-out'
+          });
+
+          if (photoResult.success) {
+            setUploadedPhotoPath(photoResult.objectPath);
+            
+            // Step 3: Update attendance record with photo path
+            const updateResponse = await fetch(`/api/marketing-attendance/${result.attendanceId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ checkOutPhotoPath: photoResult.objectPath })
+            });
+            
+            if (!updateResponse.ok) {
+              console.warn('Photo uploaded but failed to update attendance record');
+              setPhotoUploadError('Photo uploaded but failed to link to record');
+            }
+          } else {
+            setPhotoUploadError(photoResult.error || 'Photo upload failed');
+          }
+        } catch (error) {
+          console.error('Photo upload error:', error);
+          setPhotoUploadError('Photo upload failed. Please try again.');
+        }
+        
+        setIsUploadingPhoto(false);
+      }
+
+      // Success - close modal after brief delay to show any photo upload status
+      setTimeout(() => {
+        onOpenChange(false);
+      }, uploadedPhoto ? 1500 : 500);
+      
+    } catch (error) {
+      console.error('Check-out error:', error);
+      alert('Check-out failed. Please try again.');
+    }
   };
 
   const locationAccuracy = getLocationAccuracy();
@@ -549,7 +608,27 @@ export default function CheckOutModal({
                     className="w-full max-w-xs rounded-lg border"
                     data-testid="photo-preview"
                   />
+                  {uploadedPhotoPath && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Photo uploaded successfully
+                    </p>
+                  )}
                 </div>
+              )}
+
+              {isUploadingPhoto && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm">Uploading photo...</span>
+                </div>
+              )}
+
+              {photoUploadError && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">{photoUploadError}</AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
@@ -568,14 +647,14 @@ export default function CheckOutModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading}
+              disabled={!currentLocation || isLoading || isUploadingPhoto}
               className="flex-1 bg-red-600 hover:bg-red-700"
               data-testid="button-checkout-confirm"
             >
-              {isLoading ? (
+              {isLoading || isUploadingPhoto ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Checking Out...</span>
+                  <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Checking Out...'}</span>
                 </div>
               ) : (
                 <>

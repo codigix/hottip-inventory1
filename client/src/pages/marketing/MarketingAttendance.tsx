@@ -149,7 +149,7 @@ export default function MarketingAttendance() {
     personalLeave: 7
   };
 
-  // Check-in mutation
+  // Check-in mutation - FIXED: Remove automatic modal handling, let modals control flow
   const checkInMutation = useMutation({
     mutationFn: (data: { userId?: string; latitude: number; longitude: number; location?: string; photoPath?: string; workDescription?: string }) =>
       apiRequest('/api/marketing-attendance/check-in', { method: 'POST', body: JSON.stringify(data) }),
@@ -157,18 +157,15 @@ export default function MarketingAttendance() {
       queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/metrics'] });
       toast({ title: "Successfully checked in!" });
-      setCheckInModalOpen(false);
+      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error checking in", 
-        description: error.message,
-        variant: "destructive" 
-      });
+      // Error handling is now done in handleCheckInSubmit
+      console.error('Check-in mutation error:', error);
     }
   });
 
-  // Check-out mutation
+  // Check-out mutation - FIXED: Remove automatic modal handling, let modals control flow
   const checkOutMutation = useMutation({
     mutationFn: (data: { 
       userId?: string; 
@@ -187,14 +184,11 @@ export default function MarketingAttendance() {
       queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/metrics'] });
       toast({ title: "Successfully checked out!" });
-      setCheckOutModalOpen(false);
+      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error checking out", 
-        description: error.message,
-        variant: "destructive" 
-      });
+      // Error handling is now done in handleCheckOutSubmit
+      console.error('Check-out mutation error:', error);
     }
   });
 
@@ -246,36 +240,60 @@ export default function MarketingAttendance() {
     setCheckOutModalOpen(true);
   };
 
-  // Handle GPS check-in submission
-  const handleCheckInSubmit = (data: {
+  // Handle GPS check-in submission - FIXED: Return Promise for new modal interface
+  const handleCheckInSubmit = async (data: {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
-  }) => {
-    checkInMutation.mutate({
-      userId: selectedAttendanceUser,
-      ...data
-    });
+  }): Promise<{ attendanceId: string; success: boolean; error?: string }> => {
+    try {
+      const result = await checkInMutation.mutateAsync({
+        userId: selectedAttendanceUser,
+        ...data
+      });
+      
+      return {
+        attendanceId: result.id,
+        success: true
+      };
+    } catch (error: any) {
+      return {
+        attendanceId: '',
+        success: false,
+        error: error.message || 'Check-in failed'
+      };
+    }
   };
 
-  // Handle GPS check-out submission
-  const handleCheckOutSubmit = (data: {
+  // Handle GPS check-out submission - FIXED: Return Promise for new modal interface
+  const handleCheckOutSubmit = async (data: {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
     visitCount?: number;
     tasksCompleted?: number;
     outcome?: string;
     nextAction?: string;
-  }) => {
-    checkOutMutation.mutate({
-      userId: selectedAttendanceUser,
-      ...data
-    });
+  }): Promise<{ attendanceId: string; success: boolean; error?: string }> => {
+    try {
+      const result = await checkOutMutation.mutateAsync({
+        userId: selectedAttendanceUser,
+        ...data
+      });
+      
+      return {
+        attendanceId: result.id,
+        success: true
+      };
+    } catch (error: any) {
+      return {
+        attendanceId: '',
+        success: false,
+        error: error.message || 'Check-out failed'
+      };
+    }
   };
 
   // Handle leave request submission

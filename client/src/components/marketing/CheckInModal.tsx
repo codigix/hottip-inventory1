@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapPin, Clock, Camera, Upload, AlertTriangle, CheckCircle, Navigation, Target } from "lucide-react";
+import { uploadMarketingAttendancePhoto } from "@/lib/marketingPhotoUpload";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -26,9 +27,8 @@ interface CheckInModalProps {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
-  }) => void;
+  }) => Promise<{ attendanceId: string; success: boolean; error?: string }>;
   isLoading?: boolean;
   userId?: string;
   userName?: string;
@@ -49,6 +49,9 @@ export default function CheckInModal({
   const [workDescription, setWorkDescription] = useState('');
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string>('');
+  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string>('');
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -59,6 +62,9 @@ export default function CheckInModal({
       setWorkDescription('');
       setUploadedPhoto(null);
       setPhotoPreview('');
+      setIsUploadingPhoto(false);
+      setPhotoUploadError('');
+      setUploadedPhotoPath('');
       getCurrentLocation();
     }
   }, [open]);
@@ -198,22 +204,75 @@ export default function CheckInModal({
     }
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // Handle form submission - FIXED: Create attendance record first, then upload photo
+  const handleSubmit = async () => {
     if (!currentLocation) {
       alert('Please get your current location first');
       return;
     }
 
-    const checkInData = {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      location: address,
-      photoPath: uploadedPhoto ? URL.createObjectURL(uploadedPhoto) : undefined,
-      workDescription: workDescription.trim() || undefined
-    };
+    try {
+      // Step 1: Create attendance record first (without photo)
+      const checkInData = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        location: address,
+        workDescription: workDescription.trim() || undefined
+      };
 
-    onCheckIn(checkInData);
+      const result = await onCheckIn(checkInData);
+      
+      if (!result.success) {
+        alert(result.error || 'Failed to check in. Please try again.');
+        return;
+      }
+
+      // Step 2: Upload photo if one is selected, using the real attendanceId
+      if (uploadedPhoto && !uploadedPhotoPath) {
+        setIsUploadingPhoto(true);
+        setPhotoUploadError('');
+        
+        try {
+          const photoResult = await uploadMarketingAttendancePhoto({
+            file: uploadedPhoto,
+            attendanceId: result.attendanceId,
+            photoType: 'check-in'
+          });
+
+          if (photoResult.success) {
+            setUploadedPhotoPath(photoResult.objectPath);
+            
+            // Step 3: Update attendance record with photo path
+            const updateResponse = await fetch(`/api/marketing-attendance/${result.attendanceId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ checkInPhotoPath: photoResult.objectPath })
+            });
+            
+            if (!updateResponse.ok) {
+              console.warn('Photo uploaded but failed to update attendance record');
+              setPhotoUploadError('Photo uploaded but failed to link to record');
+            }
+          } else {
+            setPhotoUploadError(photoResult.error || 'Photo upload failed');
+          }
+        } catch (error) {
+          console.error('Photo upload error:', error);
+          setPhotoUploadError('Photo upload failed. Please try again.');
+        }
+        
+        setIsUploadingPhoto(false);
+      }
+
+      // Success - close modal after brief delay to show any photo upload status
+      setTimeout(() => {
+        onOpenChange(false);
+      }, uploadedPhoto ? 1500 : 500);
+      
+    } catch (error) {
+      console.error('Check-in error:', error);
+      alert('Check-in failed. Please try again.');
+    }
   };
 
   const locationAccuracy = getLocationAccuracy();
@@ -428,7 +487,27 @@ export default function CheckInModal({
                     className="w-full max-w-xs rounded-lg border"
                     data-testid="photo-preview"
                   />
+                  {uploadedPhotoPath && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Photo uploaded successfully
+                    </p>
+                  )}
                 </div>
+              )}
+
+              {isUploadingPhoto && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm">Uploading photo...</span>
+                </div>
+              )}
+
+              {photoUploadError && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">{photoUploadError}</AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
@@ -447,14 +526,14 @@ export default function CheckInModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading}
+              disabled={!currentLocation || isLoading || isUploadingPhoto}
               className="flex-1"
               data-testid="button-checkin-confirm"
             >
-              {isLoading ? (
+              {isLoading || isUploadingPhoto ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Checking In...</span>
+                  <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Checking In...'}</span>
                 </div>
               ) : (
                 <>

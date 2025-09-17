@@ -538,6 +538,66 @@ export const logisticsShipmentStatusEnum = pgEnum('logistics_shipment_status', [
 ]);
 export const leaveStatusEnum = pgEnum('leave_status', ['pending', 'approved', 'rejected', 'cancelled']);
 
+// ==========================================
+// LEAVE MANAGEMENT TABLES
+// ==========================================
+
+// User Leave Balance - tracks annual leave allocations and usage
+export const userLeaveBalance = pgTable("user_leave_balance", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  year: integer("year").notNull(), // Leave allocation year
+  
+  // Annual Leave Allocation
+  totalAnnualLeave: integer("total_annual_leave").notNull().default(30), // Total days allocated per year
+  usedAnnualLeave: integer("used_annual_leave").notNull().default(0), // Days used so far
+  
+  // Leave Type Breakdown
+  totalSickLeave: integer("total_sick_leave").notNull().default(10),
+  usedSickLeave: integer("used_sick_leave").notNull().default(0),
+  
+  totalVacationLeave: integer("total_vacation_leave").notNull().default(20),
+  usedVacationLeave: integer("used_vacation_leave").notNull().default(0),
+  
+  totalPersonalLeave: integer("total_personal_leave").notNull().default(5),
+  usedPersonalLeave: integer("used_personal_leave").notNull().default(0),
+  
+  // Emergency and training leave typically don't have specific allocations
+  usedEmergencyLeave: integer("used_emergency_leave").notNull().default(0),
+  usedTrainingLeave: integer("used_training_leave").notNull().default(0),
+  usedOtherLeave: integer("used_other_leave").notNull().default(0),
+  
+  // Metadata
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Leave Requests - separate table for tracking individual leave requests
+export const leaveRequests = pgTable("leave_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Leave Details
+  leaveType: leaveTypeEnum("leave_type").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  totalDays: integer("total_days").notNull(),
+  reason: text("reason").notNull(),
+  
+  // Approval Workflow
+  status: leaveStatusEnum("status").notNull().default('pending'),
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedDate: timestamp("approved_date"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Manager/HR Notes
+  approverNotes: text("approver_notes"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Leads - Comprehensive lead management
 export const leads = pgTable("leads", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

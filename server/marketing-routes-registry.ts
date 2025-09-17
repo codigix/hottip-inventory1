@@ -5,8 +5,12 @@ import {
   insertLeadSchema, updateLeadSchema, insertFieldVisitSchema, insertMarketingTaskSchema, insertMarketingAttendanceSchema,
   updateLeadStatusSchema, updateFieldVisitStatusSchema, updateMarketingTaskStatusSchema,
   fieldVisitCheckInSchema, fieldVisitCheckOutSchema, convertLeadSchema,
-  leadFilterSchema, fieldVisitFilterSchema, marketingTaskFilterSchema
+  leadFilterSchema, fieldVisitFilterSchema, marketingTaskFilterSchema, attendancePhotoUploadSchema
 } from "@shared/schema";
+import { ObjectStorageService } from "./objectStorage";
+
+// Object storage service for photo uploads
+const objectStorage = new ObjectStorageService();
 
 // Authentication and Authorization types
 interface AuthenticatedRequest extends Request {
@@ -1151,6 +1155,52 @@ export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, r
 };
 
 // ==========================================
+// MARKETING ATTENDANCE PHOTO UPLOAD HANDLERS
+// ==========================================
+
+// Generate signed upload URL for marketing attendance photos
+export const generateMarketingAttendancePhotoUploadUrl = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // Validate request body
+    const validatedData = attendancePhotoUploadSchema.parse(req.body);
+    
+    // Verify attendance record exists and belongs to user
+    const attendanceRecord = await storage.getMarketingAttendance(validatedData.attendanceId);
+    
+    if (!attendanceRecord) {
+      res.status(404).json({ error: "Marketing attendance record not found" });
+      return;
+    }
+    
+    if (attendanceRecord.userId !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to upload photo for this attendance record" });
+      return;
+    }
+    
+    // Generate object storage path
+    const objectPath = `marketing-attendance-photos/${validatedData.attendanceId}/${validatedData.photoType}-${Date.now()}-${validatedData.fileName}`;
+    
+    // Generate signed upload URL
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    
+    res.json({
+      uploadURL,
+      objectPath,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors 
+      });
+      return;
+    }
+    console.error('Marketing attendance photo upload URL generation error:', error);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+};
+
+// ==========================================
 // MARKETING ANALYTICS HANDLERS
 // ==========================================
 
@@ -1379,7 +1429,7 @@ export function registerMarketingRoutes(
     { method: 'get', path: '/api/marketing-tasks/metrics', middlewares: ['requireAuth', 'requireMarketingAccess'], handler: getMarketingTaskMetrics },
 
     // ==========================================
-    // MARKETING ATTENDANCE ROUTES (9 endpoints)
+    // MARKETING ATTENDANCE ROUTES (10 endpoints)
     // ==========================================
     { method: 'get', path: '/api/marketing-attendance', middlewares: ['requireAuth'], handler: getMarketingAttendances },
     { method: 'get', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketing_attendance'], handler: getMarketingAttendance },
@@ -1390,6 +1440,7 @@ export function registerMarketingRoutes(
     { method: 'post', path: '/api/marketing-attendance/check-out', middlewares: ['requireAuth'], handler: checkOutMarketingAttendance },
     { method: 'get', path: '/api/marketing-attendance/today', middlewares: ['requireAuth'], handler: getTodayMarketingAttendance },
     { method: 'get', path: '/api/marketing-attendance/metrics', middlewares: ['requireAuth', 'requireMarketingAccess'], handler: getMarketingAttendanceMetrics },
+    { method: 'post', path: '/api/marketing-attendance/photo/upload-url', middlewares: ['requireAuth'], handler: generateMarketingAttendancePhotoUploadUrl },
 
     // ==========================================
     // MARKETING ANALYTICS ROUTES (4 endpoints)
@@ -1432,8 +1483,8 @@ export function registerMarketingRoutes(
     });
   }
 
-  // Marketing route count verification - exactly 41 routes as specified
-  const EXPECTED_MARKETING_ROUTE_COUNT = 41;
+  // Marketing route count verification - exactly 42 routes as specified (added photo upload)
+  const EXPECTED_MARKETING_ROUTE_COUNT = 42;
   if (marketingRoutes.length !== EXPECTED_MARKETING_ROUTE_COUNT) {
     console.warn(`⚠️  Marketing route count mismatch: Expected ${EXPECTED_MARKETING_ROUTE_COUNT}, found ${marketingRoutes.length}`);
   }
