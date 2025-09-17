@@ -864,6 +864,45 @@ export const logisticsCheckpoints = pgTable("logistics_checkpoints", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Logistics Attendance - GPS-enabled check-in/check-out for logistics staff
+export const logisticsAttendance = pgTable("logistics_attendance", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Employee Reference
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  
+  // Date and Attendance
+  date: timestamp("date").notNull(),
+  
+  // Check-in/Check-out Times
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
+  
+  // Location Tracking (GPS coordinates with same precision as checkpoints)
+  checkInLocation: text("check_in_location"),
+  checkOutLocation: text("check_out_location"),
+  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
+  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
+  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
+  
+  // Photo Verification
+  checkInPhotoPath: text("check_in_photo_path"),
+  checkOutPhotoPath: text("check_out_photo_path"),
+  
+  // Work Description and Metrics
+  workDescription: text("work_description"),
+  taskCount: integer("task_count"),
+  deliveriesCompleted: integer("deliveries_completed"),
+  
+  // Status
+  status: text("status").notNull().default('checked_in'), // checked_in, checked_out
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ===== ACCOUNTS MODULE TABLES =====
 
 // Enums for Accounts
@@ -1514,6 +1553,12 @@ export const insertLogisticsCheckpointSchema = createInsertSchema(logisticsCheck
   createdAt: true,
 });
 
+export const insertLogisticsAttendanceSchema = createInsertSchema(logisticsAttendance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Additional Logistics Schemas for API routes
 export const updateLogisticsShipmentSchema = createInsertSchema(logisticsShipments).partial().omit({
   id: true,
@@ -1795,6 +1840,9 @@ export type InsertLogisticsStatusUpdate = z.infer<typeof insertLogisticsStatusUp
 
 export type LogisticsCheckpoint = typeof logisticsCheckpoints.$inferSelect;
 export type InsertLogisticsCheckpoint = z.infer<typeof insertLogisticsCheckpointSchema>;
+
+export type LogisticsAttendance = typeof logisticsAttendance.$inferSelect;
+export type InsertLogisticsAttendance = z.infer<typeof insertLogisticsAttendanceSchema>;
 
 // Accounts Types
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;

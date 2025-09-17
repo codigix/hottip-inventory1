@@ -21,6 +21,7 @@ import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import Shipments from "./Shipments";
 import LogisticsReports from "./Reports";
 import LogisticsTasks from "./Tasks";
+import LogisticsAttendance from "./Attendance";
 
 const sidebarItems = [
   {
@@ -194,16 +195,7 @@ export default function LogisticsLayout() {
             <LogisticsTasks />
           </Route>
           <Route path="/logistics/attendance">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Logistics Attendance</h2>
-                  <p className="text-muted-foreground">
-                    Logistics attendance functionality will be implemented in upcoming tasks.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <LogisticsAttendance />
           </Route>
           <Route>
             <div className="p-8">
