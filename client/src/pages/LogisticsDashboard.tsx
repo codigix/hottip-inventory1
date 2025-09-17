@@ -27,14 +27,26 @@ import {
   Navigation,
   FileUp,
   Route,
+  User,
+  Weight,
+  DollarSign,
 } from "lucide-react";
 
 const shipmentFormSchema = z.object({
-  orderId: z.string().optional(),
-  trackingNumber: z.string().optional(),
-  carrier: z.string().min(1, "Carrier is required"),
-  shippingAddress: z.string().min(1, "Shipping address is required"),
-  estimatedDelivery: z.string().optional(),
+  consignmentNumber: z.string().min(1, "Consignment number is required"),
+  source: z.string().min(1, "Source is required"),
+  destination: z.string().min(1, "Destination is required"),
+  clientId: z.string().optional(),
+  vendorId: z.string().optional(),
+  dispatchDate: z.string().optional(),
+  expectedDeliveryDate: z.string().optional(),
+  currentStatus: z.string().optional(),
+  weight: z.string().optional(),
+  volume: z.string().optional(),
+  value: z.string().optional(),
+  priority: z.string().min(1, "Priority is required"),
+  trackingUrl: z.string().optional(),
+  assignedTo: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -49,18 +61,35 @@ export default function LogisticsDashboard() {
     queryKey: ["/api/logistics/shipments"],
   });
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery<any[]>({
-    queryKey: ["/api/orders"],
+  const { data: customers = [], isLoading: customersLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery<any[]>({
+    queryKey: ["/api/suppliers"],
+  });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
+    queryKey: ["/api/users"],
   });
 
   const form = useForm<ShipmentForm>({
     resolver: zodResolver(shipmentFormSchema),
     defaultValues: {
-      orderId: "",
-      trackingNumber: "",
-      carrier: "",
-      shippingAddress: "",
-      estimatedDelivery: "",
+      consignmentNumber: "",
+      source: "",
+      destination: "",
+      clientId: "",
+      vendorId: "",
+      dispatchDate: "",
+      expectedDeliveryDate: "",
+      currentStatus: "created",
+      weight: "",
+      volume: "",
+      value: "",
+      priority: "normal",
+      trackingUrl: "",
+      assignedTo: "",
       notes: "",
     },
   });
@@ -126,11 +155,20 @@ export default function LogisticsDashboard() {
   const handleEdit = (shipment: any) => {
     setEditingShipment(shipment);
     form.reset({
-      orderId: shipment.order?.id || "",
-      trackingNumber: shipment.trackingNumber || "",
-      carrier: shipment.carrier || "",
-      shippingAddress: shipment.shippingAddress || "",
-      estimatedDelivery: shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toISOString().split('T')[0] : "",
+      consignmentNumber: shipment.consignmentNumber || "",
+      source: shipment.source || "",
+      destination: shipment.destination || "",
+      clientId: shipment.clientId || "",
+      vendorId: shipment.vendorId || "",
+      dispatchDate: shipment.dispatchDate ? new Date(shipment.dispatchDate).toISOString().split('T')[0] : "",
+      expectedDeliveryDate: shipment.expectedDeliveryDate ? new Date(shipment.expectedDeliveryDate).toISOString().split('T')[0] : "",
+      currentStatus: shipment.currentStatus || "created",
+      weight: shipment.weight || "",
+      volume: shipment.volume || "",
+      value: shipment.value || "",
+      priority: shipment.priority || "normal",
+      trackingUrl: shipment.trackingUrl || "",
+      assignedTo: shipment.assignedTo || "",
       notes: shipment.notes || "",
     });
   };
@@ -141,59 +179,77 @@ export default function LogisticsDashboard() {
       header: "Consignment #",
     },
     {
-      key: "order.orderNumber",
-      header: "Order #",
+      key: "source",
+      header: "Source",
     },
     {
-      key: "trackingNumber",
-      header: "Tracking #",
-      cell: (shipment: any) => shipment.trackingNumber || "N/A",
+      key: "destination",
+      header: "Destination",
     },
     {
-      key: "carrier",
-      header: "Carrier",
-    },
-    {
-      key: "status",
+      key: "currentStatus",
       header: "Status",
       cell: (shipment: any) => {
         const statusColors = {
-          preparing: "bg-yellow-100 text-yellow-800",
-          in_transit: "bg-blue-100 text-blue-800",
+          created: "bg-gray-100 text-gray-800",
+          packed: "bg-yellow-100 text-yellow-800",
+          dispatched: "bg-blue-100 text-blue-800",
+          in_transit: "bg-purple-100 text-purple-800",
+          out_for_delivery: "bg-orange-100 text-orange-800",
           delivered: "bg-green-100 text-green-800",
-          cancelled: "bg-red-100 text-red-800",
+          closed: "bg-gray-500 text-white",
         };
         
         const statusLabels = {
-          preparing: "Preparing",
+          created: "Created",
+          packed: "Packed",
+          dispatched: "Dispatched",
           in_transit: "In Transit",
+          out_for_delivery: "Out for Delivery",
           delivered: "Delivered",
-          cancelled: "Cancelled",
+          closed: "Closed",
         };
 
         return (
-          <Badge className={statusColors[shipment.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}>
-            {statusLabels[shipment.status as keyof typeof statusLabels] || shipment.status}
+          <Badge className={statusColors[shipment.currentStatus as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}>
+            {statusLabels[shipment.currentStatus as keyof typeof statusLabels] || shipment.currentStatus}
           </Badge>
         );
       },
     },
     {
-      key: "estimatedDelivery",
-      header: "Est. Delivery",
-      cell: (shipment: any) => shipment.estimatedDelivery 
-        ? new Date(shipment.estimatedDelivery).toLocaleDateString() 
+      key: "priority",
+      header: "Priority",
+      cell: (shipment: any) => {
+        const priorityColors = {
+          normal: "bg-blue-100 text-blue-800",
+          high: "bg-orange-100 text-orange-800",
+          urgent: "bg-red-100 text-red-800",
+        };
+        
+        return (
+          <Badge className={priorityColors[shipment.priority as keyof typeof priorityColors] || "bg-gray-100 text-gray-800"}>
+            {(shipment.priority || "normal").charAt(0).toUpperCase() + (shipment.priority || "normal").slice(1)}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "expectedDeliveryDate",
+      header: "Expected Delivery",
+      cell: (shipment: any) => shipment.expectedDeliveryDate 
+        ? new Date(shipment.expectedDeliveryDate).toLocaleDateString() 
         : "TBD",
     },
   ];
 
   // Calculate logistics metrics
   const totalShipments = (shipments || []).length;
-  const inTransitShipments = (shipments || []).filter((s: any) => s.status === 'in_transit').length;
-  const deliveredShipments = (shipments || []).filter((s: any) => s.status === 'delivered').length;
-  const pendingShipments = (shipments || []).filter((s: any) => s.status === 'preparing').length;
+  const inTransitShipments = (shipments || []).filter((s: any) => s.currentStatus === 'in_transit' || s.currentStatus === 'dispatched' || s.currentStatus === 'out_for_delivery').length;
+  const deliveredShipments = (shipments || []).filter((s: any) => s.currentStatus === 'delivered' || s.currentStatus === 'closed').length;
+  const pendingShipments = (shipments || []).filter((s: any) => s.currentStatus === 'created' || s.currentStatus === 'packed').length;
 
-  if (shipmentsLoading) {
+  if (shipmentsLoading || customersLoading || suppliersLoading || usersLoading) {
     return (
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="space-y-6">
@@ -241,25 +297,13 @@ export default function LogisticsDashboard() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="orderId"
+                  name="consignmentNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Order (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-order">
-                            <SelectValue placeholder="Select order" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">No order</SelectItem>
-                          {(orders || []).map((order: any) => (
-                            <SelectItem key={order.id} value={order.id}>
-                              {order.orderNumber} - {order.customer?.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Consignment Number *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-consignment" placeholder="Enter consignment number" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -268,22 +312,52 @@ export default function LogisticsDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="carrier"
+                    name="source"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Carrier</FormLabel>
+                        <FormLabel>Source *</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-source" placeholder="Source location" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="destination"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Destination *</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-destination" placeholder="Destination location" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Client (Optional)</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-carrier">
-                              <SelectValue placeholder="Select carrier" />
+                            <SelectTrigger data-testid="select-client">
+                              <SelectValue placeholder="Select client" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="fedex">FedEx</SelectItem>
-                            <SelectItem value="ups">UPS</SelectItem>
-                            <SelectItem value="dhl">DHL</SelectItem>
-                            <SelectItem value="usps">USPS</SelectItem>
-                            <SelectItem value="local">Local Delivery</SelectItem>
+                            <SelectItem value="">No client</SelectItem>
+                            {(customers || []).map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -292,12 +366,103 @@ export default function LogisticsDashboard() {
                   />
                   <FormField
                     control={form.control}
-                    name="trackingNumber"
+                    name="vendorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tracking Number</FormLabel>
+                        <FormLabel>Vendor (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-vendor">
+                              <SelectValue placeholder="Select vendor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">No vendor</SelectItem>
+                            {(suppliers || []).map((supplier: any) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-priority">
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="currentStatus"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-status">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="created">Created</SelectItem>
+                            <SelectItem value="packed">Packed</SelectItem>
+                            <SelectItem value="dispatched">Dispatched</SelectItem>
+                            <SelectItem value="in_transit">In Transit</SelectItem>
+                            <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="dispatchDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dispatch Date</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-tracking" />
+                          <Input {...field} type="date" data-testid="input-dispatch-date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expectedDeliveryDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expected Delivery</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" data-testid="input-delivery-date" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -305,33 +470,88 @@ export default function LogisticsDashboard() {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="shippingAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Shipping Address</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="weight"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Weight (kg)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" data-testid="input-weight" placeholder="0.00" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="volume"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Volume (m³)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" data-testid="input-volume" placeholder="0.00" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="value"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Value (₹)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" data-testid="input-value" placeholder="0.00" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="estimatedDelivery"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estimated Delivery</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" data-testid="input-delivery-date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="trackingUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tracking URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-tracking-url" placeholder="https://..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="assignedTo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assigned To</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-assigned">
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">Unassigned</SelectItem>
+                            {(users || []).map((user: any) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.firstName} {user.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -559,16 +779,16 @@ export default function LogisticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {(shipments || []).filter((s: any) => s.status === 'delivered').slice(0, 3).map((shipment: any) => (
+                {(shipments || []).filter((s: any) => s.currentStatus === 'delivered').slice(0, 3).map((shipment: any) => (
                   <div key={shipment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
                     <div>
                       <p className="text-sm font-medium">{shipment.consignmentNumber}</p>
                       <p className="text-xs text-muted-foreground">
-                        {shipment.order?.orderNumber || 'Direct Shipment'}
+                        {shipment.source} → {shipment.destination}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{shipment.carrier}</p>
+                      <p className="text-sm font-medium">{shipment.priority}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(shipment.createdAt).toLocaleDateString()}
                       </p>
