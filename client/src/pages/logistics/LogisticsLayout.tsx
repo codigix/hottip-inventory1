@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Import logistics pages
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import Shipments from "./Shipments";
+import LogisticsReports from "./Reports";
 
 const sidebarItems = [
   {
@@ -186,16 +187,7 @@ export default function LogisticsLayout() {
             </div>
           </Route>
           <Route path="/logistics/reports">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Reports</h2>
-                  <p className="text-muted-foreground">
-                    Reports and analytics functionality will be implemented in upcoming tasks.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <LogisticsReports />
           </Route>
           <Route path="/logistics/tasks">
             <div className="p-8">
