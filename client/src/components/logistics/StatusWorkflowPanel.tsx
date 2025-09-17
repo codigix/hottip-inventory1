@@ -24,23 +24,29 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
-interface LogisticsShipment {
-  id: string;
-  consignmentNumber: string;
-  source: string;
-  destination: string;
-  currentStatus: string;
-  client?: { name: string; };
-  vendor?: { name: string; };
-}
+// Use shared types and validation helpers
+import type { 
+  LogisticsShipment, 
+  LogisticsShipmentStatus 
+} from "@shared/schema";
+import { 
+  LOGISTICS_SHIPMENT_STATUSES, 
+  getNextStatus, 
+  isValidStatusTransition 
+} from "@shared/schema";
+
+// Import POD upload component
+import PodUploadComponent from "./PodUploadComponent";
 
 interface StatusWorkflowPanelProps {
   shipments: LogisticsShipment[];
 }
 
-// Status update form schema
+// Status update form schema with proper enum validation
 const statusUpdateSchema = z.object({
-  status: z.string().min(1, "Status is required"),
+  status: z.enum(LOGISTICS_SHIPMENT_STATUSES, {
+    errorMap: () => ({ message: "Invalid status value" })
+  }),
   notes: z.string().optional(),
   location: z.string().optional(),
   podFile: z.string().optional(),
@@ -172,7 +178,17 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     },
   });
 
-  const handleStatusUpdate = (shipment: LogisticsShipment, newStatus: string) => {
+  const handleStatusUpdate = (shipment: LogisticsShipment, newStatus: LogisticsShipmentStatus) => {
+    // Validate status transition
+    if (!isValidStatusTransition(shipment.currentStatus as LogisticsShipmentStatus, newStatus)) {
+      toast({
+        title: "Invalid Status Transition",
+        description: `Cannot move from ${shipment.currentStatus} to ${newStatus}. Please follow the proper workflow sequence.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedShipment(shipment);
     form.setValue('status', newStatus);
     setShowStatusUpdate(true);
@@ -201,10 +217,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     return acc;
   }, {} as Record<string, LogisticsShipment[]>);
 
-  const getNextStatus = (currentStatus: string) => {
-    const currentIndex = statusWorkflow.findIndex(s => s.key === currentStatus);
-    return currentIndex < statusWorkflow.length - 1 ? statusWorkflow[currentIndex + 1] : null;
-  };
+  // Use the shared getNextStatus function from schema instead of local one
 
   return (
     <div className="space-y-6">
@@ -257,7 +270,8 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                   </div>
                 ) : (
                   statusShipments.map((shipment) => {
-                    const nextStatus = getNextStatus(shipment.currentStatus);
+                    const nextStatus = getNextStatus(shipment.currentStatus as LogisticsShipmentStatus);
+                    const nextStatusConfig = nextStatus ? statusWorkflow.find(s => s.key === nextStatus) : null;
                     
                     return (
                       <Card key={shipment.id} className="p-3">
@@ -273,15 +287,15 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                           </div>
                           
                           <div className="flex space-x-1 pt-2">
-                            {nextStatus && (
+                            {nextStatusConfig && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleStatusUpdate(shipment, nextStatus.key)}
+                                onClick={() => handleStatusUpdate(shipment, nextStatus!)}
                                 className="text-xs"
                                 data-testid={`button-advance-${shipment.id}`}
                               >
-                                → {nextStatus.label}
+                                → {nextStatusConfig.label}
                               </Button>
                             )}
                             
@@ -394,30 +408,14 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-              <FileUp className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                POD upload functionality will be integrated with object storage in Task 12
-              </p>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowPodUpload(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => onSubmitPodUpload({ notes: "POD uploaded" })}
-                disabled={closeShipmentMutation.isPending}
-                data-testid="button-close-shipment"
-              >
-                Close Shipment
-              </Button>
-            </div>
-          </div>
+          <PodUploadComponent 
+            shipment={selectedShipment}
+            onClose={() => setShowPodUpload(false)}
+            onComplete={(podData) => {
+              onSubmitPodUpload(podData);
+              setShowPodUpload(false);
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

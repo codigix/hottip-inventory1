@@ -1756,6 +1756,36 @@ export type InsertMarketingTask = z.infer<typeof insertMarketingTaskSchema>;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = z.infer<typeof insertMarketingAttendanceSchema>;
 
+// Logistics Shared Constants and Types
+export const LOGISTICS_SHIPMENT_STATUSES = [
+  'created',
+  'packed', 
+  'dispatched',
+  'in_transit',
+  'out_for_delivery',
+  'delivered',
+  'closed'
+] as const;
+
+export type LogisticsShipmentStatus = typeof LOGISTICS_SHIPMENT_STATUSES[number];
+
+// Helper function for status transitions
+export const getNextStatus = (currentStatus: LogisticsShipmentStatus): LogisticsShipmentStatus | null => {
+  const statusIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus);
+  if (statusIndex === -1 || statusIndex === LOGISTICS_SHIPMENT_STATUSES.length - 1) {
+    return null; // Invalid status or already at final status
+  }
+  return LOGISTICS_SHIPMENT_STATUSES[statusIndex + 1];
+};
+
+export const isValidStatusTransition = (from: LogisticsShipmentStatus, to: LogisticsShipmentStatus): boolean => {
+  const fromIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(from);
+  const toIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(to);
+  
+  // Can only move forward one step or stay the same
+  return toIndex >= fromIndex && toIndex <= fromIndex + 1;
+};
+
 // Logistics Types
 export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
 export type InsertLogisticsShipment = z.infer<typeof insertLogisticsShipmentSchema>;

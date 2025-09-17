@@ -1,11 +1,15 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
+import { ObjectStorageService } from "./objectStorage";
 import {
   insertLogisticsShipmentSchema, insertLogisticsStatusUpdateSchema, insertLogisticsCheckpointSchema,
   updateLogisticsShipmentSchema, logisticsShipmentFilterSchema, updateLogisticsShipmentStatusSchema,
   closePodUploadSchema
 } from "@shared/schema";
+
+// Initialize object storage service
+const objectStorage = new ObjectStorageService();
 
 // Authentication and Authorization types
 interface AuthenticatedRequest extends Request {
@@ -630,6 +634,107 @@ export const getDeliveryPerformanceMetrics = async (req: AuthenticatedRequest, r
 };
 
 // ==========================================
+// POD UPLOAD HANDLER
+// ==========================================
+
+// POD Upload URL Generation - Step 1 of 2-step upload process
+export const generatePodUploadUrl = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { shipmentId, fileName, contentType } = req.body;
+    
+    if (!shipmentId) {
+      res.status(400).json({ error: "Shipment ID is required" });
+      return;
+    }
+
+    if (!fileName) {
+      res.status(400).json({ error: "File name is required" });
+      return;
+    }
+
+    // Validate shipment exists and user has access (ownership check)
+    const shipment = await storage.getLogisticsShipment(shipmentId);
+    if (!shipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+
+    // TODO: Add ownership check here when user-shipment relationship is implemented
+    // For now, any authenticated user can upload POD for any shipment
+
+    // Validate file name for security
+    if (fileName.includes('../') || fileName.includes('..') || fileName.includes('/')) {
+      res.status(400).json({ error: "Invalid file name" });
+      return;
+    }
+
+    // Validate content type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (contentType && !allowedTypes.includes(contentType)) {
+      res.status(400).json({ error: "Invalid file type. Only JPEG, PNG, WebP, and PDF are allowed." });
+      return;
+    }
+
+    // Generate stable object path for the POD
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileExtension = fileName.split('.').pop() || 'jpg';
+    const privateObjectDir = objectStorage.getPrivateObjectDir();
+    const objectPath = `${privateObjectDir}/logistics/shipments/${shipmentId}/pod/pod-${timestamp}.${fileExtension}`;
+    
+    // Parse object path (internal implementation)
+    const parseObjectPath = (path: string) => {
+      if (!path.startsWith("/")) path = `/${path}`;
+      const pathParts = path.split("/");
+      const bucketName = pathParts[1];
+      const objectName = pathParts.slice(2).join("/");
+      return { bucketName, objectName };
+    };
+
+    const { bucketName, objectName } = parseObjectPath(objectPath);
+
+    // Generate signed URL for PUT upload (internal implementation)
+    const signObjectURL = async ({ bucketName, objectName, method, ttlSec }: any) => {
+      const request = {
+        bucket_name: bucketName,
+        object_name: objectName,
+        method,
+        expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
+      };
+      const response = await fetch(`http://127.0.0.1:1106/object-storage/signed-object-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to sign object URL, errorcode: ${response.status}`);
+      }
+      const { signed_url: signedURL } = await response.json();
+      return signedURL;
+    };
+
+    const uploadURL = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "PUT",
+      ttlSec: 900 // 15 minutes
+    });
+
+    // Return upload URL and permanent object path
+    res.json({
+      uploadURL,
+      objectPath,
+      bucketName,
+      objectName,
+      fileName: `pod-${timestamp}.${fileExtension}`
+    });
+
+  } catch (error) {
+    console.error("POD upload URL generation error:", error);
+    res.status(500).json({ error: "Failed to generate POD upload URL" });
+  }
+};
+
+// ==========================================
 // LOGISTICS ROUTE REGISTRATION
 // ==========================================
 
@@ -662,6 +767,9 @@ export const registerLogisticsRoutes = (app: Express, options: LogisticsRouteOpt
   app.put("/api/logistics/shipments/:id/status", requireAuth, ownershipCheck, updateShipmentStatus);
   app.get("/api/logistics/shipments/:id/timeline", requireAuth, getShipmentTimeline);
   app.post("/api/logistics/shipments/:id/close", requireAuth, ownershipCheck, closeShipment);
+  
+  // POD Upload URL generation endpoint
+  app.post("/api/logistics/pod/upload-url", requireAuth, generatePodUploadUrl);
 
   // Status Updates routes
   app.get("/api/logistics/status-updates", requireAuth, getLogisticsStatusUpdates);

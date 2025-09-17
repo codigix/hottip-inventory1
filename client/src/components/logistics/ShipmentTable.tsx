@@ -11,25 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type LogisticsShipmentStatus = 'created' | 'packed' | 'dispatched' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'closed';
-
-interface LogisticsShipment {
-  id: string;
-  consignmentNumber: string;
-  source: string;
-  destination: string;
-  clientId?: string;
-  vendorId?: string;
-  dispatchDate?: string;
-  expectedDeliveryDate?: string;
-  deliveredAt?: string;
-  closedAt?: string;
-  currentStatus: LogisticsShipmentStatus;
-  createdAt: string;
-  updatedAt: string;
-  client?: { id: string; name: string; };
-  vendor?: { id: string; name: string; };
-}
+// Use shared types from schema
+import type { LogisticsShipment, LogisticsShipmentStatus } from "@shared/schema";
 
 interface ShipmentTableProps {
   shipments: LogisticsShipment[];
