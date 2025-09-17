@@ -5075,6 +5075,8 @@ export class DatabaseStorage implements IStorage {
         startedDate: logisticsTasks.startedDate,
         completedDate: logisticsTasks.completedDate,
         shipmentId: logisticsTasks.shipmentId,
+        assignedTo: logisticsTasks.assignedTo,
+        assignedBy: logisticsTasks.assignedBy,
         estimatedHours: logisticsTasks.estimatedHours,
         actualHours: logisticsTasks.actualHours,
         completionNotes: logisticsTasks.completionNotes,

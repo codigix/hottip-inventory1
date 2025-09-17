@@ -39,7 +39,8 @@ export const getLeads = async (req: AuthenticatedRequest, res: Response): Promis
     res.json(leads);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to fetch leads" });
   }
@@ -48,12 +49,14 @@ export const getLeads = async (req: AuthenticatedRequest, res: Response): Promis
 export const getLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid lead ID format" });
+      res.status(400).json({ error: "Invalid lead ID format" });
+      return;
     }
     
     const lead = await storage.getLead(req.params.id);
     if (!lead) {
-      return res.status(404).json({ error: "Lead not found" });
+      res.status(404).json({ error: "Lead not found" });
+      return;
     }
     res.json(lead);
   } catch (error) {
@@ -79,7 +82,8 @@ export const createLead = async (req: AuthenticatedRequest, res: Response): Prom
     res.status(201).json(lead);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid lead data", details: error.errors });
+      res.status(400).json({ error: "Invalid lead data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to create lead" });
   }
@@ -88,12 +92,14 @@ export const createLead = async (req: AuthenticatedRequest, res: Response): Prom
 export const updateLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid lead ID format" });
+      res.status(400).json({ error: "Invalid lead ID format" });
+      return;
     }
     
     const existingLead = await storage.getLead(req.params.id);
     if (!existingLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      res.status(404).json({ error: "Lead not found" });
+      return;
     }
     
     const leadData = insertLeadSchema.partial().parse(req.body);
@@ -108,7 +114,8 @@ export const updateLead = async (req: AuthenticatedRequest, res: Response): Prom
     res.json(lead);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid lead data", details: error.errors });
+      res.status(400).json({ error: "Invalid lead data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update lead" });
   }
@@ -117,12 +124,14 @@ export const updateLead = async (req: AuthenticatedRequest, res: Response): Prom
 export const deleteLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid lead ID format" });
+      res.status(400).json({ error: "Invalid lead ID format" });
+      return;
     }
     
     const existingLead = await storage.getLead(req.params.id);
     if (!existingLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      res.status(404).json({ error: "Lead not found" });
+      return;
     }
     
     await storage.deleteLead(req.params.id);
@@ -142,12 +151,14 @@ export const deleteLead = async (req: AuthenticatedRequest, res: Response): Prom
 export const updateLeadStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid lead ID format" });
+      res.status(400).json({ error: "Invalid lead ID format" });
+      return;
     }
     
     const existingLead = await storage.getLead(req.params.id);
     if (!existingLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      res.status(404).json({ error: "Lead not found" });
+      return;
     }
     
     const { status, notes } = updateLeadStatusSchema.parse(req.body);
@@ -163,26 +174,29 @@ export const updateLeadStatus = async (req: AuthenticatedRequest, res: Response)
     res.json(lead);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update lead status" });
   }
 };
 
-export const convertLead = async (req: AuthenticatedRequest, res: Response) => {
+export const convertLead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid lead ID format" });
+      res.status(400).json({ error: "Invalid lead ID format" });
+      return;
     }
     
     const existingLead = await storage.getLead(req.params.id);
     if (!existingLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      res.status(404).json({ error: "Lead not found" });
+      return;
     }
     
     const conversionData = convertLeadSchema.parse(req.body);
     
-    const customer = await storage.convertLeadToCustomer(req.params.id, conversionData);
+    const customer = await storage.convertLeadToCustomer(req.params.id);
     await storage.createActivity({
       userId: req.user!.id,
       action: "CONVERT_LEAD",
@@ -193,13 +207,14 @@ export const convertLead = async (req: AuthenticatedRequest, res: Response) => {
     res.json({ customer, message: "Lead successfully converted to customer" });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid conversion data", details: error.errors });
+      res.status(400).json({ error: "Invalid conversion data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to convert lead to customer" });
   }
 };
 
-export const getLeadMetrics = async (req: AuthenticatedRequest, res: Response) => {
+export const getLeadMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const metrics = await storage.getLeadsConversionMetrics();
     res.json(metrics);
@@ -208,14 +223,16 @@ export const getLeadMetrics = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
-export const searchLeads = async (req: AuthenticatedRequest, res: Response) => {
+export const searchLeads = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const query = req.query.q as string;
     if (!query || query.trim().length === 0) {
-      return res.status(400).json({ error: "Search query is required and cannot be empty" });
+      res.status(400).json({ error: "Search query is required and cannot be empty" });
+      return;
     }
     if (query.length < 2) {
-      return res.status(400).json({ error: "Search query must be at least 2 characters long" });
+      res.status(400).json({ error: "Search query must be at least 2 characters long" });
+      return;
     }
     const leads = await storage.searchLeads(query);
     res.json(leads);
@@ -228,7 +245,7 @@ export const searchLeads = async (req: AuthenticatedRequest, res: Response) => {
 // FIELD VISITS HANDLERS
 // ==========================================
 
-export const getFieldVisits = async (req: AuthenticatedRequest, res: Response) => {
+export const getFieldVisits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = fieldVisitFilterSchema.parse(req.query);
     let visits;
@@ -244,21 +261,24 @@ export const getFieldVisits = async (req: AuthenticatedRequest, res: Response) =
     res.json(visits);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to fetch field visits" });
   }
 };
 
-export const getFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const getFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const visit = await storage.getFieldVisit(req.params.id);
     if (!visit) {
-      return res.status(404).json({ error: "Field visit not found" });
+      res.status(404).json({ error: "Field visit not found" });
+      return;
     }
     res.json(visit);
   } catch (error) {
@@ -266,7 +286,7 @@ export const getFieldVisit = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const createFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const createFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const visitData = insertFieldVisitSchema.parse(req.body);
     
@@ -289,16 +309,18 @@ export const createFieldVisit = async (req: AuthenticatedRequest, res: Response)
     res.status(201).json(visit);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid visit data", details: error.errors });
+      res.status(400).json({ error: "Invalid visit data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to create field visit" });
   }
 };
 
-export const updateFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const updateFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const existingVisit = await storage.getFieldVisit(req.params.id);
@@ -318,16 +340,18 @@ export const updateFieldVisit = async (req: AuthenticatedRequest, res: Response)
     res.json(visit);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid visit data", details: error.errors });
+      res.status(400).json({ error: "Invalid visit data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update field visit" });
   }
 };
 
-export const deleteFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const existingVisit = await storage.getFieldVisit(req.params.id);
@@ -349,10 +373,11 @@ export const deleteFieldVisit = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
-export const checkInFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const checkInFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const existingVisit = await storage.getFieldVisit(req.params.id);
@@ -363,11 +388,13 @@ export const checkInFieldVisit = async (req: AuthenticatedRequest, res: Response
     const checkInData = fieldVisitCheckInSchema.parse(req.body);
     
     if (existingVisit.actualStartTime) {
-      return res.status(400).json({ error: "Already checked in to this field visit" });
+      res.status(400).json({ error: "Already checked in to this field visit" });
+      return;
     }
     
     if (existingVisit.assignedTo !== req.user!.id && req.user!.role !== 'admin' && req.user!.role !== 'manager') {
-      return res.status(403).json({ error: "You are not assigned to this field visit" });
+      res.status(403).json({ error: "You are not assigned to this field visit" });
+      return;
     }
 
     const visit = await storage.checkInFieldVisit(req.params.id, {
@@ -389,16 +416,18 @@ export const checkInFieldVisit = async (req: AuthenticatedRequest, res: Response
     res.json({ visit, message: "Successfully checked in to field visit" });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid check-in data", details: error.errors });
+      res.status(400).json({ error: "Invalid check-in data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to check in to field visit" });
   }
 };
 
-export const checkOutFieldVisit = async (req: AuthenticatedRequest, res: Response) => {
+export const checkOutFieldVisit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const existingVisit = await storage.getFieldVisit(req.params.id);
@@ -409,15 +438,18 @@ export const checkOutFieldVisit = async (req: AuthenticatedRequest, res: Respons
     const checkOutData = fieldVisitCheckOutSchema.parse(req.body);
     
     if (existingVisit.actualEndTime) {
-      return res.status(400).json({ error: "Already checked out of this field visit" });
+      res.status(400).json({ error: "Already checked out of this field visit" });
+      return;
     }
     
     if (!existingVisit.actualStartTime) {
-      return res.status(400).json({ error: "Must check in before checking out" });
+      res.status(400).json({ error: "Must check in before checking out" });
+      return;
     }
     
     if (existingVisit.assignedTo !== req.user!.id && req.user!.role !== 'admin' && req.user!.role !== 'manager') {
-      return res.status(403).json({ error: "You are not assigned to this field visit" });
+      res.status(403).json({ error: "You are not assigned to this field visit" });
+      return;
     }
 
     const visit = await storage.checkOutFieldVisit(req.params.id, {
@@ -443,16 +475,18 @@ export const checkOutFieldVisit = async (req: AuthenticatedRequest, res: Respons
     res.json({ visit, message: "Successfully checked out of field visit" });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid check-out data", details: error.errors });
+      res.status(400).json({ error: "Invalid check-out data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to check out of field visit" });
   }
 };
 
-export const updateFieldVisitStatus = async (req: AuthenticatedRequest, res: Response) => {
+export const updateFieldVisitStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid field visit ID format" });
+      res.status(400).json({ error: "Invalid field visit ID format" });
+      return;
     }
     
     const existingVisit = await storage.getFieldVisit(req.params.id);
@@ -473,13 +507,14 @@ export const updateFieldVisitStatus = async (req: AuthenticatedRequest, res: Res
     res.json(visit);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update field visit status" });
   }
 };
 
-export const getTodayFieldVisits = async (req: AuthenticatedRequest, res: Response) => {
+export const getTodayFieldVisits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const visits = await storage.getTodayFieldVisits();
     res.json(visits);
@@ -488,7 +523,7 @@ export const getTodayFieldVisits = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-export const getFieldVisitMetrics = async (req: AuthenticatedRequest, res: Response) => {
+export const getFieldVisitMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const metrics = await storage.getVisitMetrics();
     res.json(metrics);
@@ -501,7 +536,7 @@ export const getFieldVisitMetrics = async (req: AuthenticatedRequest, res: Respo
 // MARKETING TASKS HANDLERS
 // ==========================================
 
-export const getMarketingTasks = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingTasks = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = marketingTaskFilterSchema.parse(req.query);
     let tasks;
@@ -517,21 +552,24 @@ export const getMarketingTasks = async (req: AuthenticatedRequest, res: Response
     res.json(tasks);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to fetch marketing tasks" });
   }
 };
 
-export const getMarketingTask = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid marketing task ID format" });
+      res.status(400).json({ error: "Invalid marketing task ID format" });
+      return;
     }
     
     const task = await storage.getMarketingTask(req.params.id);
     if (!task) {
-      return res.status(404).json({ error: "Marketing task not found" });
+      res.status(404).json({ error: "Marketing task not found" });
+      return;
     }
     res.json(task);
   } catch (error) {
@@ -539,7 +577,7 @@ export const getMarketingTask = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
-export const createMarketingTask = async (req: AuthenticatedRequest, res: Response) => {
+export const createMarketingTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const taskData = insertMarketingTaskSchema.parse(req.body);
     
@@ -549,14 +587,16 @@ export const createMarketingTask = async (req: AuthenticatedRequest, res: Respon
     if (taskData.leadId) {
       const lead = await storage.getLead(taskData.leadId);
       if (!lead) {
-        return res.status(400).json({ error: "Associated lead not found" });
+        res.status(400).json({ error: "Associated lead not found" });
+        return;
       }
     }
     
     if (taskData.fieldVisitId) {
       const visit = await storage.getFieldVisit(taskData.fieldVisitId);
       if (!visit) {
-        return res.status(400).json({ error: "Associated field visit not found" });
+        res.status(400).json({ error: "Associated field visit not found" });
+        return;
       }
     }
     
@@ -571,21 +611,24 @@ export const createMarketingTask = async (req: AuthenticatedRequest, res: Respon
     res.status(201).json(task);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      res.status(400).json({ error: "Invalid task data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to create marketing task" });
   }
 };
 
-export const updateMarketingTask = async (req: AuthenticatedRequest, res: Response) => {
+export const updateMarketingTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid marketing task ID format" });
+      res.status(400).json({ error: "Invalid marketing task ID format" });
+      return;
     }
     
     const existingTask = await storage.getMarketingTask(req.params.id);
     if (!existingTask) {
-      return res.status(404).json({ error: "Marketing task not found" });
+      res.status(404).json({ error: "Marketing task not found" });
+      return;
     }
     
     const taskData = insertMarketingTaskSchema.partial().parse(req.body);
@@ -600,21 +643,24 @@ export const updateMarketingTask = async (req: AuthenticatedRequest, res: Respon
     res.json(task);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      res.status(400).json({ error: "Invalid task data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update marketing task" });
   }
 };
 
-export const deleteMarketingTask = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteMarketingTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid marketing task ID format" });
+      res.status(400).json({ error: "Invalid marketing task ID format" });
+      return;
     }
     
     const existingTask = await storage.getMarketingTask(req.params.id);
     if (!existingTask) {
-      return res.status(404).json({ error: "Marketing task not found" });
+      res.status(404).json({ error: "Marketing task not found" });
+      return;
     }
     
     await storage.deleteMarketingTask(req.params.id);
@@ -631,15 +677,17 @@ export const deleteMarketingTask = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-export const updateMarketingTaskStatus = async (req: AuthenticatedRequest, res: Response) => {
+export const updateMarketingTaskStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
-      return res.status(400).json({ error: "Invalid marketing task ID format" });
+      res.status(400).json({ error: "Invalid marketing task ID format" });
+      return;
     }
     
     const existingTask = await storage.getMarketingTask(req.params.id);
     if (!existingTask) {
-      return res.status(404).json({ error: "Marketing task not found" });
+      res.status(404).json({ error: "Marketing task not found" });
+      return;
     }
     
     const { status, notes } = updateMarketingTaskStatusSchema.parse(req.body);
@@ -655,13 +703,14 @@ export const updateMarketingTaskStatus = async (req: AuthenticatedRequest, res: 
     res.json(task);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      res.status(400).json({ error: "Invalid status update data", details: error.errors });
+      return;
     }
     res.status(500).json({ error: "Failed to update marketing task status" });
   }
 };
 
-export const completeMarketingTask = async (req: AuthenticatedRequest, res: Response) => {
+export const completeMarketingTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { completionNotes, outcome, nextAction, actualHours } = req.body;
     const task = await storage.updateMarketingTask(req.params.id, {
@@ -686,7 +735,7 @@ export const completeMarketingTask = async (req: AuthenticatedRequest, res: Resp
   }
 };
 
-export const getTodayMarketingTasks = async (req: AuthenticatedRequest, res: Response) => {
+export const getTodayMarketingTasks = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const tasks = await storage.getTodayMarketingTasks();
     res.json(tasks);
@@ -695,7 +744,7 @@ export const getTodayMarketingTasks = async (req: AuthenticatedRequest, res: Res
   }
 };
 
-export const getMarketingTaskMetrics = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingTaskMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Note: Implement getTaskCompletionMetrics in storage or use basic metrics
     const metrics = { completed: 0, pending: 0, in_progress: 0 };
@@ -709,7 +758,7 @@ export const getMarketingTaskMetrics = async (req: AuthenticatedRequest, res: Re
 // MARKETING ATTENDANCE HANDLERS
 // ==========================================
 
-export const getMarketingAttendances = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingAttendances = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const attendance = await storage.getMarketingAttendances();
     res.json(attendance);
@@ -718,11 +767,12 @@ export const getMarketingAttendances = async (req: AuthenticatedRequest, res: Re
   }
 };
 
-export const getMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const getMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const attendance = await storage.getMarketingAttendance(req.params.id);
     if (!attendance) {
-      return res.status(404).json({ error: "Attendance record not found" });
+      res.status(404).json({ error: "Attendance record not found" });
+      return;
     }
     res.json(attendance);
   } catch (error) {
@@ -730,7 +780,7 @@ export const getMarketingAttendance = async (req: AuthenticatedRequest, res: Res
   }
 };
 
-export const createMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const createMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { userId, checkedInBy, checkedOutBy, ...clientData } = req.body;
     const attendanceData = insertMarketingAttendanceSchema.parse({
@@ -749,7 +799,7 @@ export const createMarketingAttendance = async (req: AuthenticatedRequest, res: 
   }
 };
 
-export const updateMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const updateMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const attendanceData = insertMarketingAttendanceSchema.partial().parse(req.body);
     const attendance = await storage.updateMarketingAttendance(req.params.id, attendanceData);
@@ -762,7 +812,7 @@ export const updateMarketingAttendance = async (req: AuthenticatedRequest, res: 
   }
 };
 
-export const deleteMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     await storage.deleteMarketingAttendance(req.params.id);
     res.status(204).send();
@@ -771,13 +821,14 @@ export const deleteMarketingAttendance = async (req: AuthenticatedRequest, res: 
   }
 };
 
-export const checkInMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const checkInMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { latitude, longitude, location, photoPath } = req.body;
     const userId = req.user!.id;
     
     if (!latitude || !longitude) {
-      return res.status(400).json({ error: "GPS coordinates are required for check-in" });
+      res.status(400).json({ error: "GPS coordinates are required for check-in" });
+      return;
     }
 
     const attendance = await storage.checkInMarketingAttendance(userId, {
@@ -796,13 +847,14 @@ export const checkInMarketingAttendance = async (req: AuthenticatedRequest, res:
   }
 };
 
-export const checkOutMarketingAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const checkOutMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { latitude, longitude, location, photoPath, workDescription, visitCount, tasksCompleted } = req.body;
     const userId = req.user!.id;
     
     if (!latitude || !longitude) {
-      return res.status(400).json({ error: "GPS coordinates are required for check-out" });
+      res.status(400).json({ error: "GPS coordinates are required for check-out" });
+      return;
     }
 
     const attendance = await storage.checkOutMarketingAttendance(userId, {
