@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import crypto from "crypto";
 
 const app = express();
 app.use(express.json());
@@ -21,7 +22,9 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      
+      // SECURITY: Don't log response bodies for auth endpoints to prevent token exposure
+      if (capturedJsonResponse && !path.startsWith("/api/auth")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -37,16 +40,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // SECURITY: Boot-time JWT_SECRET assertion for production deployments
-  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-    console.error('❌ CRITICAL: JWT_SECRET environment variable is required in production');
-    throw new Error('JWT_SECRET required in production - server cannot start without proper authentication configuration');
-  }
+  // SECURITY: Token configuration for authentication
+  const jwtSecret = process.env.JWT_SECRET;
+  const devTokenSecret = process.env.DEV_TOKEN_SECRET;
   
-  if (process.env.JWT_SECRET) {
+  if (jwtSecret) {
     console.log('✅ JWT_SECRET configured for authentication');
+  } else if (devTokenSecret) {
+    console.log('⚠️  Using DEV_TOKEN_SECRET for authentication');
+  } else if (process.env.NODE_ENV === 'production') {
+    console.error('❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is configured in production');
+    throw new Error('Authentication secret required in production - please configure JWT_SECRET or DEV_TOKEN_SECRET');
   } else {
-    console.log('⚠️  Development mode: JWT_SECRET not configured (dev tokens will be used)');
+    // Generate a development secret only in development
+    const generatedSecret = crypto.randomBytes(32).toString('hex');
+    process.env.DEV_TOKEN_SECRET = generatedSecret;
+    console.log('⚠️  Generated DEV_TOKEN_SECRET for authentication (development mode only)');
   }
 
   const server = await registerRoutes(app);

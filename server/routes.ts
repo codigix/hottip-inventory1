@@ -73,12 +73,14 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
 
     // JWT authentication (production and development)
     const jwtSecret = process.env.JWT_SECRET;
+    const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+    const tokenSecret = jwtSecret || devTokenSecret;
     
     // Try JWT verification first for both production and development
-    if (authHeader.startsWith('Bearer ') && !authHeader.startsWith('Bearer dev-') && jwtSecret) {
+    if (authHeader.startsWith('Bearer ') && !authHeader.startsWith('Bearer dev-') && tokenSecret) {
       try {
         const token = authHeader.replace('Bearer ', '');
-        const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as any;
+        const decoded = jwt.verify(token, tokenSecret, { algorithms: ['HS256'] }) as any;
         req.user = { 
           id: decoded.sub, 
           role: decoded.role, 
@@ -89,19 +91,20 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
       } catch (jwtError) {
         // In production, JWT failure is final
         if (process.env.NODE_ENV === 'production') {
-          res.status(401).json({ error: "Invalid JWT token" });
+          res.status(401).json({ error: "Invalid authentication token" });
           return;
         }
         // In development, fall through to dev token handling
       }
     }
 
-    // Production requires valid JWT
+    // Production requires valid JWT or DEV_TOKEN_SECRET
     if (process.env.NODE_ENV === 'production') {
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET required in production');
+      const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+      if (!jwtSecret && !devTokenSecret) {
+        throw new Error('JWT_SECRET or DEV_TOKEN_SECRET required in production');
       }
-      res.status(401).json({ error: "Valid JWT token required" });
+      res.status(401).json({ error: "Valid authentication token required" });
       return;
     }
     
@@ -223,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication endpoints (public routes)
   app.post('/api/auth/login', async (req, res) => {
     try {
-      console.log('🔐 Login attempt received:', { body: req.body });
+      console.log('🔐 Login attempt received for username:', req.body.username);
       
       const { username, password } = loginSchema.parse(req.body);
       console.log('✅ Login data parsed successfully:', { username });
@@ -246,17 +249,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const jwtSecret = process.env.JWT_SECRET;
-      console.log('🔒 JWT_SECRET status:', jwtSecret ? 'Available' : 'Missing');
+      const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+      const tokenSecret = jwtSecret || devTokenSecret;
       
-      if (!jwtSecret) {
-        console.error('❌ CRITICAL: JWT_SECRET environment variable is missing');
-        throw new Error('JWT_SECRET is required');
+      console.log('🔒 Authentication secret status:', {
+        jwt: jwtSecret ? 'Available' : 'Missing',
+        dev: devTokenSecret ? 'Available' : 'Missing',
+        using: jwtSecret ? 'JWT_SECRET' : 'DEV_TOKEN_SECRET'
+      });
+      
+      if (!tokenSecret) {
+        console.error('❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available');
+        throw new Error('Authentication secret is required (JWT_SECRET or DEV_TOKEN_SECRET)');
       }
       
       console.log('🎫 Generating JWT token...');
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
-        jwtSecret,
+        tokenSecret,
         { expiresIn: '15m', algorithm: 'HS256' }
       );
       
