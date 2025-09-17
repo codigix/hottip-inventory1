@@ -348,7 +348,7 @@ export interface IStorage {
 
   // Leads
   getLead(id: string): Promise<any>;
-  getLeads(): Promise<any[]>;
+  getLeads(filters?: any): Promise<any[]>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead>;
   deleteLead(id: string): Promise<void>;
@@ -2908,12 +2908,60 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getLeads(): Promise<any[]> {
-    const leadsData = await db
+  async getLeads(filters?: any): Promise<any[]> {
+    let query = db
       .select()
       .from(leads)
-      .leftJoin(users, eq(leads.assignedTo, users.id))
-      .orderBy(desc(leads.createdAt));
+      .leftJoin(users, eq(leads.assignedTo, users.id));
+
+    // Apply filters if provided
+    if (filters) {
+      const conditions = [];
+      
+      // SECURITY: Handle userScope for authorization
+      if (filters.userScope && filters.userScope.showOnlyUserLeads) {
+        // For non-admin users, only show leads they created OR are assigned to
+        conditions.push(
+          sql`(${leads.createdBy} = ${filters.userScope.userId} OR ${leads.assignedTo} = ${filters.userScope.userId})`
+        );
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(leads.status, filters.status));
+      }
+      
+      if (filters.source) {
+        conditions.push(eq(leads.source, filters.source));
+      }
+      
+      if (filters.priority) {
+        conditions.push(eq(leads.priority, filters.priority));
+      }
+      
+      if (filters.assignedTo) {
+        conditions.push(eq(leads.assignedTo, filters.assignedTo));
+      }
+      
+      if (filters.createdBy) {
+        conditions.push(eq(leads.createdBy, filters.createdBy));
+      }
+
+      if (filters.search) {
+        conditions.push(
+          sql`(${leads.firstName} ILIKE ${`%${filters.search}%`} OR 
+               ${leads.lastName} ILIKE ${`%${filters.search}%`} OR 
+               ${leads.email} ILIKE ${`%${filters.search}%`} OR 
+               ${leads.phone} ILIKE ${`%${filters.search}%`} OR 
+               ${leads.companyName} ILIKE ${`%${filters.search}%`})`
+        );
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+
+    const leadsData = await query.orderBy(desc(leads.createdAt));
 
     return leadsData.map(l => ({
       ...l.leads,

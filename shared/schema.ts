@@ -572,6 +572,7 @@ export const leads = pgTable("leads", {
   assignedTo: uuid("assigned_to").references(() => users.id),
   assignedBy: uuid("assigned_by").references(() => users.id),
   assignedDate: timestamp("assigned_date"),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
   
   // Important Dates
   lastContactedDate: timestamp("last_contacted_date"),
@@ -1556,9 +1557,20 @@ export const insertInventoryTaskSchema = createInsertSchema(inventoryTasks).omit
 // Marketing Insert Schemas
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
+  createdBy: true,
+  assignedBy: true,
   createdAt: true,
   updatedAt: true,
 });
+
+// Secure update schema that omits ownership fields
+export const updateLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdBy: true,
+  assignedBy: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
 
 export const insertFieldVisitSchema = createInsertSchema(fieldVisits).omit({
   id: true,

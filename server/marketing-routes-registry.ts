@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import {
-  insertLeadSchema, insertFieldVisitSchema, insertMarketingTaskSchema, insertMarketingAttendanceSchema,
+  insertLeadSchema, updateLeadSchema, insertFieldVisitSchema, insertMarketingTaskSchema, insertMarketingAttendanceSchema,
   updateLeadStatusSchema, updateFieldVisitStatusSchema, updateMarketingTaskStatusSchema,
   fieldVisitCheckInSchema, fieldVisitCheckOutSchema, convertLeadSchema,
   leadFilterSchema, fieldVisitFilterSchema, marketingTaskFilterSchema
@@ -26,15 +26,43 @@ interface AuthenticatedRequest extends Request {
 export const getLeads = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = leadFilterSchema.parse(req.query);
-    let leads;
-    const hasFilters = Object.values(filters).some(value => value !== undefined);
     
-    if (hasFilters) {
-      // Note: Using getLeads() for now - filtering can be added later
-      leads = await storage.getLeads();
-    } else {
-      leads = await storage.getLeads();
+    // Convert query parameters to filter object
+    const filterObject: any = {};
+    
+    if (filters.status && filters.status !== 'all') {
+      filterObject.status = filters.status;
     }
+    
+    if (filters.source && filters.source !== 'all') {
+      filterObject.source = filters.source;
+    }
+    
+    if (filters.priority && filters.priority !== 'all') {
+      filterObject.priority = filters.priority;
+    }
+    
+    if (filters.assignedTo && filters.assignedTo !== 'all') {
+      filterObject.assignedTo = filters.assignedTo;
+    }
+    
+    if (filters.search && filters.search.trim().length > 0) {
+      filterObject.search = filters.search.trim();
+    }
+
+    // SECURITY: Apply user-based scoping based on role
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all leads
+    } else {
+      // Regular employees can only see leads they created or are assigned to
+      filterObject.userScope = {
+        userId: req.user!.id,
+        showOnlyUserLeads: true
+      };
+    }
+
+    // Apply filters and get leads
+    const leads = await storage.getLeads(Object.keys(filterObject).length > 0 ? filterObject : undefined);
     
     res.json(leads);
   } catch (error) {
@@ -58,6 +86,15 @@ export const getLead = async (req: AuthenticatedRequest, res: Response): Promise
       res.status(404).json({ error: "Lead not found" });
       return;
     }
+    
+    // SECURITY: Check if user has permission to view this lead
+    if (req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+      if (lead.createdBy !== req.user!.id && lead.assignedTo !== req.user!.id) {
+        res.status(403).json({ error: "You do not have permission to view this lead" });
+        return;
+      }
+    }
+    
     res.json(lead);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch lead" });
@@ -68,8 +105,13 @@ export const createLead = async (req: AuthenticatedRequest, res: Response): Prom
   try {
     const leadData = insertLeadSchema.parse(req.body);
     
+    // Set creator and assignment fields
+    leadData.createdBy = req.user!.id;
     leadData.assignedBy = req.user!.id;
-    // Note: createdBy field may need to be added to schema
+    // If no assignedTo is specified, assign to the creator
+    if (!leadData.assignedTo) {
+      leadData.assignedTo = req.user!.id;
+    }
     
     const lead = await storage.createLead(leadData);
     await storage.createActivity({
@@ -102,7 +144,16 @@ export const updateLead = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
     
-    const leadData = insertLeadSchema.partial().parse(req.body);
+    // SECURITY: Check if user has permission to update this lead
+    if (req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+      if (existingLead.createdBy !== req.user!.id && existingLead.assignedTo !== req.user!.id) {
+        res.status(403).json({ error: "You do not have permission to update this lead" });
+        return;
+      }
+    }
+    
+    // SECURITY: Use secure update schema that omits ownership fields
+    const leadData = updateLeadSchema.parse(req.body);
     const lead = await storage.updateLead(req.params.id, leadData);
     await storage.createActivity({
       userId: req.user!.id,
@@ -134,6 +185,14 @@ export const deleteLead = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
     
+    // SECURITY: Check if user has permission to delete this lead
+    if (req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+      if (existingLead.createdBy !== req.user!.id && existingLead.assignedTo !== req.user!.id) {
+        res.status(403).json({ error: "You do not have permission to delete this lead" });
+        return;
+      }
+    }
+    
     await storage.deleteLead(req.params.id);
     await storage.createActivity({
       userId: req.user!.id,
@@ -159,6 +218,14 @@ export const updateLeadStatus = async (req: AuthenticatedRequest, res: Response)
     if (!existingLead) {
       res.status(404).json({ error: "Lead not found" });
       return;
+    }
+    
+    // SECURITY: Check if user has permission to update this lead status
+    if (req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+      if (existingLead.createdBy !== req.user!.id && existingLead.assignedTo !== req.user!.id) {
+        res.status(403).json({ error: "You do not have permission to update this lead status" });
+        return;
+      }
     }
     
     const { status, notes } = updateLeadStatusSchema.parse(req.body);
@@ -192,6 +259,14 @@ export const convertLead = async (req: AuthenticatedRequest, res: Response): Pro
     if (!existingLead) {
       res.status(404).json({ error: "Lead not found" });
       return;
+    }
+    
+    // SECURITY: Check if user has permission to convert this lead
+    if (req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+      if (existingLead.createdBy !== req.user!.id && existingLead.assignedTo !== req.user!.id) {
+        res.status(403).json({ error: "You do not have permission to convert this lead" });
+        return;
+      }
     }
     
     const conversionData = convertLeadSchema.parse(req.body);

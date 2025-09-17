@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search, Filter, Download, Users, TrendingUp, Target, UserCheck } from "lucide-react";
 
@@ -22,9 +22,30 @@ export default function Leads() {
   const [priorityFilter, setPriorityFilter] = useState<LeadPriority | 'all'>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string | 'all'>('all');
 
-  // Fetch leads data
+  // Build query parameters for server-side filtering
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedStatus !== 'all') params.set('status', selectedStatus);
+    if (sourceFilter !== 'all') params.set('source', sourceFilter);
+    if (priorityFilter !== 'all') params.set('priority', priorityFilter);
+    if (assigneeFilter !== 'all') params.set('assignedTo', assigneeFilter);
+    if (searchQuery.trim()) params.set('search', searchQuery.trim());
+    return params.toString();
+  }, [selectedStatus, sourceFilter, priorityFilter, assigneeFilter, searchQuery]);
+
+  // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
-    queryKey: ['/api/leads']
+    queryKey: ['/api/leads', { 
+      status: selectedStatus,
+      source: sourceFilter, 
+      priority: priorityFilter,
+      assignedTo: assigneeFilter,
+      search: searchQuery.trim()
+    }],
+    queryFn: () => {
+      const url = queryParams ? `/api/leads?${queryParams}` : '/api/leads';
+      return fetch(url).then(res => res.json());
+    }
   });
 
   // Fetch lead metrics
@@ -37,39 +58,10 @@ export default function Leads() {
     queryKey: ['/api/users']
   });
 
-  // Filter and search leads
-  const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
-      // Status filter
-      if (selectedStatus !== 'all' && lead.status !== selectedStatus) return false;
-      
-      // Source filter
-      if (sourceFilter !== 'all' && lead.source !== sourceFilter) return false;
-      
-      // Priority filter
-      if (priorityFilter !== 'all' && lead.priority !== priorityFilter) return false;
-      
-      // Assignee filter
-      if (assigneeFilter !== 'all' && lead.assignedTo !== assigneeFilter) return false;
-      
-      // Search query
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        return (
-          lead.firstName.toLowerCase().includes(query) ||
-          lead.lastName.toLowerCase().includes(query) ||
-          lead.companyName?.toLowerCase().includes(query) ||
-          lead.email?.toLowerCase().includes(query) ||
-          lead.phone?.toLowerCase().includes(query) ||
-          lead.city?.toLowerCase().includes(query)
-        );
-      }
-      
-      return true;
-    });
-  }, [leads, selectedStatus, sourceFilter, priorityFilter, assigneeFilter, searchQuery]);
+  // Use leads directly from server-side filtering (no client-side filtering needed)
+  const filteredLeads = leads;
 
-  // Get lead counts by status
+  // Get lead counts by status (use filtered results)
   const getStatusCount = (status: LeadStatus) => {
     return leads.filter(lead => lead.status === status).length;
   };
