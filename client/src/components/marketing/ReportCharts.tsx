@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, 
@@ -72,9 +73,10 @@ const CHART_COLORS = [
 ];
 
 export default function ReportCharts({ dateRange }: ReportChartsProps) {
-  const dateRangeParam = dateRange.from && dateRange.to 
-    ? `from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`
-    : '';
+  const dateRangeParam = React.useMemo(() => {
+    if (!dateRange.from || !dateRange.to) return '';
+    return `from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`;
+  }, [dateRange.from, dateRange.to]);
 
   const { data: conversionData, isLoading: loadingConversion } = useQuery({
     queryKey: ['/api/marketing/conversion-rates', dateRangeParam],
@@ -96,38 +98,96 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
     enabled: !!dateRangeParam
   });
 
-  // Mock data for demonstration (replace with actual API data)
-  const mockConversionFunnel: ConversionFunnelData[] = [
-    { stage: 'New Leads', count: 150, percentage: 100, dropoffRate: 0 },
-    { stage: 'Contacted', count: 120, percentage: 80, dropoffRate: 20 },
-    { stage: 'In Progress', count: 75, percentage: 50, dropoffRate: 37.5 },
-    { stage: 'Converted', count: 36, percentage: 24, dropoffRate: 52 }
-  ];
+  // Transform API data for charts
+  const conversionFunnelData: ConversionFunnelData[] = React.useMemo(() => {
+    if (!conversionData || typeof conversionData !== 'object') return [];
+    
+    // Handle different possible API response formats
+    if (Array.isArray(conversionData)) {
+      return conversionData.map((item: any) => ({
+        stage: item.stage || item.name || 'Unknown',
+        count: item.count || item.value || 0,
+        percentage: item.percentage || 0,
+        dropoffRate: item.dropoffRate || 0
+      }));
+    }
+    
+    // If API returns aggregated metrics, transform to funnel format
+    const conversionObj = conversionData as any;
+    const stages = [
+      { stage: 'New Leads', count: conversionObj?.totalLeads || 0 },
+      { stage: 'Contacted', count: conversionObj?.contactedLeads || 0 },
+      { stage: 'In Progress', count: conversionObj?.inProgressLeads || 0 },
+      { stage: 'Converted', count: conversionObj?.convertedLeads || 0 }
+    ];
+    
+    const totalLeads = stages[0].count;
+    return stages.map((stage, index) => {
+      const percentage = totalLeads > 0 ? (stage.count / totalLeads) * 100 : 0;
+      const prevCount = index > 0 ? stages[index - 1].count : totalLeads;
+      const dropoffRate = prevCount > 0 ? ((prevCount - stage.count) / prevCount) * 100 : 0;
+      
+      return {
+        stage: stage.stage,
+        count: stage.count,
+        percentage: Math.round(percentage * 10) / 10,
+        dropoffRate: Math.round(dropoffRate * 10) / 10
+      };
+    });
+  }, [conversionData]);
 
-  const mockVisitTrends: VisitTrendsData[] = [
-    { date: '2025-01-10', scheduled: 12, completed: 10, cancelled: 2, successRate: 83.3 },
-    { date: '2025-01-11', scheduled: 15, completed: 13, cancelled: 2, successRate: 86.7 },
-    { date: '2025-01-12', scheduled: 8, completed: 7, cancelled: 1, successRate: 87.5 },
-    { date: '2025-01-13', scheduled: 18, completed: 15, cancelled: 3, successRate: 83.3 },
-    { date: '2025-01-14', scheduled: 20, completed: 18, cancelled: 2, successRate: 90 },
-    { date: '2025-01-15', scheduled: 14, completed: 12, cancelled: 2, successRate: 85.7 },
-    { date: '2025-01-16', scheduled: 16, completed: 14, cancelled: 2, successRate: 87.5 }
-  ];
+  const visitTrendsData: VisitTrendsData[] = React.useMemo(() => {
+    if (!visitData || !Array.isArray(visitData)) return [];
+    
+    return visitData.map((item: any) => ({
+      date: item.date || item.visitDate || new Date().toISOString().split('T')[0],
+      scheduled: item.scheduled || item.totalVisits || 0,
+      completed: item.completed || item.completedVisits || 0,
+      cancelled: item.cancelled || item.cancelledVisits || 0,
+      successRate: item.successRate || (
+        item.scheduled > 0 
+          ? Math.round((item.completed / item.scheduled) * 1000) / 10
+          : 0
+      )
+    }));
+  }, [visitData]);
 
-  const mockTeamPerformance: TeamPerformanceData[] = [
-    { userId: '1', userName: 'John Smith', visitsCompleted: 45, leadsConverted: 12, tasksCompleted: 28, efficiency: 89 },
-    { userId: '2', userName: 'Sarah Wilson', visitsCompleted: 52, leadsConverted: 15, tasksCompleted: 35, efficiency: 94 },
-    { userId: '3', userName: 'Mike Johnson', visitsCompleted: 38, leadsConverted: 8, tasksCompleted: 22, efficiency: 76 },
-    { userId: '4', userName: 'Emily Brown', visitsCompleted: 41, leadsConverted: 11, tasksCompleted: 29, efficiency: 85 }
-  ];
+  const teamPerformanceData: TeamPerformanceData[] = React.useMemo(() => {
+    if (!teamData || !Array.isArray(teamData)) return [];
+    
+    return teamData.map((item: any) => ({
+      userId: item.userId || item.id || 'unknown',
+      userName: item.userName || item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown User',
+      visitsCompleted: item.visitsCompleted || item.completedVisits || 0,
+      leadsConverted: item.leadsConverted || item.convertedLeads || 0,
+      tasksCompleted: item.tasksCompleted || item.completedTasks || 0,
+      efficiency: item.efficiency || item.productivityScore || 0
+    }));
+  }, [teamData]);
 
-  const mockLeadSources: LeadSourceData[] = [
-    { source: 'Website', count: 45, conversionRate: 28, value: 45 },
-    { source: 'Referrals', count: 32, conversionRate: 35, value: 32 },
-    { source: 'Social Media', count: 28, conversionRate: 22, value: 28 },
-    { source: 'Email Campaign', count: 25, conversionRate: 30, value: 25 },
-    { source: 'Cold Calls', count: 20, conversionRate: 15, value: 20 }
-  ];
+  const leadSourcesData: LeadSourceData[] = React.useMemo(() => {
+    if (!leadsData || typeof leadsData !== 'object') return [];
+    
+    // Handle source distribution from leads metrics
+    const leadsObj = leadsData as any;
+    if (leadsObj?.sourceDistribution && Array.isArray(leadsObj.sourceDistribution)) {
+      return leadsObj.sourceDistribution.map((item: any) => ({
+        source: item.source || 'Unknown',
+        count: item.count || item.total || 0,
+        conversionRate: item.conversionRate || item.conversion || 0,
+        value: item.count || item.total || 0
+      }));
+    }
+    
+    // Fallback: Create from available lead sources data
+    const sources = leadsObj?.sources || [];
+    return sources.map((source: any) => ({
+      source: source.name || 'Unknown',
+      count: source.count || 0,
+      conversionRate: source.conversionRate || 0,
+      value: source.count || 0
+    }));
+  }, [leadsData]);
 
   if (!dateRangeParam) {
     return (
@@ -154,7 +214,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
             <Skeleton className="h-80 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockConversionFunnel} layout="horizontal">
+              <BarChart data={conversionFunnelData} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="stage" type="category" width={100} />
@@ -187,7 +247,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
               <Skeleton className="h-64 w-full" />
             ) : (
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={mockVisitTrends}>
+                <LineChart data={visitTrendsData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tickFormatter={(value) => new Date(value).toLocaleDateString()} />
                   <YAxis />
@@ -225,7 +285,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={mockLeadSources}
+                    data={leadSourcesData}
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
@@ -234,7 +294,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
                     nameKey="source"
                     label={({ source, conversionRate }) => `${source}: ${conversionRate}%`}
                   >
-                    {mockLeadSources.map((entry, index) => (
+                    {leadSourcesData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -260,7 +320,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
             <Skeleton className="h-80 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockTeamPerformance}>
+              <BarChart data={teamPerformanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="userName" />
                 <YAxis />
@@ -288,7 +348,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
             <Skeleton className="h-64 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={mockTeamPerformance}>
+              <AreaChart data={teamPerformanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="userName" />
                 <YAxis domain={[0, 100]} />

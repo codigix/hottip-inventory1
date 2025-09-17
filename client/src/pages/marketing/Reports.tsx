@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   BarChart3, 
@@ -51,9 +51,10 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showExportModal, setShowExportModal] = useState(false);
 
-  const dateRangeParam = dateRange.from && dateRange.to 
-    ? `from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`
-    : '';
+  const dateRangeParam = React.useMemo(() => {
+    if (!dateRange.from || !dateRange.to) return '';
+    return `from=${dateRange.from.toISOString()}&to=${dateRange.to.toISOString()}`;
+  }, [dateRange.from, dateRange.to]);
 
   // API Queries
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
@@ -446,7 +447,7 @@ export default function Reports() {
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
-              <div id="overview-charts">
+              <div id="marketing-report-charts" data-testid="marketing-report-charts">
                 <ReportCharts dateRange={dateRange} />
               </div>
             </TabsContent>
@@ -500,7 +501,7 @@ export default function Reports() {
         data={getMasterExportData()}
         defaultFilename={`marketing-master-report-${format(new Date(), 'yyyy-MM-dd')}`}
         title="Marketing Master Report"
-        chartElementId="overview-charts"
+        chartElementId="marketing-report-charts"
         dateRange={dateRange}
       />
     </div>
