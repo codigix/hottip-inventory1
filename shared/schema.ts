@@ -903,6 +903,48 @@ export const logisticsAttendance = pgTable("logistics_attendance", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Logistics Task Management - Task assignment and tracking for logistics team
+export const logisticsTaskStatusEnum = pgEnum('logistics_task_status', ['new', 'in_progress', 'completed', 'cancelled']);
+export const logisticsTaskPriorityEnum = pgEnum('logistics_task_priority', ['low', 'medium', 'high', 'urgent']);
+
+export const logisticsTasks = pgTable("logistics_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Task Details
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: logisticsTaskPriorityEnum("priority").notNull().default('medium'),
+  
+  // Assignment and Status
+  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  status: logisticsTaskStatusEnum("status").notNull().default('new'),
+  
+  // Dates
+  dueDate: timestamp("due_date"),
+  startedDate: timestamp("started_date"),
+  completedDate: timestamp("completed_date"),
+  
+  // Related Entities
+  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id),
+  
+  // Task Execution Details
+  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
+  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
+  
+  // Completion Details
+  completionNotes: text("completion_notes"),
+  outcome: text("outcome"),
+  
+  // Additional Information
+  tags: text("tags").array(),
+  attachmentPaths: text("attachment_paths").array(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ===== ACCOUNTS MODULE TABLES =====
 
 // Enums for Accounts
@@ -1566,6 +1608,36 @@ export const updateLogisticsAttendanceSchema = createInsertSchema(logisticsAtten
   date: true, // Cannot change date
 });
 
+export const insertLogisticsTaskSchema = createInsertSchema(logisticsTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateLogisticsTaskSchema = createInsertSchema(logisticsTasks).partial().omit({
+  id: true,
+  createdAt: true,
+  assignedBy: true, // Cannot change who assigned the task
+});
+
+export const updateLogisticsTaskStatusSchema = z.object({
+  status: z.enum(['new', 'in_progress', 'completed', 'cancelled']),
+  completionNotes: z.string().optional(),
+  outcome: z.string().optional(),
+  actualHours: z.number().optional(),
+});
+
+export const logisticsTaskFilterSchema = z.object({
+  status: z.enum(['new', 'in_progress', 'completed', 'cancelled']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  assignedTo: z.string().uuid().optional(),
+  assignedBy: z.string().uuid().optional(),
+  shipmentId: z.string().uuid().optional(),
+  dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
 // Additional Logistics Schemas for API routes
 export const updateLogisticsShipmentSchema = createInsertSchema(logisticsShipments).partial().omit({
   id: true,
@@ -1897,6 +1969,9 @@ export type InsertLogisticsCheckpoint = z.infer<typeof insertLogisticsCheckpoint
 
 export type LogisticsAttendance = typeof logisticsAttendance.$inferSelect;
 export type InsertLogisticsAttendance = z.infer<typeof insertLogisticsAttendanceSchema>;
+
+export type LogisticsTask = typeof logisticsTasks.$inferSelect;
+export type InsertLogisticsTask = z.infer<typeof insertLogisticsTaskSchema>;
 
 // Accounts Types
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;

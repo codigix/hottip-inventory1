@@ -9,7 +9,9 @@ import {
   insertLogisticsShipmentSchema, insertLogisticsStatusUpdateSchema, insertLogisticsCheckpointSchema,
   updateLogisticsShipmentSchema, logisticsShipmentFilterSchema, updateLogisticsShipmentStatusSchema,
   closePodUploadSchema, insertLogisticsAttendanceSchema, updateLogisticsAttendanceSchema,
-  logisticsCheckInSchema, logisticsCheckOutSchema, attendancePhotoUploadSchema
+  logisticsCheckInSchema, logisticsCheckOutSchema, attendancePhotoUploadSchema,
+  insertLogisticsTaskSchema, updateLogisticsTaskSchema, updateLogisticsTaskStatusSchema,
+  logisticsTaskFilterSchema
 } from "@shared/schema";
 import { validateGPSCoordinates, validateGPSMovement } from "./gpsValidation";
 
@@ -389,9 +391,21 @@ export const getLogisticsHealth = async (req: AuthenticatedRequest, res: Respons
 
 export const getLogisticsTasks = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const tasks = await storage.getTasks();
+    const filters = logisticsTaskFilterSchema.parse(req.query);
+    
+    // Role-based access control
+    if (req.user!.role === 'employee') {
+      // Employees can only see tasks assigned to them or by them
+      filters.assignedTo = filters.assignedTo || req.user!.id;
+    }
+    
+    const tasks = await storage.getLogisticsTasks(filters);
     res.json(tasks);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid filter parameters", details: error.errors });
+      return;
+    }
     res.status(500).json({ error: "Failed to fetch logistics tasks" });
   }
 };
@@ -403,11 +417,20 @@ export const getLogisticsTask = async (req: AuthenticatedRequest, res: Response)
       return;
     }
     
-    const task = await storage.getTask(req.params.id);
+    const task = await storage.getLogisticsTask(req.params.id);
     if (!task) {
       res.status(404).json({ error: "Task not found" });
       return;
     }
+    
+    // Authorization check - users can only view tasks they're involved with
+    if (req.user!.role === 'employee' && 
+        task.assignedTo !== req.user!.id && 
+        task.assignedBy !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to view this task" });
+      return;
+    }
+    
     res.json(task);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch task" });
@@ -416,13 +439,22 @@ export const getLogisticsTask = async (req: AuthenticatedRequest, res: Response)
 
 export const createLogisticsTask = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
+    // Validate request body with Zod schema
+    const validatedData = insertLogisticsTaskSchema.parse(req.body);
+    
     const taskData = {
-      ...req.body,
+      ...validatedData,
       assignedBy: req.user!.id,
-      assignedTo: req.body.assignedTo || req.user!.id
+      assignedTo: validatedData.assignedTo || req.user!.id
     };
     
-    const task = await storage.createTask(taskData);
+    // Role-based authorization - only managers/admins can assign to others
+    if (req.user!.role === 'employee' && taskData.assignedTo !== req.user!.id) {
+      res.status(403).json({ error: "Employees can only create tasks for themselves" });
+      return;
+    }
+    
+    const task = await storage.createLogisticsTask(taskData);
     
     await storage.createActivity({
       userId: req.user!.id,
@@ -434,6 +466,10 @@ export const createLogisticsTask = async (req: AuthenticatedRequest, res: Respon
     
     res.status(201).json(task);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid task data", details: error.errors });
+      return;
+    }
     res.status(500).json({ error: "Failed to create logistics task" });
   }
 };
@@ -445,18 +481,43 @@ export const updateLogisticsTask = async (req: AuthenticatedRequest, res: Respon
       return;
     }
     
-    const task = await storage.updateTask(req.params.id, req.body);
+    // Get existing task for authorization
+    const existingTask = await storage.getLogisticsTask(req.params.id);
+    if (!existingTask) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    
+    // Authorization check - only assignee, assigner, or admin can update
+    const canUpdate = req.user!.role === 'admin' ||
+                     req.user!.role === 'manager' ||
+                     existingTask.assignedTo === req.user!.id ||
+                     existingTask.assignedBy === req.user!.id;
+    
+    if (!canUpdate) {
+      res.status(403).json({ error: "Not authorized to update this task" });
+      return;
+    }
+    
+    // Validate request body with Zod schema
+    const validatedData = updateLogisticsTaskSchema.parse(req.body);
+    
+    const updatedTask = await storage.updateLogisticsTask(req.params.id, validatedData);
     
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_LOGISTICS_TASK",
       entityType: "logistics_task",
       entityId: req.params.id,
-      details: `Updated logistics task: ${task.title}`
+      details: `Updated logistics task: ${updatedTask.title}`
     });
     
-    res.json(task);
+    res.json(updatedTask);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid update data", details: error.errors });
+      return;
+    }
     res.status(500).json({ error: "Failed to update logistics task" });
   }
 };
@@ -468,7 +529,24 @@ export const deleteLogisticsTask = async (req: AuthenticatedRequest, res: Respon
       return;
     }
     
-    await storage.deleteTask(req.params.id);
+    // Get existing task for authorization
+    const existingTask = await storage.getLogisticsTask(req.params.id);
+    if (!existingTask) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    
+    // Authorization check - only assigner, admin, or manager can delete
+    const canDelete = req.user!.role === 'admin' ||
+                     req.user!.role === 'manager' ||
+                     existingTask.assignedBy === req.user!.id;
+    
+    if (!canDelete) {
+      res.status(403).json({ error: "Not authorized to delete this task" });
+      return;
+    }
+    
+    await storage.deleteLogisticsTask(req.params.id);
     
     await storage.createActivity({
       userId: req.user!.id,
@@ -1018,45 +1096,6 @@ export const generatePodUploadUrl = async (req: AuthenticatedRequest, res: Respo
 // Removed duplicate handler - cleaned up
 
 // ==========================================
-// LOGISTICS ROUTE REGISTRATION  
-// ==========================================
-
-interface LogisticsRouteOptions {
-  requireAuth: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
-  requireLogisticsAccess?: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
-  checkOwnership?: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
-}
-
-    const uploadURL = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "PUT",
-      ttlSec: 900 // 15 minutes
-    });
-
-    // Log activity
-    if (req.user) {
-      await storage.createActivity({
-        userId: req.user.id,
-      action: "Generate Upload URL",
-      entityType: "logistics_attendance_photo",
-      entityId: attendanceId,
-        details: `Generated upload URL for ${photoType} photo: ${objectPath}`
-      });
-    }
-
-    res.json({
-      uploadURL,
-      objectPath
-    });
-
-  } catch (error) {
-    console.error("Error generating attendance photo upload URL:", error);
-    res.status(500).json({ error: "Failed to generate upload URL" });
-  }
-};
-
-// ==========================================
 // LOGISTICS ROUTE REGISTRATION
 // ==========================================
 
@@ -1210,7 +1249,7 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
   }
 
   // Logistics route count verification
-  const EXPECTED_LOGISTICS_ROUTE_COUNT = 36;
+  const EXPECTED_LOGISTICS_ROUTE_COUNT = 38;
   if (logisticsRoutes.length !== EXPECTED_LOGISTICS_ROUTE_COUNT) {
     console.warn(`⚠️  Logistics route count mismatch: Expected ${EXPECTED_LOGISTICS_ROUTE_COUNT}, found ${logisticsRoutes.length}`);
   }

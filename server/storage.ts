@@ -40,7 +40,8 @@ import {
   // Logistics interfaces
   type LogisticsStatusData, type LogisticsPodData, type LogisticsShipmentTimeline,
   type LogisticsDashboardMetrics, type LogisticsDeliveryMetrics, type LogisticsVendorPerformance,
-  type LogisticsShipmentVolumeMetrics
+  type LogisticsShipmentVolumeMetrics,
+  logisticsTasks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, gte, lte, like, count, sum, sql, avg, isNotNull, lt } from "drizzle-orm";
@@ -104,6 +105,13 @@ export interface IStorage {
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task>;
   deleteTask(id: string): Promise<void>;
   getTasksByUser(userId: string): Promise<any[]>;
+
+  // Logistics Tasks
+  getLogisticsTasks(filters?: any): Promise<any[]>;
+  getLogisticsTask(id: string): Promise<any>;
+  createLogisticsTask(task: any): Promise<any>;
+  updateLogisticsTask(id: string, task: any): Promise<any>;
+  deleteLogisticsTask(id: string): Promise<void>;
 
   // Attendance
   getAttendance(userId: string, date: Date): Promise<Attendance | undefined>;
@@ -5051,6 +5059,145 @@ export class DatabaseStorage implements IStorage {
       onTimeRate: deliveredShipments ? (onTimeDeliveries / deliveredShipments * 100) : 0,
       overdueRate: totalShipments ? (overdueShipments / totalShipments * 100) : 0
     };
+  }
+
+  // ===== LOGISTICS TASKS METHODS =====
+
+  async getLogisticsTasks(filters?: any): Promise<any[]> {
+    let query = db
+      .select({
+        id: logisticsTasks.id,
+        title: logisticsTasks.title,
+        description: logisticsTasks.description,
+        status: logisticsTasks.status,
+        priority: logisticsTasks.priority,
+        dueDate: logisticsTasks.dueDate,
+        startedDate: logisticsTasks.startedDate,
+        completedDate: logisticsTasks.completedDate,
+        shipmentId: logisticsTasks.shipmentId,
+        estimatedHours: logisticsTasks.estimatedHours,
+        actualHours: logisticsTasks.actualHours,
+        completionNotes: logisticsTasks.completionNotes,
+        outcome: logisticsTasks.outcome,
+        tags: logisticsTasks.tags,
+        attachmentPaths: logisticsTasks.attachmentPaths,
+        createdAt: logisticsTasks.createdAt,
+        updatedAt: logisticsTasks.updatedAt,
+        // Assignee user object
+        assignee: {
+          id: sql`assignee_user.id`,
+          firstName: sql`assignee_user.first_name`,
+          lastName: sql`assignee_user.last_name`,
+          email: sql`assignee_user.email`,
+        },
+        // Assigner user object
+        assigner: {
+          id: sql`assigner_user.id`,
+          firstName: sql`assigner_user.first_name`,
+          lastName: sql`assigner_user.last_name`,
+          email: sql`assigner_user.email`,
+        },
+      })
+      .from(logisticsTasks)
+      .leftJoin(sql`users as assignee_user`, eq(logisticsTasks.assignedTo, sql`assignee_user.id`))
+      .leftJoin(sql`users as assigner_user`, eq(logisticsTasks.assignedBy, sql`assigner_user.id`));
+
+    // Apply filters
+    if (filters) {
+      const conditions = [];
+      if (filters.status) {
+        conditions.push(eq(logisticsTasks.status, filters.status));
+      }
+      if (filters.priority) {
+        conditions.push(eq(logisticsTasks.priority, filters.priority));
+      }
+      if (filters.assignedTo) {
+        conditions.push(eq(logisticsTasks.assignedTo, filters.assignedTo));
+      }
+      if (filters.assignedBy) {
+        conditions.push(eq(logisticsTasks.assignedBy, filters.assignedBy));
+      }
+      if (filters.shipmentId) {
+        conditions.push(eq(logisticsTasks.shipmentId, filters.shipmentId));
+      }
+      if (filters.startDate && filters.endDate) {
+        conditions.push(
+          gte(logisticsTasks.dueDate, new Date(filters.startDate)),
+          lte(logisticsTasks.dueDate, new Date(filters.endDate))
+        );
+      }
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+
+    const results = await query.orderBy(desc(logisticsTasks.createdAt));
+    return results;
+  }
+
+  async getLogisticsTask(id: string): Promise<any> {
+    const [result] = await db
+      .select({
+        id: logisticsTasks.id,
+        title: logisticsTasks.title,
+        description: logisticsTasks.description,
+        status: logisticsTasks.status,
+        priority: logisticsTasks.priority,
+        dueDate: logisticsTasks.dueDate,
+        startedDate: logisticsTasks.startedDate,
+        completedDate: logisticsTasks.completedDate,
+        shipmentId: logisticsTasks.shipmentId,
+        assignedTo: logisticsTasks.assignedTo,
+        assignedBy: logisticsTasks.assignedBy,
+        estimatedHours: logisticsTasks.estimatedHours,
+        actualHours: logisticsTasks.actualHours,
+        completionNotes: logisticsTasks.completionNotes,
+        outcome: logisticsTasks.outcome,
+        tags: logisticsTasks.tags,
+        attachmentPaths: logisticsTasks.attachmentPaths,
+        createdAt: logisticsTasks.createdAt,
+        updatedAt: logisticsTasks.updatedAt,
+        // Assignee user object
+        assignee: {
+          id: sql`assignee_user.id`,
+          firstName: sql`assignee_user.first_name`,
+          lastName: sql`assignee_user.last_name`,
+          email: sql`assignee_user.email`,
+        },
+        // Assigner user object
+        assigner: {
+          id: sql`assigner_user.id`,
+          firstName: sql`assigner_user.first_name`,
+          lastName: sql`assigner_user.last_name`,
+          email: sql`assigner_user.email`,
+        },
+      })
+      .from(logisticsTasks)
+      .leftJoin(sql`users as assignee_user`, eq(logisticsTasks.assignedTo, sql`assignee_user.id`))
+      .leftJoin(sql`users as assigner_user`, eq(logisticsTasks.assignedBy, sql`assigner_user.id`))
+      .where(eq(logisticsTasks.id, id))
+      .limit(1);
+
+    return result;
+  }
+
+  async createLogisticsTask(taskData: any): Promise<any> {
+    const [task] = await db.insert(logisticsTasks).values(taskData).returning();
+    return this.getLogisticsTask(task.id);
+  }
+
+  async updateLogisticsTask(id: string, updateData: any): Promise<any> {
+    const [task] = await db
+      .update(logisticsTasks)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(logisticsTasks.id, id))
+      .returning();
+    
+    return this.getLogisticsTask(task.id);
+  }
+
+  async deleteLogisticsTask(id: string): Promise<void> {
+    await db.delete(logisticsTasks).where(eq(logisticsTasks.id, id));
   }
 }
 
