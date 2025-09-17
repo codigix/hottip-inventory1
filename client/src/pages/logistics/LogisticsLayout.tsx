@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Import logistics pages (will be created in subsequent tasks)
+// Import logistics pages
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
+import Shipments from "./Shipments";
 
 const sidebarItems = [
   {
@@ -170,16 +171,7 @@ export default function LogisticsLayout() {
             <LogisticsDashboard />
           </Route>
           <Route path="/logistics/shipments">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Shipments</h2>
-                  <p className="text-muted-foreground">
-                    Shipment management functionality will be implemented in the next task.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <Shipments />
           </Route>
           <Route path="/logistics/status-workflow">
             <div className="p-8">
