@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapPin, Clock, Camera, Upload, AlertTriangle, CheckCircle, Navigation, Target, TrendingUp, Package } from "lucide-react";
+import { uploadAttendancePhoto } from "@/lib/photoUpload";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -56,6 +57,8 @@ export default function CheckOutModal({
   const [deliveriesCompleted, setDeliveriesCompleted] = useState<number>(0);
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState<string>('');
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -68,6 +71,8 @@ export default function CheckOutModal({
       setDeliveriesCompleted(0);
       setUploadedPhoto(null);
       setPhotoPreview('');
+      setUploadStatus('idle');
+      setUploadError('');
       getCurrentLocation();
     }
   }, [open]);
@@ -175,17 +180,42 @@ export default function CheckOutModal({
   };
 
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentLocation) {
       setLocationError('Please enable location access to check out');
       return;
+    }
+
+    let photoPath: string | undefined;
+
+    // Upload photo to object storage if provided
+    if (uploadedPhoto && userId) {
+      try {
+        setUploadStatus('uploading');
+        const uploadResult = await uploadAttendancePhoto({
+          file: uploadedPhoto,
+          attendanceId: userId, // Using userId as attendanceId for now
+          photoType: 'check-out',
+        });
+
+        if (!uploadResult.success) {
+          setUploadError(uploadResult.error || 'Photo upload failed');
+          return;
+        }
+
+        photoPath = uploadResult.objectPath;
+        setUploadStatus('success');
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : 'Photo upload failed');
+        return;
+      }
     }
 
     onCheckOut({
       latitude: currentLocation.latitude,
       longitude: currentLocation.longitude,
       location: address || `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`,
-      photoPath: uploadedPhoto ? `check-out-${userId}-${Date.now()}.jpg` : undefined,
+      photoPath,
       workDescription: workDescription || undefined,
       taskCount: taskCount > 0 ? taskCount : undefined,
       deliveriesCompleted: deliveriesCompleted > 0 ? deliveriesCompleted : undefined,
@@ -395,14 +425,14 @@ export default function CheckOutModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading}
+              disabled={!currentLocation || isLoading || uploadStatus === 'uploading'}
               className="flex-1"
               data-testid="submit-checkout-button"
             >
-              {isLoading ? (
+              {isLoading || uploadStatus === 'uploading' ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Checking Out...
+                  {uploadStatus === 'uploading' ? 'Uploading Photo...' : 'Checking Out...'}
                 </>
               ) : (
                 <>

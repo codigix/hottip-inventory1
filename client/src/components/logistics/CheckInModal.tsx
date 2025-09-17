@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapPin, Clock, Camera, Upload, AlertTriangle, CheckCircle, Navigation, Target } from "lucide-react";
+import { uploadAttendancePhoto } from "@/lib/photoUpload";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -49,6 +50,8 @@ export default function CheckInModal({
   const [workDescription, setWorkDescription] = useState('');
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState<string>('');
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -59,6 +62,8 @@ export default function CheckInModal({
       setWorkDescription('');
       setUploadedPhoto(null);
       setPhotoPreview('');
+      setUploadStatus('idle');
+      setUploadError('');
       getCurrentLocation();
     }
   }, [open]);
@@ -149,17 +154,42 @@ export default function CheckInModal({
   };
 
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentLocation) {
       setLocationError('Please enable location access to check in');
       return;
+    }
+
+    let photoPath: string | undefined;
+
+    // Upload photo to object storage if provided
+    if (uploadedPhoto && userId) {
+      try {
+        setUploadStatus('uploading');
+        const uploadResult = await uploadAttendancePhoto({
+          file: uploadedPhoto,
+          attendanceId: userId, // Using userId as attendanceId for now
+          photoType: 'check-in',
+        });
+
+        if (!uploadResult.success) {
+          setUploadError(uploadResult.error || 'Photo upload failed');
+          return;
+        }
+
+        photoPath = uploadResult.objectPath;
+        setUploadStatus('success');
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : 'Photo upload failed');
+        return;
+      }
     }
 
     onCheckIn({
       latitude: currentLocation.latitude,
       longitude: currentLocation.longitude,
       location: address || `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`,
-      photoPath: uploadedPhoto ? `check-in-${userId}-${Date.now()}.jpg` : undefined,
+      photoPath,
       workDescription: workDescription || undefined,
     });
   };
@@ -312,14 +342,14 @@ export default function CheckInModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading}
+              disabled={!currentLocation || isLoading || uploadStatus === 'uploading'}
               className="flex-1"
               data-testid="submit-checkin-button"
             >
-              {isLoading ? (
+              {isLoading || uploadStatus === 'uploading' ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Checking In...
+                  {uploadStatus === 'uploading' ? 'Uploading Photo...' : 'Checking In...'}
                 </>
               ) : (
                 <>

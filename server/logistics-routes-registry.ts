@@ -734,6 +734,103 @@ export const generatePodUploadUrl = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
+// Generate upload URL for attendance photos
+export const generateAttendancePhotoUploadUrl = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { attendanceId, fileName, contentType, photoType } = req.body;
+    
+    if (!attendanceId) {
+      res.status(400).json({ error: "Attendance ID is required" });
+      return;
+    }
+
+    if (!fileName) {
+      res.status(400).json({ error: "File name is required" });
+      return;
+    }
+
+    if (!photoType || !['check-in', 'check-out'].includes(photoType)) {
+      res.status(400).json({ error: "Photo type must be 'check-in' or 'check-out'" });
+      return;
+    }
+
+    // Validate file name for security
+    if (fileName.includes('../') || fileName.includes('..') || fileName.includes('/')) {
+      res.status(400).json({ error: "Invalid file name" });
+      return;
+    }
+
+    // Validate content type - only allow images for attendance photos
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (contentType && !allowedTypes.includes(contentType)) {
+      res.status(400).json({ error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed." });
+      return;
+    }
+
+    // Generate stable object path for the attendance photo
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileExtension = fileName.split('.').pop() || 'jpg';
+    const privateObjectDir = objectStorage.getPrivateObjectDir();
+    const objectPath = `${privateObjectDir}/logistics/attendance/${attendanceId}/${photoType}/photo-${timestamp}.${fileExtension}`;
+    
+    // Parse object path (internal implementation)
+    const parseObjectPath = (path: string) => {
+      if (!path.startsWith("/")) path = `/${path}`;
+      const pathParts = path.split("/");
+      const bucketName = pathParts[1];
+      const objectName = pathParts.slice(2).join("/");
+      return { bucketName, objectName };
+    };
+
+    const { bucketName, objectName } = parseObjectPath(objectPath);
+
+    // Generate signed URL for PUT upload (internal implementation)
+    const signObjectURL = async ({ bucketName, objectName, method, ttlSec }: any) => {
+      const request = {
+        bucket_name: bucketName,
+        object_name: objectName,
+        method,
+        expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
+      };
+      const response = await fetch(`http://127.0.0.1:1106/object-storage/signed-object-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to sign object URL, errorcode: ${response.status}`);
+      }
+      const { signed_url: signedURL } = await response.json();
+      return signedURL;
+    };
+
+    const uploadURL = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "PUT",
+      ttlSec: 900 // 15 minutes
+    });
+
+    // Log activity
+    await storage.logActivity({
+      userId: req.user.id,
+      action: "Generate Upload URL",
+      entityType: "logistics_attendance_photo",
+      entityId: attendanceId,
+      details: `Generated upload URL for ${photoType} photo: ${objectPath}`
+    });
+
+    res.json({
+      uploadURL,
+      objectPath
+    });
+
+  } catch (error) {
+    console.error("Error generating attendance photo upload URL:", error);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+};
+
 // ==========================================
 // LOGISTICS ROUTE REGISTRATION
 // ==========================================
@@ -770,6 +867,9 @@ export const registerLogisticsRoutes = (app: Express, options: LogisticsRouteOpt
   
   // POD Upload URL generation endpoint
   app.post("/api/logistics/pod/upload-url", requireAuth, generatePodUploadUrl);
+  
+  // Attendance photo upload URL generation endpoint
+  app.post("/api/logistics/attendance/photo/upload-url", requireAuth, generateAttendancePhotoUploadUrl);
 
   // Status Updates routes
   app.get("/api/logistics/status-updates", requireAuth, getLogisticsStatusUpdates);
