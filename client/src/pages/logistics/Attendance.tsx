@@ -24,8 +24,8 @@ interface LogisticsAttendance {
   id: string;
   userId: string;
   date: string;
-  checkInTime?: string;
-  checkOutTime?: string;
+  checkIn?: string;
+  checkOut?: string;
   checkInLocation?: string;
   checkOutLocation?: string;
   checkInLatitude?: number;
@@ -360,8 +360,8 @@ export default function LogisticsAttendance() {
         isLoading={checkOutMutation.isPending}
         userId={selectedUserId}
         userName={selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : undefined}
-        checkInTime={selectedUserId ? 
-          todayAttendance.find(a => a.userId === selectedUserId)?.checkInTime?.toString() : undefined
+        checkIn={selectedUserId ? 
+          todayAttendance.find(a => a.userId === selectedUserId)?.checkIn?.toString() : undefined
         }
       />
     </div>
@@ -376,8 +376,8 @@ interface AttendanceCardProps {
 }
 
 function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardProps) {
-  const isCheckedIn = attendance.status === 'checked_in' && attendance.checkInTime && !attendance.checkOutTime;
-  const isCheckedOut = attendance.status === 'checked_out' && attendance.checkOutTime;
+  const isCheckedIn = attendance.status === 'checked_in' && attendance.checkIn && !attendance.checkOut;
+  const isCheckedOut = attendance.status === 'checked_out' && attendance.checkOut;
   
   return (
     <Card className="relative" data-testid={`attendance-card-${attendance.id}`}>
@@ -410,13 +410,13 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
 
       <CardContent className="space-y-4">
         {/* Check-in Info */}
-        {attendance.checkInTime && (
+        {attendance.checkIn && (
           <div className="space-y-2">
             <div className="flex items-center text-sm">
               <Clock className="mr-2 h-4 w-4 text-green-600" />
               <span className="font-medium">In:</span>
               <span className="ml-1" data-testid={`checkin-time-${attendance.userId}`}>
-                {format(new Date(attendance.checkInTime), 'HH:mm')}
+                {format(new Date(attendance.checkIn), 'HH:mm')}
               </span>
             </div>
             
@@ -432,13 +432,13 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
         )}
 
         {/* Check-out Info */}
-        {attendance.checkOutTime && (
+        {attendance.checkOut && (
           <div className="space-y-2">
             <div className="flex items-center text-sm">
               <Clock className="mr-2 h-4 w-4 text-red-600" />
               <span className="font-medium">Out:</span>
               <span className="ml-1" data-testid={`checkout-time-${attendance.userId}`}>
-                {format(new Date(attendance.checkOutTime), 'HH:mm')}
+                {format(new Date(attendance.checkOut), 'HH:mm')}
               </span>
             </div>
             
@@ -473,7 +473,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
 
         {/* Action Buttons */}
         <div className="flex space-x-2">
-          {!attendance.checkInTime ? (
+          {!attendance.checkIn ? (
             <Button 
               onClick={() => onCheckIn(attendance.userId)}
               className="flex-1"
@@ -483,7 +483,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
               <Navigation className="mr-2 h-4 w-4" />
               Check In
             </Button>
-          ) : !attendance.checkOutTime ? (
+          ) : !attendance.checkOut ? (
             <Button 
               onClick={() => onCheckOut(attendance.userId)}
               variant="outline"

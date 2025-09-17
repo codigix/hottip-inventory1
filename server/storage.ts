@@ -116,6 +116,7 @@ export interface IStorage {
   getAccountsAttendanceSummary(period: string): Promise<any>;
   getUserAttendanceHistory(filters: any): Promise<any[]>;
   getAttendanceMetrics(): Promise<any>;
+  getAllAttendanceWithUsers(filters?: any): Promise<any[]>;
 
   // Activity Log
   createActivity(activity: Omit<ActivityLog, 'id' | 'createdAt'>): Promise<ActivityLog>;
@@ -1159,6 +1160,50 @@ export class DatabaseStorage implements IStorage {
       todayTotal: todayAttendance[0]?.count || 0,
       todayLate: todayLate[0]?.count || 0,
     };
+  }
+
+  async getAllAttendanceWithUsers(filters?: any): Promise<any[]> {
+    const conditions = [eq(users.isActive, true)]; // Always filter for active users
+    
+    if (filters?.employeeId) {
+      conditions.push(eq(attendance.userId, filters.employeeId));
+    }
+    if (filters?.date) {
+      const startOfDay = new Date(filters.date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(filters.date);
+      endOfDay.setHours(23, 59, 59, 999);
+      conditions.push(gte(attendance.date, startOfDay));
+      conditions.push(lte(attendance.date, endOfDay));
+    }
+    if (filters?.department) {
+      conditions.push(eq(users.department, filters.department));
+    }
+
+    const query = db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        location: attendance.location,
+        status: attendance.status,
+        notes: attendance.notes,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          department: users.department,
+        },
+      })
+      .from(attendance)
+      .leftJoin(users, eq(attendance.userId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(attendance.date));
+
+    return await query;
   }
 
   // Activity Log
@@ -3322,7 +3367,11 @@ export class DatabaseStorage implements IStorage {
 
   async createMarketingTask(insertTask: InsertMarketingTask): Promise<MarketingTask> {
     const result = await db.insert(marketingTasks).values(insertTask).returning();
-    return result[0];
+    const resultArray = Array.isArray(result) ? result : [];
+    if (!resultArray || resultArray.length === 0) {
+      throw new Error('Failed to create marketing task');
+    }
+    return resultArray[0];
   }
 
   async updateMarketingTask(id: string, updateTask: Partial<InsertMarketingTask>): Promise<MarketingTask> {
@@ -3606,15 +3655,16 @@ export class DatabaseStorage implements IStorage {
       console.log('Query result:', { rowCount: attendanceData.length });
 
       return attendanceData.map(a => ({
-        ...(a.marketing_attendance ?? a.marketingAttendance ?? a),
+        ...(a.marketing_attendance ?? a),
         user: a.users ?? undefined
       }));
     } catch (error) {
+      const err = error as Error;
       console.error('getMarketingAttendanceByDate error:', {
         method: 'getMarketingAttendanceByDate',
-        error: error.name,
-        message: error.message,
-        stack: error.stack
+        error: err.name,
+        message: err.message,
+        stack: err.stack
       });
       throw error;
     }
@@ -3791,11 +3841,12 @@ export class DatabaseStorage implements IStorage {
         todayTotal: todayAttendance.length
       };
     } catch (error) {
+      const err = error as Error;
       console.error('getMarketingAttendanceMetrics error:', {
         method: 'getMarketingAttendanceMetrics',
-        error: error.name,
-        message: error.message,
-        stack: error.stack
+        error: err.name,
+        message: err.message,
+        stack: err.stack
       });
       throw error;
     }
@@ -4755,22 +4806,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAverageDeliveryTime(dateRange?: { start: Date; end: Date }): Promise<any> {
-    let query = db
+    const conditions = [
+      isNotNull(logisticsShipments.deliveredAt),
+      isNotNull(logisticsShipments.dispatchDate)
+    ];
+
+    if (dateRange) {
+      conditions.push(
+        gte(logisticsShipments.deliveredAt, dateRange.start),
+        lte(logisticsShipments.deliveredAt, dateRange.end)
+      );
+    }
+
+    const query = db
       .select({
         avgDays: avg(sql`EXTRACT(EPOCH FROM (${logisticsShipments.deliveredAt} - ${logisticsShipments.dispatchDate})) / 86400`)
       })
       .from(logisticsShipments)
-      .where(and(
-        isNotNull(logisticsShipments.deliveredAt),
-        isNotNull(logisticsShipments.dispatchDate)
-      ));
-
-    if (dateRange) {
-      query = query.where(and(
-        gte(logisticsShipments.deliveredAt, dateRange.start),
-        lte(logisticsShipments.deliveredAt, dateRange.end)
-      ));
-    }
+      .where(and(...conditions));
 
     const result = await query;
     const avgDays = result[0]?.avgDays ? parseFloat(result[0].avgDays) : 0;
@@ -4785,7 +4838,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getVendorPerformanceReport(vendorId?: string): Promise<any[]> {
-    let vendorQuery = db
+    const conditions = [isNotNull(logisticsShipments.vendorId)];
+    
+    if (vendorId) {
+      conditions.push(eq(logisticsShipments.vendorId, vendorId));
+    }
+
+    const vendorQuery = db
       .select({
         vendorId: logisticsShipments.vendorId,
         vendorName: suppliers.name,
@@ -4796,12 +4855,8 @@ export class DatabaseStorage implements IStorage {
       })
       .from(logisticsShipments)
       .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
-      .where(isNotNull(logisticsShipments.vendorId))
+      .where(and(...conditions))
       .groupBy(logisticsShipments.vendorId, suppliers.name);
-
-    if (vendorId) {
-      vendorQuery = vendorQuery.where(eq(logisticsShipments.vendorId, vendorId));
-    }
 
     const vendors = await vendorQuery;
 

@@ -2,6 +2,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
+import { db } from "./db";
+import { attendance, users } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 import {
   insertLogisticsShipmentSchema, insertLogisticsStatusUpdateSchema, insertLogisticsCheckpointSchema,
   updateLogisticsShipmentSchema, logisticsShipmentFilterSchema, updateLogisticsShipmentStatusSchema,
@@ -490,10 +493,13 @@ export const getLogisticsAttendance = async (req: AuthenticatedRequest, res: Res
     
     if (employeeId && date) {
       attendance = await storage.getAttendance(employeeId as string, new Date(date as string));
+      // Convert single record to array for consistent response format
+      attendance = attendance ? [attendance] : [];
     } else if (employeeId) {
       attendance = await storage.getAttendanceByUser(employeeId as string);
     } else {
-      attendance = await storage.getAccountsAttendance({});
+      // Use optimized method that fetches all attendance with user data in single query
+      attendance = await storage.getAllAttendanceWithUsers({ employeeId, date });
     }
     
     res.json(attendance);
@@ -506,7 +512,8 @@ export const checkInLogistics = async (req: AuthenticatedRequest, res: Response)
   try {
     const checkInData = {
       userId: req.user!.id,
-      checkInTime: new Date(),
+      date: new Date(), // Add required date field
+      checkIn: new Date(),
       location: req.body.location,
       latitude: req.body.latitude,
       longitude: req.body.longitude,
@@ -537,7 +544,7 @@ export const checkOutLogistics = async (req: AuthenticatedRequest, res: Response
     }
     
     const checkOutData = {
-      checkOutTime: new Date(),
+      checkOut: new Date(),
       location: req.body.location,
       latitude: req.body.latitude,
       longitude: req.body.longitude,
@@ -812,13 +819,15 @@ export const generateAttendancePhotoUploadUrl = async (req: AuthenticatedRequest
     });
 
     // Log activity
-    await storage.logActivity({
-      userId: req.user.id,
+    if (req.user) {
+      await storage.createActivity({
+        userId: req.user.id,
       action: "Generate Upload URL",
       entityType: "logistics_attendance_photo",
       entityId: attendanceId,
-      details: `Generated upload URL for ${photoType} photo: ${objectPath}`
-    });
+        details: `Generated upload URL for ${photoType} photo: ${objectPath}`
+      });
+    }
 
     res.json({
       uploadURL,

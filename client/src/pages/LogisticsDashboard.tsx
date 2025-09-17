@@ -45,11 +45,11 @@ export default function LogisticsDashboard() {
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const { toast } = useToast();
 
-  const { data: shipments = [], isLoading: shipmentsLoading } = useQuery({
+  const { data: shipments = [], isLoading: shipmentsLoading } = useQuery<any[]>({
     queryKey: ["/api/logistics/shipments"],
   });
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading } = useQuery<any[]>({
     queryKey: ["/api/orders"],
   });
 
@@ -67,7 +67,10 @@ export default function LogisticsDashboard() {
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("POST", "/api/logistics/shipments", data);
+      return await apiRequest("/api/logistics/shipments", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
@@ -89,7 +92,10 @@ export default function LogisticsDashboard() {
 
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest("PUT", `/api/logistics/shipments/${id}`, data);
+      return await apiRequest(`/api/logistics/shipments/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
@@ -131,8 +137,8 @@ export default function LogisticsDashboard() {
 
   const shipmentColumns = [
     {
-      key: "shipmentNumber",
-      header: "Shipment #",
+      key: "consignmentNumber",
+      header: "Consignment #",
     },
     {
       key: "order.orderNumber",
@@ -443,7 +449,7 @@ export default function LogisticsDashboard() {
                 columns={shipmentColumns}
                 onEdit={handleEdit}
                 searchable={true}
-                searchKey="shipmentNumber"
+                searchKey="consignmentNumber"
               />
             </CardContent>
           </Card>
@@ -556,7 +562,7 @@ export default function LogisticsDashboard() {
                 {(shipments || []).filter((s: any) => s.status === 'delivered').slice(0, 3).map((shipment: any) => (
                   <div key={shipment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
                     <div>
-                      <p className="text-sm font-medium">{shipment.shipmentNumber}</p>
+                      <p className="text-sm font-medium">{shipment.consignmentNumber}</p>
                       <p className="text-xs text-muted-foreground">
                         {shipment.order?.orderNumber || 'Direct Shipment'}
                       </p>

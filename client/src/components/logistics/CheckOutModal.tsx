@@ -36,7 +36,7 @@ interface CheckOutModalProps {
   isLoading?: boolean;
   userId?: string;
   userName?: string;
-  checkInTime?: string;
+  checkIn?: string;
 }
 
 export default function CheckOutModal({ 
@@ -46,7 +46,7 @@ export default function CheckOutModal({
   isLoading = false,
   userId,
   userName,
-  checkInTime
+  checkIn
 }: CheckOutModalProps) {
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationError, setLocationError] = useState<string>('');
@@ -79,11 +79,11 @@ export default function CheckOutModal({
 
   // Calculate work duration
   const getWorkDuration = () => {
-    if (!checkInTime) return null;
+    if (!checkIn) return null;
     
-    const checkIn = new Date(checkInTime);
+    const checkInDate = new Date(checkIn);
     const now = new Date();
-    const diffMs = now.getTime() - checkIn.getTime();
+    const diffMs = now.getTime() - checkInDate.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     
@@ -247,7 +247,7 @@ export default function CheckOutModal({
 
         <div className="space-y-4">
           {/* Work Summary */}
-          {checkInTime && (
+          {checkIn && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center space-x-2">
@@ -257,7 +257,7 @@ export default function CheckOutModal({
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="text-sm">
-                  <span className="font-medium">Check-in time:</span> {format(new Date(checkInTime), 'HH:mm')}
+                  <span className="font-medium">Check-in time:</span> {format(new Date(checkIn), 'HH:mm')}
                 </div>
                 <div className="text-sm">
                   <span className="font-medium">Work duration:</span> {getWorkDuration()}

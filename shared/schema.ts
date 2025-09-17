@@ -650,7 +650,7 @@ export const fieldVisits = pgTable("field_visits", {
 });
 
 // Marketing Tasks - Comprehensive task management
-export const marketingTasks = pgTable("marketing_tasks", {
+export const marketingTasks: any = pgTable("marketing_tasks", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   
   // Task Details
@@ -690,7 +690,7 @@ export const marketingTasks = pgTable("marketing_tasks", {
   tags: text("tags").array(),
   isRecurring: boolean("is_recurring").notNull().default(false),
   recurringFrequency: text("recurring_frequency"), // daily, weekly, monthly
-  parentTaskId: uuid("parent_task_id").references(() => marketingTasks.id), // For recurring tasks
+  parentTaskId: uuid("parent_task_id").references((): any => marketingTasks.id), // For recurring tasks
   
   // Timestamps
   createdAt: timestamp("created_at").notNull().defaultNow(),
