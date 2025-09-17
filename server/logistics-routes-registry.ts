@@ -38,6 +38,13 @@ interface AuthenticatedRequest extends Request {
 export const getLogisticsShipments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = logisticsShipmentFilterSchema.parse(req.query);
+    
+    // Role-based access control - employees can only see shipments assigned to them or created by them
+    if (req.user!.role === 'employee') {
+      // Force employee filter to only see their shipments
+      filters.employeeId = req.user!.id;
+    }
+    
     let shipments;
     const hasFilters = Object.values(filters).some(value => value !== undefined);
     
@@ -53,6 +60,13 @@ export const getLogisticsShipments = async (req: AuthenticatedRequest, res: Resp
       shipments = await storage.getLogisticsShipmentsByDateRange(new Date(filters.startDate), new Date(filters.endDate));
     } else {
       shipments = await storage.getLogisticsShipments();
+    }
+    
+    // Additional filtering for employees to ensure they only see their shipments
+    if (req.user!.role === 'employee') {
+      shipments = shipments.filter(shipment => 
+        shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+      );
     }
     
     res.json(shipments);
@@ -77,6 +91,15 @@ export const getLogisticsShipment = async (req: AuthenticatedRequest, res: Respo
       res.status(404).json({ error: "Shipment not found" });
       return;
     }
+    
+    // Authorization check - employees can only view shipments they're involved with
+    if (req.user!.role === 'employee' && 
+        shipment.assignedTo !== req.user!.id && 
+        shipment.createdBy !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to view this shipment" });
+      return;
+    }
+    
     res.json(shipment);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch shipment" });
@@ -118,6 +141,24 @@ export const updateLogisticsShipment = async (req: AuthenticatedRequest, res: Re
       return;
     }
     
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.id);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - only assignee, creator, or admin/manager can update
+    const canUpdate = req.user!.role === 'admin' ||
+                     req.user!.role === 'manager' ||
+                     existingShipment.assignedTo === req.user!.id ||
+                     existingShipment.createdBy === req.user!.id;
+    
+    if (!canUpdate) {
+      res.status(403).json({ error: "Not authorized to update this shipment" });
+      return;
+    }
+    
     const shipmentData = updateLogisticsShipmentSchema.parse(req.body);
     const shipment = await storage.updateLogisticsShipment(req.params.id, shipmentData);
     
@@ -146,6 +187,23 @@ export const deleteLogisticsShipment = async (req: AuthenticatedRequest, res: Re
       return;
     }
     
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.id);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - only creator, admin, or manager can delete
+    const canDelete = req.user!.role === 'admin' ||
+                     req.user!.role === 'manager' ||
+                     existingShipment.createdBy === req.user!.id;
+    
+    if (!canDelete) {
+      res.status(403).json({ error: "Not authorized to delete this shipment" });
+      return;
+    }
+    
     await storage.deleteLogisticsShipment(req.params.id);
     
     await storage.createActivity({
@@ -167,6 +225,24 @@ export const updateShipmentStatus = async (req: AuthenticatedRequest, res: Respo
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       res.status(400).json({ error: "Invalid shipment ID format" });
+      return;
+    }
+    
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.id);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - only assignee, creator, or admin/manager can update status
+    const canUpdate = req.user!.role === 'admin' ||
+                     req.user!.role === 'manager' ||
+                     existingShipment.assignedTo === req.user!.id ||
+                     existingShipment.createdBy === req.user!.id;
+    
+    if (!canUpdate) {
+      res.status(403).json({ error: "Not authorized to update this shipment's status" });
       return;
     }
     
@@ -203,6 +279,21 @@ export const getShipmentTimeline = async (req: AuthenticatedRequest, res: Respon
       return;
     }
     
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.id);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - employees can only view timeline for shipments they're involved with
+    if (req.user!.role === 'employee' && 
+        existingShipment.assignedTo !== req.user!.id && 
+        existingShipment.createdBy !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to view this shipment's timeline" });
+      return;
+    }
+    
     const timeline = await storage.getShipmentTimeline(req.params.id);
     res.json(timeline);
   } catch (error) {
@@ -214,6 +305,24 @@ export const closeShipment = async (req: AuthenticatedRequest, res: Response): P
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
       res.status(400).json({ error: "Invalid shipment ID format" });
+      return;
+    }
+    
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.id);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - only assignee, creator, or admin/manager can close shipment
+    const canClose = req.user!.role === 'admin' ||
+                    req.user!.role === 'manager' ||
+                    existingShipment.assignedTo === req.user!.id ||
+                    existingShipment.createdBy === req.user!.id;
+    
+    if (!canClose) {
+      res.status(403).json({ error: "Not authorized to close this shipment" });
       return;
     }
     
@@ -245,7 +354,15 @@ export const closeShipment = async (req: AuthenticatedRequest, res: Response): P
 
 export const getActiveShipments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const shipments = await storage.getActiveShipments();
+    let shipments = await storage.getActiveShipments();
+    
+    // Role-based access control - employees can only see shipments assigned to them or created by them
+    if (req.user!.role === 'employee') {
+      shipments = shipments.filter(shipment => 
+        shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+      );
+    }
+    
     res.json(shipments);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch active shipments" });
@@ -254,7 +371,15 @@ export const getActiveShipments = async (req: AuthenticatedRequest, res: Respons
 
 export const getOverdueShipments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const shipments = await storage.getOverdueShipments();
+    let shipments = await storage.getOverdueShipments();
+    
+    // Role-based access control - employees can only see shipments assigned to them or created by them
+    if (req.user!.role === 'employee') {
+      shipments = shipments.filter(shipment => 
+        shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+      );
+    }
+    
     res.json(shipments);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch overdue shipments" });
@@ -269,7 +394,15 @@ export const searchShipments = async (req: AuthenticatedRequest, res: Response):
       return;
     }
     
-    const shipments = await storage.searchShipments(query);
+    let shipments = await storage.searchShipments(query);
+    
+    // Role-based access control - employees can only see shipments assigned to them or created by them
+    if (req.user!.role === 'employee') {
+      shipments = shipments.filter(shipment => 
+        shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+      );
+    }
+    
     res.json(shipments);
   } catch (error) {
     res.status(500).json({ error: "Failed to search shipments" });
@@ -282,7 +415,24 @@ export const searchShipments = async (req: AuthenticatedRequest, res: Response):
 
 export const getLogisticsStatusUpdates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const updates = await storage.getLogisticsStatusUpdates();
+    let updates = await storage.getLogisticsStatusUpdates();
+    
+    // Role-based access control - employees can only see status updates for shipments they're involved with
+    if (req.user!.role === 'employee') {
+      // First get all shipments the user has access to
+      const allShipments = await storage.getLogisticsShipments();
+      const accessibleShipmentIds = allShipments
+        .filter(shipment => 
+          shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+        )
+        .map(shipment => shipment.id);
+      
+      // Filter status updates to only include those for accessible shipments
+      updates = updates.filter(update => 
+        accessibleShipmentIds.includes(update.shipmentId)
+      );
+    }
+    
     res.json(updates);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch status updates" });
@@ -312,6 +462,21 @@ export const getStatusUpdatesByShipment = async (req: AuthenticatedRequest, res:
       return;
     }
     
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.shipmentId);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - employees can only view status updates for shipments they're involved with
+    if (req.user!.role === 'employee' && 
+        existingShipment.assignedTo !== req.user!.id && 
+        existingShipment.createdBy !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to view this shipment's status updates" });
+      return;
+    }
+    
     const updates = await storage.getStatusUpdatesByShipment(req.params.shipmentId);
     res.json(updates);
   } catch (error) {
@@ -325,7 +490,24 @@ export const getStatusUpdatesByShipment = async (req: AuthenticatedRequest, res:
 
 export const getLogisticsCheckpoints = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const checkpoints = await storage.getLogisticsCheckpoints();
+    let checkpoints = await storage.getLogisticsCheckpoints();
+    
+    // Role-based access control - employees can only see checkpoints for shipments they're involved with
+    if (req.user!.role === 'employee') {
+      // First get all shipments the user has access to
+      const allShipments = await storage.getLogisticsShipments();
+      const accessibleShipmentIds = allShipments
+        .filter(shipment => 
+          shipment.assignedTo === req.user!.id || shipment.createdBy === req.user!.id
+        )
+        .map(shipment => shipment.id);
+      
+      // Filter checkpoints to only include those for accessible shipments
+      checkpoints = checkpoints.filter(checkpoint => 
+        accessibleShipmentIds.includes(checkpoint.shipmentId)
+      );
+    }
+    
     res.json(checkpoints);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch checkpoints" });
@@ -352,6 +534,21 @@ export const getCheckpointsByShipment = async (req: AuthenticatedRequest, res: R
   try {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.shipmentId)) {
       res.status(400).json({ error: "Invalid shipment ID format" });
+      return;
+    }
+    
+    // Get existing shipment for authorization
+    const existingShipment = await storage.getLogisticsShipment(req.params.shipmentId);
+    if (!existingShipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+    
+    // Authorization check - employees can only view checkpoints for shipments they're involved with
+    if (req.user!.role === 'employee' && 
+        existingShipment.assignedTo !== req.user!.id && 
+        existingShipment.createdBy !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to view this shipment's checkpoints" });
       return;
     }
     
