@@ -79,6 +79,27 @@ export default function LogisticsReports() {
     queryKey: ['/api/logistics/dashboard'],
   });
 
+  // Create normalized metrics with safe defaults to prevent runtime errors
+  const normalizedMetrics = dashboardMetrics ? {
+    totalShipments: dashboardMetrics.totalShipments || 0,
+    deliveredShipments: dashboardMetrics.deliveredShipments || 0,
+    pendingShipments: dashboardMetrics.pendingShipments || 0,
+    overdueShipments: dashboardMetrics.overdueShipments || 0,
+    averageDeliveryTime: dashboardMetrics.averageDeliveryTime || 0,
+    onTimeDeliveryRate: dashboardMetrics.onTimeDeliveryRate || 0,
+    totalRevenue: dashboardMetrics.totalRevenue || 0,
+    activeVendors: dashboardMetrics.activeVendors || 0,
+  } : {
+    totalShipments: 0,
+    deliveredShipments: 0,
+    pendingShipments: 0,
+    overdueShipments: 0,
+    averageDeliveryTime: 0,
+    onTimeDeliveryRate: 0,
+    totalRevenue: 0,
+    activeVendors: 0,
+  };
+
   // Fetch daily shipments report
   const { data: dailyData, isLoading: loadingDaily } = useQuery<DailyShipmentData[]>({
     queryKey: ['/api/logistics/reports/daily', dateRange],
@@ -102,6 +123,37 @@ export default function LogisticsReports() {
     queryKey: ['/api/logistics/reports/performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
+
+  // Normalize array data with safe defaults to prevent runtime errors
+  const normalizedDailyData = dailyData?.map(item => ({
+    date: item.date || '',
+    shipped: Number(item.shipped) || 0,
+    delivered: Number(item.delivered) || 0,
+    revenue: Number(item.revenue) || 0,
+  })) || [];
+
+  const normalizedVendorPerformance = vendorPerformance?.map(vendor => ({
+    vendorName: vendor.vendorName || 'Unknown Vendor',
+    totalShipments: Number(vendor.totalShipments) || 0,
+    onTimeDeliveries: Number(vendor.onTimeDeliveries) || 0,
+    onTimeRate: Number(vendor.onTimeRate) || 0,
+    averageDeliveryTime: Number(vendor.averageDeliveryTime) || 0,
+    rating: Number(vendor.rating) || 0,
+  })) || [];
+
+  const normalizedVolumeMetrics = volumeMetrics?.map(item => ({
+    period: item.period || '',
+    volume: Number(item.volume) || 0,
+    growth: Number(item.growth) || 0,
+  })) || [];
+
+  const normalizedPerformanceMetrics = performanceMetrics?.map(metric => ({
+    metric: metric.metric || 'Unknown Metric',
+    current: Number(metric.current) || 0,
+    previous: Number(metric.previous) || 0,
+    change: Number(metric.change) || 0,
+    trend: metric.trend || 'stable' as 'up' | 'down' | 'stable',
+  })) || [];
 
   const handleExportReport = async (reportType: string) => {
     try {
@@ -128,12 +180,12 @@ export default function LogisticsReports() {
     }
   };
 
-  // Calculate status distribution for pie chart
-  const statusDistribution = dashboardMetrics ? [
-    { name: 'Delivered', value: dashboardMetrics.deliveredShipments, color: '#00C49F' },
-    { name: 'Pending', value: dashboardMetrics.pendingShipments, color: '#0088FE' },
-    { name: 'Overdue', value: dashboardMetrics.overdueShipments, color: '#FF8042' },
-  ] : [];
+  // Calculate status distribution for pie chart with safe numeric values
+  const statusDistribution = [
+    { name: 'Delivered', value: normalizedMetrics.deliveredShipments, color: '#00C49F' },
+    { name: 'Pending', value: normalizedMetrics.pendingShipments, color: '#0088FE' },
+    { name: 'Overdue', value: normalizedMetrics.overdueShipments, color: '#FF8042' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -224,7 +276,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Shipments</p>
-                  <p className="text-2xl font-bold">{dashboardMetrics.totalShipments.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{normalizedMetrics.totalShipments.toLocaleString()}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-600" />
               </div>
@@ -236,7 +288,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Delivered</p>
-                  <p className="text-2xl font-bold text-green-600">{dashboardMetrics.deliveredShipments.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -248,7 +300,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{dashboardMetrics.pendingShipments.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
                 </div>
                 <Clock className="h-8 w-8 text-yellow-600" />
               </div>
@@ -260,7 +312,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Overdue</p>
-                  <p className="text-2xl font-bold text-red-600">{dashboardMetrics.overdueShipments.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
                 </div>
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
@@ -272,7 +324,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Avg. Delivery Time</p>
-                  <p className="text-2xl font-bold">{dashboardMetrics.averageDeliveryTime.toFixed(1)} days</p>
+                  <p className="text-2xl font-bold">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
                 </div>
                 <Activity className="h-8 w-8 text-purple-600" />
               </div>
@@ -284,8 +336,8 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">On-Time Rate</p>
-                  <p className="text-2xl font-bold">{(dashboardMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
-                  <Progress value={dashboardMetrics.onTimeDeliveryRate * 100} className="mt-2" />
+                  <p className="text-2xl font-bold">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
+                  <Progress value={normalizedMetrics.onTimeDeliveryRate * 100} className="mt-2" />
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
@@ -297,7 +349,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">₹{dashboardMetrics.totalRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">₹{normalizedMetrics.totalRevenue.toLocaleString()}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-emerald-600" />
               </div>
@@ -309,7 +361,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Active Vendors</p>
-                  <p className="text-2xl font-bold">{dashboardMetrics.activeVendors}</p>
+                  <p className="text-2xl font-bold">{normalizedMetrics.activeVendors}</p>
                 </div>
                 <Users className="h-8 w-8 text-indigo-600" />
               </div>
@@ -349,9 +401,9 @@ export default function LogisticsReports() {
               <CardContent>
                 {loadingDaily ? (
                   <div className="h-80 animate-pulse bg-gray-200 rounded"></div>
-                ) : dailyData ? (
+                ) : normalizedDailyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={dailyData}>
+                    <AreaChart data={normalizedDailyData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />
@@ -426,9 +478,9 @@ export default function LogisticsReports() {
             <CardContent>
               {loadingVolume ? (
                 <div className="h-80 animate-pulse bg-gray-200 rounded"></div>
-              ) : volumeMetrics ? (
+              ) : normalizedVolumeMetrics.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={volumeMetrics}>
+                  <LineChart data={normalizedVolumeMetrics}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
                     <YAxis />
@@ -474,9 +526,9 @@ export default function LogisticsReports() {
                     </div>
                   ))}
                 </div>
-              ) : vendorPerformance && vendorPerformance.length > 0 ? (
+              ) : normalizedVendorPerformance.length > 0 ? (
                 <div className="space-y-4">
-                  {vendorPerformance.map((vendor, index) => (
+                  {normalizedVendorPerformance.map((vendor, index) => (
                     <div key={index} className="border rounded-lg p-4" data-testid={`vendor-${index}`}>
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-semibold">{vendor.vendorName}</h4>
@@ -535,9 +587,9 @@ export default function LogisticsReports() {
                     </div>
                   ))}
                 </div>
-              ) : performanceMetrics && performanceMetrics.length > 0 ? (
+              ) : normalizedPerformanceMetrics.length > 0 ? (
                 <div className="space-y-4">
-                  {performanceMetrics.map((metric, index) => (
+                  {normalizedPerformanceMetrics.map((metric, index) => (
                     <div key={index} className="flex justify-between items-center p-4 border rounded-lg" data-testid={`performance-${index}`}>
                       <div>
                         <h4 className="font-semibold">{metric.metric}</h4>
