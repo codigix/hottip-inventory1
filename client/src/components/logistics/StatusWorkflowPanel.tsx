@@ -63,7 +63,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
   const form = useForm<StatusUpdateForm>({
     resolver: zodResolver(statusUpdateSchema),
     defaultValues: {
-      status: "",
+      status: undefined,
       notes: "",
       location: "",
       podFile: "",
@@ -280,7 +280,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                             {shipment.consignmentNumber}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {shipment.client?.name || shipment.vendor?.name || 'Direct Shipment'}
+                            {shipment.clientId ? 'Client Shipment' : shipment.vendorId ? 'Vendor Shipment' : 'Direct Shipment'}
                           </div>
                           <div className="text-xs">
                             {shipment.source} → {shipment.destination}

@@ -850,68 +850,162 @@ interface LogisticsRouteOptions {
   checkOwnership?: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 }
 
-export const registerLogisticsRoutes = (app: Express, options: LogisticsRouteOptions): void => {
-  const { requireAuth, requireLogisticsAccess, checkOwnership } = options;
-  
-  // Default logistics access middleware (use generic auth for now)
-  const logisticsAuth = requireLogisticsAccess || requireAuth;
-  const ownershipCheck = checkOwnership || ((req, res, next) => next());
+interface LogisticsRoute {
+  method: 'get' | 'post' | 'put' | 'delete';
+  path: string;
+  middlewares: string[];
+  handler: (req: AuthenticatedRequest, res: Response) => Promise<void>;
+}
 
-  console.log("📋 Registering logistics routes...");
+// Logistics middleware factory function  
+function checkLogisticsOwnership(entityType: string) {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
 
-  // Logistics Shipments routes
-  app.get("/api/logistics/shipments", requireAuth, getLogisticsShipments);
-  app.get("/api/logistics/shipments/active", requireAuth, getActiveShipments);
-  app.get("/api/logistics/shipments/overdue", requireAuth, getOverdueShipments);
-  app.get("/api/logistics/shipments/search", requireAuth, searchShipments);
-  app.get("/api/logistics/shipments/:id", requireAuth, ownershipCheck, getLogisticsShipment);
-  app.post("/api/logistics/shipments", requireAuth, createLogisticsShipment);
-  app.put("/api/logistics/shipments/:id", requireAuth, ownershipCheck, updateLogisticsShipment);
-  app.delete("/api/logistics/shipments/:id", requireAuth, ownershipCheck, deleteLogisticsShipment);
-  
-  // Shipment workflow operations
-  app.put("/api/logistics/shipments/:id/status", requireAuth, ownershipCheck, updateShipmentStatus);
-  app.get("/api/logistics/shipments/:id/timeline", requireAuth, getShipmentTimeline);
-  app.post("/api/logistics/shipments/:id/close", requireAuth, ownershipCheck, closeShipment);
-  
-  // POD Upload URL generation endpoint
-  app.post("/api/logistics/pod/upload-url", requireAuth, generatePodUploadUrl);
-  
-  // Attendance photo upload URL generation endpoint
-  app.post("/api/logistics/attendance/photo/upload-url", requireAuth, generateAttendancePhotoUploadUrl);
+      const { role } = req.user;
+      
+      // Admin and manager roles have full access
+      if (role === 'admin' || role === 'manager') {
+        return next();
+      }
 
-  // Status Updates routes
-  app.get("/api/logistics/status-updates", requireAuth, getLogisticsStatusUpdates);
-  app.post("/api/logistics/status-updates", requireAuth, createLogisticsStatusUpdate);
-  app.get("/api/logistics/status-updates/shipment/:shipmentId", requireAuth, getStatusUpdatesByShipment);
+      // For regular users, check ownership - for now, allow access
+      // TODO: Implement proper ownership checks when user assignment is added to logistics entities
+      return next();
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to verify ownership" });
+    }
+  };
+}
 
-  // Checkpoints routes
-  app.get("/api/logistics/checkpoints", requireAuth, getLogisticsCheckpoints);
-  app.post("/api/logistics/checkpoints", requireAuth, createLogisticsCheckpoint);
-  app.get("/api/logistics/checkpoints/shipment/:shipmentId", requireAuth, getCheckpointsByShipment);
+export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRouteOptions): void => {
+  const { requireAuth: auth, requireLogisticsAccess: logisticsAccess, checkOwnership } = middleware;
+  
+  // Define all logistics routes with their middleware requirements
+  const logisticsRoutes: LogisticsRoute[] = [
+    // ==========================================
+    // LOGISTICS SHIPMENTS ROUTES (8 base routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/shipments', middlewares: ['requireAuth'], handler: getLogisticsShipments },
+    { method: 'get', path: '/api/logistics/shipments/active', middlewares: ['requireAuth'], handler: getActiveShipments },
+    { method: 'get', path: '/api/logistics/shipments/overdue', middlewares: ['requireAuth'], handler: getOverdueShipments },
+    { method: 'get', path: '/api/logistics/shipments/search', middlewares: ['requireAuth'], handler: searchShipments },
+    { method: 'get', path: '/api/logistics/shipments/:id', middlewares: ['requireAuth', 'checkOwnership:shipment'], handler: getLogisticsShipment },
+    { method: 'post', path: '/api/logistics/shipments', middlewares: ['requireAuth'], handler: createLogisticsShipment },
+    { method: 'put', path: '/api/logistics/shipments/:id', middlewares: ['requireAuth', 'checkOwnership:shipment'], handler: updateLogisticsShipment },
+    { method: 'delete', path: '/api/logistics/shipments/:id', middlewares: ['requireAuth', 'checkOwnership:shipment'], handler: deleteLogisticsShipment },
+    
+    // ==========================================
+    // CRITICAL STATUS WORKFLOW ROUTES (3 routes)
+    // ==========================================
+    { method: 'put', path: '/api/logistics/shipments/:id/status', middlewares: ['requireAuth', 'checkOwnership:shipment'], handler: updateShipmentStatus },
+    { method: 'get', path: '/api/logistics/shipments/:id/timeline', middlewares: ['requireAuth'], handler: getShipmentTimeline },
+    { method: 'post', path: '/api/logistics/shipments/:id/close', middlewares: ['requireAuth', 'checkOwnership:shipment'], handler: closeShipment },
+    
+    // ==========================================
+    // POD & FILE UPLOAD ROUTES (2 routes)
+    // ==========================================
+    { method: 'post', path: '/api/logistics/pod/upload-url', middlewares: ['requireAuth'], handler: generatePodUploadUrl },
+    { method: 'post', path: '/api/logistics/attendance/photo/upload-url', middlewares: ['requireAuth'], handler: generateAttendancePhotoUploadUrl },
 
-  // Health endpoint
-  app.get("/api/logistics/health", getLogisticsHealth);
-  
-  // Logistics Tasks routes
-  app.get("/api/logistics/tasks", requireAuth, getLogisticsTasks);
-  app.get("/api/logistics/tasks/:id", requireAuth, getLogisticsTask);
-  app.post("/api/logistics/tasks", requireAuth, createLogisticsTask);
-  app.put("/api/logistics/tasks/:id", requireAuth, updateLogisticsTask);
-  app.delete("/api/logistics/tasks/:id", requireAuth, deleteLogisticsTask);
-  
-  // Logistics Attendance routes
-  app.get("/api/logistics/attendance", requireAuth, getLogisticsAttendance);
-  app.post("/api/logistics/attendance/check-in", requireAuth, checkInLogistics);
-  app.put("/api/logistics/attendance/:id/check-out", requireAuth, checkOutLogistics);
-  
-  // Reports & Analytics routes
-  app.get("/api/logistics/dashboard", requireAuth, getLogisticsDashboardMetrics);
-  app.get("/api/logistics/reports/daily", requireAuth, getDailyShipmentsReport);
-  app.get("/api/logistics/reports/delivery-time", requireAuth, getAverageDeliveryTime);
-  app.get("/api/logistics/reports/vendor-performance", requireAuth, getVendorPerformanceReport);
-  app.get("/api/logistics/reports/volume", requireAuth, getShipmentVolumeMetrics);
-  app.get("/api/logistics/reports/performance", requireAuth, getDeliveryPerformanceMetrics);
+    // ==========================================
+    // STATUS UPDATES ROUTES (3 routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/status-updates', middlewares: ['requireAuth'], handler: getLogisticsStatusUpdates },
+    { method: 'post', path: '/api/logistics/status-updates', middlewares: ['requireAuth'], handler: createLogisticsStatusUpdate },
+    { method: 'get', path: '/api/logistics/status-updates/shipment/:shipmentId', middlewares: ['requireAuth'], handler: getStatusUpdatesByShipment },
 
-  console.log("✅ Logistics routes registered successfully");
+    // ==========================================
+    // CHECKPOINTS ROUTES (3 routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/checkpoints', middlewares: ['requireAuth'], handler: getLogisticsCheckpoints },
+    { method: 'post', path: '/api/logistics/checkpoints', middlewares: ['requireAuth'], handler: createLogisticsCheckpoint },
+    { method: 'get', path: '/api/logistics/checkpoints/shipment/:shipmentId', middlewares: ['requireAuth'], handler: getCheckpointsByShipment },
+
+    // ==========================================
+    // LOGISTICS TASKS ROUTES (5 routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/tasks', middlewares: ['requireAuth'], handler: getLogisticsTasks },
+    { method: 'get', path: '/api/logistics/tasks/:id', middlewares: ['requireAuth'], handler: getLogisticsTask },
+    { method: 'post', path: '/api/logistics/tasks', middlewares: ['requireAuth'], handler: createLogisticsTask },
+    { method: 'put', path: '/api/logistics/tasks/:id', middlewares: ['requireAuth'], handler: updateLogisticsTask },
+    { method: 'delete', path: '/api/logistics/tasks/:id', middlewares: ['requireAuth'], handler: deleteLogisticsTask },
+    
+    // ==========================================
+    // LOGISTICS ATTENDANCE ROUTES (3 routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/attendance', middlewares: ['requireAuth'], handler: getLogisticsAttendance },
+    { method: 'post', path: '/api/logistics/attendance/check-in', middlewares: ['requireAuth'], handler: checkInLogistics },
+    { method: 'put', path: '/api/logistics/attendance/:id/check-out', middlewares: ['requireAuth'], handler: checkOutLogistics },
+    
+    // ==========================================
+    // REPORTS & ANALYTICS ROUTES (6 routes)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/dashboard', middlewares: ['requireAuth'], handler: getLogisticsDashboardMetrics },
+    { method: 'get', path: '/api/logistics/reports/daily', middlewares: ['requireAuth'], handler: getDailyShipmentsReport },
+    { method: 'get', path: '/api/logistics/reports/delivery-time', middlewares: ['requireAuth'], handler: getAverageDeliveryTime },
+    { method: 'get', path: '/api/logistics/reports/vendor-performance', middlewares: ['requireAuth'], handler: getVendorPerformanceReport },
+    { method: 'get', path: '/api/logistics/reports/volume', middlewares: ['requireAuth'], handler: getShipmentVolumeMetrics },
+    { method: 'get', path: '/api/logistics/reports/performance', middlewares: ['requireAuth'], handler: getDeliveryPerformanceMetrics },
+
+    // ==========================================
+    // HEALTH ENDPOINT (1 route)
+    // ==========================================
+    { method: 'get', path: '/api/logistics/health', middlewares: [], handler: getLogisticsHealth },
+  ];
+
+  console.log(`📋 Registering ${logisticsRoutes.length} logistics routes from registry...`);
+  
+  // Register each route with proper middleware
+  for (const route of logisticsRoutes) {
+    const middlewares: Array<(req: AuthenticatedRequest, res: Response, next: NextFunction) => void | Promise<void>> = [];
+    
+    // Map middleware strings to actual middleware functions
+    for (const mwName of route.middlewares) {
+      if (mwName === 'requireAuth') {
+        middlewares.push(auth);
+      } else if (mwName === 'requireLogisticsAccess') {
+        middlewares.push(logisticsAccess || auth);
+      } else if (mwName.startsWith('checkOwnership:')) {
+        const entityType = mwName.split(':')[1];
+        middlewares.push(checkOwnership ? checkOwnership(entityType) : checkLogisticsOwnership(entityType));
+      }
+    }
+    
+    // Register the route with the Express app
+    (app as any)[route.method](route.path, ...middlewares, route.handler);
+  }
+  
+  console.log(`✅ Logistics routes registry registration complete: ${logisticsRoutes.length} routes`);
+  
+  // Development route verification log
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 Logistics routes registered:');
+    logisticsRoutes.forEach(route => {
+      console.log(`  ${route.method.toUpperCase()} ${route.path} [${route.middlewares.length} middleware]`);
+    });
+  }
+
+  // Logistics route count verification
+  const EXPECTED_LOGISTICS_ROUTE_COUNT = 34;
+  if (logisticsRoutes.length !== EXPECTED_LOGISTICS_ROUTE_COUNT) {
+    console.warn(`⚠️  Logistics route count mismatch: Expected ${EXPECTED_LOGISTICS_ROUTE_COUNT}, found ${logisticsRoutes.length}`);
+  }
+
+  // Verify critical status workflow routes are registered
+  const criticalRoutes = [
+    'PUT /api/logistics/shipments/:id/status',
+    'POST /api/logistics/shipments/:id/close',
+    'POST /api/logistics/pod/upload-url'
+  ];
+  
+  console.log('🔍 Verifying critical status workflow routes:');
+  criticalRoutes.forEach(route => {
+    const [method, path] = route.split(' ');
+    const found = logisticsRoutes.some(r => r.method === method.toLowerCase() && r.path === path);
+    console.log(`  ${found ? '✅' : '❌'} ${route}`);
+  });
 };

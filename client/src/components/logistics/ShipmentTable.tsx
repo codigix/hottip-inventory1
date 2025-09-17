@@ -60,13 +60,11 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
       header: "Client/Vendor",
       cell: (shipment: LogisticsShipment) => (
         <div className="text-sm">
-          {shipment.client?.name && (
-            <div className="font-medium text-foreground">{shipment.client.name}</div>
-          )}
-          {shipment.vendor?.name && (
-            <div className="text-muted-foreground">{shipment.vendor.name}</div>
-          )}
-          {!shipment.client?.name && !shipment.vendor?.name && (
+          {shipment.clientId ? (
+            <div className="font-medium text-foreground">Client Shipment</div>
+          ) : shipment.vendorId ? (
+            <div className="text-muted-foreground">Vendor Shipment</div>
+          ) : (
             <span className="text-muted-foreground">Direct</span>
           )}
         </div>

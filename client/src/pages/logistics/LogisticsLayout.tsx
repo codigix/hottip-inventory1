@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Import logistics pages
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import Shipments from "./Shipments";
+import StatusWorkflow from "./StatusWorkflow";
 import LogisticsReports from "./Reports";
 import LogisticsTasks from "./Tasks";
 import LogisticsAttendance from "./Attendance";
@@ -177,16 +178,7 @@ export default function LogisticsLayout() {
             <Shipments />
           </Route>
           <Route path="/logistics/status-workflow">
-            <div className="p-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Status Workflow</h2>
-                  <p className="text-muted-foreground">
-                    Status workflow management functionality will be implemented in upcoming tasks.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <StatusWorkflow />
           </Route>
           <Route path="/logistics/reports">
             <LogisticsReports />
