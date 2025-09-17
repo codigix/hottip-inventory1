@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
 import { attendance, users, logisticsAttendance } from "@shared/schema";
+import XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
 import {
   insertLogisticsShipmentSchema, insertLogisticsStatusUpdateSchema, insertLogisticsCheckpointSchema,
@@ -993,6 +995,309 @@ export const getDeliveryPerformanceMetrics = async (req: AuthenticatedRequest, r
 };
 
 // ==========================================
+// EXPORT HANDLERS FOR REPORTS
+// ==========================================
+
+export const exportDailyShipmentsReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { from, to, format = 'pdf' } = req.query;
+    
+    if (!from || !to) {
+      res.status(400).json({ error: "Date range (from/to) parameters are required" });
+      return;
+    }
+    
+    // Fetch data for the date range
+    const startDate = new Date(from as string);
+    const endDate = new Date(to as string);
+    
+    const data = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const dailyReport = await storage.getDailyShipmentsReport(new Date(currentDate));
+      data.push(dailyReport);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Generate export based on format
+    await generateExportFile(res, {
+      data,
+      filename: `daily-shipments-${startDate.toISOString().split('T')[0]}-to-${endDate.toISOString().split('T')[0]}`,
+      format: format as string,
+      title: 'Daily Shipments Report',
+      type: 'daily'
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to export daily shipments report" });
+  }
+};
+
+export const exportVendorPerformanceReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { from, to, format = 'pdf' } = req.query;
+    
+    if (!from || !to) {
+      res.status(400).json({ error: "Date range (from/to) parameters are required" });
+      return;
+    }
+    
+    // Fetch vendor performance data
+    const data = await storage.getVendorPerformanceReport();
+    
+    await generateExportFile(res, {
+      data: Array.isArray(data) ? data : [data],
+      filename: `vendor-performance-${new Date(from as string).toISOString().split('T')[0]}-to-${new Date(to as string).toISOString().split('T')[0]}`,
+      format: format as string,
+      title: 'Vendor Performance Report',
+      type: 'vendor-performance'
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to export vendor performance report" });
+  }
+};
+
+export const exportVolumeReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { from, to, format = 'pdf' } = req.query;
+    
+    if (!from || !to) {
+      res.status(400).json({ error: "Date range (from/to) parameters are required" });
+      return;
+    }
+    
+    const data = await storage.getShipmentVolumeMetrics();
+    
+    await generateExportFile(res, {
+      data: Array.isArray(data) ? data : [data],
+      filename: `volume-report-${new Date(from as string).toISOString().split('T')[0]}-to-${new Date(to as string).toISOString().split('T')[0]}`,
+      format: format as string,
+      title: 'Shipment Volume Report',
+      type: 'volume'
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to export volume report" });
+  }
+};
+
+export const exportPerformanceReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { from, to, format = 'pdf' } = req.query;
+    
+    if (!from || !to) {
+      res.status(400).json({ error: "Date range (from/to) parameters are required" });
+      return;
+    }
+    
+    const data = await storage.getDeliveryPerformanceMetrics();
+    
+    await generateExportFile(res, {
+      data: Array.isArray(data) ? data : [data],
+      filename: `performance-report-${new Date(from as string).toISOString().split('T')[0]}-to-${new Date(to as string).toISOString().split('T')[0]}`,
+      format: format as string,
+      title: 'Delivery Performance Report',
+      type: 'performance'
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to export performance report" });
+  }
+};
+
+export const exportComprehensiveReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { from, to, format = 'pdf' } = req.query;
+    
+    if (!from || !to) {
+      res.status(400).json({ error: "Date range (from/to) parameters are required" });
+      return;
+    }
+    
+    // Fetch all report data for comprehensive export
+    const [dashboardMetrics, volumeMetrics, performanceMetrics, vendorPerformance] = await Promise.all([
+      storage.getLogisticsDashboardMetrics(),
+      storage.getShipmentVolumeMetrics(),
+      storage.getDeliveryPerformanceMetrics(),
+      storage.getVendorPerformanceReport()
+    ]);
+    
+    const data = {
+      dashboardMetrics,
+      volumeMetrics,
+      performanceMetrics,
+      vendorPerformance,
+      generatedAt: new Date().toISOString(),
+      dateRange: { from, to }
+    };
+    
+    await generateExportFile(res, {
+      data,
+      filename: `comprehensive-logistics-report-${new Date(from as string).toISOString().split('T')[0]}-to-${new Date(to as string).toISOString().split('T')[0]}`,
+      format: format as string,
+      title: 'Comprehensive Logistics Report',
+      type: 'comprehensive'
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to export comprehensive report" });
+  }
+};
+
+// Helper function to generate export files
+async function generateExportFile(res: Response, options: {
+  data: any;
+  filename: string;
+  format: string;
+  title: string;
+  type: string;
+}): Promise<void> {
+  const { data, filename, format, title, type } = options;
+  
+  try {
+    switch (format.toLowerCase()) {
+      case 'csv':
+        await generateCSVExport(res, data, filename, title);
+        break;
+      case 'xlsx':
+        await generateXLSXExport(res, data, filename, title);
+        break;
+      case 'pdf':
+      default:
+        await generatePDFExport(res, data, filename, title, type);
+        break;
+    }
+  } catch (error) {
+    console.error('Export generation error:', error);
+    res.status(500).json({ error: "Failed to generate export file" });
+  }
+}
+
+async function generateCSVExport(res: Response, data: any, filename: string, title: string): Promise<void> {
+  const csvContent = convertToCSV(data);
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+  res.send(csvContent);
+}
+
+async function generateXLSXExport(res: Response, data: any, filename: string, title: string): Promise<void> {
+  // Create workbook and worksheet
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(Array.isArray(data) ? data : [data]);
+  
+  XLSX.utils.book_append_sheet(workbook, worksheet, title);
+  
+  // Generate buffer
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+  res.send(buffer);
+}
+
+async function generatePDFExport(res: Response, data: any, filename: string, title: string, type: string): Promise<void> {
+  const doc = new jsPDF();
+  
+  // Add title
+  doc.setFontSize(20);
+  doc.text(title, 20, 20);
+  
+  // Add generation date
+  doc.setFontSize(12);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 35);
+  
+  // Add content based on type
+  let yPosition = 50;
+  
+  if (type === 'comprehensive') {
+    // Handle comprehensive report
+    doc.setFontSize(14);
+    doc.text('Dashboard Metrics', 20, yPosition);
+    yPosition += 20;
+    
+    if (data.dashboardMetrics) {
+      const metrics = data.dashboardMetrics;
+      doc.setFontSize(10);
+      doc.text(`Total Shipments: ${metrics.totalShipments || 0}`, 20, yPosition);
+      doc.text(`Delivered: ${metrics.deliveredShipments || 0}`, 20, yPosition + 10);
+      doc.text(`Pending: ${metrics.pendingShipments || 0}`, 20, yPosition + 20);
+      doc.text(`Overdue: ${metrics.overdueShipments || 0}`, 20, yPosition + 30);
+      yPosition += 50;
+    }
+  } else {
+    // Handle other report types
+    doc.setFontSize(10);
+    const content = Array.isArray(data) ? data : [data];
+    
+    content.forEach((item, index) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      const itemText = JSON.stringify(item, null, 2);
+      const lines = itemText.split('\n');
+      
+      lines.forEach((line) => {
+        if (yPosition > 280) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(line.substring(0, 80), 20, yPosition);
+        yPosition += 5;
+      });
+      
+      yPosition += 10;
+    });
+  }
+  
+  // Generate PDF buffer
+  const pdfBuffer = doc.output('arraybuffer');
+  
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+  res.send(Buffer.from(pdfBuffer));
+}
+
+function convertToCSV(data: any): string {
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    return '';
+  }
+  
+  const items = Array.isArray(data) ? data : [data];
+  
+  if (items.length === 0) return '';
+  
+  // Get headers from first item
+  const headers = Object.keys(items[0]);
+  
+  // Create CSV content
+  let csv = headers.join(',') + '\n';
+  
+  items.forEach(item => {
+    const row = headers.map(header => {
+      let value = item[header];
+      if (value === null || value === undefined) {
+        value = '';
+      } else if (typeof value === 'object') {
+        value = JSON.stringify(value);
+      } else {
+        value = value.toString();
+      }
+      
+      // Escape quotes and wrap in quotes if contains comma or quotes
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        value = '"' + value.replace(/"/g, '""') + '"';
+      }
+      
+      return value;
+    });
+    
+    csv += row.join(',') + '\n';
+  });
+  
+  return csv;
+}
+
+// ==========================================
 // POD UPLOAD HANDLER
 // ==========================================
 
@@ -1201,7 +1506,7 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
     { method: 'put', path: '/api/logistics/attendance/:id/photo', middlewares: ['requireAuth'], handler: updateAttendancePhoto },
     
     // ==========================================
-    // REPORTS & ANALYTICS ROUTES (6 routes)
+    // REPORTS & ANALYTICS ROUTES (11 routes)
     // ==========================================
     { method: 'get', path: '/api/logistics/dashboard', middlewares: ['requireAuth'], handler: getLogisticsDashboardMetrics },
     { method: 'get', path: '/api/logistics/reports/daily', middlewares: ['requireAuth'], handler: getDailyShipmentsReport },
@@ -1209,6 +1514,13 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
     { method: 'get', path: '/api/logistics/reports/vendor-performance', middlewares: ['requireAuth'], handler: getVendorPerformanceReport },
     { method: 'get', path: '/api/logistics/reports/volume', middlewares: ['requireAuth'], handler: getShipmentVolumeMetrics },
     { method: 'get', path: '/api/logistics/reports/performance', middlewares: ['requireAuth'], handler: getDeliveryPerformanceMetrics },
+    
+    // Export routes
+    { method: 'get', path: '/api/logistics/reports/daily/export', middlewares: ['requireAuth'], handler: exportDailyShipmentsReport },
+    { method: 'get', path: '/api/logistics/reports/vendor-performance/export', middlewares: ['requireAuth'], handler: exportVendorPerformanceReport },
+    { method: 'get', path: '/api/logistics/reports/volume/export', middlewares: ['requireAuth'], handler: exportVolumeReport },
+    { method: 'get', path: '/api/logistics/reports/performance/export', middlewares: ['requireAuth'], handler: exportPerformanceReport },
+    { method: 'get', path: '/api/logistics/reports/comprehensive/export', middlewares: ['requireAuth'], handler: exportComprehensiveReport },
 
     // ==========================================
     // HEALTH ENDPOINT (1 route)
@@ -1249,7 +1561,7 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
   }
 
   // Logistics route count verification
-  const EXPECTED_LOGISTICS_ROUTE_COUNT = 38;
+  const EXPECTED_LOGISTICS_ROUTE_COUNT = 43;
   if (logisticsRoutes.length !== EXPECTED_LOGISTICS_ROUTE_COUNT) {
     console.warn(`⚠️  Logistics route count mismatch: Expected ${EXPECTED_LOGISTICS_ROUTE_COUNT}, found ${logisticsRoutes.length}`);
   }
