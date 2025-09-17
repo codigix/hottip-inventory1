@@ -291,7 +291,20 @@ export const convertLead = async (req: AuthenticatedRequest, res: Response): Pro
 
 export const getLeadMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const metrics = await storage.getLeadsConversionMetrics();
+    // SECURITY: Apply user-based scoping for metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all lead metrics
+    } else {
+      // Regular employees can only see metrics for their own leads
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserLeads: true
+      };
+    }
+    
+    const metrics = await storage.getLeadsConversionMetrics(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch leads metrics" });
@@ -309,7 +322,21 @@ export const searchLeads = async (req: AuthenticatedRequest, res: Response): Pro
       res.status(400).json({ error: "Search query must be at least 2 characters long" });
       return;
     }
-    const leads = await storage.searchLeads(query);
+    
+    // SECURITY: Apply user-based scoping for search results
+    const searchOptions: any = { query: query.trim() };
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can search all leads
+    } else {
+      // Regular employees can only search leads they created or are assigned to
+      searchOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserLeads: true
+      };
+    }
+    
+    const leads = await storage.searchLeads(searchOptions);
     res.json(leads);
   } catch (error) {
     res.status(500).json({ error: "Failed to search leads" });
@@ -323,15 +350,40 @@ export const searchLeads = async (req: AuthenticatedRequest, res: Response): Pro
 export const getFieldVisits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = fieldVisitFilterSchema.parse(req.query);
-    let visits;
-    const hasFilters = Object.values(filters).some(value => value !== undefined);
     
-    if (hasFilters) {
-      // Note: Using getFieldVisits() for now - filtering can be added later
-      visits = await storage.getFieldVisits();
-    } else {
-      visits = await storage.getFieldVisits();
+    // Convert query parameters to filter object
+    const filterObject: any = {};
+    
+    if (filters.status && filters.status !== 'all') {
+      filterObject.status = filters.status;
     }
+    
+    if (filters.assignedTo && filters.assignedTo !== 'all') {
+      filterObject.assignedTo = filters.assignedTo;
+    }
+    
+    if (filters.leadId) {
+      filterObject.leadId = filters.leadId;
+    }
+    
+    if (filters.startDate && filters.endDate) {
+      filterObject.startDate = filters.startDate;
+      filterObject.endDate = filters.endDate;
+    }
+
+    // SECURITY: Apply user-based scoping based on role
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all field visits
+    } else {
+      // Regular employees can only see field visits they created or are assigned to
+      filterObject.userScope = {
+        userId: req.user!.id,
+        showOnlyUserVisits: true
+      };
+    }
+
+    // Apply filters and get field visits
+    const visits = await storage.getFieldVisits(Object.keys(filterObject).length > 0 ? filterObject : undefined);
     
     res.json(visits);
   } catch (error) {
@@ -591,7 +643,20 @@ export const updateFieldVisitStatus = async (req: AuthenticatedRequest, res: Res
 
 export const getTodayFieldVisits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const visits = await storage.getTodayFieldVisits();
+    // SECURITY: Apply user-based scoping for today's field visits
+    const filterOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all today's field visits
+    } else {
+      // Regular employees can only see their own today's field visits
+      filterOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserVisits: true
+      };
+    }
+    
+    const visits = await storage.getTodayFieldVisits(Object.keys(filterOptions).length > 0 ? filterOptions : undefined);
     res.json(visits);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch today's field visits" });
@@ -600,7 +665,20 @@ export const getTodayFieldVisits = async (req: AuthenticatedRequest, res: Respon
 
 export const getFieldVisitMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const metrics = await storage.getVisitMetrics();
+    // SECURITY: Apply user-based scoping for field visit metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all field visit metrics
+    } else {
+      // Regular employees can only see metrics for their own field visits
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserVisits: true
+      };
+    }
+    
+    const metrics = await storage.getVisitMetrics(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch field visit metrics" });
@@ -614,15 +692,43 @@ export const getFieldVisitMetrics = async (req: AuthenticatedRequest, res: Respo
 export const getMarketingTasks = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const filters = marketingTaskFilterSchema.parse(req.query);
-    let tasks;
-    const hasFilters = Object.values(filters).some(value => value !== undefined);
     
-    if (hasFilters) {
-      // Note: Using getMarketingTasks() for now - filtering can be added later
-      tasks = await storage.getMarketingTasks();
-    } else {
-      tasks = await storage.getMarketingTasks();
+    // Convert query parameters to filter object
+    const filterObject: any = {};
+    
+    if (filters.status && filters.status !== 'all') {
+      filterObject.status = filters.status;
     }
+    
+    if (filters.type && filters.type !== 'all') {
+      filterObject.type = filters.type;
+    }
+    
+    if (filters.priority && filters.priority !== 'all') {
+      filterObject.priority = filters.priority;
+    }
+    
+    if (filters.assignedTo && filters.assignedTo !== 'all') {
+      filterObject.assignedTo = filters.assignedTo;
+    }
+    
+    if (filters.leadId) {
+      filterObject.leadId = filters.leadId;
+    }
+
+    // SECURITY: Apply user-based scoping based on role
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all marketing tasks
+    } else {
+      // Regular employees can only see marketing tasks they created or are assigned to
+      filterObject.userScope = {
+        userId: req.user!.id,
+        showOnlyUserTasks: true
+      };
+    }
+
+    // Apply filters and get marketing tasks
+    const tasks = await storage.getMarketingTasks(Object.keys(filterObject).length > 0 ? filterObject : undefined);
     
     res.json(tasks);
   } catch (error) {
@@ -812,7 +918,20 @@ export const completeMarketingTask = async (req: AuthenticatedRequest, res: Resp
 
 export const getTodayMarketingTasks = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const tasks = await storage.getTodayMarketingTasks();
+    // SECURITY: Apply user-based scoping for today's marketing tasks
+    const filterOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all today's marketing tasks
+    } else {
+      // Regular employees can only see their own today's marketing tasks
+      filterOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserTasks: true
+      };
+    }
+    
+    const tasks = await storage.getTodayMarketingTasks(Object.keys(filterOptions).length > 0 ? filterOptions : undefined);
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch today's marketing tasks" });
@@ -821,8 +940,20 @@ export const getTodayMarketingTasks = async (req: AuthenticatedRequest, res: Res
 
 export const getMarketingTaskMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    // Note: Implement getTaskCompletionMetrics in storage or use basic metrics
-    const metrics = { completed: 0, pending: 0, in_progress: 0 };
+    // SECURITY: Apply user-based scoping for marketing task metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all marketing task metrics
+    } else {
+      // Regular employees can only see metrics for their own marketing tasks
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserTasks: true
+      };
+    }
+    
+    const metrics = await storage.getTaskMetrics(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch marketing task metrics" });
@@ -835,7 +966,33 @@ export const getMarketingTaskMetrics = async (req: AuthenticatedRequest, res: Re
 
 export const getMarketingAttendances = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const attendance = await storage.getMarketingAttendances();
+    // Convert query parameters to filter object  
+    const filterObject: any = {};
+    
+    // Parse query parameters for filtering
+    if (req.query.userId && req.query.userId !== 'all') {
+      filterObject.userId = req.query.userId as string;
+    }
+    
+    if (req.query.startDate && req.query.endDate) {
+      filterObject.startDate = req.query.startDate as string;
+      filterObject.endDate = req.query.endDate as string;
+    }
+
+    // SECURITY: Apply user-based scoping based on role
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all marketing attendance
+    } else {
+      // Regular employees can only see their own attendance records
+      filterObject.userScope = {
+        userId: req.user!.id,
+        showOnlyUserAttendance: true
+      };
+    }
+
+    // Apply filters and get marketing attendance
+    const attendance = await storage.getMarketingAttendances(Object.keys(filterObject).length > 0 ? filterObject : undefined);
+    
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch marketing attendance" });
@@ -951,7 +1108,20 @@ export const checkOutMarketingAttendance = async (req: AuthenticatedRequest, res
 
 export const getTodayMarketingAttendance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const attendance = await storage.getTodayMarketingAttendance();
+    // SECURITY: Apply user-based scoping for today's marketing attendance
+    const filterOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all today's marketing attendance
+    } else {
+      // Regular employees can only see their own today's marketing attendance
+      filterOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserAttendance: true
+      };
+    }
+    
+    const attendance = await storage.getTodayMarketingAttendance(Object.keys(filterOptions).length > 0 ? filterOptions : undefined);
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch today's attendance" });
@@ -960,7 +1130,20 @@ export const getTodayMarketingAttendance = async (req: AuthenticatedRequest, res
 
 export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const metrics = await storage.getMarketingAttendanceMetrics();
+    // SECURITY: Apply user-based scoping for marketing attendance metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all marketing attendance metrics
+    } else {
+      // Regular employees can only see metrics for their own marketing attendance
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserAttendance: true
+      };
+    }
+    
+    const metrics = await storage.getMarketingAttendanceMetrics(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch attendance metrics" });
@@ -973,7 +1156,20 @@ export const getMarketingAttendanceMetrics = async (req: AuthenticatedRequest, r
 
 export const getMarketingDashboard = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const dashboard = await storage.getMarketingDashboardMetrics();
+    // SECURITY: Apply user-based scoping for marketing dashboard metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all marketing dashboard metrics
+    } else {
+      // Regular employees can only see dashboard metrics for their own data
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserData: true
+      };
+    }
+    
+    const dashboard = await storage.getMarketingDashboardMetrics(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(dashboard);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch marketing dashboard metrics" });
@@ -982,7 +1178,20 @@ export const getMarketingDashboard = async (req: AuthenticatedRequest, res: Resp
 
 export const getMarketingConversionRates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const conversionRates = await storage.getLeadConversionRates();
+    // SECURITY: Apply user-based scoping for lead conversion rates
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all lead conversion rates
+    } else {
+      // Regular employees can only see conversion rates for their own leads
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserLeads: true
+      };
+    }
+    
+    const conversionRates = await storage.getLeadConversionRates(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(conversionRates);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch conversion rates" });
@@ -991,7 +1200,20 @@ export const getMarketingConversionRates = async (req: AuthenticatedRequest, res
 
 export const getMarketingTeamPerformance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const teamPerformance = await storage.getMarketingTeamPerformance();
+    // SECURITY: Apply user-based scoping for team performance metrics
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all team performance metrics
+    } else {
+      // Regular employees can only see their own performance metrics
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserData: true
+      };
+    }
+    
+    const teamPerformance = await storage.getMarketingTeamPerformance(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(teamPerformance);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch team performance metrics" });
@@ -1000,7 +1222,20 @@ export const getMarketingTeamPerformance = async (req: AuthenticatedRequest, res
 
 export const getMarketingVisitSuccessRates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const successRates = await storage.getVisitSuccessRates();
+    // SECURITY: Apply user-based scoping for visit success rates
+    const metricsOptions: any = {};
+    
+    if (req.user!.role === 'admin' || req.user!.role === 'manager') {
+      // Admins and managers can see all visit success rates
+    } else {
+      // Regular employees can only see success rates for their own visits
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserVisits: true
+      };
+    }
+    
+    const successRates = await storage.getVisitSuccessRates(Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined);
     res.json(successRates);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch visit success rates" });

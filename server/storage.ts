@@ -358,14 +358,14 @@ export interface IStorage {
   getLeadsByPriority(priority: string): Promise<any[]>;
   updateLeadStatus(id: string, status: string): Promise<Lead>;
   convertLeadToCustomer(leadId: string): Promise<Customer>;
-  getLeadsConversionMetrics(): Promise<any>;
-  searchLeads(query: string): Promise<any[]>;
+  getLeadsConversionMetrics(options?: any): Promise<any>;
+  searchLeads(options: any): Promise<any[]>;
   getLeadsByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
   getActiveLeads(): Promise<any[]>;
 
   // Field Visits
   getFieldVisit(id: string): Promise<any>;
-  getFieldVisits(): Promise<any[]>;
+  getFieldVisits(filters?: any): Promise<any[]>;
   createFieldVisit(visit: InsertFieldVisit): Promise<FieldVisit>;
   updateFieldVisit(id: string, visit: Partial<InsertFieldVisit>): Promise<FieldVisit>;
   deleteFieldVisit(id: string): Promise<void>;
@@ -374,15 +374,15 @@ export interface IStorage {
   getFieldVisitsByStatus(status: string): Promise<any[]>;
   getFieldVisitsByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
   updateVisitStatus(id: string, status: string): Promise<FieldVisit>;
-  getTodayFieldVisits(): Promise<any[]>;
+  getTodayFieldVisits(options?: any): Promise<any[]>;
   getUpcomingFieldVisits(): Promise<any[]>;
-  getVisitMetrics(): Promise<any>;
+  getVisitMetrics(options?: any): Promise<any>;
   checkInFieldVisit(id: string, checkInData: any): Promise<FieldVisit>;
   checkOutFieldVisit(id: string, checkOutData: any): Promise<FieldVisit>;
 
   // Marketing Tasks
   getMarketingTask(id: string): Promise<any>;
-  getMarketingTasks(): Promise<any[]>;
+  getMarketingTasks(filters?: any): Promise<any[]>;
   createMarketingTask(task: InsertMarketingTask): Promise<MarketingTask>;
   updateMarketingTask(id: string, task: Partial<InsertMarketingTask>): Promise<MarketingTask>;
   deleteMarketingTask(id: string): Promise<void>;
@@ -392,33 +392,33 @@ export interface IStorage {
   getMarketingTasksByPriority(priority: string): Promise<any[]>;
   getMarketingTasksByLead(leadId: string): Promise<any[]>;
   updateTaskStatus(id: string, status: string): Promise<MarketingTask>;
-  getTodayMarketingTasks(): Promise<any[]>;
+  getTodayMarketingTasks(options?: any): Promise<any[]>;
   getOverdueMarketingTasks(): Promise<any[]>;
-  getTaskMetrics(): Promise<any>;
+  getTaskMetrics(options?: any): Promise<any>;
   completeMarketingTask(id: string, completionData: any): Promise<MarketingTask>;
 
   // Marketing Attendance
   getMarketingAttendance(id: string): Promise<any>;
-  getMarketingAttendances(): Promise<any[]>;
+  getMarketingAttendances(filters?: any): Promise<any[]>;
   createMarketingAttendance(attendance: InsertMarketingAttendance): Promise<MarketingAttendance>;
   updateMarketingAttendance(id: string, attendance: Partial<InsertMarketingAttendance>): Promise<MarketingAttendance>;
   deleteMarketingAttendance(id: string): Promise<void>;
   getMarketingAttendanceByEmployee(userId: string): Promise<any[]>;
   getMarketingAttendanceByDate(date: Date): Promise<any[]>;
   getMarketingAttendanceByDateRange(startDate: Date, endDate: Date): Promise<any[]>;
-  getTodayMarketingAttendance(): Promise<any[]>;
+  getTodayMarketingAttendance(options?: any): Promise<any[]>;
   checkInMarketingAttendance(userId: string, checkInData: any): Promise<MarketingAttendance>;
   checkOutMarketingAttendance(userId: string, checkOutData: any): Promise<MarketingAttendance>;
-  getMarketingAttendanceMetrics(): Promise<any>;
+  getMarketingAttendanceMetrics(options?: any): Promise<any>;
   getEmployeeAttendanceHistory(userId: string, filters: any): Promise<any[]>;
   updateAttendanceStatus(id: string, status: string): Promise<MarketingAttendance>;
   getMarketingTeamAttendanceSummary(): Promise<any>;
 
   // Marketing Analytics
-  getMarketingDashboardMetrics(): Promise<any>;
-  getLeadConversionRates(): Promise<any>;
-  getMarketingTeamPerformance(): Promise<any>;
-  getVisitSuccessRates(): Promise<any>;
+  getMarketingDashboardMetrics(options?: any): Promise<any>;
+  getLeadConversionRates(options?: any): Promise<any>;
+  getMarketingTeamPerformance(options?: any): Promise<any>;
+  getVisitSuccessRates(options?: any): Promise<any>;
 
   // ===== LOGISTICS MODULE =====
   
@@ -3082,10 +3082,24 @@ export class DatabaseStorage implements IStorage {
     return customer;
   }
 
-  async getLeadsConversionMetrics(): Promise<any> {
-    const totalLeads = await db.select({ count: count() }).from(leads);
-    const convertedLeads = await db.select({ count: count() }).from(leads).where(eq(leads.status, 'converted'));
-    const activeLeads = await db.select({ count: count() }).from(leads).where(eq(leads.isActive, true));
+  async getLeadsConversionMetrics(options?: any): Promise<any> {
+    // SECURITY: Apply user-based scoping for lead metrics
+    let whereConditions: any[] = [];
+    
+    if (options?.userScope?.showOnlyUserLeads) {
+      whereConditions.push(
+        sql`(${leads.createdBy} = ${options.userScope.userId} OR ${leads.assignedTo} = ${options.userScope.userId})`
+      );
+    }
+    
+    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    
+    const totalLeads = await db.select({ count: count() }).from(leads)
+      .where(baseWhere);
+    const convertedLeads = await db.select({ count: count() }).from(leads)
+      .where(baseWhere ? and(baseWhere, eq(leads.status, 'converted')) : eq(leads.status, 'converted'));
+    const activeLeads = await db.select({ count: count() }).from(leads)
+      .where(baseWhere ? and(baseWhere, eq(leads.isActive, true)) : eq(leads.isActive, true));
     
     const conversionRate = totalLeads[0]?.count ? 
       ((convertedLeads[0]?.count || 0) / totalLeads[0].count * 100) : 0;
@@ -3098,18 +3112,30 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async searchLeads(query: string): Promise<any[]> {
+  async searchLeads(options: any): Promise<any[]> {
+    const query = options.query || options; // Support both new format and legacy string format
+    
+    // Base search conditions
+    let whereConditions = [
+      sql`${leads.firstName} ILIKE ${`%${query}%`} OR 
+          ${leads.lastName} ILIKE ${`%${query}%`} OR 
+          ${leads.companyName} ILIKE ${`%${query}%`} OR 
+          ${leads.email} ILIKE ${`%${query}%`} OR 
+          ${leads.phone} ILIKE ${`%${query}%`}`
+    ];
+    
+    // SECURITY: Apply user-based scoping for search results
+    if (options.userScope?.showOnlyUserLeads) {
+      whereConditions.push(
+        sql`(${leads.createdBy} = ${options.userScope.userId} OR ${leads.assignedTo} = ${options.userScope.userId})`
+      );
+    }
+    
     const leadsData = await db
       .select()
       .from(leads)
       .leftJoin(users, eq(leads.assignedTo, users.id))
-      .where(
-        sql`${leads.firstName} ILIKE ${`%${query}%`} OR 
-            ${leads.lastName} ILIKE ${`%${query}%`} OR 
-            ${leads.companyName} ILIKE ${`%${query}%`} OR 
-            ${leads.email} ILIKE ${`%${query}%`} OR 
-            ${leads.phone} ILIKE ${`%${query}%`}`
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(leads.createdAt));
 
     return leadsData.map(l => ({
@@ -3170,13 +3196,43 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getFieldVisits(): Promise<any[]> {
-    const visitsData = await db
+  async getFieldVisits(filters?: any): Promise<any[]> {
+    let query = db
       .select()
       .from(fieldVisits)
       .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
-      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
-      .orderBy(desc(fieldVisits.createdAt));
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id));
+
+    // Apply filters if provided
+    if (filters) {
+      const conditions = [];
+      
+      // SECURITY: Handle userScope for authorization
+      if (filters.userScope && filters.userScope.showOnlyUserVisits) {
+        // For non-admin users, only show visits they created OR are assigned to
+        conditions.push(
+          sql`(${fieldVisits.createdBy} = ${filters.userScope.userId} OR ${fieldVisits.assignedTo} = ${filters.userScope.userId})`
+        );
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(fieldVisits.status, filters.status));
+      }
+      
+      if (filters.assignedTo) {
+        conditions.push(eq(fieldVisits.assignedTo, filters.assignedTo));
+      }
+      
+      if (filters.leadId) {
+        conditions.push(eq(fieldVisits.leadId, filters.leadId));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+
+    const visitsData = await query.orderBy(desc(fieldVisits.createdAt));
 
     return visitsData.map(v => ({
       ...v.field_visits,
@@ -3286,21 +3342,31 @@ export class DatabaseStorage implements IStorage {
     return visit;
   }
 
-  async getTodayFieldVisits(): Promise<any[]> {
+  async getTodayFieldVisits(options?: any): Promise<any[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Base date conditions
+    let whereConditions = [
+      gte(fieldVisits.plannedDate, today),
+      lt(fieldVisits.plannedDate, tomorrow)
+    ];
+    
+    // SECURITY: Apply user-based scoping for today's field visits
+    if (options?.userScope?.showOnlyUserVisits) {
+      whereConditions.push(
+        sql`(${fieldVisits.createdBy} = ${options.userScope.userId} OR ${fieldVisits.assignedTo} = ${options.userScope.userId})`
+      );
+    }
 
     const visitsData = await db
       .select()
       .from(fieldVisits)
       .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
       .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
-      .where(and(
-        gte(fieldVisits.plannedDate, today),
-        lt(fieldVisits.plannedDate, tomorrow)
-      ))
+      .where(and(...whereConditions))
       .orderBy(fieldVisits.plannedStartTime);
 
     return visitsData.map(v => ({
@@ -3332,10 +3398,23 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getVisitMetrics(): Promise<any> {
-    const totalVisits = await db.select({ count: count() }).from(fieldVisits);
-    const completedVisits = await db.select({ count: count() }).from(fieldVisits).where(eq(fieldVisits.status, 'completed'));
-    const todayVisits = await this.getTodayFieldVisits();
+  async getVisitMetrics(options?: any): Promise<any> {
+    // SECURITY: Apply user-based scoping for field visit metrics
+    let whereConditions: any[] = [];
+    
+    if (options?.userScope?.showOnlyUserVisits) {
+      whereConditions.push(
+        sql`(${fieldVisits.createdBy} = ${options.userScope.userId} OR ${fieldVisits.assignedTo} = ${options.userScope.userId})`
+      );
+    }
+    
+    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    
+    const totalVisits = await db.select({ count: count() }).from(fieldVisits)
+      .where(baseWhere);
+    const completedVisits = await db.select({ count: count() }).from(fieldVisits)
+      .where(baseWhere ? and(baseWhere, eq(fieldVisits.status, 'completed')) : eq(fieldVisits.status, 'completed'));
+    const todayVisits = await this.getTodayFieldVisits(options);
     
     const successRate = totalVisits[0]?.count ? 
       ((completedVisits[0]?.count || 0) / totalVisits[0].count * 100) : 0;
@@ -3406,15 +3485,53 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMarketingTasks(): Promise<any[]> {
-    const tasksData = await db
+  async getMarketingTasks(filters?: any): Promise<any[]> {
+    let query = db
       .select()
       .from(marketingTasks)
       .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
       .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
       .leftJoin(fieldVisits, eq(marketingTasks.fieldVisitId, fieldVisits.id))
-      .leftJoin(customers, eq(marketingTasks.customerId, customers.id))
-      .orderBy(desc(marketingTasks.createdAt));
+      .leftJoin(customers, eq(marketingTasks.customerId, customers.id));
+
+    // Apply filters if provided
+    if (filters) {
+      const conditions = [];
+      
+      // SECURITY: Handle userScope for authorization
+      if (filters.userScope && filters.userScope.showOnlyUserTasks) {
+        // For non-admin users, only show tasks they created OR are assigned to
+        conditions.push(
+          sql`(${marketingTasks.createdBy} = ${filters.userScope.userId} OR ${marketingTasks.assignedTo} = ${filters.userScope.userId})`
+        );
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(marketingTasks.status, filters.status));
+      }
+      
+      if (filters.type) {
+        conditions.push(eq(marketingTasks.type, filters.type));
+      }
+      
+      if (filters.priority) {
+        conditions.push(eq(marketingTasks.priority, filters.priority));
+      }
+      
+      if (filters.assignedTo) {
+        conditions.push(eq(marketingTasks.assignedTo, filters.assignedTo));
+      }
+      
+      if (filters.leadId) {
+        conditions.push(eq(marketingTasks.leadId, filters.leadId));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+
+    const tasksData = await query.orderBy(desc(marketingTasks.createdAt));
 
     return tasksData.map(t => ({
       ...t.marketing_tasks,
@@ -3547,21 +3664,31 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
-  async getTodayMarketingTasks(): Promise<any[]> {
+  async getTodayMarketingTasks(options?: any): Promise<any[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Base date conditions
+    let whereConditions = [
+      gte(marketingTasks.dueDate, today),
+      lt(marketingTasks.dueDate, tomorrow)
+    ];
+    
+    // SECURITY: Apply user-based scoping for today's marketing tasks
+    if (options?.userScope?.showOnlyUserTasks) {
+      whereConditions.push(
+        sql`(${marketingTasks.createdBy} = ${options.userScope.userId} OR ${marketingTasks.assignedTo} = ${options.userScope.userId})`
+      );
+    }
 
     const tasksData = await db
       .select()
       .from(marketingTasks)
       .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
       .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
-      .where(and(
-        gte(marketingTasks.dueDate, today),
-        lt(marketingTasks.dueDate, tomorrow)
-      ))
+      .where(and(...whereConditions))
       .orderBy(marketingTasks.dueDate);
 
     return tasksData.map(t => ({
@@ -3592,11 +3719,24 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getTaskMetrics(): Promise<any> {
-    const totalTasks = await db.select({ count: count() }).from(marketingTasks);
-    const completedTasks = await db.select({ count: count() }).from(marketingTasks).where(eq(marketingTasks.status, 'completed'));
+  async getTaskMetrics(options?: any): Promise<any> {
+    // SECURITY: Apply user-based scoping for marketing task metrics
+    let whereConditions: any[] = [];
+    
+    if (options?.userScope?.showOnlyUserTasks) {
+      whereConditions.push(
+        sql`(${marketingTasks.createdBy} = ${options.userScope.userId} OR ${marketingTasks.assignedTo} = ${options.userScope.userId})`
+      );
+    }
+    
+    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    
+    const totalTasks = await db.select({ count: count() }).from(marketingTasks)
+      .where(baseWhere);
+    const completedTasks = await db.select({ count: count() }).from(marketingTasks)
+      .where(baseWhere ? and(baseWhere, eq(marketingTasks.status, 'completed')) : eq(marketingTasks.status, 'completed'));
     const overdueTasks = await this.getOverdueMarketingTasks();
-    const todayTasks = await this.getTodayMarketingTasks();
+    const todayTasks = await this.getTodayMarketingTasks(options);
     
     const completionRate = totalTasks[0]?.count ? 
       ((completedTasks[0]?.count || 0) / totalTasks[0].count * 100) : 0;
@@ -3643,12 +3783,41 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMarketingAttendances(): Promise<any[]> {
-    const attendanceData = await db
+  async getMarketingAttendances(filters?: any): Promise<any[]> {
+    let query = db
       .select()
       .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .orderBy(desc(marketingAttendance.date));
+      .leftJoin(users, eq(marketingAttendance.userId, users.id));
+
+    // Apply filters if provided
+    if (filters) {
+      const conditions = [];
+      
+      // SECURITY: Handle userScope for authorization
+      if (filters.userScope && filters.userScope.showOnlyUserAttendance) {
+        // For non-admin users, only show their own attendance records
+        conditions.push(eq(marketingAttendance.userId, filters.userScope.userId));
+      }
+      
+      if (filters.userId) {
+        conditions.push(eq(marketingAttendance.userId, filters.userId));
+      }
+      
+      if (filters.startDate && filters.endDate) {
+        conditions.push(
+          and(
+            gte(marketingAttendance.date, new Date(filters.startDate)),
+            lte(marketingAttendance.date, new Date(filters.endDate))
+          )
+        );
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+
+    const attendanceData = await query.orderBy(desc(marketingAttendance.date));
 
     return attendanceData.map(a => ({
       ...a.marketing_attendance,
@@ -3747,8 +3916,33 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getTodayMarketingAttendance(): Promise<any[]> {
+  async getTodayMarketingAttendance(options?: any): Promise<any[]> {
     const today = new Date();
+    
+    // SECURITY: Apply user-based scoping for today's marketing attendance
+    if (options?.userScope?.showOnlyUserAttendance) {
+      const todayStart = new Date(today);
+      todayStart.setHours(0, 0, 0, 0);
+      const tomorrowStart = new Date(todayStart);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+      
+      const attendanceData = await db
+        .select()
+        .from(marketingAttendance)
+        .leftJoin(users, eq(marketingAttendance.userId, users.id))
+        .where(and(
+          eq(marketingAttendance.userId, options.userScope.userId),
+          gte(marketingAttendance.date, todayStart),
+          lt(marketingAttendance.date, tomorrowStart)
+        ))
+        .orderBy(desc(marketingAttendance.date));
+        
+      return attendanceData.map(a => ({
+        ...a.marketing_attendance,
+        user: a.users
+      }));
+    }
+    
     return await this.getMarketingAttendanceByDate(today);
   }
 
@@ -4124,7 +4318,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // MARKETING ANALYTICS AND DASHBOARD METHODS
-  async getMarketingDashboardMetrics(): Promise<any> {
+  async getMarketingDashboardMetrics(options?: any): Promise<any> {
     const today = new Date();
     const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const thisWeekStart = new Date(today);
@@ -4200,7 +4394,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getLeadConversionRates(): Promise<any> {
+  async getLeadConversionRates(options?: any): Promise<any> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -4276,7 +4470,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMarketingTeamPerformance(): Promise<any> {
+  async getMarketingTeamPerformance(options?: any): Promise<any> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -4370,7 +4564,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getVisitSuccessRates(): Promise<any> {
+  async getVisitSuccessRates(options?: any): Promise<any> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

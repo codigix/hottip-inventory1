@@ -609,6 +609,7 @@ export const fieldVisits = pgTable("field_visits", {
   // Employee Assignment
   assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
   assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
   
   // Visit Location
   visitAddress: text("visit_address").notNull(),
@@ -662,6 +663,7 @@ export const marketingTasks: any = pgTable("marketing_tasks", {
   // Assignment and Priority
   assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
   assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
   priority: leadPriorityEnum("priority").notNull().default('medium'),
   
   // Status and Dates
