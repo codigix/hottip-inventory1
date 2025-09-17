@@ -10,7 +10,7 @@ import {
   // Marketing entities
   leads, fieldVisits, marketingTasks, marketingAttendance,
   // Logistics entities
-  logisticsShipments, logisticsStatusUpdates, logisticsCheckpoints,
+  logisticsShipments, logisticsStatusUpdates, logisticsCheckpoints, logisticsAttendance,
   type User, type InsertUser, type Product, type InsertProduct,
   type Customer, type InsertCustomer, type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem, type Supplier, type InsertSupplier,
@@ -36,7 +36,7 @@ import {
   type MarketingTask, type InsertMarketingTask, type MarketingAttendance, type InsertMarketingAttendance,
   // Logistics types
   type LogisticsShipment, type InsertLogisticsShipment, type LogisticsStatusUpdate, type InsertLogisticsStatusUpdate,
-  type LogisticsCheckpoint, type InsertLogisticsCheckpoint,
+  type LogisticsCheckpoint, type InsertLogisticsCheckpoint, type LogisticsAttendance, type InsertLogisticsAttendance,
   // Logistics interfaces
   type LogisticsStatusData, type LogisticsPodData, type LogisticsShipmentTimeline,
   type LogisticsDashboardMetrics, type LogisticsDeliveryMetrics, type LogisticsVendorPerformance,
@@ -413,6 +413,10 @@ export interface IStorage {
   getVisitSuccessRates(): Promise<any>;
 
   // ===== LOGISTICS MODULE =====
+  
+  // Logistics Attendance
+  getTodayLogisticsAttendance(): Promise<any[]>;
+  getLogisticsAttendanceMetrics(): Promise<any>;
   
   // Logistics Shipments
   getLogisticsShipment(id: string): Promise<LogisticsShipment | undefined>;
@@ -3848,6 +3852,128 @@ export class DatabaseStorage implements IStorage {
         message: err.message,
         stack: err.stack
       });
+      throw error;
+    }
+  }
+
+  // ===== LOGISTICS ATTENDANCE METHODS =====
+  async getTodayLogisticsAttendance(): Promise<any[]> {
+    try {
+      console.log('🔍 DEBUG: getTodayLogisticsAttendance called - START');
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const result = await db
+        .select({
+          id: logisticsAttendance.id,
+          userId: logisticsAttendance.userId,
+          date: logisticsAttendance.date,
+          checkIn: logisticsAttendance.checkInTime,
+          checkOut: logisticsAttendance.checkOutTime,
+          status: logisticsAttendance.status,
+          location: logisticsAttendance.checkInLocation,
+          notes: logisticsAttendance.workDescription,
+          user: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            department: users.department
+          }
+        })
+        .from(logisticsAttendance)
+        .leftJoin(users, eq(logisticsAttendance.userId, users.id))
+        .where(
+          and(
+            gte(logisticsAttendance.date, today),
+            lt(logisticsAttendance.date, tomorrow)
+          )
+        )
+        .orderBy(desc(logisticsAttendance.checkInTime));
+
+      console.log('🔍 DEBUG: Retrieved logistics attendance records:', result.length);
+      console.log('🔍 DEBUG: getTodayLogisticsAttendance completed - END');
+      return result;
+    } catch (error) {
+      console.error('🚨 EXCEPTION in getTodayLogisticsAttendance:', error);
+      throw error;
+    }
+  }
+
+  async getLogisticsAttendanceMetrics(): Promise<any> {
+    try {
+      console.log('🔍 DEBUG: getLogisticsAttendanceMetrics called - START');
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Count total logistics employees
+      const totalLogisticsEmployees = await db
+        .select({ count: count() })
+        .from(users)
+        .where(eq(users.department, 'logistics'));
+
+      // Get today's attendance records
+      const todayAttendance = await db
+        .select()
+        .from(logisticsAttendance)
+        .where(
+          and(
+            gte(logisticsAttendance.date, today),
+            lt(logisticsAttendance.date, tomorrow)
+          )
+        );
+
+      // Count checked in vs checked out
+      const checkedIn = todayAttendance.filter(att => att.status === 'checked_in').length;
+      const checkedOut = todayAttendance.filter(att => att.status === 'checked_out').length;
+      const totalPresent = todayAttendance.length;
+
+      // Calculate average work hours for checked out employees
+      const checkedOutToday = todayAttendance.filter(att => 
+        att.status === 'checked_out' && att.checkInTime && att.checkOutTime
+      );
+      
+      let averageWorkHours = 0;
+      if (checkedOutToday.length > 0) {
+        const totalHours = checkedOutToday.reduce((sum, att) => {
+          const checkIn = new Date(att.checkInTime!);
+          const checkOut = new Date(att.checkOutTime!);
+          const hours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
+          return sum + hours;
+        }, 0);
+        averageWorkHours = Math.round((totalHours / checkedOutToday.length) * 100) / 100;
+      }
+
+      // Sum total deliveries and task counts for today
+      const totalDeliveries = todayAttendance.reduce((sum, att) => 
+        sum + (att.deliveriesCompleted || 0), 0
+      );
+      
+      const activeTasks = todayAttendance.reduce((sum, att) => 
+        sum + (att.taskCount || 0), 0
+      );
+
+      const result = {
+        totalEmployees: totalLogisticsEmployees[0]?.count || 0,
+        totalPresent: totalPresent,
+        checkedIn: checkedIn,
+        checkedOut: checkedOut,
+        averageWorkHours: averageWorkHours,
+        totalDeliveries: totalDeliveries,
+        activeTasks: activeTasks
+      };
+
+      console.log('🔍 DEBUG: Calculated metrics:', result);
+      console.log('🔍 DEBUG: getLogisticsAttendanceMetrics completed - END');
+      return result;
+    } catch (error) {
+      console.error('🚨 EXCEPTION in getLogisticsAttendanceMetrics:', error);
       throw error;
     }
   }

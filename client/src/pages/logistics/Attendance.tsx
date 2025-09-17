@@ -102,17 +102,50 @@ export default function LogisticsAttendance() {
 
   // Mutations
   const checkInMutation = useMutation({
-    mutationFn: (data: { 
+    mutationFn: async (data: { 
       userId?: string; 
       latitude: number; 
       longitude: number; 
       location?: string; 
-      photoPath?: string; 
-      workDescription?: string 
-    }) => apiRequest('/api/logistics/attendance/check-in', { 
-      method: 'POST', 
-      body: JSON.stringify(data) 
-    }),
+      workDescription?: string;
+      photo?: File;
+      accuracy?: number;
+    }) => {
+      // Step 1: Create attendance record with location data
+      const attendanceData = {
+        userId: data.userId || selectedUserId,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        location: data.location,
+        workDescription: data.workDescription,
+        accuracy: data.accuracy,
+      };
+      
+      const attendance = await apiRequest('/api/logistics/attendance/check-in', { 
+        method: 'POST', 
+        body: JSON.stringify(attendanceData) 
+      });
+      
+      // Step 2: Upload photo if provided and update attendance record
+      if (data.photo && attendance.id) {
+        const { uploadAttendancePhoto } = await import('@/lib/photoUpload');
+        const uploadResult = await uploadAttendancePhoto({
+          file: data.photo,
+          attendanceId: attendance.id,
+          photoType: 'check-in',
+        });
+        
+        if (uploadResult.success) {
+          // Step 3: Update attendance record with photo path
+          await apiRequest(`/api/logistics/attendance/${attendance.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ checkInPhotoPath: uploadResult.objectPath })
+          });
+        }
+      }
+      
+      return attendance;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/logistics/attendance/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/logistics/attendance/metrics'] });
@@ -130,24 +163,57 @@ export default function LogisticsAttendance() {
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: (data: { 
+    mutationFn: async (data: { 
       userId?: string; 
       latitude: number; 
       longitude: number; 
-      location?: string; 
-      photoPath?: string;
+      location?: string;
       workDescription?: string;
       taskCount?: number;
       deliveriesCompleted?: number;
+      photo?: File;
+      accuracy?: number;
     }) => {
       const attendanceRecord = todayAttendance.find(a => a.userId === (data.userId || selectedUserId));
       if (!attendanceRecord?.id) {
         throw new Error("No check-in record found for today");
       }
-      return apiRequest(`/api/logistics/attendance/${attendanceRecord.id}/check-out`, { 
+      
+      // Step 1: Update attendance record with check-out data
+      const checkOutData = {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        location: data.location,
+        workDescription: data.workDescription,
+        taskCount: data.taskCount,
+        deliveriesCompleted: data.deliveriesCompleted,
+        accuracy: data.accuracy,
+      };
+      
+      const updatedAttendance = await apiRequest(`/api/logistics/attendance/${attendanceRecord.id}/check-out`, { 
         method: 'PUT', 
-        body: JSON.stringify(data) 
+        body: JSON.stringify(checkOutData) 
       });
+      
+      // Step 2: Upload photo if provided and update attendance record
+      if (data.photo) {
+        const { uploadAttendancePhoto } = await import('@/lib/photoUpload');
+        const uploadResult = await uploadAttendancePhoto({
+          file: data.photo,
+          attendanceId: attendanceRecord.id,
+          photoType: 'check-out',
+        });
+        
+        if (uploadResult.success) {
+          // Step 3: Update attendance record with photo path
+          await apiRequest(`/api/logistics/attendance/${attendanceRecord.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ checkOutPhotoPath: uploadResult.objectPath })
+          });
+        }
+      }
+      
+      return updatedAttendance;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/logistics/attendance/today'] });
@@ -180,8 +246,9 @@ export default function LogisticsAttendance() {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
+    photo?: File;
+    accuracy?: number;
   }) => {
     checkInMutation.mutate({
       userId: selectedUserId,
@@ -193,10 +260,11 @@ export default function LogisticsAttendance() {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
     taskCount?: number;
     deliveriesCompleted?: number;
+    photo?: File;
+    accuracy?: number;
   }) => {
     checkOutMutation.mutate({
       userId: selectedUserId,

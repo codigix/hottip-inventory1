@@ -3,13 +3,15 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { db } from "./db";
-import { attendance, users } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { attendance, users, logisticsAttendance } from "@shared/schema";
+import { eq, desc, and, gte, lt } from "drizzle-orm";
 import {
   insertLogisticsShipmentSchema, insertLogisticsStatusUpdateSchema, insertLogisticsCheckpointSchema,
   updateLogisticsShipmentSchema, logisticsShipmentFilterSchema, updateLogisticsShipmentStatusSchema,
-  closePodUploadSchema
+  closePodUploadSchema, insertLogisticsAttendanceSchema, updateLogisticsAttendanceSchema,
+  logisticsCheckInSchema, logisticsCheckOutSchema, attendancePhotoUploadSchema
 } from "@shared/schema";
+import { validateGPSCoordinates, validateGPSMovement } from "./gpsValidation";
 
 // Initialize object storage service
 const objectStorage = new ObjectStorageService();
@@ -510,28 +512,92 @@ export const getLogisticsAttendance = async (req: AuthenticatedRequest, res: Res
 
 export const checkInLogistics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const checkInData = {
+    // Validate request body using Zod schema
+    const validatedData = logisticsCheckInSchema.parse(req.body);
+    
+    // GPS validation with anti-spoofing measures
+    const gpsValidation = validateGPSCoordinates({
+      latitude: validatedData.latitude,
+      longitude: validatedData.longitude,
+      accuracy: validatedData.accuracy,
+      timestamp: Date.now(),
+    });
+    
+    if (!gpsValidation.isValid) {
+      res.status(400).json({
+        error: "GPS validation failed",
+        details: gpsValidation.errors,
+        warnings: gpsValidation.warnings
+      });
+      return;
+    }
+    
+    // Check if user already checked in today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const existingAttendance = await db
+      .select()
+      .from(logisticsAttendance)
+      .where(
+        and(
+          eq(logisticsAttendance.userId, req.user!.id),
+          gte(logisticsAttendance.date, today),
+          lt(logisticsAttendance.date, tomorrow)
+        )
+      )
+      .limit(1);
+    
+    if (existingAttendance.length > 0) {
+      res.status(400).json({ error: "Already checked in today" });
+      return;
+    }
+    
+    // Create logistics attendance record
+    const attendanceData = {
       userId: req.user!.id,
-      date: new Date(), // Add required date field
-      checkIn: new Date(),
-      location: req.body.location,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude,
-      notes: req.body.notes
+      date: new Date(),
+      checkInTime: new Date(),
+      checkInLocation: validatedData.location,
+      checkInLatitude: validatedData.latitude.toString(),
+      checkInLongitude: validatedData.longitude.toString(),
+      workDescription: validatedData.workDescription,
+      status: 'checked_in' as const,
     };
     
-    const attendance = await storage.createAttendance(checkInData);
+    const [newAttendance] = await db
+      .insert(logisticsAttendance)
+      .values(attendanceData)
+      .returning();
     
+    // Create activity log
     await storage.createActivity({
       userId: req.user!.id,
       action: "LOGISTICS_CHECK_IN",
       entityType: "logistics_attendance",
-      entityId: attendance.id,
-      details: `Checked in for logistics at ${checkInData.location || 'location'}`
+      entityId: newAttendance.id,
+      details: `Checked in for logistics at ${validatedData.location || 'GPS location'}. Accuracy: ${validatedData.accuracy}m`
     });
     
-    res.status(201).json(attendance);
+    // Include GPS validation warnings in response
+    res.status(201).json({
+      ...newAttendance,
+      gpsValidation: {
+        riskLevel: gpsValidation.riskLevel,
+        warnings: gpsValidation.warnings
+      }
+    });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors 
+      });
+      return;
+    }
+    console.error('Check-in error:', error);
     res.status(500).json({ error: "Failed to check in" });
   }
 };
@@ -543,27 +609,235 @@ export const checkOutLogistics = async (req: AuthenticatedRequest, res: Response
       return;
     }
     
-    const checkOutData = {
-      checkOut: new Date(),
-      location: req.body.location,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude,
-      notes: req.body.notes
+    // Validate request body using Zod schema
+    const validatedData = logisticsCheckOutSchema.parse(req.body);
+    
+    // Get existing attendance record
+    const [existingAttendance] = await db
+      .select()
+      .from(logisticsAttendance)
+      .where(eq(logisticsAttendance.id, req.params.id))
+      .limit(1);
+    
+    if (!existingAttendance) {
+      res.status(404).json({ error: "Attendance record not found" });
+      return;
+    }
+    
+    if (existingAttendance.userId !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to modify this attendance record" });
+      return;
+    }
+    
+    if (existingAttendance.status === 'checked_out') {
+      res.status(400).json({ error: "Already checked out" });
+      return;
+    }
+    
+    // GPS validation with anti-spoofing measures
+    const gpsValidation = validateGPSCoordinates({
+      latitude: validatedData.latitude,
+      longitude: validatedData.longitude,
+      accuracy: validatedData.accuracy,
+      timestamp: Date.now(),
+    });
+    
+    if (!gpsValidation.isValid) {
+      res.status(400).json({
+        error: "GPS validation failed",
+        details: gpsValidation.errors,
+        warnings: gpsValidation.warnings
+      });
+      return;
+    }
+    
+    // Validate movement (anti-spoofing)
+    if (existingAttendance.checkInLatitude && existingAttendance.checkInLongitude && existingAttendance.checkInTime) {
+      const movementValidation = validateGPSMovement(
+        parseFloat(existingAttendance.checkInLatitude),
+        parseFloat(existingAttendance.checkInLongitude),
+        new Date(existingAttendance.checkInTime).getTime(),
+        validatedData.latitude,
+        validatedData.longitude,
+        Date.now()
+      );
+      
+      if (!movementValidation.isValid) {
+        res.status(400).json({
+          error: "GPS movement validation failed",
+          details: movementValidation.errors,
+          warnings: movementValidation.warnings
+        });
+        return;
+      }
+    }
+    
+    // Update attendance record with check-out data
+    const updateData = {
+      checkOutTime: new Date(),
+      checkOutLocation: validatedData.location,
+      checkOutLatitude: validatedData.latitude.toString(),
+      checkOutLongitude: validatedData.longitude.toString(),
+      workDescription: validatedData.workDescription || existingAttendance.workDescription,
+      taskCount: validatedData.taskCount,
+      deliveriesCompleted: validatedData.deliveriesCompleted,
+      status: 'checked_out' as const,
+      updatedAt: new Date(),
     };
     
-    const attendance = await storage.updateAttendance(req.params.id, checkOutData);
+    const [updatedAttendance] = await db
+      .update(logisticsAttendance)
+      .set(updateData)
+      .where(eq(logisticsAttendance.id, req.params.id))
+      .returning();
     
+    // Create activity log
     await storage.createActivity({
       userId: req.user!.id,
       action: "LOGISTICS_CHECK_OUT",
       entityType: "logistics_attendance",
       entityId: req.params.id,
-      details: `Checked out from logistics at ${checkOutData.location || 'location'}`
+      details: `Checked out from logistics at ${validatedData.location || 'GPS location'}. Tasks: ${validatedData.taskCount || 0}, Deliveries: ${validatedData.deliveriesCompleted || 0}`
     });
     
-    res.json(attendance);
+    // Include GPS validation warnings in response
+    res.json({
+      ...updatedAttendance,
+      gpsValidation: {
+        riskLevel: gpsValidation.riskLevel,
+        warnings: gpsValidation.warnings
+      }
+    });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors 
+      });
+      return;
+    }
+    console.error('Check-out error:', error);
     res.status(500).json({ error: "Failed to check out" });
+  }
+};
+
+// Missing attendance endpoints
+export const getLogisticsAttendanceToday = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const todayAttendance = await storage.getTodayLogisticsAttendance();
+    res.json(todayAttendance);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch today's logistics attendance" });
+  }
+};
+
+// Photo upload URL generation for attendance
+export const generateAttendancePhotoUploadUrl = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // Validate request body
+    const validatedData = attendancePhotoUploadSchema.parse(req.body);
+    
+    // Verify attendance record exists and belongs to user
+    const [attendanceRecord] = await db
+      .select()
+      .from(logisticsAttendance)
+      .where(eq(logisticsAttendance.id, validatedData.attendanceId))
+      .limit(1);
+    
+    if (!attendanceRecord) {
+      res.status(404).json({ error: "Attendance record not found" });
+      return;
+    }
+    
+    if (attendanceRecord.userId !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to upload photo for this attendance record" });
+      return;
+    }
+    
+    // Generate object storage path
+    const objectPath = `attendance-photos/${validatedData.attendanceId}/${validatedData.photoType}-${Date.now()}-${validatedData.fileName}`;
+    
+    // Generate signed upload URL
+    const uploadURL = await objectStorage.generateUploadURL(objectPath, validatedData.contentType);
+    
+    res.json({
+      uploadURL,
+      objectPath,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors 
+      });
+      return;
+    }
+    console.error('Photo upload URL generation error:', error);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+};
+
+// Update attendance record with photo path
+export const updateAttendancePhoto = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
+      res.status(400).json({ error: "Invalid attendance ID format" });
+      return;
+    }
+    
+    const { photoPath, photoType } = req.body;
+    
+    if (!photoPath || !photoType) {
+      res.status(400).json({ error: "Photo path and type are required" });
+      return;
+    }
+    
+    if (!['check-in', 'check-out'].includes(photoType)) {
+      res.status(400).json({ error: "Photo type must be 'check-in' or 'check-out'" });
+      return;
+    }
+    
+    // Verify attendance record exists and belongs to user
+    const [attendanceRecord] = await db
+      .select()
+      .from(logisticsAttendance)
+      .where(eq(logisticsAttendance.id, req.params.id))
+      .limit(1);
+    
+    if (!attendanceRecord) {
+      res.status(404).json({ error: "Attendance record not found" });
+      return;
+    }
+    
+    if (attendanceRecord.userId !== req.user!.id) {
+      res.status(403).json({ error: "Not authorized to update this attendance record" });
+      return;
+    }
+    
+    // Update photo path
+    const updateData = photoType === 'check-in' 
+      ? { checkInPhotoPath: photoPath }
+      : { checkOutPhotoPath: photoPath };
+    
+    const [updatedAttendance] = await db
+      .update(logisticsAttendance)
+      .set(updateData)
+      .where(eq(logisticsAttendance.id, req.params.id))
+      .returning();
+    
+    res.json(updatedAttendance);
+  } catch (error) {
+    console.error('Photo update error:', error);
+    res.status(500).json({ error: "Failed to update photo" });
+  }
+};
+
+export const getLogisticsAttendanceMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const metrics = await storage.getLogisticsAttendanceMetrics();
+    res.json(metrics);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch logistics attendance metrics" });
   }
 };
 
@@ -741,75 +1015,17 @@ export const generatePodUploadUrl = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
-// Generate upload URL for attendance photos
-export const generateAttendancePhotoUploadUrl = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { attendanceId, fileName, contentType, photoType } = req.body;
-    
-    if (!attendanceId) {
-      res.status(400).json({ error: "Attendance ID is required" });
-      return;
-    }
+// Removed duplicate handler - cleaned up
 
-    if (!fileName) {
-      res.status(400).json({ error: "File name is required" });
-      return;
-    }
+// ==========================================
+// LOGISTICS ROUTE REGISTRATION  
+// ==========================================
 
-    if (!photoType || !['check-in', 'check-out'].includes(photoType)) {
-      res.status(400).json({ error: "Photo type must be 'check-in' or 'check-out'" });
-      return;
-    }
-
-    // Validate file name for security
-    if (fileName.includes('../') || fileName.includes('..') || fileName.includes('/')) {
-      res.status(400).json({ error: "Invalid file name" });
-      return;
-    }
-
-    // Validate content type - only allow images for attendance photos
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (contentType && !allowedTypes.includes(contentType)) {
-      res.status(400).json({ error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed." });
-      return;
-    }
-
-    // Generate stable object path for the attendance photo
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileExtension = fileName.split('.').pop() || 'jpg';
-    const privateObjectDir = objectStorage.getPrivateObjectDir();
-    const objectPath = `${privateObjectDir}/logistics/attendance/${attendanceId}/${photoType}/photo-${timestamp}.${fileExtension}`;
-    
-    // Parse object path (internal implementation)
-    const parseObjectPath = (path: string) => {
-      if (!path.startsWith("/")) path = `/${path}`;
-      const pathParts = path.split("/");
-      const bucketName = pathParts[1];
-      const objectName = pathParts.slice(2).join("/");
-      return { bucketName, objectName };
-    };
-
-    const { bucketName, objectName } = parseObjectPath(objectPath);
-
-    // Generate signed URL for PUT upload (internal implementation)
-    const signObjectURL = async ({ bucketName, objectName, method, ttlSec }: any) => {
-      const request = {
-        bucket_name: bucketName,
-        object_name: objectName,
-        method,
-        expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
-      };
-      const response = await fetch(`http://127.0.0.1:1106/object-storage/signed-object-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to sign object URL, errorcode: ${response.status}`);
-      }
-      const { signed_url: signedURL } = await response.json();
-      return signedURL;
-    };
+interface LogisticsRouteOptions {
+  requireAuth: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+  requireLogisticsAccess?: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+  checkOwnership?: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+}
 
     const uploadURL = await signObjectURL({
       bucketName,
@@ -935,11 +1151,15 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
     { method: 'delete', path: '/api/logistics/tasks/:id', middlewares: ['requireAuth'], handler: deleteLogisticsTask },
     
     // ==========================================
-    // LOGISTICS ATTENDANCE ROUTES (3 routes)
+    // LOGISTICS ATTENDANCE ROUTES (7 routes)
     // ==========================================
     { method: 'get', path: '/api/logistics/attendance', middlewares: ['requireAuth'], handler: getLogisticsAttendance },
+    { method: 'get', path: '/api/logistics/attendance/today', middlewares: ['requireAuth'], handler: getLogisticsAttendanceToday },
+    { method: 'get', path: '/api/logistics/attendance/metrics', middlewares: ['requireAuth'], handler: getLogisticsAttendanceMetrics },
     { method: 'post', path: '/api/logistics/attendance/check-in', middlewares: ['requireAuth'], handler: checkInLogistics },
     { method: 'put', path: '/api/logistics/attendance/:id/check-out', middlewares: ['requireAuth'], handler: checkOutLogistics },
+    { method: 'post', path: '/api/logistics/attendance/photo/upload-url', middlewares: ['requireAuth'], handler: generateAttendancePhotoUploadUrl },
+    { method: 'put', path: '/api/logistics/attendance/:id/photo', middlewares: ['requireAuth'], handler: updateAttendancePhoto },
     
     // ==========================================
     // REPORTS & ANALYTICS ROUTES (6 routes)
@@ -990,7 +1210,7 @@ export const registerLogisticsRoutes = (app: Express, middleware: LogisticsRoute
   }
 
   // Logistics route count verification
-  const EXPECTED_LOGISTICS_ROUTE_COUNT = 34;
+  const EXPECTED_LOGISTICS_ROUTE_COUNT = 36;
   if (logisticsRoutes.length !== EXPECTED_LOGISTICS_ROUTE_COUNT) {
     console.warn(`⚠️  Logistics route count mismatch: Expected ${EXPECTED_LOGISTICS_ROUTE_COUNT}, found ${logisticsRoutes.length}`);
   }

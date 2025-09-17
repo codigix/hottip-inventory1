@@ -1559,6 +1559,13 @@ export const insertLogisticsAttendanceSchema = createInsertSchema(logisticsAtten
   updatedAt: true,
 });
 
+export const updateLogisticsAttendanceSchema = createInsertSchema(logisticsAttendance).partial().omit({
+  id: true,
+  createdAt: true,
+  userId: true, // Cannot change userId
+  date: true, // Cannot change date
+});
+
 // Additional Logistics Schemas for API routes
 export const updateLogisticsShipmentSchema = createInsertSchema(logisticsShipments).partial().omit({
   id: true,
@@ -1627,6 +1634,53 @@ export const fieldVisitCheckOutSchema = z.object({
   visitNotes: z.string().optional(),
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
+});
+
+// Logistics GPS Check-in/Check-out Schemas
+export const logisticsCheckInSchema = z.object({
+  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
+  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
+  workDescription: z.string().optional(),
+  accuracy: z.number().min(0).max(1000).optional(), // GPS accuracy in meters
+}).refine(data => {
+  // Accuracy validation: warn if accuracy > 50m, reject if > 200m
+  if (data.accuracy && data.accuracy > 200) {
+    return false;
+  }
+  return true;
+}, {
+  message: "GPS accuracy must be better than 200 meters for check-in"
+});
+
+export const logisticsCheckOutSchema = z.object({
+  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
+  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
+  workDescription: z.string().optional(),
+  taskCount: z.number().int().min(0).optional(),
+  deliveriesCompleted: z.number().int().min(0).optional(),
+  accuracy: z.number().min(0).max(1000).optional(), // GPS accuracy in meters
+}).refine(data => {
+  // Accuracy validation: warn if accuracy > 50m, reject if > 200m
+  if (data.accuracy && data.accuracy > 200) {
+    return false;
+  }
+  return true;
+}, {
+  message: "GPS accuracy must be better than 200 meters for check-out"
+});
+
+// Photo upload validation schema
+export const attendancePhotoUploadSchema = z.object({
+  attendanceId: z.string().uuid("Invalid attendance ID"),
+  fileName: z.string().min(1, "File name is required"),
+  contentType: z.string().regex(/^image\/(jpeg|jpg|png|webp)$/, "Only JPEG, PNG, and WebP images are allowed"),
+  photoType: z.enum(['check-in', 'check-out'], {
+    required_error: "Photo type must be either 'check-in' or 'check-out'"
+  }),
 });
 
 // Lead Conversion Schema

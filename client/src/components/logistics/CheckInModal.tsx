@@ -27,8 +27,9 @@ interface CheckInModalProps {
     latitude: number;
     longitude: number;
     location?: string;
-    photoPath?: string;
     workDescription?: string;
+    photo?: File;
+    accuracy?: number;
   }) => void;
   isLoading?: boolean;
   userId?: string;
@@ -160,37 +161,14 @@ export default function CheckInModal({
       return;
     }
 
-    let photoPath: string | undefined;
-
-    // Upload photo to object storage if provided
-    if (uploadedPhoto && userId) {
-      try {
-        setUploadStatus('uploading');
-        const uploadResult = await uploadAttendancePhoto({
-          file: uploadedPhoto,
-          attendanceId: userId, // Using userId as attendanceId for now
-          photoType: 'check-in',
-        });
-
-        if (!uploadResult.success) {
-          setUploadError(uploadResult.error || 'Photo upload failed');
-          return;
-        }
-
-        photoPath = uploadResult.objectPath;
-        setUploadStatus('success');
-      } catch (error) {
-        setUploadError(error instanceof Error ? error.message : 'Photo upload failed');
-        return;
-      }
-    }
-
+    // Pass the photo file directly to the parent for proper upload flow
     onCheckIn({
       latitude: currentLocation.latitude,
       longitude: currentLocation.longitude,
       location: address || `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`,
-      photoPath,
       workDescription: workDescription || undefined,
+      photo: uploadedPhoto || undefined, // Pass the File object instead of uploading here
+      accuracy: currentLocation.accuracy,
     });
   };
 
