@@ -404,7 +404,7 @@ export default function Reports() {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">
+                          <p className="text-sm font-light text-muted-foreground">
                             {metric.label}
                           </p>
                           <p className="text-2xl font-bold" data-testid={`kpi-value-${index}`}>

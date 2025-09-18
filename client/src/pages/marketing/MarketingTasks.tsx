@@ -460,7 +460,7 @@ export default function MarketingTasks() {
             <div className="pt-4 border-t space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Status</label>
+                  <label className="text-sm font-light mb-2 block">Status</label>
                   <Select value={filters.status} onValueChange={(value: StatusFilter) => setFilters(f => ({ ...f, status: value }))}>
                     <SelectTrigger data-testid="filter-status">
                       <SelectValue />
@@ -476,7 +476,7 @@ export default function MarketingTasks() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Priority</label>
+                  <label className="text-sm font-light mb-2 block">Priority</label>
                   <Select value={filters.priority} onValueChange={(value: PriorityFilter) => setFilters(f => ({ ...f, priority: value }))}>
                     <SelectTrigger data-testid="filter-priority">
                       <SelectValue />
@@ -492,7 +492,7 @@ export default function MarketingTasks() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Assignee</label>
+                  <label className="text-sm font-light mb-2 block">Assignee</label>
                   <Select value={filters.assignee} onValueChange={(value) => setFilters(f => ({ ...f, assignee: value }))}>
                     <SelectTrigger data-testid="filter-assignee">
                       <SelectValue />
@@ -510,7 +510,7 @@ export default function MarketingTasks() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Due Date</label>
+                  <label className="text-sm font-light mb-2 block">Due Date</label>
                   <Select value={filters.dateFilter} onValueChange={(value: DateFilter) => setFilters(f => ({ ...f, dateFilter: value }))}>
                     <SelectTrigger data-testid="filter-date">
                       <SelectValue />
@@ -605,7 +605,7 @@ export default function MarketingTasks() {
               <Card>
                 <CardContent className="pt-6 text-center">
                   <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No tasks found</h3>
+                  <h3 className="text-lg font-light mb-2">No tasks found</h3>
                   <p className="text-muted-foreground mb-4">
                     {getActiveFiltersCount() > 0 
                       ? "Try adjusting your filters to see more tasks"
@@ -686,25 +686,25 @@ export default function MarketingTasks() {
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium text-muted-foreground">Created:</span>
+                  <span className="font-light text-muted-foreground">Created:</span>
                   <p>{format(new Date(selectedTaskDetails.createdAt), "PPP 'at' p")}</p>
                 </div>
                 
                 <div>
-                  <span className="font-medium text-muted-foreground">Last Updated:</span>
+                  <span className="font-light text-muted-foreground">Last Updated:</span>
                   <p>{format(new Date(selectedTaskDetails.updatedAt), "PPP 'at' p")}</p>
                 </div>
                 
                 {selectedTaskDetails.assignedByUser && (
                   <div>
-                    <span className="font-medium text-muted-foreground">Assigned By:</span>
+                    <span className="font-light text-muted-foreground">Assigned By:</span>
                     <p>{selectedTaskDetails.assignedByUser.firstName} {selectedTaskDetails.assignedByUser.lastName}</p>
                   </div>
                 )}
                 
                 {selectedTaskDetails.estimatedHours && (
                   <div>
-                    <span className="font-medium text-muted-foreground">Estimated Time:</span>
+                    <span className="font-light text-muted-foreground">Estimated Time:</span>
                     <p>{selectedTaskDetails.estimatedHours} hours</p>
                   </div>
                 )}

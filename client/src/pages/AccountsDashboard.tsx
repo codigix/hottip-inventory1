@@ -449,7 +449,7 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-foreground">₹{totalRevenue.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-green-600 flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1" />
@@ -467,7 +467,7 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Payments</p>
+                <p className="text-sm font-light text-muted-foreground">Pending Payments</p>
                 <p className="text-2xl font-bold text-foreground">₹{pendingPayments.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <Clock className="h-3 w-3 mr-1" />
@@ -485,7 +485,7 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                <p className="text-sm font-light text-muted-foreground">Total Invoices</p>
                 <p className="text-2xl font-bold text-foreground">{totalInvoices}</p>
                 <p className="text-xs text-blue-600 flex items-center mt-1">
                   <FileText className="h-3 w-3 mr-1" />
@@ -503,7 +503,7 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Overdue Invoices</p>
+                <p className="text-sm font-light text-muted-foreground">Overdue Invoices</p>
                 <p className="text-2xl font-bold text-foreground">{overdueInvoices}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <AlertCircle className="h-3 w-3 mr-1" />
@@ -520,7 +520,7 @@ export default function AccountsDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Invoices Table */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <Card>
             <CardHeader>
               <CardTitle>Recent Invoices</CardTitle>
@@ -541,9 +541,10 @@ export default function AccountsDashboard() {
         </div>
 
         {/* Financial Summary & Quick Actions */}
-        <div className="space-y-6">
+        
           {/* Quick Actions */}
-          <Card>
+          <div className="lg:col-span-1">
+            <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
@@ -589,6 +590,7 @@ export default function AccountsDashboard() {
               </Button>
             </CardContent>
           </Card>
+          </div>
 
           {/* Payment Status Overview */}
           <Card>
@@ -601,10 +603,10 @@ export default function AccountsDashboard() {
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Paid</span>
+                  <span className="text-sm font-light text-foreground">Paid</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-light text-foreground">
                     {invoices?.filter(i => i.status === 'paid').length || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">invoices</p>
@@ -616,10 +618,10 @@ export default function AccountsDashboard() {
                   <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
                     <Clock className="h-4 w-4 text-yellow-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Pending</span>
+                  <span className="text-sm font-light text-foreground">Pending</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-light text-foreground">
                     {invoices?.filter(i => i.status === 'sent' || i.status === 'draft').length || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">invoices</p>
@@ -631,10 +633,10 @@ export default function AccountsDashboard() {
                   <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
                     <AlertCircle className="h-4 w-4 text-red-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Overdue</span>
+                  <span className="text-sm font-light text-foreground">Overdue</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">{overdueInvoices}</p>
+                  <p className="text-sm font-light text-foreground">{overdueInvoices}</p>
                   <p className="text-xs text-muted-foreground">invoices</p>
                 </div>
               </div>
@@ -649,13 +651,13 @@ export default function AccountsDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {invoices?.filter(i => i.status === 'paid').slice(0, 3).map((payment: any) => (
-                  <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+                  <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
                     <div>
-                      <p className="text-sm font-medium">{payment.customer?.name || 'Unknown Customer'}</p>
+                      <p className="text-sm font-light">{payment.customer?.name || 'Unknown Customer'}</p>
                       <p className="text-xs text-muted-foreground">{payment.invoiceNumber}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
+                      <p className="text-sm font-light">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(payment.createdAt).toLocaleDateString()}
                       </p>
@@ -667,7 +669,7 @@ export default function AccountsDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        
       </div>
     </main>
   );

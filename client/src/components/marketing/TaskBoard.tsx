@@ -252,7 +252,7 @@ export default function TaskBoard({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Icon className="h-4 w-4" />
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-light">
                       {column.title}
                     </CardTitle>
                     <Badge variant="secondary" data-testid={`column-count-${column.status}`}>
@@ -351,7 +351,7 @@ export default function TaskBoard({
                     {/* Drop Zone Indicator */}
                     {dragOverColumn === column.status && draggedTask && (
                       <div className="border-2 border-dashed border-primary rounded-lg p-4 bg-primary/5 text-center">
-                        <p className="text-sm text-primary font-medium">
+                        <p className="text-sm text-primary font-light">
                           Drop to move task to {column.title}
                         </p>
                       </div>

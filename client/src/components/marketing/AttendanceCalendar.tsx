@@ -245,7 +245,7 @@ export default function AttendanceCalendar({
             {/* Days of Week Header */}
             <div className="grid grid-cols-7 gap-1">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                <div key={day} className="text-center text-sm font-light text-muted-foreground py-2">
                   {day}
                 </div>
               ))}
@@ -283,7 +283,7 @@ export default function AttendanceCalendar({
                           {/* Date Number */}
                           <div className="flex items-center justify-between mb-1">
                             <span
-                              className={`text-xs font-medium ${
+                              className={`text-xs font-light ${
                                 isCurrentMonth
                                   ? isCurrentDay
                                     ? 'text-primary font-bold'
@@ -313,25 +313,25 @@ export default function AttendanceCalendar({
                                   {dayData.presentCount > 0 && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-green-600">Present</span>
-                                      <span className="font-medium">{dayData.presentCount}</span>
+                                      <span className="font-light">{dayData.presentCount}</span>
                                     </div>
                                   )}
                                   {dayData.absentCount > 0 && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-red-600">Absent</span>
-                                      <span className="font-medium">{dayData.absentCount}</span>
+                                      <span className="font-light">{dayData.absentCount}</span>
                                     </div>
                                   )}
                                   {dayData.lateCount > 0 && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-orange-600">Late</span>
-                                      <span className="font-medium">{dayData.lateCount}</span>
+                                      <span className="font-light">{dayData.lateCount}</span>
                                     </div>
                                   )}
                                   {dayData.onLeaveCount > 0 && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-blue-600">Leave</span>
-                                      <span className="font-medium">{dayData.onLeaveCount}</span>
+                                      <span className="font-light">{dayData.onLeaveCount}</span>
                                     </div>
                                   )}
                                 </div>
@@ -361,13 +361,13 @@ export default function AttendanceCalendar({
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="space-y-2">
-                          <p className="font-medium">{format(day, 'EEEE, MMMM d, yyyy')}</p>
+                          <p className="font-light">{format(day, 'EEEE, MMMM d, yyyy')}</p>
                           {dayData.attendance.length > 0 ? (
                             <div className="space-y-1 text-xs">
                               {dayData.attendance.map((record, idx) => (
                                 <div key={idx} className="border-b border-muted last:border-0 pb-1 last:pb-0">
                                   <div className="flex items-center space-x-2">
-                                    <span className="font-medium">
+                                    <span className="font-light">
                                       {record.user?.firstName} {record.user?.lastName}
                                     </span>
                                     <Badge variant="outline" className={`text-xs ${

@@ -123,7 +123,7 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-foreground">
                   ${metrics?.totalRevenue ? parseFloat(metrics.totalRevenue.toString()).toLocaleString() : '0'}
                 </p>
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Orders</p>
+                <p className="text-sm font-light text-muted-foreground">Active Orders</p>
                 <p className="text-2xl font-bold text-foreground">{metrics?.activeOrders || 0}</p>
                 <p className="text-xs text-green-600 flex items-center mt-1">
                   <ArrowUp className="h-3 w-3 mr-1" />
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Low Stock Items</p>
+                <p className="text-sm font-light text-muted-foreground">Low Stock Items</p>
                 <p className="text-2xl font-bold text-foreground">{metrics?.lowStockItems || 0}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <AlertTriangle className="h-3 w-3 mr-1" />
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
+                <p className="text-sm font-light text-muted-foreground">Total Employees</p>
                 <p className="text-2xl font-bold text-foreground">{metrics?.totalEmployees || 0}</p>
                 <p className="text-xs text-blue-600 flex items-center mt-1">
                   <Plus className="h-3 w-3 mr-1" />
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                         <p className="text-sm text-foreground">
                           {activity.details}
                           {activity.user && (
-                            <span className="font-medium">
+                            <span className="font-light">
                               {' '}by {activity.user.firstName} {activity.user.lastName}
                             </span>
                           )}
@@ -302,10 +302,10 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {(metrics?.lowStockItems || 0) > 0 && (
-                <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-sm">
                   <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">Low Stock Alert</p>
+                    <p className="text-sm font-light text-foreground">Low Stock Alert</p>
                     <p className="text-xs text-muted-foreground">
                       {metrics?.lowStockItems || 0} products are running low on stock
                     </p>
@@ -313,18 +313,18 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <div className="flex items-start space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-start space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-sm">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">System Update</p>
+                  <p className="text-sm font-light text-foreground">System Update</p>
                   <p className="text-xs text-muted-foreground">New features available in v2.1.0</p>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-sm">
                 <Clock className="h-4 w-4 text-yellow-600 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">Pending Approvals</p>
+                  <p className="text-sm font-light text-foreground">Pending Approvals</p>
                   <p className="text-xs text-muted-foreground">5 expense reports need approval</p>
                 </div>
               </div>
@@ -342,10 +342,10 @@ export default function AdminDashboard() {
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <TrendingUp className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Sales</span>
+                  <span className="text-sm font-light text-foreground">Sales</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">92%</p>
+                  <p className="text-sm font-light text-foreground">92%</p>
                   <p className="text-xs text-muted-foreground">This month</p>
                 </div>
               </div>
@@ -355,10 +355,10 @@ export default function AdminDashboard() {
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Package className="h-4 w-4 text-blue-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Inventory</span>
+                  <span className="text-sm font-light text-foreground">Inventory</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">87%</p>
+                  <p className="text-sm font-light text-foreground">87%</p>
                   <p className="text-xs text-muted-foreground">This month</p>
                 </div>
               </div>
@@ -368,10 +368,10 @@ export default function AdminDashboard() {
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                     <Truck className="h-4 w-4 text-purple-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Logistics</span>
+                  <span className="text-sm font-light text-foreground">Logistics</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">94%</p>
+                  <p className="text-sm font-light text-foreground">94%</p>
                   <p className="text-xs text-muted-foreground">This month</p>
                 </div>
               </div>
@@ -381,10 +381,10 @@ export default function AdminDashboard() {
                   <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                     <Calculator className="h-4 w-4 text-orange-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Accounts</span>
+                  <span className="text-sm font-light text-foreground">Accounts</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">89%</p>
+                  <p className="text-sm font-light text-foreground">89%</p>
                   <p className="text-xs text-muted-foreground">This month</p>
                 </div>
               </div>

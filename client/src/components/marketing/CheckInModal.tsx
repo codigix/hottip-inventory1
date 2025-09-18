@@ -346,7 +346,7 @@ export default function CheckInModal({
                   {/* Location Status */}
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium">Location acquired</span>
+                    <span className="text-sm font-light">Location acquired</span>
                     <Badge 
                       variant={locationAccuracy.status === 'good' ? 'default' : 
                                locationAccuracy.status === 'fair' ? 'secondary' : 'destructive'}
@@ -360,13 +360,13 @@ export default function CheckInModal({
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Latitude:</span>
-                      <p className="font-medium" data-testid="location-latitude">
+                      <p className="font-light" data-testid="location-latitude">
                         {currentLocation.latitude.toFixed(6)}
                       </p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Longitude:</span>
-                      <p className="font-medium" data-testid="location-longitude">
+                      <p className="font-light" data-testid="location-longitude">
                         {currentLocation.longitude.toFixed(6)}
                       </p>
                     </div>
@@ -374,7 +374,7 @@ export default function CheckInModal({
 
                   {/* Address */}
                   <div>
-                    <Label htmlFor="address" className="text-sm font-medium">Location Address</Label>
+                    <Label htmlFor="address" className="text-sm font-light">Location Address</Label>
                     <Input
                       id="address"
                       value={address}
@@ -418,7 +418,7 @@ export default function CheckInModal({
               <CardTitle className="text-sm">Work Plan</CardTitle>
             </CardHeader>
             <CardContent>
-              <Label htmlFor="work-description" className="text-sm font-medium">
+              <Label htmlFor="work-description" className="text-sm font-light">
                 What will you be working on today? (Optional)
               </Label>
               <Textarea
@@ -480,7 +480,7 @@ export default function CheckInModal({
 
               {photoPreview && (
                 <div className="mt-3">
-                  <p className="text-sm font-medium mb-2">Photo Preview:</p>
+                  <p className="text-sm font-light mb-2">Photo Preview:</p>
                   <img 
                     src={photoPreview} 
                     alt="Check-in photo" 

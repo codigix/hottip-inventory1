@@ -179,7 +179,7 @@ export default function DateRangeSelector({
               <CardContent className="p-4">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-medium text-sm mb-2">From Date</h4>
+                    <h4 className="font-light text-sm mb-2">From Date</h4>
                     <Calendar
                       mode="single"
                       selected={dateRange.from || undefined}
@@ -197,7 +197,7 @@ export default function DateRangeSelector({
                   
                   {dateRange.from && (
                     <div>
-                      <h4 className="font-medium text-sm mb-2">To Date</h4>
+                      <h4 className="font-light text-sm mb-2">To Date</h4>
                       <Calendar
                         mode="single"
                         selected={dateRange.to || undefined}

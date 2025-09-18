@@ -60,7 +60,7 @@ export default function BatchBarcode() {
           <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
             <Package className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium">{batch.batchNumber}</span>
+          <span className="font-light">{batch.batchNumber}</span>
         </div>
       ),
     },
@@ -73,7 +73,7 @@ export default function BatchBarcode() {
       header: "Quantity",
       cell: (batch: any) => (
         <div>
-          <p className="font-medium">{batch.remainingQuantity}/{batch.quantity}</p>
+          <p className="font-light">{batch.remainingQuantity}/{batch.quantity}</p>
           <p className="text-xs text-muted-foreground">Remaining/Total</p>
         </div>
       ),
@@ -234,7 +234,7 @@ export default function BatchBarcode() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Batches</p>
+                <p className="text-sm font-light text-muted-foreground">Active Batches</p>
                 <p className="text-2xl font-bold text-foreground">24</p>
               </div>
               <Package className="h-8 w-8 text-blue-600" />
@@ -246,7 +246,7 @@ export default function BatchBarcode() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Generated Codes</p>
+                <p className="text-sm font-light text-muted-foreground">Generated Codes</p>
                 <p className="text-2xl font-bold text-foreground">156</p>
               </div>
               <QrCode className="h-8 w-8 text-green-600" />
@@ -258,7 +258,7 @@ export default function BatchBarcode() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Scanned Today</p>
+                <p className="text-sm font-light text-muted-foreground">Scanned Today</p>
                 <p className="text-2xl font-bold text-foreground">42</p>
               </div>
               <Scan className="h-8 w-8 text-orange-600" />
@@ -270,7 +270,7 @@ export default function BatchBarcode() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Expiring Soon</p>
+                <p className="text-sm font-light text-muted-foreground">Expiring Soon</p>
                 <p className="text-2xl font-bold text-foreground">3</p>
               </div>
               <Search className="h-8 w-8 text-red-600" />

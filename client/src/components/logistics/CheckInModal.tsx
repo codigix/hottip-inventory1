@@ -220,7 +220,7 @@ export default function CheckInModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium">Location acquired</span>
+                      <span className="text-sm font-light">Location acquired</span>
                     </div>
                     {getAccuracyBadge()}
                   </div>

@@ -447,7 +447,7 @@ export default function AccountsPayables() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Payables</CardTitle>
+            <CardTitle className="text-sm font-light">Total Payables</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -462,7 +462,7 @@ export default function AccountsPayables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Amount</CardTitle>
+            <CardTitle className="text-sm font-light">Overdue Amount</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -477,7 +477,7 @@ export default function AccountsPayables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Payment Days</CardTitle>
+            <CardTitle className="text-sm font-light">Avg. Payment Days</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -490,7 +490,7 @@ export default function AccountsPayables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Payment Rate</CardTitle>
+            <CardTitle className="text-sm font-light">Payment Rate</CardTitle>
             <TrendingDown className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -579,7 +579,7 @@ export default function AccountsPayables() {
                     
                     return (
                       <TableRow key={payable.id} data-testid={`row-payable-${payable.id}`}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-light">
                           <Link href={`/sales/suppliers/${payable.supplierId}`} className="hover:underline flex items-center">
                             {supplier?.name || "Unknown Supplier"}
                             <ExternalLink className="h-3 w-3 ml-1" />

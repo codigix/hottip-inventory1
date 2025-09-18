@@ -141,7 +141,7 @@ export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
     return (
       <div className="text-center py-8">
         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">No Timeline Data</h3>
+        <h3 className="text-lg font-light text-foreground mb-2">No Timeline Data</h3>
         <p className="text-muted-foreground">
           No status updates or checkpoints have been recorded for this shipment yet.
         </p>
@@ -222,7 +222,7 @@ export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
                       {event.location && (
                         <div className="flex items-center text-sm mb-2">
                           <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
-                          <span className="font-medium">{event.location}</span>
+                          <span className="font-light">{event.location}</span>
                         </div>
                       )}
 
@@ -251,23 +251,23 @@ export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
       {/* Summary */}
       <Card className="bg-muted/30">
         <CardContent className="p-4">
-          <h4 className="font-medium mb-2">Timeline Summary</h4>
+          <h4 className="font-light mb-2">Timeline Summary</h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Total Events:</span>
-              <span className="ml-2 font-medium">{timelineEvents.length}</span>
+              <span className="ml-2 font-light">{timelineEvents.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Status Updates:</span>
-              <span className="ml-2 font-medium">{statusUpdates.length}</span>
+              <span className="ml-2 font-light">{statusUpdates.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">GPS Checkpoints:</span>
-              <span className="ml-2 font-medium">{checkpoints.length}</span>
+              <span className="ml-2 font-light">{checkpoints.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Current Status:</span>
-              <span className="ml-2 font-medium">{getStatusLabel(shipment.currentStatus)}</span>
+              <span className="ml-2 font-light">{getStatusLabel(shipment.currentStatus)}</span>
             </div>
           </div>
         </CardContent>

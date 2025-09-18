@@ -235,10 +235,10 @@ export default function CheckOutModal({
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="text-sm">
-                  <span className="font-medium">Check-in time:</span> {format(new Date(checkIn), 'HH:mm')}
+                  <span className="font-light">Check-in time:</span> {format(new Date(checkIn), 'HH:mm')}
                 </div>
                 <div className="text-sm">
-                  <span className="font-medium">Work duration:</span> {getWorkDuration()}
+                  <span className="font-light">Work duration:</span> {getWorkDuration()}
                 </div>
               </CardContent>
             </Card>
@@ -268,7 +268,7 @@ export default function CheckOutModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium">Location acquired</span>
+                      <span className="text-sm font-light">Location acquired</span>
                     </div>
                     {getAccuracyBadge()}
                   </div>

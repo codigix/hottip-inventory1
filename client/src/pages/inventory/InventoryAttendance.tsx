@@ -145,7 +145,7 @@ export default function InventoryAttendance() {
             <User className="h-4 w-4" />
           </div>
           <div>
-            <p className="font-medium">{employee.name}</p>
+            <p className="font-light">{employee.name}</p>
             <p className="text-sm text-muted-foreground">{employee.department}</p>
           </div>
         </div>
@@ -363,7 +363,7 @@ export default function InventoryAttendance() {
                   </Select>
                 </div>
                 <div className="bg-muted/30 p-3 rounded-lg">
-                  <p className="text-sm font-medium">Current Time: {new Date().toLocaleString()}</p>
+                  <p className="text-sm font-light">Current Time: {new Date().toLocaleString()}</p>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsCheckInDialogOpen(false)}>
@@ -398,7 +398,7 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
+                <p className="text-sm font-light text-muted-foreground">Total Staff</p>
                 <p className="text-2xl font-bold text-foreground">12</p>
               </div>
               <User className="h-8 w-8 text-blue-600" />
@@ -410,7 +410,7 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Present Today</p>
+                <p className="text-sm font-light text-muted-foreground">Present Today</p>
                 <p className="text-2xl font-bold text-foreground">10</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -422,7 +422,7 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">On Leave</p>
+                <p className="text-sm font-light text-muted-foreground">On Leave</p>
                 <p className="text-2xl font-bold text-foreground">1</p>
               </div>
               <Calendar className="h-8 w-8 text-orange-600" />
@@ -434,7 +434,7 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Absent</p>
+                <p className="text-sm font-light text-muted-foreground">Absent</p>
                 <p className="text-2xl font-bold text-foreground">1</p>
               </div>
               <XCircle className="h-8 w-8 text-red-600" />
@@ -509,7 +509,7 @@ export default function InventoryAttendance() {
                   {leaveRequests.filter(req => req.status === 'pending').map((request) => (
                     <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
                       <div>
-                        <p className="font-medium">{request.employee}</p>
+                        <p className="font-light">{request.employee}</p>
                         <p className="text-sm text-muted-foreground">
                           {request.leaveType} - {request.days} days
                         </p>
@@ -578,19 +578,19 @@ export default function InventoryAttendance() {
                     { name: "Mike Chen", annual: 8, sick: 6, personal: 2 }
                   ].map((employee, index) => (
                     <div key={index} className="border rounded-lg p-3">
-                      <p className="font-medium mb-2">{employee.name}</p>
+                      <p className="font-light mb-2">{employee.name}</p>
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="text-center">
                           <p className="text-muted-foreground">Annual</p>
-                          <p className="font-medium">{employee.annual}</p>
+                          <p className="font-light">{employee.annual}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-muted-foreground">Sick</p>
-                          <p className="font-medium">{employee.sick}</p>
+                          <p className="font-light">{employee.sick}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-muted-foreground">Personal</p>
-                          <p className="font-medium">{employee.personal}</p>
+                          <p className="font-light">{employee.personal}</p>
                         </div>
                       </div>
                     </div>

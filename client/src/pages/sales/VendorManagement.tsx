@@ -87,7 +87,7 @@ export default function VendorManagement() {
       header: 'Vendor Name',
       cell: (supplier: any) => (
         <div>
-          <div className="font-medium">{supplier.name}</div>
+          <div className="font-light">{supplier.name}</div>
           <div className="text-xs text-muted-foreground">{supplier.companyType || 'Company'}</div>
         </div>
       ),

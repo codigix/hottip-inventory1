@@ -428,7 +428,7 @@ export default function TaxGst() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">GST Collected</CardTitle>
+            <CardTitle className="text-sm font-light">GST Collected</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -441,7 +441,7 @@ export default function TaxGst() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">GST Paid</CardTitle>
+            <CardTitle className="text-sm font-light">GST Paid</CardTitle>
             <TrendingDown className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -454,7 +454,7 @@ export default function TaxGst() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Filing Status</CardTitle>
+            <CardTitle className="text-sm font-light">Filing Status</CardTitle>
             {isAllCurrent ? (
               <CheckCircle2 className="h-4 w-4 text-green-500" />
             ) : (
@@ -473,7 +473,7 @@ export default function TaxGst() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Liability</CardTitle>
+            <CardTitle className="text-sm font-light">Net Liability</CardTitle>
             {netLiability > 0 ? (
               <AlertTriangle className="h-4 w-4 text-orange-500" />
             ) : (
@@ -547,7 +547,7 @@ export default function TaxGst() {
               ))}
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -574,7 +574,7 @@ export default function TaxGst() {
                   ) : (
                     filteredReturns.map((gstReturn: GstReturn) => (
                       <TableRow key={gstReturn.id} data-testid={`row-gst-return-${gstReturn.id}`}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-light">
                           <div>
                             <div className="font-semibold">
                               {new Date(gstReturn.periodStart).toLocaleDateString()} - {new Date(gstReturn.periodEnd).toLocaleDateString()}
@@ -858,40 +858,40 @@ export default function TaxGst() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Period Start</Label>
-                  <p className="text-sm font-medium" data-testid="view-period-start">
+                  <p className="text-sm font-light" data-testid="view-period-start">
                     {new Date(selectedReturn.periodStart).toLocaleDateString()}
                   </p>
                 </div>
                 <div>
                   <Label>Period End</Label>
-                  <p className="text-sm font-medium" data-testid="view-period-end">
+                  <p className="text-sm font-light" data-testid="view-period-end">
                     {new Date(selectedReturn.periodEnd).toLocaleDateString()}
                   </p>
                 </div>
               </div>
               <div>
                 <Label>Frequency</Label>
-                <p className="text-sm font-medium" data-testid="view-frequency">
+                <p className="text-sm font-light" data-testid="view-frequency">
                   {frequencyLabels[selectedReturn.frequency as keyof typeof frequencyLabels]}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Output Tax</Label>
-                  <p className="text-sm font-medium" data-testid="view-output-tax">
+                  <p className="text-sm font-light" data-testid="view-output-tax">
                     ₹{parseFloat(selectedReturn.outputTax).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <Label>Input Tax</Label>
-                  <p className="text-sm font-medium" data-testid="view-input-tax">
+                  <p className="text-sm font-light" data-testid="view-input-tax">
                     ₹{parseFloat(selectedReturn.inputTax).toLocaleString()}
                   </p>
                 </div>
               </div>
               <div>
                 <Label>Net Liability</Label>
-                <p className="text-sm font-medium" data-testid="view-liability">
+                <p className="text-sm font-light" data-testid="view-liability">
                   ₹{parseFloat(selectedReturn.liability).toLocaleString()}
                 </p>
               </div>
@@ -907,7 +907,7 @@ export default function TaxGst() {
               {selectedReturn.filedAt && (
                 <div>
                   <Label>Filed Date</Label>
-                  <p className="text-sm font-medium" data-testid="view-filed-date">
+                  <p className="text-sm font-light" data-testid="view-filed-date">
                     {new Date(selectedReturn.filedAt).toLocaleDateString()}
                   </p>
                 </div>

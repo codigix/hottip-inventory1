@@ -334,7 +334,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h4 className="font-medium">
+                <h4 className="font-light">
                   {selectedVisit.visitNumber} - {selectedVisit.lead?.firstName} {selectedVisit.lead?.lastName}
                 </h4>
                 {selectedVisit.lead?.companyName && (
@@ -347,7 +347,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
               
               <div>
                 <p className="text-sm text-muted-foreground">Address:</p>
-                <p className="text-sm font-medium">{selectedVisit.visitAddress}</p>
+                <p className="text-sm font-light">{selectedVisit.visitAddress}</p>
                 {selectedVisit.visitCity && (
                   <p className="text-sm text-muted-foreground">{selectedVisit.visitCity}</p>
                 )}
@@ -402,7 +402,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
               const nearby = getNearbyVisits(selectedVisit);
               return nearby.length > 0 && (
                 <div>
-                  <h5 className="text-sm font-medium mb-2">Nearby Visits</h5>
+                  <h5 className="text-sm font-light mb-2">Nearby Visits</h5>
                   <div className="space-y-2">
                     {nearby.map(({ visit, distance }) => (
                       <div 
@@ -411,7 +411,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                         onClick={() => setSelectedVisit(visit)}
                       >
                         <div>
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-light">
                             {visit.lead?.firstName} {visit.lead?.lastName}
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -448,7 +448,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h4 className="font-medium text-sm">{visit.visitNumber}</h4>
+                    <h4 className="font-light text-sm">{visit.visitNumber}</h4>
                     <p className="text-xs text-muted-foreground">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                     </p>

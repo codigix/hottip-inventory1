@@ -121,7 +121,7 @@ export default function StockManagement() {
       header: "Current Stock",
       cell: (product: any) => (
         <div className="flex items-center space-x-2">
-          <span className="font-medium">{product.stock}</span>
+          <span className="font-light">{product.stock}</span>
           <span className="text-muted-foreground text-xs">{product.unit}</span>
         </div>
       ),
@@ -360,7 +360,7 @@ export default function StockManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Products</p>
+                <p className="text-sm font-light text-muted-foreground">Total Products</p>
                 <p className="text-2xl font-bold text-foreground">{totalProducts}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -374,7 +374,7 @@ export default function StockManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Low Stock Items</p>
+                <p className="text-sm font-light text-muted-foreground">Low Stock Items</p>
                 <p className="text-2xl font-bold text-foreground">{lowStockProducts}</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -388,7 +388,7 @@ export default function StockManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Stock Value</p>
+                <p className="text-sm font-light text-muted-foreground">Total Stock Value</p>
                 <p className="text-2xl font-bold text-foreground">₹{totalValue.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -402,7 +402,7 @@ export default function StockManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Transactions Today</p>
+                <p className="text-sm font-light text-muted-foreground">Transactions Today</p>
                 <p className="text-2xl font-bold text-foreground">{totalTransactions}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -480,14 +480,14 @@ export default function StockManagement() {
                 .map((product: any) => (
                   <div
                     key={product.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-md border border-orange-200"
+                    className="flex items-center justify-between p-3 bg-white border border-orange-200"
                   >
                     <div>
-                      <p className="font-medium text-orange-900">{product.name}</p>
+                      <p className="font-light text-orange-900">{product.name}</p>
                       <p className="text-sm text-orange-600">SKU: {product.sku}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-orange-900">
+                      <p className="font-light text-orange-900">
                         {product.stock} {product.unit}
                       </p>
                       <p className="text-xs text-orange-600">

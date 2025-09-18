@@ -16,7 +16,7 @@ export default function InvoiceManagement() {
       key: 'invoiceNumber',
       header: 'Invoice #',
       cell: (invoice: any) => (
-        <div className="font-medium">{invoice.invoiceNumber}</div>
+        <div className="font-light">{invoice.invoiceNumber}</div>
       ),
     },
     {
@@ -24,7 +24,7 @@ export default function InvoiceManagement() {
       header: 'Client',
       cell: (invoice: any) => (
         <div>
-          <div className="font-medium">{invoice.customer?.name || 'N/A'}</div>
+          <div className="font-light">{invoice.customer?.name || 'N/A'}</div>
           <div className="text-xs text-muted-foreground">{invoice.customer?.gstNumber || ''}</div>
         </div>
       ),

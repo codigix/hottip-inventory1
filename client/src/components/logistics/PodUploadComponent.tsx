@@ -174,7 +174,7 @@ export default function PodUploadComponent({
     <div className="space-y-6">
       {/* File Upload Section */}
       <div className="space-y-4">
-        <div className="text-sm font-medium">Upload Proof of Delivery</div>
+        <div className="text-sm font-light">Upload Proof of Delivery</div>
         
         {!selectedFile ? (
           <div className="border-2 border-dashed border-border rounded-lg p-6">
@@ -199,7 +199,7 @@ export default function PodUploadComponent({
                 {uploadStatus === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
                 {uploadStatus === 'error' && <AlertCircle className="h-5 w-5 text-red-500" />}
                 <div>
-                  <div className="text-sm font-medium">{selectedFile.name}</div>
+                  <div className="text-sm font-light">{selectedFile.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
                   </div>

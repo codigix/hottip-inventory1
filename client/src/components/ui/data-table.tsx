@@ -79,7 +79,7 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
 
-      <div className="rounded-md border">
+      <div className="border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -270,7 +270,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Customer:</span>
-                    <p className="font-medium">
+                    <p className="font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                       {visit.lead?.companyName && ` - ${visit.lead.companyName}`}
                     </p>
@@ -302,7 +302,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                 onDrop={handleDrop}
               >
                 <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">Drop files here or click to upload</p>
+                <p className="text-lg font-light mb-2">Drop files here or click to upload</p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Supports: JPG, PNG, PDF, DOC, DOCX (Max 10MB per file)
                 </p>
@@ -380,7 +380,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium text-sm">{file.file.name}</p>
+                              <p className="font-light text-sm">{file.file.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {formatFileSize(file.file.size)} • {file.file.type}
                               </p>

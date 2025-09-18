@@ -146,7 +146,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No leads found</h3>
+            <h3 className="text-lg font-light text-foreground mb-2">No leads found</h3>
             <p className="text-sm text-muted-foreground">
               Get started by adding your first lead to the system.
             </p>
@@ -158,7 +158,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -178,7 +178,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               <TableRow key={lead.id} data-testid={`lead-row-${lead.id}`}>
                 <TableCell>
                   <div className="space-y-1">
-                    <div className="font-medium text-foreground">
+                    <div className="font-light text-foreground">
                       {lead.firstName} {lead.lastName}
                     </div>
                     {lead.companyName && (
@@ -239,7 +239,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 <TableCell>
                   <div className="space-y-1">
                     {lead.estimatedBudget && (
-                      <div className="text-sm font-medium">
+                      <div className="text-sm font-light">
                         {formatCurrency(lead.estimatedBudget)}
                       </div>
                     )}
@@ -345,7 +345,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-medium text-foreground mb-2">Personal Information</h3>
+                  <h3 className="font-light text-foreground mb-2">Personal Information</h3>
                   <div className="space-y-2 text-sm">
                     <div><strong>Name:</strong> {viewingLead.firstName} {viewingLead.lastName}</div>
                     {viewingLead.companyName && <div><strong>Company:</strong> {viewingLead.companyName}</div>}
@@ -356,7 +356,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 </div>
                 
                 <div>
-                  <h3 className="font-medium text-foreground mb-2">Lead Information</h3>
+                  <h3 className="font-light text-foreground mb-2">Lead Information</h3>
                   <div className="space-y-2 text-sm">
                     <div><strong>Status:</strong> <StatusBadge status={viewingLead.status} /></div>
                     <div><strong>Priority:</strong> <PriorityBadge priority={viewingLead.priority} /></div>
@@ -372,7 +372,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               {viewingLead.address && (
                 <>
                   <div>
-                    <h3 className="font-medium text-foreground mb-2">Address</h3>
+                    <h3 className="font-light text-foreground mb-2">Address</h3>
                     <div className="text-sm space-y-1">
                       <div>{viewingLead.address}</div>
                       <div>
@@ -388,7 +388,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               {(viewingLead.requirementDescription || viewingLead.estimatedBudget) && (
                 <>
                   <div>
-                    <h3 className="font-medium text-foreground mb-2">Requirements</h3>
+                    <h3 className="font-light text-foreground mb-2">Requirements</h3>
                     <div className="space-y-2 text-sm">
                       {viewingLead.requirementDescription && (
                         <div><strong>Description:</strong> {viewingLead.requirementDescription}</div>
@@ -406,7 +406,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               )}
 
               <div>
-                <h3 className="font-medium text-foreground mb-2">Dates</h3>
+                <h3 className="font-light text-foreground mb-2">Dates</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Created:</strong> {format(new Date(viewingLead.createdAt), 'MMM dd, yyyy')}</div>
                   <div><strong>Updated:</strong> {format(new Date(viewingLead.updatedAt), 'MMM dd, yyyy')}</div>
@@ -423,8 +423,8 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 <>
                   <Separator />
                   <div>
-                    <h3 className="font-medium text-foreground mb-2">Notes</h3>
-                    <div className="text-sm bg-muted/50 p-3 rounded-md">
+                    <h3 className="font-light text-foreground mb-2">Notes</h3>
+                    <div className="text-sm bg-muted/50 p-3 rounded-sm">
                       {viewingLead.notes}
                     </div>
                   </div>
@@ -435,7 +435,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 <>
                   <Separator />
                   <div>
-                    <h3 className="font-medium text-foreground mb-2">Tags</h3>
+                    <h3 className="font-light text-foreground mb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {viewingLead.tags.map((tag, index) => (
                         <Badge key={index} variant="secondary">{tag}</Badge>

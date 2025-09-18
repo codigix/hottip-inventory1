@@ -408,7 +408,7 @@ export default function MarketingAttendance() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+                <CardTitle className="text-sm font-light">Present Today</CardTitle>
                 <UserCheck className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
@@ -423,7 +423,7 @@ export default function MarketingAttendance() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Absent Today</CardTitle>
+                <CardTitle className="text-sm font-light">Absent Today</CardTitle>
                 <UserX className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
@@ -438,7 +438,7 @@ export default function MarketingAttendance() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
+                <CardTitle className="text-sm font-light">Late Arrivals</CardTitle>
                 <Timer className="h-4 w-4 text-orange-500" />
               </CardHeader>
               <CardContent>
@@ -453,7 +453,7 @@ export default function MarketingAttendance() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">On Leave</CardTitle>
+                <CardTitle className="text-sm font-light">On Leave</CardTitle>
                 <Calendar className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
@@ -527,7 +527,7 @@ export default function MarketingAttendance() {
                           {record.user?.firstName?.[0]}{record.user?.lastName?.[0]}
                         </div>
                         <div>
-                          <p className="font-medium">
+                          <p className="font-light">
                             {record.user?.firstName} {record.user?.lastName}
                           </p>
                           <p className="text-sm text-muted-foreground">
@@ -644,23 +644,23 @@ export default function MarketingAttendance() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Working Days</span>
-                    <span className="font-medium">{displayMetrics.monthlyStats.totalDays}</span>
+                    <span className="font-light">{displayMetrics.monthlyStats.totalDays}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Days Present</span>
-                    <span className="font-medium text-green-600">{displayMetrics.monthlyStats.presentDays}</span>
+                    <span className="font-light text-green-600">{displayMetrics.monthlyStats.presentDays}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Days Absent</span>
-                    <span className="font-medium text-red-600">{displayMetrics.monthlyStats.absentDays}</span>
+                    <span className="font-light text-red-600">{displayMetrics.monthlyStats.absentDays}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Leave Days</span>
-                    <span className="font-medium text-blue-600">{displayMetrics.monthlyStats.leaveDays}</span>
+                    <span className="font-light text-blue-600">{displayMetrics.monthlyStats.leaveDays}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
-                    <span className="font-medium">Attendance Rate</span>
+                    <span className="font-light">Attendance Rate</span>
                     <span className="font-bold text-green-600">
                       {((displayMetrics.monthlyStats.presentDays / displayMetrics.monthlyStats.totalDays) * 100).toFixed(1)}%
                     </span>
@@ -678,15 +678,15 @@ export default function MarketingAttendance() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Leave</span>
-                    <span className="font-medium">{leaveBalance.totalLeave} days</span>
+                    <span className="font-light">{leaveBalance.totalLeave} days</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Used Leave</span>
-                    <span className="font-medium text-orange-600">{leaveBalance.usedLeave} days</span>
+                    <span className="font-light text-orange-600">{leaveBalance.usedLeave} days</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Remaining Leave</span>
-                    <span className="font-medium text-green-600">{leaveBalance.remainingLeave} days</span>
+                    <span className="font-light text-green-600">{leaveBalance.remainingLeave} days</span>
                   </div>
                   <Separator />
                   <div className="space-y-2">

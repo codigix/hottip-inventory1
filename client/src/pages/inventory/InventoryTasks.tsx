@@ -96,7 +96,7 @@ export default function InventoryTasks() {
       header: "Task",
       cell: (task: any) => (
         <div>
-          <p className="font-medium">{task.title}</p>
+          <p className="font-light">{task.title}</p>
           <p className="text-sm text-muted-foreground">{task.description}</p>
         </div>
       ),
@@ -265,7 +265,7 @@ export default function InventoryTasks() {
               <div className="space-y-4">
                 {selectedTask && (
                   <div className="bg-muted/30 p-3 rounded-lg">
-                    <p className="font-medium">{selectedTask.title}</p>
+                    <p className="font-light">{selectedTask.title}</p>
                     <p className="text-sm text-muted-foreground">{selectedTask.description}</p>
                   </div>
                 )}
@@ -333,7 +333,7 @@ export default function InventoryTasks() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+                <p className="text-sm font-light text-muted-foreground">Total Tasks</p>
                 <p className="text-2xl font-bold text-foreground">18</p>
               </div>
               <ClipboardList className="h-8 w-8 text-blue-600" />
@@ -345,7 +345,7 @@ export default function InventoryTasks() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">In Progress</p>
+                <p className="text-sm font-light text-muted-foreground">In Progress</p>
                 <p className="text-2xl font-bold text-foreground">7</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
@@ -357,7 +357,7 @@ export default function InventoryTasks() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                <p className="text-sm font-light text-muted-foreground">Completed</p>
                 <p className="text-2xl font-bold text-foreground">8</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -369,7 +369,7 @@ export default function InventoryTasks() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+                <p className="text-sm font-light text-muted-foreground">Overdue</p>
                 <p className="text-2xl font-bold text-foreground">3</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600" />
@@ -422,7 +422,7 @@ export default function InventoryTasks() {
                         <ClipboardList className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{task.title}</p>
+                        <p className="font-light">{task.title}</p>
                         <p className="text-sm text-muted-foreground">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -453,7 +453,7 @@ export default function InventoryTasks() {
                         <AlertTriangle className="h-5 w-5 text-red-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-red-900">{task.title}</p>
+                        <p className="font-light text-red-900">{task.title}</p>
                         <p className="text-sm text-red-600">Assigned to: {task.assignedTo}</p>
                       </div>
                     </div>

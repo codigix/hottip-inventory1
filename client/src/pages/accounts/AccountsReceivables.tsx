@@ -410,7 +410,7 @@ export default function AccountsReceivables() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Receivables</CardTitle>
+            <CardTitle className="text-sm font-light">Total Receivables</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -425,7 +425,7 @@ export default function AccountsReceivables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Amount</CardTitle>
+            <CardTitle className="text-sm font-light">Overdue Amount</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
@@ -440,7 +440,7 @@ export default function AccountsReceivables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Payment Days</CardTitle>
+            <CardTitle className="text-sm font-light">Avg. Payment Days</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -453,7 +453,7 @@ export default function AccountsReceivables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
+            <CardTitle className="text-sm font-light">Collection Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -542,7 +542,7 @@ export default function AccountsReceivables() {
                     
                     return (
                       <TableRow key={receivable.id} data-testid={`row-receivable-${receivable.id}`}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-light">
                           <Link 
                             href={`/sales/clients/${receivable.customerId}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
@@ -759,15 +759,15 @@ export default function AccountsReceivables() {
               <div className="text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-medium">{selectedReceivable.customer?.name || 'Unknown Customer'}</span>
+                  <span className="font-light">{selectedReceivable.customer?.name || 'Unknown Customer'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount Due:</span>
-                  <span className="font-medium">₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}</span>
+                  <span className="font-light">₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Paid So Far:</span>
-                  <span className="font-medium">₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}</span>
+                  <span className="font-light">₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1">
                   <span className="text-muted-foreground">Remaining:</span>

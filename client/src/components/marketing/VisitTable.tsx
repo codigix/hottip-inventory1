@@ -239,7 +239,7 @@ export default function VisitTable({
                   <TableRow key={visit.id} data-testid={`visit-row-${visit.visitNumber}`}>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium" data-testid={`visit-number-${visit.visitNumber}`}>
+                        <div className="font-light" data-testid={`visit-number-${visit.visitNumber}`}>
                           {visit.visitNumber}
                         </div>
                         <div className="text-sm text-muted-foreground">
@@ -256,7 +256,7 @@ export default function VisitTable({
                     
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium">
+                        <div className="font-light">
                           {visit.lead?.firstName} {visit.lead?.lastName}
                         </div>
                         {visit.lead?.companyName && (
@@ -463,7 +463,7 @@ export default function VisitTable({
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                     </span>
                     {visit.lead?.companyName && (
@@ -554,7 +554,7 @@ export default function VisitTable({
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">New Status</label>
+              <label className="text-sm font-light">New Status</label>
               <Select value={newStatus} onValueChange={(value) => setNewStatus(value as VisitStatus)}>
                 <SelectTrigger data-testid="select-new-status">
                   <SelectValue />
@@ -569,7 +569,7 @@ export default function VisitTable({
             </div>
 
             <div>
-              <label className="text-sm font-medium">Notes (Optional)</label>
+              <label className="text-sm font-light">Notes (Optional)</label>
               <Textarea
                 placeholder="Add a note about this status change..."
                 value={statusNotes}

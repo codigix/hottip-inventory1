@@ -234,7 +234,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                   <Icon className="h-6 w-6" />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-medium">{status.label}</div>
+                  <div className="text-sm font-light">{status.label}</div>
                   <div className="text-2xl font-bold">{count}</div>
                   <div className="text-xs text-muted-foreground">{status.description}</div>
                 </div>
@@ -276,7 +276,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                     return (
                       <Card key={shipment.id} className="p-3">
                         <div className="space-y-2">
-                          <div className="font-medium text-sm" data-testid={`workflow-shipment-${shipment.id}`}>
+                          <div className="font-light text-sm" data-testid={`workflow-shipment-${shipment.id}`}>
                             {shipment.consignmentNumber}
                           </div>
                           <div className="text-xs text-muted-foreground">

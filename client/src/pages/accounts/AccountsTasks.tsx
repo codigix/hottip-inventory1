@@ -582,7 +582,7 @@ export default function AccountsTasks() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <CardTitle className="text-sm font-light">Total Tasks</CardTitle>
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -595,7 +595,7 @@ export default function AccountsTasks() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="text-sm font-light">In Progress</CardTitle>
             <Play className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -610,7 +610,7 @@ export default function AccountsTasks() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-light">Completed</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -625,7 +625,7 @@ export default function AccountsTasks() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <CardTitle className="text-sm font-light">Overdue</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -762,7 +762,7 @@ export default function AccountsTasks() {
                         
                         return (
                           <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
-                            <TableCell className="font-medium">
+                            <TableCell className="font-light">
                               <div className="flex flex-col space-y-1">
                                 <span className={isOverdue ? "text-red-600 font-semibold" : ""}>
                                   {task.title}
@@ -1095,11 +1095,11 @@ export default function AccountsTasks() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Title</Label>
+                  <Label className="text-sm font-light">Title</Label>
                   <p className="text-sm" data-testid="view-task-title">{selectedTask.title}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Type</Label>
+                  <Label className="text-sm font-light">Type</Label>
                   <Badge className={typeStyles[selectedTask.type as keyof typeof typeStyles]}>
                     {selectedTask.type.replace('_', ' ').toUpperCase()}
                   </Badge>
@@ -1107,25 +1107,25 @@ export default function AccountsTasks() {
               </div>
               {selectedTask.description && (
                 <div>
-                  <Label className="text-sm font-medium">Description</Label>
+                  <Label className="text-sm font-light">Description</Label>
                   <p className="text-sm" data-testid="view-task-description">{selectedTask.description}</p>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Status</Label>
+                  <Label className="text-sm font-light">Status</Label>
                   <Badge className={statusStyles[selectedTask.status as keyof typeof statusStyles]}>
                     {selectedTask.status.replace('_', ' ').toUpperCase()}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Priority</Label>
+                  <Label className="text-sm font-light">Priority</Label>
                   <Badge className={priorityStyles[selectedTask.priority as keyof typeof priorityStyles]}>
                     {selectedTask.priority.toUpperCase()}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Due Date</Label>
+                  <Label className="text-sm font-light">Due Date</Label>
                   <p className="text-sm" data-testid="view-due-date">
                     {selectedTask.dueDate 
                       ? new Date(selectedTask.dueDate).toLocaleDateString()
@@ -1136,14 +1136,14 @@ export default function AccountsTasks() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Created</Label>
+                  <Label className="text-sm font-light">Created</Label>
                   <p className="text-sm" data-testid="view-created-date">
                     {new Date(selectedTask.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 {selectedTask.completedDate && (
                   <div>
-                    <Label className="text-sm font-medium">Completed</Label>
+                    <Label className="text-sm font-light">Completed</Label>
                     <p className="text-sm" data-testid="view-completed-date">
                       {new Date(selectedTask.completedDate).toLocaleDateString()}
                     </p>
@@ -1153,18 +1153,18 @@ export default function AccountsTasks() {
               {selectedTask.relatedType && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Related Entity Type</Label>
+                    <Label className="text-sm font-light">Related Entity Type</Label>
                     <p className="text-sm" data-testid="view-related-type">{selectedTask.relatedType}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Related Entity ID</Label>
+                    <Label className="text-sm font-light">Related Entity ID</Label>
                     <p className="text-sm font-mono text-xs" data-testid="view-related-id">{selectedTask.relatedId}</p>
                   </div>
                 </div>
               )}
               {selectedTask.notes && (
                 <div>
-                  <Label className="text-sm font-medium">Notes</Label>
+                  <Label className="text-sm font-light">Notes</Label>
                   <p className="text-sm whitespace-pre-wrap" data-testid="view-task-notes">{selectedTask.notes}</p>
                 </div>
               )}

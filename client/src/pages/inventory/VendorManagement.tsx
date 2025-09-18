@@ -43,7 +43,7 @@ export default function VendorManagement() {
             <Building2 className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="font-medium">{vendor.name}</p>
+            <p className="font-light">{vendor.name}</p>
             <p className="text-sm text-muted-foreground">{vendor.contactPerson}</p>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function VendorManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Vendors</p>
+                <p className="text-sm font-light text-muted-foreground">Active Vendors</p>
                 <p className="text-2xl font-bold text-foreground">{activeVendors}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -320,7 +320,7 @@ export default function VendorManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Communications</p>
+                <p className="text-sm font-light text-muted-foreground">Communications</p>
                 <p className="text-2xl font-bold text-foreground">{totalCommunications}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -334,7 +334,7 @@ export default function VendorManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Follow-ups</p>
+                <p className="text-sm font-light text-muted-foreground">Pending Follow-ups</p>
                 <p className="text-2xl font-bold text-foreground">{pendingFollowUps}</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">

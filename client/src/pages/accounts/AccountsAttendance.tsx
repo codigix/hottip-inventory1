@@ -691,7 +691,7 @@ export default function AccountsAttendance() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Size</CardTitle>
+            <CardTitle className="text-sm font-light">Team Size</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -706,7 +706,7 @@ export default function AccountsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+            <CardTitle className="text-sm font-light">Present Today</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -723,7 +723,7 @@ export default function AccountsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Hours</CardTitle>
+            <CardTitle className="text-sm font-light">Avg. Hours</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -738,7 +738,7 @@ export default function AccountsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
+            <CardTitle className="text-sm font-light">Late Arrivals</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
@@ -859,7 +859,7 @@ export default function AccountsAttendance() {
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <User className="h-4 w-4" />
-                              <span className="font-medium">
+                              <span className="font-light">
                                 {record.user?.firstName} {record.user?.lastName}
                               </span>
                             </div>
@@ -1127,13 +1127,13 @@ export default function AccountsAttendance() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Employee</Label>
-                  <p className="font-medium" data-testid="view-employee">
+                  <p className="font-light" data-testid="view-employee">
                     {(selectedAttendance as any).user?.firstName} {(selectedAttendance as any).user?.lastName}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Date</Label>
-                  <p className="font-medium" data-testid="view-date">
+                  <p className="font-light" data-testid="view-date">
                     {format(new Date(selectedAttendance.date), "MMM dd, yyyy")}
                   </p>
                 </div>
@@ -1142,13 +1142,13 @@ export default function AccountsAttendance() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Check In</Label>
-                  <p className="font-medium" data-testid="view-check-in">
+                  <p className="font-light" data-testid="view-check-in">
                     {selectedAttendance.checkIn ? format(new Date(selectedAttendance.checkIn), "hh:mm a") : "Not recorded"}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Check Out</Label>
-                  <p className="font-medium" data-testid="view-check-out">
+                  <p className="font-light" data-testid="view-check-out">
                     {selectedAttendance.checkOut ? format(new Date(selectedAttendance.checkOut), "hh:mm a") : "Not recorded"}
                   </p>
                 </div>
@@ -1168,7 +1168,7 @@ export default function AccountsAttendance() {
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Location</Label>
-                  <p className="font-medium" data-testid="view-location">
+                  <p className="font-light" data-testid="view-location">
                     {selectedAttendance.location || "Not specified"}
                   </p>
                 </div>
@@ -1177,7 +1177,7 @@ export default function AccountsAttendance() {
               {selectedAttendance.checkIn && selectedAttendance.checkOut && (
                 <div>
                   <Label className="text-sm text-muted-foreground">Total Hours</Label>
-                  <p className="font-medium text-lg" data-testid="view-total-hours">
+                  <p className="font-light text-lg" data-testid="view-total-hours">
                     {Math.round(((new Date(selectedAttendance.checkOut).getTime() - new Date(selectedAttendance.checkIn).getTime()) / (1000 * 60 * 60)) * 10) / 10} hours
                   </p>
                 </div>

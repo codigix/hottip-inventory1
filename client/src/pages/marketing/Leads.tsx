@@ -107,7 +107,7 @@ export default function Leads() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+              <CardTitle className="text-sm font-light">Total Leads</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -120,7 +120,7 @@ export default function Leads() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Leads</CardTitle>
+              <CardTitle className="text-sm font-light">New Leads</CardTitle>
               <Target className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
@@ -133,7 +133,7 @@ export default function Leads() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+              <CardTitle className="text-sm font-light">In Progress</CardTitle>
               <TrendingUp className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
@@ -146,7 +146,7 @@ export default function Leads() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
               <UserCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -183,7 +183,7 @@ export default function Leads() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center space-x-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filters:</span>
+                <span className="text-sm font-light">Filters:</span>
               </div>
 
               <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as LeadSource | 'all')}>

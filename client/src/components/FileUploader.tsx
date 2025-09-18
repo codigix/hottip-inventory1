@@ -176,7 +176,7 @@ export function FileUploader({
         <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
           <div className="flex items-center space-x-2">
             <File className="h-4 w-4" />
-            <span className="text-sm font-medium" data-testid="text-filename">
+            <span className="text-sm font-light" data-testid="text-filename">
               {selectedFile.name}
             </span>
             <span className="text-xs text-muted-foreground">

@@ -355,7 +355,7 @@ export default function CheckOutModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Check-in Time</p>
-                  <p className="font-medium" data-testid="checkin-time-display">
+                  <p className="font-light" data-testid="checkin-time-display">
                     {checkInTime 
                       ? new Date(checkInTime).toLocaleTimeString('en-US', { 
                           hour: '2-digit', 
@@ -368,7 +368,7 @@ export default function CheckOutModal({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Work Duration</p>
-                  <p className="font-medium text-green-600" data-testid="work-duration-display">
+                  <p className="font-light text-green-600" data-testid="work-duration-display">
                     {getWorkDuration()}
                   </p>
                 </div>
@@ -376,7 +376,7 @@ export default function CheckOutModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="visit-count" className="text-sm font-medium">Client Visits</Label>
+                  <Label htmlFor="visit-count" className="text-sm font-light">Client Visits</Label>
                   <Input
                     id="visit-count"
                     type="number"
@@ -388,7 +388,7 @@ export default function CheckOutModal({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tasks-completed" className="text-sm font-medium">Tasks Completed</Label>
+                  <Label htmlFor="tasks-completed" className="text-sm font-light">Tasks Completed</Label>
                   <Input
                     id="tasks-completed"
                     type="number"
@@ -402,7 +402,7 @@ export default function CheckOutModal({
               </div>
 
               <div>
-                <Label htmlFor="outcome" className="text-sm font-medium">Day Outcome</Label>
+                <Label htmlFor="outcome" className="text-sm font-light">Day Outcome</Label>
                 <Select value={outcome} onValueChange={setOutcome}>
                   <SelectTrigger className="mt-1" data-testid="select-outcome">
                     <SelectValue placeholder="How was your day?" />
@@ -429,7 +429,7 @@ export default function CheckOutModal({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="work-description" className="text-sm font-medium">
+                <Label htmlFor="work-description" className="text-sm font-light">
                   What did you accomplish today?
                 </Label>
                 <Textarea
@@ -444,7 +444,7 @@ export default function CheckOutModal({
               </div>
 
               <div>
-                <Label htmlFor="next-action" className="text-sm font-medium">
+                <Label htmlFor="next-action" className="text-sm font-light">
                   Next Action Items (Optional)
                 </Label>
                 <Textarea
@@ -488,7 +488,7 @@ export default function CheckOutModal({
                   {/* Location Status */}
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium">Location acquired</span>
+                    <span className="text-sm font-light">Location acquired</span>
                     <Badge 
                       variant={locationAccuracy.status === 'good' ? 'default' : 
                                locationAccuracy.status === 'fair' ? 'secondary' : 'destructive'}
@@ -502,13 +502,13 @@ export default function CheckOutModal({
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Latitude:</span>
-                      <p className="font-medium" data-testid="location-latitude">
+                      <p className="font-light" data-testid="location-latitude">
                         {currentLocation.latitude.toFixed(6)}
                       </p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Longitude:</span>
-                      <p className="font-medium" data-testid="location-longitude">
+                      <p className="font-light" data-testid="location-longitude">
                         {currentLocation.longitude.toFixed(6)}
                       </p>
                     </div>
@@ -516,7 +516,7 @@ export default function CheckOutModal({
 
                   {/* Address */}
                   <div>
-                    <Label htmlFor="address" className="text-sm font-medium">Location Address</Label>
+                    <Label htmlFor="address" className="text-sm font-light">Location Address</Label>
                     <Input
                       id="address"
                       value={address}
@@ -601,7 +601,7 @@ export default function CheckOutModal({
 
               {photoPreview && (
                 <div className="mt-3">
-                  <p className="text-sm font-medium mb-2">Photo Preview:</p>
+                  <p className="text-sm font-light mb-2">Photo Preview:</p>
                   <img 
                     src={photoPreview} 
                     alt="Check-out photo" 

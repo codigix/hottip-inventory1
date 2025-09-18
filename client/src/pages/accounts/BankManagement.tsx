@@ -394,7 +394,7 @@ export default function BankManagement() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+            <CardTitle className="text-sm font-light">Total Balance</CardTitle>
             <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -409,7 +409,7 @@ export default function BankManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Inflow</CardTitle>
+            <CardTitle className="text-sm font-light">Monthly Inflow</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -424,7 +424,7 @@ export default function BankManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Outflow</CardTitle>
+            <CardTitle className="text-sm font-light">Monthly Outflow</CardTitle>
             <Activity className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -439,7 +439,7 @@ export default function BankManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Accounts</CardTitle>
+            <CardTitle className="text-sm font-light">Active Accounts</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -709,7 +709,7 @@ export default function BankManagement() {
                       <TableRow key={account.id}>
                         <TableCell>
                           <div>
-                            <div className="font-medium" data-testid={`text-account-name-${account.id}`}>
+                            <div className="font-light" data-testid={`text-account-name-${account.id}`}>
                               {account.name}
                               {account.isDefault && (
                                 <Badge variant="secondary" className="ml-2">Default</Badge>
@@ -722,13 +722,13 @@ export default function BankManagement() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{account.bankName}</div>
+                            <div className="font-light">{account.bankName}</div>
                             <div className="text-sm text-muted-foreground">{account.ifsc}</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-right">
-                            <div className="font-medium" data-testid={`text-balance-${account.id}`}>
+                            <div className="font-light" data-testid={`text-balance-${account.id}`}>
                               ₹{parseFloat(account.currentBalance).toLocaleString()}
                             </div>
                             <div className="text-sm text-muted-foreground">
@@ -1024,13 +1024,13 @@ export default function BankManagement() {
                           {new Date(transaction.date).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">
+                          <div className="font-light">
                             {transaction.bankAccount?.name || 'Unknown Account'}
                           </div>
                         </TableCell>
                         <TableCell data-testid={`text-description-${transaction.id}`}>
                           <div>
-                            <div className="font-medium">{transaction.description}</div>
+                            <div className="font-light">{transaction.description}</div>
                             {transaction.reference && (
                               <div className="text-sm text-muted-foreground">
                                 Ref: {transaction.reference}
@@ -1048,14 +1048,14 @@ export default function BankManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className={`text-right font-medium ${
+                          <div className={`text-right font-light ${
                             transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
                           }`} data-testid={`text-amount-${transaction.id}`}>
                             {transaction.type === 'credit' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString()}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-right font-medium" data-testid={`text-balance-${transaction.id}`}>
+                          <div className="text-right font-light" data-testid={`text-balance-${transaction.id}`}>
                             ₹{parseFloat(transaction.balance).toLocaleString()}
                           </div>
                         </TableCell>
@@ -1281,29 +1281,29 @@ export default function BankManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Account Name</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Account Name</Label>
                   <div data-testid="view-account-name">{selectedAccount.name}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Bank Name</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Bank Name</Label>
                   <div data-testid="view-bank-name">{selectedAccount.bankName}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Account Number</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Account Number</Label>
                   <div data-testid="view-account-number">****{selectedAccount.accountNumberMasked}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">IFSC Code</Label>
+                  <Label className="text-sm font-light text-muted-foreground">IFSC Code</Label>
                   <div data-testid="view-ifsc">{selectedAccount.ifsc}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Current Balance</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Current Balance</Label>
                   <div className="text-lg font-semibold" data-testid="view-current-balance">
                     ₹{parseFloat(selectedAccount.currentBalance).toLocaleString()}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Status</Label>
                   <div>
                     <Badge 
                       variant="secondary"

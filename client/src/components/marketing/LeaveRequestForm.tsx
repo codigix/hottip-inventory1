@@ -287,7 +287,7 @@ export default function LeaveRequestForm({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="start-date" className="text-sm font-medium">Start Date</Label>
+                  <Label htmlFor="start-date" className="text-sm font-light">Start Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -316,7 +316,7 @@ export default function LeaveRequestForm({
                 </div>
 
                 <div>
-                  <Label htmlFor="end-date" className="text-sm font-medium">End Date</Label>
+                  <Label htmlFor="end-date" className="text-sm font-light">End Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -350,7 +350,7 @@ export default function LeaveRequestForm({
               {startDate && endDate && (
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Total Duration:</span>
+                    <span className="text-sm font-light">Total Duration:</span>
                     <Badge variant="secondary" data-testid="total-duration">
                       {getTotalDays()} {getTotalDays() === 1 ? 'day' : 'days'}
                     </Badge>
@@ -421,18 +421,18 @@ export default function LeaveRequestForm({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Duration:</span>
-                  <span className="font-medium">{getTotalDays()} days</span>
+                  <span className="font-light">{getTotalDays()} days</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Dates:</span>
-                  <span className="font-medium">
+                  <span className="font-light">
                     {format(startDate, "MMM dd")} - {format(endDate, "MMM dd, yyyy")}
                   </span>
                 </div>
                 {leaveBalance && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Remaining Balance:</span>
-                    <span className={`font-medium ${
+                    <span className={`font-light ${
                       leaveBalance.remainingLeave - getTotalDays() < 0 ? 'text-red-600' : 'text-green-600'
                     }`}>
                       {leaveBalance.remainingLeave - getTotalDays()} days

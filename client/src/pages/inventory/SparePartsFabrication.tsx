@@ -53,7 +53,7 @@ export default function SparePartsFabrication() {
             <Wrench className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="font-medium">{part.partNumber}</p>
+            <p className="font-light">{part.partNumber}</p>
             <p className="text-sm text-muted-foreground">{part.name}</p>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function SparePartsFabrication() {
       header: "Stock",
       cell: (part: any) => (
         <div className="flex items-center space-x-2">
-          <span className="font-medium">{part.stock}</span>
+          <span className="font-light">{part.stock}</span>
           <div className={`w-2 h-2 rounded-full ${part.stock <= part.minStock ? 'bg-red-500' : 'bg-green-500'}`} />
         </div>
       ),
@@ -194,7 +194,7 @@ export default function SparePartsFabrication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Parts</p>
+                <p className="text-sm font-light text-muted-foreground">Total Parts</p>
                 <p className="text-2xl font-bold text-foreground">156</p>
               </div>
               <Wrench className="h-8 w-8 text-blue-600" />
@@ -206,7 +206,7 @@ export default function SparePartsFabrication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">In Fabrication</p>
+                <p className="text-sm font-light text-muted-foreground">In Fabrication</p>
                 <p className="text-2xl font-bold text-foreground">8</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
@@ -218,7 +218,7 @@ export default function SparePartsFabrication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Quality Check</p>
+                <p className="text-sm font-light text-muted-foreground">Quality Check</p>
                 <p className="text-2xl font-bold text-foreground">3</p>
               </div>
               <Settings className="h-8 w-8 text-purple-600" />
@@ -230,7 +230,7 @@ export default function SparePartsFabrication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ready Parts</p>
+                <p className="text-sm font-light text-muted-foreground">Ready Parts</p>
                 <p className="text-2xl font-bold text-foreground">24</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -282,7 +282,7 @@ export default function SparePartsFabrication() {
                         <Clock className="h-5 w-5 text-orange-600" />
                       </div>
                       <div>
-                        <p className="font-medium">Custom Valve - SP-002</p>
+                        <p className="font-light">Custom Valve - SP-002</p>
                         <p className="text-sm text-muted-foreground">Started: 2 days ago</p>
                       </div>
                     </div>
@@ -298,7 +298,7 @@ export default function SparePartsFabrication() {
                         <Settings className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium">Motor Mount - SP-015</p>
+                        <p className="font-light">Motor Mount - SP-015</p>
                         <p className="text-sm text-muted-foreground">Started: 5 hours ago</p>
                       </div>
                     </div>
@@ -326,7 +326,7 @@ export default function SparePartsFabrication() {
                       <AlertCircle className="h-5 w-5 text-yellow-600" />
                     </div>
                     <div>
-                      <p className="font-medium">Precision Gear - SP-087</p>
+                      <p className="font-light">Precision Gear - SP-087</p>
                       <p className="text-sm text-muted-foreground">Awaiting inspection</p>
                     </div>
                   </div>

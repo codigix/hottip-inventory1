@@ -260,7 +260,7 @@ export default function TaskTable({
     <Button
       variant="ghost"
       size="sm"
-      className="h-8 p-0 font-medium hover:bg-transparent"
+      className="h-8 p-0 font-light hover:bg-transparent"
       onClick={() => handleSort(field)}
       data-testid={`sort-${field}`}
     >
@@ -271,7 +271,7 @@ export default function TaskTable({
 
   if (loading) {
     return (
-      <div className="rounded-md border">
+      <div className="border">
         <div className="p-4">
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -295,7 +295,7 @@ export default function TaskTable({
       {/* Bulk Actions Bar */}
       {selectedTasks.size > 0 && (
         <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
-          <span className="text-sm font-medium">
+          <span className="text-sm font-light">
             {selectedTasks.size} task(s) selected
           </span>
           <Button
@@ -342,7 +342,7 @@ export default function TaskTable({
       )}
 
       {/* Tasks Table */}
-      <div className="rounded-md border">
+      <div className="border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -396,7 +396,7 @@ export default function TaskTable({
                   <TableCell>
                     <div className="space-y-1">
                       <div 
-                        className="font-medium text-sm cursor-pointer hover:text-primary line-clamp-1"
+                        className="font-light text-sm cursor-pointer hover:text-primary line-clamp-1"
                         onClick={() => onViewDetails?.(task)}
                         data-testid={`task-title-${task.id}`}
                       >

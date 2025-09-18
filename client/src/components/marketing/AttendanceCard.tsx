@@ -128,7 +128,7 @@ export default function AttendanceCard({
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-sm font-medium" data-testid={`attendance-name-${user?.id}`}>
+              <CardTitle className="text-sm font-light" data-testid={`attendance-name-${user?.id}`}>
                 {user ? `${user.firstName} ${user.lastName}` : 'Unknown User'}
               </CardTitle>
               <p className="text-xs text-muted-foreground" data-testid={`attendance-role-${user?.id}`}>
@@ -163,7 +163,7 @@ export default function AttendanceCard({
               <Clock className="h-3 w-3" />
               <span>Check-in</span>
             </div>
-            <p className="font-medium" data-testid={`checkin-time-${user?.id}`}>
+            <p className="font-light" data-testid={`checkin-time-${user?.id}`}>
               {attendance.checkInTime 
                 ? format(new Date(attendance.checkInTime), 'HH:mm')
                 : '--:--'
@@ -176,7 +176,7 @@ export default function AttendanceCard({
               <Clock className="h-3 w-3" />
               <span>Check-out</span>
             </div>
-            <p className="font-medium" data-testid={`checkout-time-${user?.id}`}>
+            <p className="font-light" data-testid={`checkout-time-${user?.id}`}>
               {attendance.checkOutTime 
                 ? format(new Date(attendance.checkOutTime), 'HH:mm')
                 : '--:--'
@@ -189,15 +189,15 @@ export default function AttendanceCard({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="text-center p-2 bg-muted/50 rounded">
             <p className="text-muted-foreground">Duration</p>
-            <p className="font-medium" data-testid={`work-duration-${user?.id}`}>{getWorkDuration()}</p>
+            <p className="font-light" data-testid={`work-duration-${user?.id}`}>{getWorkDuration()}</p>
           </div>
           <div className="text-center p-2 bg-muted/50 rounded">
             <p className="text-muted-foreground">Break</p>
-            <p className="font-medium" data-testid={`break-duration-${user?.id}`}>{getBreakDuration()}</p>
+            <p className="font-light" data-testid={`break-duration-${user?.id}`}>{getBreakDuration()}</p>
           </div>
           <div className="text-center p-2 bg-muted/50 rounded">
             <p className="text-muted-foreground">Total Hours</p>
-            <p className="font-medium" data-testid={`total-hours-${user?.id}`}>
+            <p className="font-light" data-testid={`total-hours-${user?.id}`}>
               {attendance.totalHours ? `${attendance.totalHours}h` : '0h'}
             </p>
           </div>
@@ -273,13 +273,13 @@ export default function AttendanceCard({
             <div className="mt-3 space-y-3 text-xs">
               {/* Location Details */}
               <div className="space-y-2">
-                <h4 className="font-medium text-muted-foreground">Location Information</h4>
+                <h4 className="font-light text-muted-foreground">Location Information</h4>
                 <div className="grid grid-cols-1 gap-2">
                   {attendance.checkInLatitude && (
                     <div className="flex items-start space-x-2">
                       <MapPin className="h-3 w-3 mt-0.5 text-green-500" />
                       <div>
-                        <p className="font-medium">Check-in Location</p>
+                        <p className="font-light">Check-in Location</p>
                         <p className="text-muted-foreground" data-testid={`checkin-location-${user?.id}`}>
                           {getLocationText(
                             attendance.checkInLatitude, 
@@ -295,7 +295,7 @@ export default function AttendanceCard({
                     <div className="flex items-start space-x-2">
                       <MapPin className="h-3 w-3 mt-0.5 text-red-500" />
                       <div>
-                        <p className="font-medium">Check-out Location</p>
+                        <p className="font-light">Check-out Location</p>
                         <p className="text-muted-foreground" data-testid={`checkout-location-${user?.id}`}>
                           {getLocationText(
                             attendance.checkOutLatitude, 
@@ -312,7 +312,7 @@ export default function AttendanceCard({
               {/* Work Description */}
               {attendance.workDescription && (
                 <div>
-                  <h4 className="font-medium text-muted-foreground mb-1">Work Description</h4>
+                  <h4 className="font-light text-muted-foreground mb-1">Work Description</h4>
                   <p className="text-muted-foreground" data-testid={`work-description-${user?.id}`}>
                     {attendance.workDescription}
                   </p>
@@ -323,11 +323,11 @@ export default function AttendanceCard({
               <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                 <div>
                   <p className="text-muted-foreground">Visits</p>
-                  <p className="font-medium" data-testid={`visit-count-${user?.id}`}>{attendance.visitCount || 0}</p>
+                  <p className="font-light" data-testid={`visit-count-${user?.id}`}>{attendance.visitCount || 0}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Tasks</p>
-                  <p className="font-medium" data-testid={`tasks-completed-${user?.id}`}>{attendance.tasksCompleted || 0}</p>
+                  <p className="font-light" data-testid={`tasks-completed-${user?.id}`}>{attendance.tasksCompleted || 0}</p>
                 </div>
               </div>
             </div>

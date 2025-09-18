@@ -290,19 +290,19 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Customer:</span>
-                    <p className="font-medium">
+                    <p className="font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                       {visit.lead?.companyName && ` - ${visit.lead.companyName}`}
                     </p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Purpose:</span>
-                    <p className="font-medium capitalize">{visit.purpose.replace('_', ' ')}</p>
+                    <p className="font-light capitalize">{visit.purpose.replace('_', ' ')}</p>
                   </div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Address:</span>
-                  <p className="font-medium">{visit.visitAddress}</p>
+                  <p className="font-light">{visit.visitAddress}</p>
                 </div>
               </CardContent>
             </Card>
@@ -346,7 +346,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                   
                   <div>
                     <span className="text-muted-foreground">Address:</span>
-                    <p className="font-medium">{address || 'Getting address...'}</p>
+                    <p className="font-light">{address || 'Getting address...'}</p>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -364,7 +364,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                     <div className="p-3 rounded-lg bg-muted">
                       <div className="flex items-center space-x-2">
                         <MapPin className={`h-4 w-4 ${locationAccuracy.isNearby ? 'text-green-500' : 'text-orange-500'}`} />
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-light">
                           {locationAccuracy.isNearby ? 'Location Verified' : 'Location Warning'}
                         </span>
                       </div>

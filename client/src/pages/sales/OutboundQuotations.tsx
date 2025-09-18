@@ -105,7 +105,7 @@ export default function OutboundQuotations() {
       key: 'quotationNumber',
       header: 'Quotation #',
       cell: (quotation: any) => (
-        <div className="font-medium">{quotation.quotationNumber}</div>
+        <div className="font-light">{quotation.quotationNumber}</div>
       ),
     },
     {
@@ -113,7 +113,7 @@ export default function OutboundQuotations() {
       header: 'Client',
       cell: (quotation: any) => (
         <div>
-          <div className="font-medium">{quotation.customer?.name || 'N/A'}</div>
+          <div className="font-light">{quotation.customer?.name || 'N/A'}</div>
           <div className="text-xs text-muted-foreground">{quotation.customer?.email || ''}</div>
         </div>
       ),

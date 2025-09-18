@@ -81,7 +81,7 @@ export default function SalesDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outbound Quotations</CardTitle>
+            <CardTitle className="text-sm font-light">Outbound Quotations</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -94,7 +94,7 @@ export default function SalesDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inbound Quotations</CardTitle>
+            <CardTitle className="text-sm font-light">Inbound Quotations</CardTitle>
             <FileDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -107,7 +107,7 @@ export default function SalesDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-light">Total Invoices</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -120,7 +120,7 @@ export default function SalesDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+            <CardTitle className="text-sm font-light">Total Clients</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -136,7 +136,7 @@ export default function SalesDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-light">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -151,7 +151,7 @@ export default function SalesDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -164,7 +164,7 @@ export default function SalesDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
+            <CardTitle className="text-sm font-light">Pending Actions</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -192,7 +192,7 @@ export default function SalesDashboard() {
                   <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">New outbound quotation</p>
+                  <p className="text-sm font-light">New outbound quotation</p>
                   <p className="text-xs text-muted-foreground">2 minutes ago</p>
                 </div>
               </div>
@@ -201,7 +201,7 @@ export default function SalesDashboard() {
                   <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-300" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">Invoice payment received</p>
+                  <p className="text-sm font-light">Invoice payment received</p>
                   <p className="text-xs text-muted-foreground">1 hour ago</p>
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function SalesDashboard() {
                   <FileDown className="h-4 w-4 text-orange-600 dark:text-orange-300" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">Inbound quotation received</p>
+                  <p className="text-sm font-light">Inbound quotation received</p>
                   <p className="text-xs text-muted-foreground">3 hours ago</p>
                 </div>
               </div>
@@ -227,19 +227,19 @@ export default function SalesDashboard() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm">Quotations Sent</span>
-                <span className="text-sm font-medium">{outboundCount}</span>
+                <span className="text-sm font-light">{outboundCount}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Invoices Generated</span>
-                <span className="text-sm font-medium">{invoiceCount}</span>
+                <span className="text-sm font-light">{invoiceCount}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Revenue Generated</span>
-                <span className="text-sm font-medium">₹{totalRevenue.toLocaleString('en-IN')}</span>
+                <span className="text-sm font-light">₹{totalRevenue.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Active Clients</span>
-                <span className="text-sm font-medium">{clientCount}</span>
+                <span className="text-sm font-light">{clientCount}</span>
               </div>
             </div>
           </CardContent>

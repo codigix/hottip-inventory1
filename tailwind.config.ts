@@ -11,10 +11,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
-        background: "var(--background)",
+        background: "#f5f6f8",
         foreground: "var(--foreground)",
         card: {
-          DEFAULT: "var(--card)",
+          DEFAULT: "#ffff",
           foreground: "var(--card-foreground)",
         },
         popover: {
@@ -22,7 +22,7 @@ export default {
           foreground: "var(--popover-foreground)",
         },
         primary: {
-          DEFAULT: "var(--primary)",
+          DEFAULT: "#6658dd",
           foreground: "var(--primary-foreground)",
         },
         secondary: {
@@ -63,7 +63,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
+        sans: ["var(--font-sora)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
       },

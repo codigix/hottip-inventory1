@@ -133,7 +133,7 @@ export default function AccountsLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-4 rounded-lg transition-colors cursor-pointer ${
+                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
@@ -142,11 +142,11 @@ export default function AccountsLayout() {
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />
                     <div>
-                      <div className="font-medium">{item.label}</div>
+                      <div className="text-[0.875rem]">{item.label}</div>
                       <div className={`text-xs ${
                         isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
                       }`}>
-                        {item.description}
+                        {/* {item.description} */}
                       </div>
                     </div>
                   </div>
@@ -160,7 +160,7 @@ export default function AccountsLayout() {
         <div className="mt-8">
           <Card className="bg-muted/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center space-x-2">
+              <CardTitle className="text-sm font-light flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
                 <span>Financial Overview</span>
               </CardTitle>
@@ -170,23 +170,23 @@ export default function AccountsLayout() {
                 <span className="text-xs text-muted-foreground">Overdue Receivables</span>
                 <div className="flex items-center space-x-1">
                   <AlertTriangle className="h-3 w-3 text-orange-500" />
-                  <span className="text-xs font-medium">₹8.5L</span>
+                  <span className="text-xs font-light">₹8.5L</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Pending Payables</span>
-                <span className="text-xs font-medium">₹12.3L</span>
+                <span className="text-xs font-light">₹12.3L</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">GST Filed</span>
                 <div className="flex items-center space-x-1">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span className="text-xs font-medium">Current</span>
+                  <span className="text-xs font-light">Current</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Active Reminders</span>
-                <span className="text-xs font-medium">15</span>
+                <span className="text-xs font-light">15</span>
               </div>
             </CardContent>
           </Card>

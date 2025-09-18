@@ -275,7 +275,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Shipments</p>
+                  <p className="text-sm font-light text-muted-foreground">Total Shipments</p>
                   <p className="text-2xl font-bold">{normalizedMetrics.totalShipments.toLocaleString()}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-600" />
@@ -287,7 +287,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Delivered</p>
+                  <p className="text-sm font-light text-muted-foreground">Delivered</p>
                   <p className="text-2xl font-bold text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
@@ -299,7 +299,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                  <p className="text-sm font-light text-muted-foreground">Pending</p>
                   <p className="text-2xl font-bold text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
                 </div>
                 <Clock className="h-8 w-8 text-yellow-600" />
@@ -311,7 +311,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+                  <p className="text-sm font-light text-muted-foreground">Overdue</p>
                   <p className="text-2xl font-bold text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
                 </div>
                 <AlertCircle className="h-8 w-8 text-red-600" />
@@ -323,7 +323,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Avg. Delivery Time</p>
+                  <p className="text-sm font-light text-muted-foreground">Avg. Delivery Time</p>
                   <p className="text-2xl font-bold">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
                 </div>
                 <Activity className="h-8 w-8 text-purple-600" />
@@ -335,7 +335,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">On-Time Rate</p>
+                  <p className="text-sm font-light text-muted-foreground">On-Time Rate</p>
                   <p className="text-2xl font-bold">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
                   <Progress value={normalizedMetrics.onTimeDeliveryRate * 100} className="mt-2" />
                 </div>
@@ -348,7 +348,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                  <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">₹{normalizedMetrics.totalRevenue.toLocaleString()}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-emerald-600" />
@@ -360,7 +360,7 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Vendors</p>
+                  <p className="text-sm font-light text-muted-foreground">Active Vendors</p>
                   <p className="text-2xl font-bold">{normalizedMetrics.activeVendors}</p>
                 </div>
                 <Users className="h-8 w-8 text-indigo-600" />
@@ -538,13 +538,13 @@ export default function LogisticsReports() {
                       </div>
                       <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
                         <div>
-                          <span className="font-medium">Total Shipments:</span> {vendor.totalShipments}
+                          <span className="font-light">Total Shipments:</span> {vendor.totalShipments}
                         </div>
                         <div>
-                          <span className="font-medium">Avg. Delivery:</span> {vendor.averageDeliveryTime.toFixed(1)} days
+                          <span className="font-light">Avg. Delivery:</span> {vendor.averageDeliveryTime.toFixed(1)} days
                         </div>
                         <div>
-                          <span className="font-medium">Rating:</span> {vendor.rating.toFixed(1)}/5.0
+                          <span className="font-light">Rating:</span> {vendor.rating.toFixed(1)}/5.0
                         </div>
                       </div>
                       <Progress value={vendor.onTimeRate * 100} className="mt-3" />
@@ -603,7 +603,7 @@ export default function LogisticsReports() {
                           {metric.trend === 'up' ? <TrendingUp className="h-4 w-4" /> : 
                            metric.trend === 'down' ? <TrendingDown className="h-4 w-4" /> : 
                            <span className="h-4 w-4">→</span>}
-                          <span className="font-medium">{metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}%</span>
+                          <span className="font-light">{metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}%</span>
                         </div>
                         <p className="text-sm text-muted-foreground">vs previous period</p>
                       </div>

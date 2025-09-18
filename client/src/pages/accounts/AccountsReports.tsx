@@ -512,7 +512,7 @@ export default function AccountsReports() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reports Generated</CardTitle>
+            <CardTitle className="text-sm font-light">Reports Generated</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -529,7 +529,7 @@ export default function AccountsReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Downloads</CardTitle>
+            <CardTitle className="text-sm font-light">Total Downloads</CardTitle>
             <Download className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -542,7 +542,7 @@ export default function AccountsReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
+            <CardTitle className="text-sm font-light">Collection Rate</CardTitle>
             <TrendingUp className={`h-4 w-4 ${collectionRate >= 85 ? 'text-green-500' : 'text-orange-500'}`} />
           </CardHeader>
           <CardContent>
@@ -557,7 +557,7 @@ export default function AccountsReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">GST Reports Filed</CardTitle>
+            <CardTitle className="text-sm font-light">GST Reports Filed</CardTitle>
             <BarChart3 className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -669,7 +669,7 @@ export default function AccountsReports() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-md border">
+                  <div className="border">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -688,7 +688,7 @@ export default function AccountsReports() {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   {reportType && <reportType.icon className={`h-4 w-4 ${reportType.color}`} />}
-                                  <span className="font-medium">
+                                  <span className="font-light">
                                     {reportType?.name || report.reportType}
                                   </span>
                                 </div>
@@ -779,30 +779,30 @@ export default function AccountsReports() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Report Type</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Report Type</Label>
                   <p className="text-sm mt-1 capitalize">{selectedReport.reportType.replace('_', ' ')}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Status</Label>
                   <Badge className="mt-1" data-testid={`view-status-${selectedReport.id}`}>
                     {selectedReport.status}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Date Range</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Date Range</Label>
                   <p className="text-sm mt-1">
                     {format(new Date(selectedReport.startDate), "PPP")} - {format(new Date(selectedReport.endDate), "PPP")}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Generated</Label>
+                  <Label className="text-sm font-light text-muted-foreground">Generated</Label>
                   <p className="text-sm mt-1">{format(new Date(selectedReport.generatedAt), "PPP 'at' h:mm a")}</p>
                 </div>
               </div>
               
               {selectedReport.status === "generated" && (
                 <div className="border-t pt-4">
-                  <Label className="text-sm font-medium">Export Options</Label>
+                  <Label className="text-sm font-light">Export Options</Label>
                   <div className="flex gap-2 mt-2">
                     {exportFormats.map((format) => (
                       <Button

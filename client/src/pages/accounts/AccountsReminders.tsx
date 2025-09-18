@@ -499,7 +499,7 @@ export default function AccountsReminders() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Reminders</CardTitle>
+            <CardTitle className="text-sm font-light">Active Reminders</CardTitle>
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -510,7 +510,7 @@ export default function AccountsReminders() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Due Today</CardTitle>
+            <CardTitle className="text-sm font-light">Due Today</CardTitle>
             <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
@@ -521,7 +521,7 @@ export default function AccountsReminders() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <CardTitle className="text-sm font-light">Overdue</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -532,7 +532,7 @@ export default function AccountsReminders() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-light">Completed</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -663,7 +663,7 @@ export default function AccountsReminders() {
                               {reminder.targetType}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium" data-testid={`text-target-${reminder.id}`}>
+                          <TableCell className="font-light" data-testid={`text-target-${reminder.id}`}>
                             {reminder.targetId}
                           </TableCell>
                           <TableCell data-testid={`text-due-date-${reminder.id}`}>
@@ -957,7 +957,7 @@ export default function AccountsReminders() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Type</Label>
+                  <Label className="text-sm font-light">Type</Label>
                   <div className="mt-1">
                     <Badge
                       variant="secondary"
@@ -969,7 +969,7 @@ export default function AccountsReminders() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Channel</Label>
+                  <Label className="text-sm font-light">Channel</Label>
                   <div className="mt-1">
                     <Badge
                       variant="outline"
@@ -983,7 +983,7 @@ export default function AccountsReminders() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Target ID</Label>
+                <Label className="text-sm font-light">Target ID</Label>
                 <div className="mt-1 text-sm" data-testid="view-target-id">
                   {selectedReminder.targetId}
                 </div>
@@ -991,13 +991,13 @@ export default function AccountsReminders() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Due Date</Label>
+                  <Label className="text-sm font-light">Due Date</Label>
                   <div className="mt-1 text-sm" data-testid="view-due-date">
                     {new Date(selectedReminder.dueDate).toLocaleDateString()}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Next Reminder</Label>
+                  <Label className="text-sm font-light">Next Reminder</Label>
                   <div className="mt-1 text-sm" data-testid="view-next-reminder">
                     {new Date(selectedReminder.nextReminderAt).toLocaleDateString()}
                   </div>
@@ -1006,7 +1006,7 @@ export default function AccountsReminders() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Status</Label>
+                  <Label className="text-sm font-light">Status</Label>
                   <div className="mt-1">
                     <Badge
                       variant="secondary"
@@ -1018,7 +1018,7 @@ export default function AccountsReminders() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Frequency</Label>
+                  <Label className="text-sm font-light">Frequency</Label>
                   <div className="mt-1 text-sm" data-testid="view-frequency">
                     {selectedReminder.frequency} days
                   </div>
@@ -1027,7 +1027,7 @@ export default function AccountsReminders() {
 
               {selectedReminder.lastSentAt && (
                 <div>
-                  <Label className="text-sm font-medium">Last Sent</Label>
+                  <Label className="text-sm font-light">Last Sent</Label>
                   <div className="mt-1 text-sm" data-testid="view-last-sent">
                     {new Date(selectedReminder.lastSentAt).toLocaleString()}
                   </div>
@@ -1036,8 +1036,8 @@ export default function AccountsReminders() {
 
               {selectedReminder.template && (
                 <div>
-                  <Label className="text-sm font-medium">Message Template</Label>
-                  <div className="mt-1 text-sm p-3 bg-muted rounded-md" data-testid="view-template">
+                  <Label className="text-sm font-light">Message Template</Label>
+                  <div className="mt-1 text-sm p-3 bg-muted rounded-sm" data-testid="view-template">
                     {selectedReminder.template}
                   </div>
                 </div>

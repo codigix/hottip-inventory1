@@ -88,7 +88,7 @@ export default function ClientManagement() {
       header: 'Client Name',
       cell: (customer: any) => (
         <div>
-          <div className="font-medium">{customer.name}</div>
+          <div className="font-light">{customer.name}</div>
           <div className="text-xs text-muted-foreground">{customer.companyType || 'Individual'}</div>
         </div>
       ),
@@ -184,7 +184,7 @@ export default function ClientManagement() {
               <form onSubmit={form.handleSubmit((data) => createCustomerMutation.mutate(data))} className="space-y-6">
                 {/* Basic Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Basic Information</h3>
+                  <h3 className="text-lg font-light">Basic Information</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -248,7 +248,7 @@ export default function ClientManagement() {
 
                 {/* Business Details */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Business Details</h3>
+                  <h3 className="text-lg font-light">Business Details</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -294,7 +294,7 @@ export default function ClientManagement() {
 
                 {/* GST & Tax Details */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">GST & Tax Details</h3>
+                  <h3 className="text-lg font-light">GST & Tax Details</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -328,7 +328,7 @@ export default function ClientManagement() {
 
                 {/* Address Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Address Information</h3>
+                  <h3 className="text-lg font-light">Address Information</h3>
                   <FormField
                     control={form.control}
                     name="address"
@@ -390,7 +390,7 @@ export default function ClientManagement() {
 
                 {/* Financial Details */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Financial Details</h3>
+                  <h3 className="text-lg font-light">Financial Details</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -439,7 +439,7 @@ export default function ClientManagement() {
 
                 {/* Additional Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Additional Information</h3>
+                  <h3 className="text-lg font-light">Additional Information</h3>
                   <FormField
                     control={form.control}
                     name="notes"

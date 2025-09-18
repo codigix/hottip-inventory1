@@ -123,7 +123,7 @@ export default function InventoryLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-4 rounded-lg transition-colors cursor-pointer ${
+                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
@@ -132,11 +132,11 @@ export default function InventoryLayout() {
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />
                     <div>
-                      <div className="font-medium">{item.label}</div>
+                      <div className="text-[0.875rem]">{item.label}</div>
                       <div className={`text-xs ${
                         isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
                       }`}>
-                        {item.description}
+                        {/* {item.description} */}
                       </div>
                     </div>
                   </div>
@@ -150,7 +150,7 @@ export default function InventoryLayout() {
         <div className="mt-8">
           <Card className="bg-muted/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center space-x-2">
+              <CardTitle className="text-sm font-light flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
                 <span>Quick Stats</span>
               </CardTitle>
@@ -160,16 +160,16 @@ export default function InventoryLayout() {
                 <span className="text-xs text-muted-foreground">Low Stock Items</span>
                 <div className="flex items-center space-x-1">
                   <AlertTriangle className="h-3 w-3 text-orange-500" />
-                  <span className="text-xs font-medium">12</span>
+                  <span className="text-xs font-light">12</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Pending Tasks</span>
-                <span className="text-xs font-medium">8</span>
+                <span className="text-xs font-light">8</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Active Vendors</span>
-                <span className="text-xs font-medium">24</span>
+                <span className="text-xs font-light">24</span>
               </div>
             </CardContent>
           </Card>

@@ -637,7 +637,7 @@ export default function EmployeesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
+                <p className="text-sm font-light text-muted-foreground">Total Employees</p>
                 <p className="text-2xl font-bold text-foreground">{totalEmployees}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -651,7 +651,7 @@ export default function EmployeesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Employees</p>
+                <p className="text-sm font-light text-muted-foreground">Active Employees</p>
                 <p className="text-2xl font-bold text-foreground">{activeEmployees}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -665,7 +665,7 @@ export default function EmployeesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
+                <p className="text-sm font-light text-muted-foreground">Active Tasks</p>
                 <p className="text-2xl font-bold text-foreground">{pendingTasks}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -679,7 +679,7 @@ export default function EmployeesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed Tasks</p>
+                <p className="text-sm font-light text-muted-foreground">Completed Tasks</p>
                 <p className="text-2xl font-bold text-foreground">{completedTasks}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -790,7 +790,7 @@ export default function EmployeesDashboard() {
             <CardContent className="space-y-4">
               {Object.entries(departmentCounts).map(([dept, count]: [string, any]) => (
                 <div key={dept} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{dept}</span>
+                  <span className="text-sm font-light text-foreground">{dept}</span>
                   <Badge variant="secondary">{count}</Badge>
                 </div>
               ))}
@@ -808,7 +808,7 @@ export default function EmployeesDashboard() {
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Plus className="h-4 w-4 text-blue-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">New</span>
+                  <span className="text-sm font-light text-foreground">New</span>
                 </div>
                 <Badge variant="secondary">{tasks?.filter((t: any) => t.status === 'new').length || 0}</Badge>
               </div>
@@ -818,7 +818,7 @@ export default function EmployeesDashboard() {
                   <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
                     <Clock className="h-4 w-4 text-yellow-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">In Progress</span>
+                  <span className="text-sm font-light text-foreground">In Progress</span>
                 </div>
                 <Badge variant="secondary">{tasks?.filter((t: any) => t.status === 'in_progress').length || 0}</Badge>
               </div>
@@ -828,7 +828,7 @@ export default function EmployeesDashboard() {
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Completed</span>
+                  <span className="text-sm font-light text-foreground">Completed</span>
                 </div>
                 <Badge variant="secondary">{completedTasks}</Badge>
               </div>

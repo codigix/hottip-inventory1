@@ -169,7 +169,7 @@ export default function MarketingDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card data-testid="card-total-leads">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <CardTitle className="text-sm font-light">Total Leads</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -184,7 +184,7 @@ export default function MarketingDashboard() {
 
         <Card data-testid="card-active-campaigns">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+            <CardTitle className="text-sm font-light">Active Tasks</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -199,7 +199,7 @@ export default function MarketingDashboard() {
 
         <Card data-testid="card-conversion-rate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -214,7 +214,7 @@ export default function MarketingDashboard() {
 
         <Card data-testid="card-field-visits">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Field Visits Today</CardTitle>
+            <CardTitle className="text-sm font-light">Field Visits Today</CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -271,7 +271,7 @@ export default function MarketingDashboard() {
                 return (
                   <div key={lead.id || index} className="flex items-center justify-between" data-testid={`lead-${index}`}>
                     <div>
-                      <p className="font-medium">
+                      <p className="font-light">
                         {lead.companyName || `${lead.firstName} ${lead.lastName}`}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -307,11 +307,11 @@ export default function MarketingDashboard() {
                 const getStatusColor = (status: string) => {
                   switch (status) {
                     case 'confirmed':
-                      return 'text-green-600 font-medium';
+                      return 'text-green-600 font-light';
                     case 'scheduled':
-                      return 'text-blue-600 font-medium';
+                      return 'text-blue-600 font-light';
                     default:
-                      return 'text-gray-600 font-medium';
+                      return 'text-gray-600 font-light';
                   }
                 };
 
@@ -337,7 +337,7 @@ export default function MarketingDashboard() {
                 return (
                   <div key={visit.id || index} className="flex items-center justify-between" data-testid={`visit-${index}`}>
                     <div>
-                      <p className="font-medium">
+                      <p className="font-light">
                         {visit.purpose || `Visit ${visit.visitNumber}`}
                       </p>
                       <p className="text-sm text-muted-foreground">

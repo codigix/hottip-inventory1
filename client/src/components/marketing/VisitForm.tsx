@@ -384,26 +384,26 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Name:</span>
-                      <p className="font-medium">
+                      <p className="font-light">
                         {selectedLead.firstName} {selectedLead.lastName}
                       </p>
                     </div>
                     {selectedLead.companyName && (
                       <div>
                         <span className="text-muted-foreground">Company:</span>
-                        <p className="font-medium">{selectedLead.companyName}</p>
+                        <p className="font-light">{selectedLead.companyName}</p>
                       </div>
                     )}
                     {selectedLead.phone && (
                       <div>
                         <span className="text-muted-foreground">Phone:</span>
-                        <p className="font-medium">{selectedLead.phone}</p>
+                        <p className="font-light">{selectedLead.phone}</p>
                       </div>
                     )}
                     {selectedLead.email && (
                       <div>
                         <span className="text-muted-foreground">Email:</span>
-                        <p className="font-medium">{selectedLead.email}</p>
+                        <p className="font-light">{selectedLead.email}</p>
                       </div>
                     )}
                   </div>
@@ -543,7 +543,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 <div className="flex items-start space-x-3">
                   <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-blue-900 dark:text-blue-100">GPS Coordinates</p>
+                    <p className="font-light text-blue-900 dark:text-blue-100">GPS Coordinates</p>
                     <p className="text-blue-700 dark:text-blue-300 mt-1">
                       GPS coordinates help verify the actual visit location during check-in. 
                       You can get your current location or enter coordinates manually.
@@ -606,11 +606,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Visit Number:</span>
-                    <p className="font-medium">{visit?.visitNumber || generateVisitNumber()}</p>
+                    <p className="font-light">{visit?.visitNumber || generateVisitNumber()}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Status:</span>
-                    <p className="font-medium">Scheduled</p>
+                    <p className="font-light">Scheduled</p>
                   </div>
                 </div>
               </CardContent>

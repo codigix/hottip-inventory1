@@ -351,7 +351,7 @@ export default function LogisticsTasks() {
 
         <div className="flex items-center space-x-2">
           {/* View Toggle */}
-          <div className="flex items-center space-x-1 bg-muted p-1 rounded-md">
+          <div className="flex items-center space-x-1 bg-muted p-1 rounded-sm">
             <Button
               variant={view === 'kanban' ? 'default' : 'ghost'}
               size="sm"

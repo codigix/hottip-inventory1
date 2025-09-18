@@ -336,7 +336,7 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-foreground">${totalRevenue.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -350,7 +350,7 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
+                <p className="text-sm font-light text-muted-foreground">Total Orders</p>
                 <p className="text-2xl font-bold text-foreground">{totalOrders}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -364,7 +364,7 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Orders</p>
+                <p className="text-sm font-light text-muted-foreground">Pending Orders</p>
                 <p className="text-2xl font-bold text-foreground">{pendingOrders}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -378,7 +378,7 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Customers</p>
+                <p className="text-sm font-light text-muted-foreground">Active Customers</p>
                 <p className="text-2xl font-bold text-foreground">{uniqueCustomers}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">

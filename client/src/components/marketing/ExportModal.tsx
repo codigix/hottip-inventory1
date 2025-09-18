@@ -185,7 +185,7 @@ export default function ExportModal({
                     <div className="flex-1">
                       <Label 
                         htmlFor={option.value} 
-                        className="font-medium cursor-pointer"
+                        className="font-light cursor-pointer"
                       >
                         {option.label}
                       </Label>
@@ -231,20 +231,20 @@ export default function ExportModal({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Report Title:</span>
-                  <span className="font-medium">{title}</span>
+                  <span className="font-light">{title}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Records:</span>
-                  <span className="font-medium">{data.rows.length}</span>
+                  <span className="font-light">{data.rows.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Columns:</span>
-                  <span className="font-medium">{data.headers.length}</span>
+                  <span className="font-light">{data.headers.length}</span>
                 </div>
                 {dateRange?.from && dateRange?.to && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Date Range:</span>
-                    <span className="font-medium text-xs">
+                    <span className="font-light text-xs">
                       {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
                     </span>
                   </div>

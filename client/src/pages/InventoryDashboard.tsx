@@ -257,9 +257,9 @@ export default function InventoryDashboard() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-              <DialogDescription>
+              {/* <DialogDescription>
                 {editingProduct ? "Update product details" : "Enter the details for the new product"}
-              </DialogDescription>
+              </DialogDescription> */}
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -434,7 +434,7 @@ export default function InventoryDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Products</p>
+                <p className="text-sm font-light text-muted-foreground">Total Products</p>
                 <p className="text-2xl font-bold text-foreground">{totalProducts}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -448,7 +448,7 @@ export default function InventoryDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Value</p>
+                <p className="text-sm font-light text-muted-foreground">Total Value</p>
                 <p className="text-2xl font-bold text-foreground">${totalValue.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -462,7 +462,7 @@ export default function InventoryDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Low Stock Alert</p>
+                <p className="text-sm font-light text-muted-foreground">Low Stock Alert</p>
                 <p className="text-2xl font-bold text-foreground">{lowStockCount}</p>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">

@@ -31,7 +31,7 @@ export default function InventoryReports() {
               <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" data-testid="button-export-all">
+          <Button  data-testid="button-export-all">
             <Download className="h-4 w-4 mr-2" />
             Export All Reports
           </Button>
@@ -44,12 +44,12 @@ export default function InventoryReports() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Stock Balance</p>
+                <p className="text-sm font-light text-muted-foreground">Stock Balance</p>
                 <p className="text-lg font-semibold text-foreground">Current levels</p>
               </div>
               <Package className="h-8 w-8 text-blue-600" />
             </div>
-            <Button variant="outline" size="sm" className="w-full mt-4">
+            <Button  size="sm" className="w-full mt-4">
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -60,12 +60,12 @@ export default function InventoryReports() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Vendor History</p>
+                <p className="text-sm font-light text-muted-foreground">Vendor History</p>
                 <p className="text-lg font-semibold text-foreground">Performance</p>
               </div>
               <Building2 className="h-8 w-8 text-green-600" />
             </div>
-            <Button variant="outline" size="sm" className="w-full mt-4">
+            <Button  size="sm" className="w-full mt-4">
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -76,12 +76,12 @@ export default function InventoryReports() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Reorder Forecast</p>
+                <p className="text-sm font-light text-muted-foreground">Reorder Forecast</p>
                 <p className="text-lg font-semibold text-foreground">Predictions</p>
               </div>
               <TrendingUp className="h-8 w-8 text-orange-600" />
             </div>
-            <Button variant="outline" size="sm" className="w-full mt-4">
+            <Button  size="sm" className="w-full mt-4">
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -92,12 +92,12 @@ export default function InventoryReports() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Analytics</p>
+                <p className="text-sm font-light text-muted-foreground">Analytics</p>
                 <p className="text-lg font-semibold text-foreground">Insights</p>
               </div>
               <BarChart3 className="h-8 w-8 text-purple-600" />
             </div>
-            <Button variant="outline" size="sm" className="w-full mt-4">
+            <Button  size="sm" className="w-full mt-4">
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -132,15 +132,15 @@ export default function InventoryReports() {
               <div className="space-y-6">
                 {/* Summary Statistics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-muted/30 p-4 rounded-lg">
+                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
                     <p className="text-sm text-muted-foreground">Total Products</p>
                     <p className="text-2xl font-bold">1,247</p>
                   </div>
-                  <div className="bg-muted/30 p-4 rounded-lg">
+                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
                     <p className="text-sm text-muted-foreground">Total Stock Value</p>
                     <p className="text-2xl font-bold">₹12,45,380</p>
                   </div>
-                  <div className="bg-muted/30 p-4 rounded-lg">
+                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
                     <p className="text-sm text-muted-foreground">Low Stock Items</p>
                     <p className="text-2xl font-bold text-red-600">23</p>
                   </div>
@@ -156,13 +156,13 @@ export default function InventoryReports() {
                       { category: "Spare Parts", items: 567, value: "₹3,54,370", percentage: 28 },
                       { category: "Tools & Equipment", items: 78, value: "₹1,98,000", percentage: 17 }
                     ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted/20 rounded-md">
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted/20 rounded-sm">
                         <div>
-                          <p className="font-medium">{item.category}</p>
+                          <p className="font-light">{item.category}</p>
                           <p className="text-sm text-muted-foreground">{item.items} items</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{item.value}</p>
+                          <p className="font-light">{item.value}</p>
                           <p className="text-sm text-muted-foreground">{item.percentage}%</p>
                         </div>
                       </div>
@@ -201,23 +201,23 @@ export default function InventoryReports() {
                     ].map((vendor, index) => (
                       <div key={index} className="grid grid-cols-5 gap-4 p-4 border rounded-lg">
                         <div>
-                          <p className="font-medium">{vendor.name}</p>
+                          <p className="font-light">{vendor.name}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground">Orders</p>
-                          <p className="font-medium">{vendor.orders}</p>
+                          <p className="font-light">{vendor.orders}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground">On Time</p>
-                          <p className="font-medium">{vendor.onTime}</p>
+                          <p className="font-light">{vendor.onTime}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground">Quality</p>
-                          <p className="font-medium">{vendor.quality}</p>
+                          <p className="font-light">{vendor.quality}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">Total Value</p>
-                          <p className="font-medium">{vendor.value}</p>
+                          <p className="font-light">{vendor.value}</p>
                         </div>
                       </div>
                     ))}
@@ -288,11 +288,11 @@ export default function InventoryReports() {
                     ].map((item, index) => (
                       <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
-                          <p className="font-medium">{item.item}</p>
+                          <p className="font-light">{item.item}</p>
                           <p className="text-sm text-muted-foreground">Current: {item.current} | Min: {item.min}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">Suggest: {item.suggested}</p>
+                          <p className="font-light">Suggest: {item.suggested}</p>
                           <span className={`text-xs px-2 py-1 rounded ${item.urgency === 'High' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                             {item.urgency}
                           </span>

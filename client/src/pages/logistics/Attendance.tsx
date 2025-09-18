@@ -302,7 +302,7 @@ export default function LogisticsAttendance() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" data-testid="metrics-grid">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+            <CardTitle className="text-sm font-light">Present Today</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -312,7 +312,7 @@ export default function LogisticsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Checked In</CardTitle>
+            <CardTitle className="text-sm font-light">Checked In</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -322,7 +322,7 @@ export default function LogisticsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Checked Out</CardTitle>
+            <CardTitle className="text-sm font-light">Checked Out</CardTitle>
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -332,7 +332,7 @@ export default function LogisticsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Hours</CardTitle>
+            <CardTitle className="text-sm font-light">Avg Hours</CardTitle>
             <Timer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -342,7 +342,7 @@ export default function LogisticsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Deliveries</CardTitle>
+            <CardTitle className="text-sm font-light">Deliveries</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -352,7 +352,7 @@ export default function LogisticsAttendance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+            <CardTitle className="text-sm font-light">Active Tasks</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -459,7 +459,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
           </Avatar>
           
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium truncate" data-testid={`name-${attendance.userId}`}>
+            <h3 className="font-light truncate" data-testid={`name-${attendance.userId}`}>
               {attendance.user ? `${attendance.user.firstName} ${attendance.user.lastName}` : 'Unknown User'}
             </h3>
             <p className="text-sm text-muted-foreground truncate" data-testid={`email-${attendance.userId}`}>
@@ -482,7 +482,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
           <div className="space-y-2">
             <div className="flex items-center text-sm">
               <Clock className="mr-2 h-4 w-4 text-green-600" />
-              <span className="font-medium">In:</span>
+              <span className="font-light">In:</span>
               <span className="ml-1" data-testid={`checkin-time-${attendance.userId}`}>
                 {format(new Date(attendance.checkIn), 'HH:mm')}
               </span>
@@ -504,7 +504,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
           <div className="space-y-2">
             <div className="flex items-center text-sm">
               <Clock className="mr-2 h-4 w-4 text-red-600" />
-              <span className="font-medium">Out:</span>
+              <span className="font-light">Out:</span>
               <span className="ml-1" data-testid={`checkout-time-${attendance.userId}`}>
                 {format(new Date(attendance.checkOut), 'HH:mm')}
               </span>

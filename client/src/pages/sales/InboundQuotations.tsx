@@ -92,7 +92,7 @@ export default function InboundQuotations() {
       key: 'quotationNumber',
       header: 'Quotation #',
       cell: (quotation: any) => (
-        <div className="font-medium">{quotation.quotationNumber}</div>
+        <div className="font-light">{quotation.quotationNumber}</div>
       ),
     },
     {
@@ -100,7 +100,7 @@ export default function InboundQuotations() {
       header: 'Sender',
       cell: (quotation: any) => (
         <div>
-          <div className="font-medium">{quotation.sender?.name || 'N/A'}</div>
+          <div className="font-light">{quotation.sender?.name || 'N/A'}</div>
           <div className="text-xs text-muted-foreground">
             {quotation.senderType?.toUpperCase() || 'VENDOR'}
           </div>
@@ -281,7 +281,7 @@ export default function InboundQuotations() {
                 />
 
                 <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Upload Quotation File</h4>
+                  <h4 className="font-light mb-3">Upload Quotation File</h4>
                   <FileUploader 
                     onUploadComplete={handleFileUpload}
                     acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png"

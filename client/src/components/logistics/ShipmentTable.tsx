@@ -50,7 +50,7 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
       key: "consignmentNumber",
       header: "Consignment #",
       cell: (shipment: LogisticsShipment) => (
-        <div className="font-medium" data-testid={`text-consignment-${shipment.id}`}>
+        <div className="font-light" data-testid={`text-consignment-${shipment.id}`}>
           {shipment.consignmentNumber}
         </div>
       ),
@@ -61,7 +61,7 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
       cell: (shipment: LogisticsShipment) => (
         <div className="text-sm">
           {shipment.clientId ? (
-            <div className="font-medium text-foreground">Client Shipment</div>
+            <div className="font-light text-foreground">Client Shipment</div>
           ) : shipment.vendorId ? (
             <div className="text-muted-foreground">Vendor Shipment</div>
           ) : (
@@ -76,7 +76,7 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
       cell: (shipment: LogisticsShipment) => (
         <div className="flex items-center space-x-2 text-sm">
           <div className="flex flex-col">
-            <div className="font-medium">{shipment.source}</div>
+            <div className="font-light">{shipment.source}</div>
             <div className="flex items-center text-muted-foreground">
               <MapPin className="h-3 w-3 mr-1" />
               {shipment.destination}

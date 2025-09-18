@@ -699,7 +699,7 @@ export default function TaskForm({
                               </div>
                             )}
                             <div>
-                              <div className="font-medium">{selectedType?.label}</div>
+                              <div className="font-light">{selectedType?.label}</div>
                               <div className="text-sm text-muted-foreground">
                                 {selectedType?.description}
                               </div>

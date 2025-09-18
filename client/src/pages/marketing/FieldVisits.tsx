@@ -385,7 +385,7 @@ export default function FieldVisits() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-blue-500" />
               <span>Today's Visits</span>
             </CardTitle>
@@ -399,7 +399,7 @@ export default function FieldVisits() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <Clock className="h-4 w-4 text-orange-500" />
               <span>Scheduled</span>
             </CardTitle>
@@ -413,7 +413,7 @@ export default function FieldVisits() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-blue-500" />
               <span>In Progress</span>
             </CardTitle>
@@ -427,7 +427,7 @@ export default function FieldVisits() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span>Completed</span>
             </CardTitle>
@@ -441,7 +441,7 @@ export default function FieldVisits() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <XCircle className="h-4 w-4 text-red-500" />
               <span>Cancelled</span>
             </CardTitle>
@@ -455,7 +455,7 @@ export default function FieldVisits() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <CardTitle className="text-sm font-light flex items-center space-x-2">
               <Users className="h-4 w-4 text-emerald-500" />
               <span>Completion Rate</span>
             </CardTitle>

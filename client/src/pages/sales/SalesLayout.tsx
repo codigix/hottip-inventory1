@@ -111,7 +111,7 @@ export default function SalesLayout() {
                 href={item.path}
                 data-testid={`sidebar-${item.id}`}
                 className={`
-                  flex items-start space-x-3 p-4 rounded-lg transition-colors cursor-pointer
+                  flex items-start space-x-3 p-4 rounded-[0.3rem] transition-colors cursor-pointer
                   ${getActiveSidebarItem() === item.id 
                     ? 'bg-primary/10 border border-primary/20 text-primary' 
                     : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
@@ -120,12 +120,12 @@ export default function SalesLayout() {
               >
                 <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm leading-5">
+                  <div className="text-[0.875rem] leading-5">
                     {item.label}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  {/* <div className="text-xs text-muted-foreground mt-1">
                     {item.description}
-                  </div>
+                  </div> */}
                 </div>
               </Link>
             );

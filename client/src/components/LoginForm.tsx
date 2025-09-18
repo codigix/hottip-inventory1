@@ -113,7 +113,7 @@ export function LoginForm() {
             </form>
           </Form>
           
-          <div className="mt-4 p-3 bg-muted rounded-md">
+          <div className="mt-4 p-3 bg-muted rounded-sm">
             <p className="text-xs text-muted-foreground text-center" data-testid="text-demo-credentials">
               Demo credentials: admin_user / admin123
             </p>
