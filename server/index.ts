@@ -1,38 +1,119 @@
-import "dotenv/config";
-import express, { Request, Response, NextFunction } from "express";
-import crypto from "crypto";
+import express, { Request, Response } from "express";
 import cors from "cors";
+import bodyParser from "body-parser";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
-import path from "path";
-import { fileURLToPath } from "url";
 
 const app = express();
+const port = 5000;
 
-// =====================
 // Middleware
-// =====================
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-app.use(
-  cors({
-    origin: "http://localhost:5173", // frontend dev server
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
-
-// Generate DEV_TOKEN_SECRET if not exists
-if (!process.env.DEV_TOKEN_SECRET) {
-  process.env.DEV_TOKEN_SECRET = crypto.randomBytes(32).toString("hex");
-  console.log("⚠️ Generated DEV_TOKEN_SECRET for development");
-}
+app.use(cors({
+  origin: 'http://localhost:5173', // <-- your React frontend URL
+  credentials: true                // <-- allow cookies/auth headers
+}));
+app.use(bodyParser.json());
 
 // =====================
-// Marketing Dashboard
+// In-memory Mock Data
 // =====================
-app.get("/api/marketing/dashboard", (_req: Request, res: Response) => {
+let users = [
+  { id: "0", firstName: "Alice", lastName: "Smith" },
+  { id: "1", firstName: "Bob", lastName: "Johnson" },
+  { id: "2", firstName: "Carol", lastName: "Brown" },
+];
+
+let leads = [
+  { id: "0", firstName: "John", lastName: "Doe", companyName: "Acme Corp" },
+  { id: "1", firstName: "Jane", lastName: "Williams", companyName: "Globex" },
+];
+
+let visits = Array.from({ length: 10 }, (_, i) => ({
+  id: (i + 1).toString(),
+  employee: `Employee ${i + 1}`,
+  location: `Location ${i + 1}`,
+  status: ["scheduled", "completed", "cancelled"][i % 3],
+  plannedDate: `2025-09-${15 + i}`,
+}));
+
+// =====================
+// Users (CRUD)
+// =====================
+app.get("/api/users", (_req: Request, res: Response) => {
+  res.json(users);
+});
+
+app.post("/api/users", (req: Request, res: Response) => {
+  const newUser = { id: Date.now().toString(), ...req.body };
+  users.push(newUser);
+  res.status(201).json(newUser);
+});
+
+app.put("/api/users/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  users = users.map((u) => (u.id === id ? { ...u, ...req.body } : u));
+  res.json({ message: "User updated" });
+});
+
+app.delete("/api/users/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  users = users.filter((u) => u.id !== id);
+  res.json({ message: "User deleted" });
+});
+
+// =====================
+// Leads (CRUD)
+// =====================
+app.get("/api/leads", (_req: Request, res: Response) => {
+  res.json(leads);
+});
+
+app.post("/api/leads", (req: Request, res: Response) => {
+  const newLead = { id: Date.now().toString(), ...req.body };
+  leads.push(newLead);
+  res.status(201).json(newLead);
+});
+
+app.put("/api/leads/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  leads = leads.map((l) => (l.id === id ? { ...l, ...req.body } : l));
+  res.json({ message: "Lead updated" });
+});
+
+app.delete("/api/leads/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  leads = leads.filter((l) => l.id !== id);
+  res.json({ message: "Lead deleted" });
+});
+
+// =====================
+// Field Visits (CRUD)
+// =====================
+app.get("/api/field-visits", (_req: Request, res: Response) => {
+  res.json(visits);
+});
+
+app.post("/api/field-visits", (req: Request, res: Response) => {
+  const newVisit = { id: Date.now().toString(), ...req.body };
+  visits.push(newVisit);
+  res.status(201).json(newVisit);
+
+  // Broadcast to WebSocket clients
+  broadcast({ type: "NEW_VISIT", data: newVisit });
+});
+
+app.put("/api/field-visits/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  visits = visits.map((v) => (v.id === id ? { ...v, ...req.body } : v));
+  res.json({ message: "Visit updated" });
+});
+
+app.delete("/api/field-visits/:id", (req: Request, res: Response) => {
+  const { id } = req.params;
+  visits = visits.filter((v) => v.id !== id);
+  res.json({ message: "Visit deleted" });
+});
+app.get("/api/marketing", (_req: Request, res: Response) => {
   res.json({
     leads: {
       total: 120,
@@ -62,209 +143,50 @@ app.get("/api/marketing/dashboard", (_req: Request, res: Response) => {
     },
   });
 });
-
-// =====================
-// Marketing Leads
-// =====================
-app.get("/api/marketing/leads", (_req: Request, res: Response) => {
-  res.json([
-    {
-      id: 1,
-      firstName: "Alice",
-      lastName: "Smith",
-      status: "qualified",
-      companyName: "Acme Corp",
-      industry: "Retail",
-    },
-    {
-      id: 2,
-      firstName: "Bob",
-      lastName: "Jones",
-      status: "pending",
-      companyName: "Globex",
-      industry: "Manufacturing",
-    },
-    {
-      id: 3,
-      firstName: "Charlie",
-      lastName: "Brown",
-      status: "qualified",
-      companyName: "Initech",
-      industry: "IT",
-    },
-  ]);
-});
-
-// =====================
-// Field Visits
-// =====================
-app.get("/api/field-visits", (_req, res) => {
-  const visits = Array.from({ length: 10 }, (_, i) => ({
-    id: i + 1,
-    employee: `Employee ${i + 1}`,
-    location: `Location ${i + 1}`,
-    status: ["scheduled", "completed", "cancelled"][i % 3],
-    date: `2025-09-${15 + i}`,
-  }));
-  res.json(visits);
-});
-
-app.get("/api/field-visits/today", (_req, res) => {
-  const visits = Array.from({ length: 5 }, (_, i) => ({
-    id: i + 1,
-    employee: `Employee ${i + 1}`,
-    location: `Client Site ${i + 1}`,
-    status: "completed",
-    date: new Date().toISOString().split("T")[0],
-  }));
-  res.json(visits);
-});
-
-app.get("/api/field-visits/metrics", (_req, res) => {
+app.get("/api/marketing-tasks/metrics", (_req: Request, res: Response) => {
   res.json({
-    totalVisits: 120,
-    completed: 95,
-    pending: 15,
-    cancelled: 10,
-    avgPerDay: 6,
+    totalTasks: 40,
+    completed: 28,
+    overdue: 5,
+    today: 3,
+    completionRate: 70.0,
+    monthlyStats: {
+      total: 120,
+      completed: 85,
+      overdue: 10,
+    },
   });
 });
-
 // =====================
-// Marketing Tasks
-// =====================
-app.get("/api/marketing/tasks", (_req: Request, res: Response) => {
-  res.json([
-    {
-      id: 1,
-      title: "Email Campaign",
-      assignedTo: "Alice",
-      dueDate: "2025-09-21",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      title: "Social Media Ads",
-      assignedTo: "Bob",
-      dueDate: "2025-09-22",
-      status: "In Progress",
-    },
-    {
-      id: 3,
-      title: "Landing Page Update",
-      assignedTo: "Charlie",
-      dueDate: "2025-09-23",
-      status: "Completed",
-    },
-  ]);
-});
-
-// =====================
-// Marketing Attendance
-// =====================
-app.get('/api/marketing/attendance/today', (_req: Request, res: Response) => {
-  const employees = Array.from({ length: 50 }, (_, i) => ({
-    id: i + 1,
-    name: `Employee ${i + 1}`,
-    status: i % 3 === 0 ? 'Absent' : 'Present',
-  }));
-  res.json(employees);
-});
-
-app.get('/api/marketing/attendance', (_req: Request, res: Response) => {
-  const allAttendance = Array.from({ length: 20 }, (_, day) => ({
-    date: `2025-09-${String(day + 1).padStart(2, '0')}`,
-    records: Array.from({ length: 50 }, (_, i) => ({
-      id: i + 1,
-      name: `Employee ${i + 1}`,
-      status: Math.random() > 0.2 ? 'Present' : 'Absent',
-    })),
-  }));
-  res.json(allAttendance);
-});
-
-app.get('/api/marketing/attendance/metrics', (_req: Request, res: Response) => {
-  const metrics = {
-    totalEmployees: 50,
-    presentToday: 36,
-    absentToday: 14,
-    lateToday: 5,
-    onLeaveToday: 3,
-    averageWorkHours: 7.5,
-    attendanceRate: 72,
-    monthlyStats: {
-      totalDays: 20,
-      presentDays: 18,
-      absentDays: 2,
-      leaveDays: 1,
-    },
-  };
-  res.json(metrics);
-});
-
-// =====================
-// Reports
-// =====================
-app.get("/api/reports", (_req: Request, res: Response) => {
-  res.json([
-    { id: 1, title: "Monthly Leads Report", date: "2025-09-01" },
-    { id: 2, title: "Weekly Visits Summary", date: "2025-09-14" },
-  ]);
-});
-
-// =====================
-// Serve React Build (Production)
-// =====================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-app.use(express.static(path.join(__dirname, "../dist/public")));
-
-// Fallback for React Router (skip API routes)
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(__dirname, "../dist/public/index.html"));
-});
-
-// =====================
-// WebSocket (Live updates)
+// HTTP + WebSocket Setup
 // =====================
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
+function broadcast(message: any) {
+  const data = JSON.stringify(message);
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(data);
+    }
+  });
+}
+
 wss.on("connection", (ws) => {
-  console.log("Client connected to WebSocket");
+  console.log("🔌 WebSocket client connected");
 
-  const sendUpdate = () => {
-    ws.send(
-      JSON.stringify({
-        tasks: [
-          { id: 1, title: "Email Campaign", status: "Pending" },
-          { id: 2, title: "Social Media Ads", status: "In Progress" },
-        ],
-        attendance: { totalEmployees: 50, presentToday: 36 },
-      })
-    );
-  };
+  ws.on("message", (msg) => {
+    console.log("Received:", msg.toString());
+  });
 
-  const interval = setInterval(sendUpdate, 5000);
-  ws.on("close", () => clearInterval(interval));
-});
-
-// =====================
-// Global Error Handler
-// =====================
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Global error:", err);
-  res
-    .status(err.status || 500)
-    .json({ error: err.message || "Internal Server Error" });
+  ws.on("close", () => {
+    console.log("❌ WebSocket client disconnected");
+  });
 });
 
 // =====================
 // Start Server
 // =====================
-const PORT = parseInt(process.env.PORT || "5000", 10);
-server.listen(PORT, () =>
-  console.log(`✅ Server running at http://localhost:${PORT}`)
-);
+server.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
+});

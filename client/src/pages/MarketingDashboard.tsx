@@ -44,9 +44,9 @@ interface MarketingDashboardData {
 export default function MarketingDashboard() {
   // Dashboard data query
   const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
-    queryKey: ['/api/marketing/dashboard'],
+    queryKey: ['/api/marketing'],
     queryFn: async () => {
-      const res = await fetch('/api/marketing/dashboard');
+      const res = await fetch('/api/marketing');
       if (!res.ok) throw new Error('Failed to fetch dashboard data');
       return res.json();
     },

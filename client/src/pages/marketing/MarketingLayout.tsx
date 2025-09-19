@@ -175,7 +175,7 @@ export default function MarketingLayout() {
           <Route path="/marketing/leads">
             <Leads />
           </Route>
-          <Route path="/field-visits">
+          <Route path="/marketing/field-visits">
             <FieldVisits />
           </Route>
           <Route path="/marketing/tasks">

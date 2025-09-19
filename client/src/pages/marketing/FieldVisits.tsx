@@ -1,13 +1,23 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, MapPin, Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle, Map, Table, Filter } from "lucide-react";
+import {
+  Plus,
+  MapPin,
+  Calendar,
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Map,
+  Table,
+} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,333 +31,182 @@ import ProofUpload from "@/components/marketing/ProofUpload";
 import type { FieldVisit, InsertFieldVisit, User, Lead } from "@shared/schema";
 
 interface VisitWithDetails extends FieldVisit {
-  lead?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    companyName?: string;
-  };
-  assignedToUser?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  assignedByUser?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
+  lead?: { id: string; firstName: string; lastName: string; companyName?: string };
+  assignedToUser?: { id: string; firstName: string; lastName: string };
+  assignedByUser?: { id: string; firstName: string; lastName: string };
 }
 
-interface VisitMetrics {
-  totalVisits: number;
-  todayVisits: number;
-  scheduledVisits: number;
-  inProgressVisits: number;
-  completedVisits: number;
-  cancelledVisits: number;
-  completionRate: number;
-  averageDuration: number;
-}
-
-type VisitStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-type ViewMode = 'table' | 'map';
+type VisitStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+type ViewMode = "table" | "map";
 
 export default function FieldVisits() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<VisitWithDetails | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [statusFilter, setStatusFilter] = useState<VisitStatus | 'all'>('all');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [statusFilter, setStatusFilter] = useState<VisitStatus | "all">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [gpsModalOpen, setGpsModalOpen] = useState(false);
-  const [gpsAction, setGpsAction] = useState<'check-in' | 'check-out'>('check-in');
+  const [gpsAction, setGpsAction] = useState<"check-in" | "check-out">("check-in");
   const [proofModalOpen, setProofModalOpen] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch field visits with error handling
-  const { data: visits = [], isLoading: visitsLoading, error: visitsError } = useQuery<VisitWithDetails[]>({
-    queryKey: ['/api/field-visits'],
-    meta: { errorMessage: "Failed to load field visits" }
+  /** ===== Queries ===== **/
+  const { data: visitsData, isLoading: visitsLoading, error: visitsError } = useQuery<VisitWithDetails[]>({
+    queryKey: ["field-visits"],
+    queryFn: () => apiRequest("/api/field-visits"),
   });
+  const safeVisits = Array.isArray(visitsData) ? visitsData : [];
 
-  // Fetch today's visits
-  const { data: todayVisits = [] } = useQuery<VisitWithDetails[]>({
-    queryKey: ['/api/field-visits/today'],
-    meta: { errorMessage: "Failed to load today's visits" }
+  const { data: usersData } = useQuery<User[]>({
+    queryKey: ["users"],
+    queryFn: () => apiRequest("/api/users"),
   });
+  const users = Array.isArray(usersData) ? usersData : [];
 
-  // Fetch visit metrics
-  const { data: metrics, isLoading: metricsLoading } = useQuery<VisitMetrics>({
-    queryKey: ['/api/field-visits/metrics'],
-    meta: { errorMessage: "Failed to load visit metrics" }
+  const { data: leadsData } = useQuery<Lead[]>({
+    queryKey: ["leads"],
+    queryFn: () => apiRequest("/api/leads"),
   });
+  const leads = Array.isArray(leadsData) ? leadsData : [];
 
-  // Fetch users for assignment dropdown
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
-    meta: { errorMessage: "Failed to load users" }
-  });
-
-  // Fetch leads for visit creation
-  const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ['/api/leads'],
-    meta: { errorMessage: "Failed to load leads" }
-  });
-
-  // Create visit mutation
+  /** ===== Mutations ===== **/
   const createVisitMutation = useMutation({
-    mutationFn: (data: InsertFieldVisit) => apiRequest('/api/field-visits', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: InsertFieldVisit) =>
+      apiRequest("/api/field-visits", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ["field-visits"] });
       toast({ title: "Visit scheduled successfully!" });
       setIsFormOpen(false);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error scheduling visit", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
-  // Update visit mutation
-  const updateVisitMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertFieldVisit> }) => 
-      apiRequest(`/api/field-visits/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/metrics'] });
-      toast({ title: "Visit updated successfully!" });
-      setIsFormOpen(false);
-      setSelectedVisit(null);
+      toast({ title: "Error scheduling visit", description: error.message, variant: "destructive" });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error updating visit", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
   });
 
-  // Delete visit mutation
+  // Example delete mutation
   const deleteVisitMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/field-visits/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest(`/api/field-visits/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/metrics'] });
-      toast({ title: "Visit deleted successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+      toast({ title: "Visit deleted successfully" });
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error deleting visit", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
-  // Check-in mutation
-  const checkInMutation = useMutation({
-    mutationFn: ({ id, location }: { id: string; location: { latitude: number; longitude: number; location?: string; photoPath?: string } }) =>
-      apiRequest(`/api/field-visits/${id}/check-in`, { method: 'POST', body: JSON.stringify(location) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      toast({ title: "Successfully checked in!" });
-      setGpsModalOpen(false);
+      toast({ title: "Error deleting visit", description: error.message, variant: "destructive" });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error checking in", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
   });
 
-  // Check-out mutation
-  const checkOutMutation = useMutation({
-    mutationFn: ({ id, data }: { 
-      id: string; 
-      data: { 
-        latitude: number; 
-        longitude: number; 
-        location?: string; 
-        photoPath?: string;
-        visitNotes?: string;
-        outcome?: string;
-        nextAction?: string;
-      } 
-    }) =>
-      apiRequest(`/api/field-visits/${id}/check-out`, { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      toast({ title: "Successfully checked out!" });
-      setGpsModalOpen(false);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error checking out", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
-  // Status update mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, notes }: { id: string; status: VisitStatus; notes?: string }) =>
-      apiRequest(`/api/field-visits/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, notes }) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/field-visits/today'] });
-      toast({ title: "Visit status updated!" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error updating status", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
-  // Filter visits based on status, assignee, and search term
-  const filteredVisits = useMemo(() => {
-    return visits.filter(visit => {
-      const matchesStatus = statusFilter === 'all' || visit.status === statusFilter;
-      const matchesAssignee = assigneeFilter === 'all' || visit.assignedTo === assigneeFilter;
-      const matchesSearch = !searchTerm || 
-        visit.visitNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.visitAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.lead?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.lead?.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visit.lead?.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesStatus && matchesAssignee && matchesSearch;
-    });
-  }, [visits, statusFilter, assigneeFilter, searchTerm]);
-
-  // Get status counts for tabs
-  const statusCounts = useMemo(() => {
-    const counts = visits.reduce((acc, visit) => {
-      acc[visit.status] = (acc[visit.status] || 0) + 1;
-      return acc;
-    }, {} as Record<VisitStatus, number>);
-    
-    return {
-      all: visits.length,
-      scheduled: counts.scheduled || 0,
-      in_progress: counts.in_progress || 0,
-      completed: counts.completed || 0,
-      cancelled: counts.cancelled || 0
-    };
-  }, [visits]);
-
-  // Handle form submission
-  const handleFormSubmit = (data: InsertFieldVisit) => {
-    if (selectedVisit) {
-      updateVisitMutation.mutate({ id: selectedVisit.id, data });
-    } else {
-      createVisitMutation.mutate(data);
-    }
+  /** ===== Metrics ===== **/
+  const metricsLoading = visitsLoading;
+  const displayMetrics = {
+    todayVisits: safeVisits.filter(v => v.date === new Date().toISOString().split("T")[0]).length,
+    completionRate: safeVisits.length
+      ? (safeVisits.filter(v => v.status === "completed").length / safeVisits.length) * 100
+      : 0,
   };
 
-  // Handle visit edit
+  /** ===== Computed Values ===== **/
+  const filteredVisits = useMemo(() => {
+    return safeVisits.filter((v) => {
+      const matchesStatus = statusFilter === "all" || v.status === statusFilter;
+      const matchesAssignee = assigneeFilter === "all" || v.assignedTo === assigneeFilter;
+      const matchesSearch = !searchTerm || v.visitNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesStatus && matchesAssignee && matchesSearch;
+    });
+  }, [safeVisits, statusFilter, assigneeFilter, searchTerm]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 };
+    safeVisits.forEach((v) => {
+      if (v.status in counts) counts[v.status]++;
+    });
+    return { all: safeVisits.length, ...counts };
+  }, [safeVisits]);
+
+  /** ===== Handlers ===== **/
+  const handleFormSubmit = (data: InsertFieldVisit) => {
+    if (selectedVisit) return; // Add update mutation here if needed
+    createVisitMutation.mutate(data);
+  };
+
   const handleEditVisit = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
     setIsFormOpen(true);
   };
 
-  // Handle visit delete
   const handleDeleteVisit = (visit: VisitWithDetails) => {
-    if (confirm(`Are you sure you want to delete visit ${visit.visitNumber}?`)) {
-      deleteVisitMutation.mutate(visit.id);
-    }
+    if (!window.confirm(`Are you sure you want to delete visit #${visit.visitNumber}?`)) return;
+    deleteVisitMutation.mutate(visit.id);
   };
 
-  // Handle GPS actions
-  const handleGPSAction = (visit: VisitWithDetails, action: 'check-in' | 'check-out') => {
+  const handleGPSAction = (visit: VisitWithDetails, action: "check-in" | "check-out") => {
     setSelectedVisit(visit);
     setGpsAction(action);
     setGpsModalOpen(true);
   };
 
-  // Handle GPS check-in
-  const handleCheckIn = (location: { latitude: number; longitude: number; location?: string; photoPath?: string }) => {
-    if (selectedVisit) {
-      checkInMutation.mutate({ id: selectedVisit.id, location });
-    }
+  const handleStatusUpdate = (visit: VisitWithDetails, status: VisitStatus) => {
+    // Implement status update mutation
+    console.log("Update status", visit, status);
   };
 
-  // Handle GPS check-out
-  const handleCheckOut = (data: { 
-    latitude: number; 
-    longitude: number; 
-    location?: string; 
-    photoPath?: string;
-    visitNotes?: string;
-    outcome?: string;
-    nextAction?: string;
-  }) => {
-    if (selectedVisit) {
-      checkOutMutation.mutate({ id: selectedVisit.id, data });
-    }
-  };
-
-  // Handle status update
-  const handleStatusUpdate = (visit: VisitWithDetails, status: VisitStatus, notes?: string) => {
-    updateStatusMutation.mutate({ id: visit.id, status, notes });
-  };
-
-  // Handle proof upload
   const handleProofUpload = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
     setProofModalOpen(true);
   };
-
-  // Default metrics if loading
-  const displayMetrics: VisitMetrics = metrics || {
-    totalVisits: 0,
-    todayVisits: 0,
-    scheduledVisits: 0,
-    inProgressVisits: 0,
-    completedVisits: 0,
-    cancelledVisits: 0,
-    completionRate: 0,
-    averageDuration: 0
+  const handleCheckIn = (visit: VisitWithDetails) => {
+    if (visit.id) checkInMutation.mutate(visit.id);
   };
 
-  if (visitsError) {
-    return (
-      <div className="p-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-              <h2 className="text-lg font-semibold mb-2">Error Loading Field Visits</h2>
-              <p className="text-muted-foreground">
-                Failed to load field visits data. Please try again.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+const handleCheckOut = (visit: VisitWithDetails) => {
+  if (visit.id) checkOutMutation.mutate(visit.id);
+};
+const checkInMutation = useMutation({
+  mutationFn: (visitId: string) =>
+    apiRequest(`/api/field-visits/${visitId}/check-in`, { method: "POST" }),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+    toast({ title: "Checked in successfully!" });
+  },
+  onError: (error: any) => {
+    toast({ title: "Error checking in", description: error.message, variant: "destructive" });
+  },
+});
+
+const checkOutMutation = useMutation({
+  mutationFn: (visitId: string) =>
+    apiRequest(`/api/field-visits/${visitId}/check-out`, { method: "POST" }),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+    toast({ title: "Checked out successfully!" });
+  },
+  onError: (error: any) => {
+    toast({ title: "Error checking out", description: error.message, variant: "destructive" });
+  },
+});
+const updateVisitMutation = useMutation({
+  mutationFn: (data: VisitWithDetails) =>
+    apiRequest(`/api/field-visits/${data.id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+    toast({ title: "Visit updated successfully!" });
+    setIsFormOpen(false);
+    setSelectedVisit(null);
+  },
+  onError: (error: any) => {
+    toast({ title: "Error updating visit", description: error.message, variant: "destructive" });
+  },
+});
+  if (visitsError) return <div className="p-8 text-red-600">Error loading visits</div>;
+  if (visitsLoading) return <div className="p-8">Loading visits...</div>;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+   <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
