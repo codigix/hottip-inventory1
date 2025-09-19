@@ -1,275 +1,243 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Plus, RefreshCw, Search, Filter, X,
-  Grid3X3, Table as TableIcon, Calendar, Users, CalendarDays, TrendingUp, AlertTriangle
+  Users, 
+  MapPin, 
+  TrendingUp, 
+  Target, 
+  Calendar,
+  PhoneCall,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
-import { format, isAfter, isBefore, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, isPast } from "date-fns";
 
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-
-import TaskMetrics from "@/components/marketing/TaskMetrics";
-import TaskForm from "@/components/marketing/TaskForm";
-import TaskTable from "@/components/marketing/TaskTable";
-import TaskBoard from "@/components/marketing/TaskBoard";
-import TaskCard from "@/components/marketing/TaskCard";
-
-import type { MarketingTask, User, Lead, FieldVisit } from "@shared/schema";
-
-interface TaskWithDetails extends MarketingTask {
-  assignedToUser?: User;
-  assignedByUser?: User;
-  lead?: Lead;
-  fieldVisit?: FieldVisit;
+interface MarketingDashboardData {
+  leads: {
+    total: number;
+    active: number;
+    converted: number;
+    conversionRate: number;
+    monthlyNew: number;
+    pendingFollowUps: number;
+  };
+  visits: {
+    total: number;
+    completed: number;
+    today: number;
+    successRate: number;
+    weeklyCompleted: number;
+  };
+  tasks: {
+    total: number;
+    completed: number;
+    overdue: number;
+    today: number;
+    completionRate: number;
+  };
+  attendance?: {
+    totalEmployees?: number;
+    presentToday?: number;
+  };
 }
 
-type ViewMode = "table" | "board" | "cards";
-type DateFilter = "all" | "today" | "week" | "month" | "overdue" | "custom";
-type StatusFilter = "all" | "pending" | "in_progress" | "completed" | "cancelled";
-type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
-
-interface TaskFilters {
-  search: string;
-  status: StatusFilter;
-  priority: PriorityFilter;
-  assignee: string;
-  dateFilter: DateFilter;
-  dateFrom?: Date;
-  dateTo?: Date;
-}
-
-export default function MarketingTasks() {
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [editingTask, setEditingTask] = useState<TaskWithDetails | null>(null);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<TaskWithDetails | null>(null);
-  const [filters, setFilters] = useState<TaskFilters>({
-    search: "",
-    status: "all",
-    priority: "all",
-    assignee: "all",
-    dateFilter: "all",
-  });
-
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  // ✅ Fetch tasks (parse JSON)
-  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery<TaskWithDetails[]>({
-    queryKey: ["/api/marketing-tasks"],
+export default function MarketingDashboard() {
+  // Dashboard data query
+  const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
+    queryKey: ['/api/marketing/dashboard'],
     queryFn: async () => {
-      const res = await apiRequest("/api/marketing-tasks");
+      const res = await fetch('/api/marketing/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard data');
       return res.json();
     },
   });
 
-  // ✅ Fetch users (parse JSON)
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+  // Recent leads
+  const { data: recentLeads, isLoading: leadsLoading } = useQuery({
+    queryKey: ['/api/leads'],
     queryFn: async () => {
-      const res = await apiRequest("/api/users");
+      const res = await fetch('/api/leads');
+      if (!res.ok) throw new Error('Failed to fetch leads');
       return res.json();
     },
+    select: (data: any[]) => data?.slice(0, 3) || []
   });
 
-  // ✅ Fetch leads (optional, used in forms or details)
-  const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ["/api/leads"],
+  // Upcoming field visits
+  const { data: upcomingVisits, isLoading: visitsLoading } = useQuery({
+    queryKey: ['/api/field-visits'],
     queryFn: async () => {
-      const res = await apiRequest("/api/leads");
+      const res = await fetch('/api/field-visits');
+      if (!res.ok) throw new Error('Failed to fetch visits');
       return res.json();
     },
+    select: (data: any[]) => {
+      return data?.filter((visit: any) => 
+        visit.status === 'scheduled' || visit.status === 'confirmed'
+      ).slice(0, 3) || [];
+    }
   });
 
-  // Delete mutation
-  const deleteTaskMutation = useMutation({
-    mutationFn: (taskId: string) =>
-      apiRequest(`/api/marketing-tasks/${taskId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] });
-      toast({ title: "Task deleted successfully!" });
-      setTaskToDelete(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error deleting task",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  // Show loading skeleton while any query is loading
+  if (isLoading || leadsLoading || visitsLoading) {
+    return (
+      <div className="p-8 space-y-6">
+        <Skeleton className="h-8 w-64 mb-2" />
+        <Skeleton className="h-4 w-96" />
+        {/* Add more skeletons as needed */}
+      </div>
+    );
+  }
 
-  // Filtered tasks
-  const filteredTasks = useMemo(() => {
-    let filtered = [...tasks];
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (task) =>
-          task.title.toLowerCase().includes(searchLower) ||
-          task.description?.toLowerCase().includes(searchLower) ||
-          task.assignedToUser?.firstName.toLowerCase().includes(searchLower) ||
-          task.assignedToUser?.lastName.toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (filters.status !== "all")
-      filtered = filtered.filter((task) => task.status === filters.status);
-    if (filters.priority !== "all")
-      filtered = filtered.filter((task) => task.priority === filters.priority);
-
-    if (filters.assignee !== "all") {
-      filtered =
-        filters.assignee === "unassigned"
-          ? filtered.filter((task) => !task.assignedTo)
-          : filtered.filter((task) => task.assignedTo === filters.assignee);
-    }
-
-    const now = new Date();
-    switch (filters.dateFilter) {
-      case "today":
-        filtered = filtered.filter(
-          (task) => task.dueDate && isToday(new Date(task.dueDate))
-        );
-        break;
-      case "week":
-        filtered = filtered.filter(
-          (task) =>
-            task.dueDate &&
-            isAfter(new Date(task.dueDate), startOfWeek(now)) &&
-            isBefore(new Date(task.dueDate), endOfWeek(now))
-        );
-        break;
-      case "month":
-        filtered = filtered.filter(
-          (task) =>
-            task.dueDate &&
-            isAfter(new Date(task.dueDate), startOfMonth(now)) &&
-            isBefore(new Date(task.dueDate), endOfMonth(now))
-        );
-        break;
-      case "overdue":
-        filtered = filtered.filter(
-          (task) =>
-            task.dueDate &&
-            isPast(new Date(task.dueDate)) &&
-            task.status !== "completed"
-        );
-        break;
-      case "custom":
-        if (filters.dateFrom && filters.dateTo) {
-          filtered = filtered.filter(
-            (task) =>
-              task.dueDate &&
-              isAfter(new Date(task.dueDate), filters.dateFrom!) &&
-              isBefore(new Date(task.dueDate), filters.dateTo!)
-          );
-        }
-        break;
-    }
-
-    return filtered;
-  }, [tasks, filters]);
-
-  const stats = useMemo(
-    () => ({
-      total: filteredTasks.length,
-      pending: filteredTasks.filter((t) => t.status === "pending").length,
-      inProgress: filteredTasks.filter((t) => t.status === "in_progress").length,
-      completed: filteredTasks.filter((t) => t.status === "completed").length,
-      overdue: filteredTasks.filter(
-        (t) =>
-          t.dueDate &&
-          isPast(new Date(t.dueDate)) &&
-          t.status !== "completed"
-      ).length,
-      dueToday: filteredTasks.filter(
-        (t) =>
-          t.dueDate &&
-          isToday(new Date(t.dueDate)) &&
-          t.status !== "completed"
-      ).length,
-    }),
-    [filteredTasks]
-  );
-
-  if (tasksError)
+  // Log errors for debugging
+  if (error) {
+    console.error("Dashboard fetch error:", error);
     return (
       <div className="p-8">
-        <Card className="border-red-200">
-          <CardContent className="pt-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2 text-red-700">
-              Failed to Load Tasks
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              Error loading tasks. Please try again.
-            </p>
-            <Button
-              onClick={() =>
-                queryClient.invalidateQueries({
-                  queryKey: ["/api/marketing-tasks"],
-                })
-              }
-            >
-              <RefreshCw className="h-4 w-4" /> Retry
-            </Button>
+        <Card>
+          <CardContent className="flex items-center space-x-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <span>Failed to load dashboard data. Please try again later.</span>
           </CardContent>
         </Card>
       </div>
     );
+  }
+
+  // Calculate metrics
+  const totalLeads = dashboardData?.leads?.total || 0;
+  const activeTasks = dashboardData?.tasks?.total || 0;
+  const conversionRate = dashboardData?.leads?.conversionRate || 0;
+  const fieldVisitsToday = dashboardData?.visits?.today || 0;
+  const todayCompleted = dashboardData?.visits?.completed || 0;
+  const todayPending = Math.max(0, fieldVisitsToday - todayCompleted);
 
   return (
-    <div className="flex-1 space-y-6 p-8">
-      {/* ✅ Example sections */}
-      <TaskMetrics />
+    <div className="p-8 space-y-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Marketing Dashboard</h1>
+        <p className="text-muted-foreground">
+          Overview of marketing activities, leads, and performance metrics
+        </p>
+      </div>
 
-      {viewMode === "table" && (
-        <TaskTable
-          tasks={filteredTasks}
-          onEdit={setEditingTask}
-          onDelete={setTaskToDelete}
-          onViewDetails={setSelectedTaskDetails}
-          loading={tasksLoading}
-        />
-      )}
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex items-center justify-between pb-2">
+            <CardTitle className="text-sm font-light">Total Leads</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalLeads}</div>
+            <p className="text-xs text-muted-foreground">
+              {dashboardData?.leads?.monthlyNew || 0} new this month
+            </p>
+          </CardContent>
+        </Card>
 
-      {viewMode === "board" && (
-        <TaskBoard
-          tasks={filteredTasks}
-          onEdit={setEditingTask}
-          onDelete={setTaskToDelete}
-          onCreateTask={() => setShowTaskForm(true)}
-          loading={tasksLoading}
-        />
-      )}
+        <Card>
+          <CardHeader className="flex items-center justify-between pb-2">
+            <CardTitle className="text-sm font-light">Active Tasks</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeTasks}</div>
+            <p className="text-xs text-muted-foreground">
+              {dashboardData?.tasks?.overdue || 0} overdue
+            </p>
+          </CardContent>
+        </Card>
 
-      {viewMode === "cards" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onEdit={setEditingTask}
-              onDelete={setTaskToDelete}
-              showAssignee
-            />
-          ))}
-        </div>
-      )}
+        <Card>
+          <CardHeader className="flex items-center justify-between pb-2">
+            <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{conversionRate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              {dashboardData?.leads?.converted || 0} leads converted
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* ✅ Task Form */}
-      <TaskForm
-        open={showTaskForm}
-        onOpenChange={setShowTaskForm}
-        taskId={editingTask?.id}
-      />
+        <Card>
+          <CardHeader className="flex items-center justify-between pb-2">
+            <CardTitle className="text-sm font-light">Field Visits Today</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fieldVisitsToday}</div>
+            <p className="text-xs text-muted-foreground">
+              {todayCompleted} completed, {todayPending} pending
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Leads */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="h-5 w-5" />
+              <span>Recent Leads</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {recentLeads && recentLeads.length > 0 ? (
+              recentLeads.map((lead: any, index: number) => (
+                <div key={lead.id || index} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-light">{lead.companyName || `${lead.firstName} ${lead.lastName}`}</p>
+                    <p className="text-sm text-muted-foreground">{lead.industry || lead.email || 'No info'}</p>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    {lead.status === 'qualified' ? <CheckCircle2 className="h-4 w-4 text-green-500"/> : <PhoneCall className="h-4 w-4 text-blue-500"/>}
+                    <span className="text-sm">{lead.status}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No recent leads found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Visits */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5" />
+              <span>Upcoming Field Visits</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {upcomingVisits && upcomingVisits.length > 0 ? (
+              upcomingVisits.map((visit: any, index: number) => (
+                <div key={visit.id || index} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-light">{visit.purpose || `Visit ${visit.visitNumber}`}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(visit.plannedDate).toLocaleString()}</p>
+                  </div>
+                  <span className={`text-sm ${visit.status === 'confirmed' ? 'text-green-600' : 'text-blue-600'}`}>
+                    {visit.status || 'Pending'}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No upcoming visits scheduled</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
