@@ -35,7 +35,7 @@ export default function Leads() {
 
   // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
-    queryKey: ['/api/leads', { 
+    queryKey: ['/api/marketing/leads ', { 
       status: selectedStatus,
       source: sourceFilter, 
       priority: priorityFilter,
@@ -43,14 +43,14 @@ export default function Leads() {
       search: searchQuery.trim()
     }],
     queryFn: () => {
-      const url = queryParams ? `/api/leads?${queryParams}` : '/api/leads';
+      const url = queryParams ? `/api/marketing/leads ?${queryParams}` : '/api/marketing/leads ';
       return fetch(url).then(res => res.json());
     }
   });
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-    queryKey: ['/api/leads/metrics']
+    queryKey: ['/api/marketing/leads /metrics']
   });
 
   // Fetch users for filters

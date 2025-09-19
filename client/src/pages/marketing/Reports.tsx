@@ -58,12 +58,12 @@ export default function Reports() {
 
   // API Queries
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['/api/leads', dateRangeParam],
+    queryKey: ['/api/marketing/leads ', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: leadsMetrics, isLoading: loadingLeadsMetrics } = useQuery({
-    queryKey: ['/api/leads/metrics', dateRangeParam],
+    queryKey: ['/api/marketing/leads /metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 

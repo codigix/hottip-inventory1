@@ -72,16 +72,16 @@ describe('Marketing Routes Registry Authorization Matrix', () => {
 
   describe('Complete Endpoint Coverage', () => {
     test('Leads endpoints (9 routes)', () => {
-      const leadRoutes = marketingRoutes.filter(r => r.path.startsWith('/api/leads'));
+      const leadRoutes = marketingRoutes.filter(r => r.path.startsWith('/api/marketing/leads '));
       expect(leadRoutes).toHaveLength(9);
       
       const expectedLeadPaths = [
-        '/api/leads',
-        '/api/leads/:id',
-        '/api/leads/:id/status',
-        '/api/leads/:id/convert',
-        '/api/leads/metrics',
-        '/api/leads/search'
+        '/api/marketing/leads ',
+        '/api/marketing/leads /:id',
+        '/api/marketing/leads /:id/status',
+        '/api/marketing/leads /:id/convert',
+        '/api/marketing/leads /metrics',
+        '/api/marketing/leads /search'
       ];
       
       // Check core lead endpoints exist
@@ -253,7 +253,7 @@ describe('Marketing Routes Registry Authorization Matrix', () => {
     test('Registry covers all marketing modules', () => {
       const modules = new Set();
       marketingRoutes.forEach(route => {
-        if (route.path.startsWith('/api/leads')) modules.add('leads');
+        if (route.path.startsWith('/api/marketing/leads ')) modules.add('leads');
         else if (route.path.startsWith('/api/field-visits')) modules.add('field-visits');
         else if (route.path.startsWith('/api/marketing-tasks')) modules.add('marketing-tasks');
         else if (route.path.startsWith('/api/marketing-attendance')) modules.add('marketing-attendance');

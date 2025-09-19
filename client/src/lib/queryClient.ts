@@ -1,39 +1,38 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Helper function to get auth token (disabled for direct access)
-function getAuthToken(): string | null {
-  // Return null to disable authentication in development
-  return null;
-}
+// ✅ Base API URL (from .env or fallback)
+const API_BASE =
+  import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "http://localhost:5000";
 
+// 🔹 Helper: Throw if response not OK
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    
-    // Handle auth errors globally
+
+    // Handle unauthorized (401) globally
     if (res.status === 401) {
-      // Clear invalid token
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
       }
     }
-    
+
     throw new Error(`${res.status}: ${text}`);
   }
 }
 
+// 🔹 Generic API request wrapper
 export async function apiRequest(
-  url: string,
+  path: string,
   options?: {
     method?: string;
     body?: string;
     headers?: Record<string, string>;
-  },
+  }
 ): Promise<Response> {
   const { method = "GET", body, headers = {} } = options || {};
-  
-  const res = await fetch(url, {
+
+  const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
@@ -47,13 +46,18 @@ export async function apiRequest(
   return res;
 }
 
+// 🔹 Query function factory for React Query
 type UnauthorizedBehavior = "returnNull" | "throw";
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Join queryKey into endpoint string
+    const endpoint = queryKey.join("/");
+
+    const res = await fetch(`${API_BASE}/${endpoint}`, {
       headers: {},
       credentials: "include",
     });
@@ -66,6 +70,7 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// 🔹 QueryClient instance (global for app)
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
