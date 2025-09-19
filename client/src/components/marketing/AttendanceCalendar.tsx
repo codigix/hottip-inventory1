@@ -75,7 +75,7 @@ export default function AttendanceCalendar({
   // Group attendance data by date
   const attendanceByDate = useMemo(() => {
     const grouped: Record<string, AttendanceWithUser[]> = {};
-    
+
     filteredAttendance.forEach(record => {
       const dateKey = format(new Date(record.date), 'yyyy-MM-dd');
       if (!grouped[dateKey]) {
@@ -83,7 +83,7 @@ export default function AttendanceCalendar({
       }
       grouped[dateKey].push(record);
     });
-    
+
     return grouped;
   }, [filteredAttendance]);
 
@@ -92,11 +92,11 @@ export default function AttendanceCalendar({
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
     const monthDays = eachDayOfInterval({ start, end });
-    
+
     // Add padding days for proper calendar layout
     const startDay = getDay(start); // 0 = Sunday, 1 = Monday, etc.
     const paddingDays = Array(startDay).fill(null);
-    
+
     return [...paddingDays, ...monthDays];
   }, [currentMonth]);
 
@@ -104,7 +104,7 @@ export default function AttendanceCalendar({
   const getDayAttendance = (date: Date): DayAttendance => {
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayAttendance = attendanceByDate[dateKey] || [];
-    
+
     const summary = dayAttendance.reduce(
       (acc, record) => {
         switch (record.attendanceStatus) {
@@ -127,7 +127,7 @@ export default function AttendanceCalendar({
       },
       { presentCount: 0, absentCount: 0, lateCount: 0, onLeaveCount: 0 }
     );
-    
+
     return {
       date,
       attendance: dayAttendance,
@@ -180,7 +180,7 @@ export default function AttendanceCalendar({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -268,37 +268,33 @@ export default function AttendanceCalendar({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          className={`h-24 p-1 border rounded-lg cursor-pointer transition-colors ${
-                            isCurrentMonth
-                              ? 'border-border hover:bg-muted/50'
-                              : 'border-muted bg-muted/20'
-                          } ${
-                            isCurrentDay
+                          className={`h-24 p-1 border rounded-lg cursor-pointer transition-colors ${isCurrentMonth
+                            ? 'border-border hover:bg-muted/50'
+                            : 'border-muted bg-muted/20'
+                            } ${isCurrentDay
                               ? 'ring-2 ring-primary'
                               : ''
-                          }`}
+                            }`}
                           onClick={() => onDateSelect?.(day)}
                           data-testid={`calendar-day-${format(day, 'yyyy-MM-dd')}`}
                         >
                           {/* Date Number */}
                           <div className="flex items-center justify-between mb-1">
                             <span
-                              className={`text-xs font-light ${
-                                isCurrentMonth
-                                  ? isCurrentDay
-                                    ? 'text-primary font-bold'
-                                    : 'text-foreground'
-                                  : 'text-muted-foreground'
-                              }`}
+                              className={`text-xs font-light ${isCurrentMonth
+                                ? isCurrentDay
+                                  ? 'text-primary font-bold'
+                                  : 'text-foreground'
+                                : 'text-muted-foreground'
+                                }`}
                             >
                               {format(day, 'd')}
                             </span>
-                            
+
                             {/* Status Indicator */}
                             {dayData.attendance.length > 0 && (
-                              <div className={`text-xs rounded-full w-4 h-4 flex items-center justify-center ${
-                                statusColors[primaryStatus as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                              }`}>
+                              <div className={`text-xs rounded-full w-4 h-4 flex items-center justify-center ${statusColors[primaryStatus as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+                                }`}>
                                 {statusIcons[primaryStatus as keyof typeof statusIcons]}
                               </div>
                             )}
@@ -370,11 +366,14 @@ export default function AttendanceCalendar({
                                     <span className="font-light">
                                       {record.user?.firstName} {record.user?.lastName}
                                     </span>
-                                    <Badge variant="outline" className={`text-xs ${
-                                      statusColors[record.attendanceStatus as keyof typeof statusColors]
-                                    }`}>
-                                      {record.attendanceStatus.replace('_', ' ').toUpperCase()}
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs ${statusColors[record.attendanceStatus?.toUpperCase() as keyof typeof statusColors] ?? "text-gray-500"
+                                        }`}
+                                    >
+                                      {(record.attendanceStatus ?? "").replace(/_/g, " ").toUpperCase()}
                                     </Badge>
+
                                   </div>
                                   {record.checkInTime && (
                                     <p>Check-in: {format(new Date(record.checkInTime), 'HH:mm')}</p>

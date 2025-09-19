@@ -63,13 +63,13 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-export default function AttendanceCard({ 
-  attendance, 
-  onCheckIn, 
-  onCheckOut, 
-  onStartBreak, 
+export default function AttendanceCard({
+  attendance,
+  onCheckIn,
+  onCheckOut,
+  onStartBreak,
   onEndBreak,
-  isManager = false 
+  isManager = false
 }: AttendanceCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -84,27 +84,27 @@ export default function AttendanceCard({
   // Calculate work duration
   const getWorkDuration = () => {
     if (!attendance.checkInTime) return "Not checked in";
-    
+
     const startTime = new Date(attendance.checkInTime);
     const endTime = attendance.checkOutTime ? new Date(attendance.checkOutTime) : new Date();
-    
+
     const diffMs = endTime.getTime() - startTime.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return `${hours}h ${minutes}m`;
   };
 
   // Calculate break duration
   const getBreakDuration = () => {
     if (!attendance.breakStartTime) return "0m";
-    
+
     const startTime = new Date(attendance.breakStartTime);
     const endTime = attendance.breakEndTime ? new Date(attendance.breakEndTime) : new Date();
-    
+
     const diffMs = endTime.getTime() - startTime.getTime();
     const minutes = Math.floor(diffMs / (1000 * 60));
-    
+
     return `${minutes}m`;
   };
 
@@ -136,16 +136,18 @@ export default function AttendanceCard({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <Badge 
+            <Badge
               className={`text-xs border ${getStatusColor(attendance.attendanceStatus)}`}
               data-testid={`attendance-status-${user?.id}`}
             >
               {getStatusIcon(attendance.attendanceStatus)}
-              <span className="ml-1 capitalize">{attendance.attendanceStatus.replace('_', ' ')}</span>
+              <span className="ml-1 capitalize">
+                {attendance.attendanceStatus ? attendance.attendanceStatus.replace(/_/g, ' ') : 'Unknown'}
+              </span>
             </Badge>
-            
+
             {attendance.isOnLeave && (
               <Badge variant="outline" className="text-xs" data-testid={`leave-badge-${user?.id}`}>
                 On Leave
@@ -164,20 +166,20 @@ export default function AttendanceCard({
               <span>Check-in</span>
             </div>
             <p className="font-light" data-testid={`checkin-time-${user?.id}`}>
-              {attendance.checkInTime 
+              {attendance.checkInTime
                 ? format(new Date(attendance.checkInTime), 'HH:mm')
                 : '--:--'
               }
             </p>
           </div>
-          
+
           <div className="space-y-1">
             <div className="flex items-center space-x-1 text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>Check-out</span>
             </div>
             <p className="font-light" data-testid={`checkout-time-${user?.id}`}>
-              {attendance.checkOutTime 
+              {attendance.checkOutTime
                 ? format(new Date(attendance.checkOutTime), 'HH:mm')
                 : '--:--'
               }
@@ -207,8 +209,8 @@ export default function AttendanceCard({
         {!isManager && (
           <div className="flex flex-wrap gap-2">
             {!isCheckedIn && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={() => onCheckIn?.(user?.id || attendance.userId)}
                 className="flex-1"
                 data-testid={`button-checkin-${user?.id}`}
@@ -217,10 +219,10 @@ export default function AttendanceCard({
                 Check In
               </Button>
             )}
-            
+
             {canCheckOut && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={() => onCheckOut?.(user?.id || attendance.userId)}
                 className="flex-1"
@@ -230,10 +232,10 @@ export default function AttendanceCard({
                 Check Out
               </Button>
             )}
-            
+
             {canStartBreak && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="secondary"
                 onClick={() => onStartBreak?.(attendance.id)}
                 data-testid={`button-start-break-${user?.id}`}
@@ -242,10 +244,10 @@ export default function AttendanceCard({
                 Start Break
               </Button>
             )}
-            
+
             {canEndBreak && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="secondary"
                 onClick={() => onEndBreak?.(attendance.id)}
                 data-testid={`button-end-break-${user?.id}`}
@@ -268,7 +270,7 @@ export default function AttendanceCard({
           >
             {isExpanded ? 'Hide Details' : 'Show Details'}
           </Button>
-          
+
           {isExpanded && (
             <div className="mt-3 space-y-3 text-xs">
               {/* Location Details */}
@@ -282,15 +284,15 @@ export default function AttendanceCard({
                         <p className="font-light">Check-in Location</p>
                         <p className="text-muted-foreground" data-testid={`checkin-location-${user?.id}`}>
                           {getLocationText(
-                            attendance.checkInLatitude, 
-                            attendance.checkInLongitude, 
+                            attendance.checkInLatitude,
+                            attendance.checkInLongitude,
                             attendance.checkInLocation
                           )}
                         </p>
                       </div>
                     </div>
                   )}
-                  
+
                   {attendance.checkOutLatitude && (
                     <div className="flex items-start space-x-2">
                       <MapPin className="h-3 w-3 mt-0.5 text-red-500" />
@@ -298,8 +300,8 @@ export default function AttendanceCard({
                         <p className="font-light">Check-out Location</p>
                         <p className="text-muted-foreground" data-testid={`checkout-location-${user?.id}`}>
                           {getLocationText(
-                            attendance.checkOutLatitude, 
-                            attendance.checkOutLongitude, 
+                            attendance.checkOutLatitude,
+                            attendance.checkOutLongitude,
                             attendance.checkOutLocation
                           )}
                         </p>

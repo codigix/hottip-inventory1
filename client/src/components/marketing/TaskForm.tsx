@@ -144,25 +144,25 @@ export default function TaskForm({
 
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['api/users'],
     enabled: open
   });
 
   // Fetch leads for linking
   const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ['/api/marketing/leads '],
+    queryKey: ['api/marketing/leads '],
     enabled: open
   });
 
   // Fetch field visits for linking
   const { data: fieldVisits = [] } = useQuery<FieldVisit[]>({
-    queryKey: ['/api/field-visits'],
+    queryKey: ['api/field-visits'],
     enabled: open
   });
 
   // Fetch existing task data if editing
   const { data: existingTask } = useQuery<TaskWithDetails>({
-    queryKey: ['/api/marketing-tasks', taskId],
+    queryKey: ['api/marketing-tasks', taskId],
     enabled: !!taskId && open
   });
 
@@ -199,10 +199,10 @@ export default function TaskForm({
   }, [existingTask, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/marketing-tasks', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest('', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
       toast({ title: "Task created successfully!" });
       onOpenChange(false);
       form.reset();
@@ -217,11 +217,11 @@ export default function TaskForm({
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => apiRequest(`/api/marketing-tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest(`api/marketing-tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
       toast({ title: "Task updated successfully!" });
       onOpenChange(false);
     },
