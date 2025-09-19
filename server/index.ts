@@ -158,8 +158,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // =====================
 // Vite / static setup
 // =====================
-if (app.get("env") === "development") setupVite(app, app);
-else serveStatic(app);
+// if (app.get("env") === "development") setupVite(app, app);
+// else serveStatic(app);
 
 // =====================
 // Server listen

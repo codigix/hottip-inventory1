@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal, Eye, Edit, Trash2, ArrowRight, Phone, Mail, MapPin, Calendar, DollarSign, User } from "lucide-react";
+import {
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  ArrowRight,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  DollarSign,
+  User,
+} from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -8,11 +20,45 @@ import { LEAD_STATUS_WORKFLOW } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,74 +73,87 @@ interface LeadTableProps {
   onView: (lead: LeadWithAssignee) => void;
 }
 
-export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTableProps) {
+export default function LeadTable({
+  leads,
+  isLoading,
+  onEdit,
+  onView,
+}: LeadTableProps) {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
-  const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(null);
+  const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
+    null
+  );
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/leads/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      apiRequest(`/api/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error deleting lead", 
+      toast({
+        title: "Error deleting lead",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) => 
-      apiRequest(`/api/leads/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
+      apiRequest(`/api/leads/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      }),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
-      
-      if (variables.status === 'converted') {
-        toast({ 
-          title: "Lead converted successfully!", 
-          description: "Lead has been handed over to Sales module." 
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+
+      if (variables.status === "converted") {
+        toast({
+          title: "Lead converted successfully!",
+          description: "Lead has been handed over to Sales module.",
         });
       } else {
         toast({ title: "Lead status updated successfully!" });
       }
-      
+
       setStatusChangeLeadId(null);
       setNewStatus(null);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error updating lead status", 
+      toast({
+        title: "Error updating lead status",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const convertMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/leads/${id}/convert`, { method: 'POST' }),
+    mutationFn: (id: string) =>
+      apiRequest(`/api/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
-      toast({ 
-        title: "Lead converted and handed over to Sales!", 
-        description: "A new customer record has been created in the Sales module." 
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Lead converted and handed over to Sales!",
+        description:
+          "A new customer record has been created in the Sales module.",
       });
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error converting lead", 
+      toast({
+        title: "Error converting lead",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const handleDelete = () => {
@@ -105,10 +164,13 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
 
   const handleStatusChange = () => {
     if (statusChangeLeadId && newStatus) {
-      if (newStatus === 'converted') {
+      if (newStatus === "converted") {
         convertMutation.mutate(statusChangeLeadId);
       } else {
-        updateStatusMutation.mutate({ id: statusChangeLeadId, status: newStatus });
+        updateStatusMutation.mutate({
+          id: statusChangeLeadId,
+          status: newStatus,
+        });
       }
     }
   };
@@ -119,7 +181,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
 
   const formatCurrency = (amount: string | undefined) => {
     if (!amount) return "Not specified";
-    return `₹${parseFloat(amount).toLocaleString('en-IN')}`;
+    return `₹${parseFloat(amount).toLocaleString("en-IN")}`;
   };
 
   if (isLoading) {
@@ -146,7 +208,9 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-light text-foreground mb-2">No leads found</h3>
+            <h3 className="text-lg font-light text-foreground mb-2">
+              No leads found
+            </h3>
             <p className="text-sm text-muted-foreground">
               Get started by adding your first lead to the system.
             </p>
@@ -187,17 +251,25 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground">
-                      Created {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
+                      Created{" "}
+                      {lead.createdAt
+                        ? `Created ${format(
+                            new Date(lead.createdAt),
+                            "MM dd, yyyy"
+                          )}`
+                        : "Created date unknown"}
                     </div>
                   </div>
                 </TableCell>
-                
+
                 <TableCell>
                   <div className="space-y-1">
                     {lead.email && (
                       <div className="flex items-center space-x-1 text-sm">
                         <Mail className="h-3 w-3 text-muted-foreground" />
-                        <span className="truncate max-w-[150px]">{lead.email}</span>
+                        <span className="truncate max-w-[150px]">
+                          {lead.email}
+                        </span>
                       </div>
                     )}
                     {lead.phone && (
@@ -218,7 +290,7 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 <TableCell>
                   <div className="space-y-1">
                     <Badge variant="outline" className="text-xs">
-                      {lead.source.replace('_', ' ').toUpperCase()}
+                      {lead.source?.replace("_", " ").toUpperCase() || ""}
                     </Badge>
                     {lead.sourceDetails && (
                       <div className="text-xs text-muted-foreground truncate max-w-[100px]">
@@ -256,13 +328,18 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {lead.assignee.firstName[0]}{lead.assignee.lastName[0]}
+                          {lead.assignee.firstName[0]}
+                          {lead.assignee.lastName[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm">{lead.assignee.firstName} {lead.assignee.lastName}</span>
+                      <span className="text-sm">
+                        {lead.assignee.firstName} {lead.assignee.lastName}
+                      </span>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                    <span className="text-sm text-muted-foreground">
+                      Unassigned
+                    </span>
                   )}
                 </TableCell>
 
@@ -270,7 +347,9 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                   {lead.lastContactedDate ? (
                     <div className="flex items-center space-x-1 text-sm">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
-                      <span>{format(new Date(lead.lastContactedDate), 'MMM dd')}</span>
+                      <span>
+                        {format(new Date(lead.lastContactedDate), "MMM dd")}
+                      </span>
                     </div>
                   ) : (
                     <span className="text-sm text-muted-foreground">Never</span>
@@ -280,17 +359,27 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" data-testid={`actions-${lead.id}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`actions-${lead.id}`}
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setViewingLead(lead)} data-testid={`view-${lead.id}`}>
+                      <DropdownMenuItem
+                        onClick={() => setViewingLead(lead)}
+                        data-testid={`view-${lead.id}`}
+                      >
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit(lead)} data-testid={`edit-${lead.id}`}>
+                      <DropdownMenuItem
+                        onClick={() => onEdit(lead)}
+                        data-testid={`edit-${lead.id}`}
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Lead
                       </DropdownMenuItem>
@@ -308,13 +397,13 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                               data-testid={`status-${status}-${lead.id}`}
                             >
                               <ArrowRight className="mr-2 h-4 w-4" />
-                              Mark as {status.replace('_', ' ')}
+                              Mark as {status.replace("_", " ")}
                             </DropdownMenuItem>
                           ))}
                           <DropdownMenuSeparator />
                         </>
                       )}
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => setDeleteLeadId(lead.id)}
                         className="text-destructive"
                         data-testid={`delete-${lead.id}`}
@@ -340,29 +429,70 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               <span>Lead Details</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           {viewingLead && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-light text-foreground mb-2">Personal Information</h3>
+                  <h3 className="font-light text-foreground mb-2">
+                    Personal Information
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <div><strong>Name:</strong> {viewingLead.firstName} {viewingLead.lastName}</div>
-                    {viewingLead.companyName && <div><strong>Company:</strong> {viewingLead.companyName}</div>}
-                    {viewingLead.email && <div><strong>Email:</strong> {viewingLead.email}</div>}
-                    {viewingLead.phone && <div><strong>Phone:</strong> {viewingLead.phone}</div>}
-                    {viewingLead.alternatePhone && <div><strong>Alt Phone:</strong> {viewingLead.alternatePhone}</div>}
+                    <div>
+                      <strong>Name:</strong> {viewingLead.firstName}{" "}
+                      {viewingLead.lastName}
+                    </div>
+                    {viewingLead.companyName && (
+                      <div>
+                        <strong>Company:</strong> {viewingLead.companyName}
+                      </div>
+                    )}
+                    {viewingLead.email && (
+                      <div>
+                        <strong>Email:</strong> {viewingLead.email}
+                      </div>
+                    )}
+                    {viewingLead.phone && (
+                      <div>
+                        <strong>Phone:</strong> {viewingLead.phone}
+                      </div>
+                    )}
+                    {viewingLead.alternatePhone && (
+                      <div>
+                        <strong>Alt Phone:</strong> {viewingLead.alternatePhone}
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+
                 <div>
-                  <h3 className="font-light text-foreground mb-2">Lead Information</h3>
+                  <h3 className="font-light text-foreground mb-2">
+                    Lead Information
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <div><strong>Status:</strong> <StatusBadge status={viewingLead.status} /></div>
-                    <div><strong>Priority:</strong> <PriorityBadge priority={viewingLead.priority} /></div>
-                    <div><strong>Source:</strong> {viewingLead.source.replace('_', ' ')}</div>
-                    {viewingLead.sourceDetails && <div><strong>Source Details:</strong> {viewingLead.sourceDetails}</div>}
-                    {viewingLead.referredBy && <div><strong>Referred By:</strong> {viewingLead.referredBy}</div>}
+                    <div>
+                      <strong>Status:</strong>{" "}
+                      <StatusBadge status={viewingLead.status} />
+                    </div>
+                    <div>
+                      <strong>Priority:</strong>{" "}
+                      <PriorityBadge priority={viewingLead.priority} />
+                    </div>
+                    <div>
+                      <strong>Source:</strong>{" "}
+                      {viewingLead.source.replace("_", " ")}
+                    </div>
+                    {viewingLead.sourceDetails && (
+                      <div>
+                        <strong>Source Details:</strong>{" "}
+                        {viewingLead.sourceDetails}
+                      </div>
+                    )}
+                    {viewingLead.referredBy && (
+                      <div>
+                        <strong>Referred By:</strong> {viewingLead.referredBy}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -376,7 +506,13 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                     <div className="text-sm space-y-1">
                       <div>{viewingLead.address}</div>
                       <div>
-                        {[viewingLead.city, viewingLead.state, viewingLead.zipCode].filter(Boolean).join(', ')}
+                        {[
+                          viewingLead.city,
+                          viewingLead.state,
+                          viewingLead.zipCode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
                       </div>
                       <div>{viewingLead.country}</div>
                     </div>
@@ -385,19 +521,31 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 </>
               )}
 
-              {(viewingLead.requirementDescription || viewingLead.estimatedBudget) && (
+              {(viewingLead.requirementDescription ||
+                viewingLead.estimatedBudget) && (
                 <>
                   <div>
-                    <h3 className="font-light text-foreground mb-2">Requirements</h3>
+                    <h3 className="font-light text-foreground mb-2">
+                      Requirements
+                    </h3>
                     <div className="space-y-2 text-sm">
                       {viewingLead.requirementDescription && (
-                        <div><strong>Description:</strong> {viewingLead.requirementDescription}</div>
+                        <div>
+                          <strong>Description:</strong>{" "}
+                          {viewingLead.requirementDescription}
+                        </div>
                       )}
                       {viewingLead.estimatedBudget && (
-                        <div><strong>Budget:</strong> {formatCurrency(viewingLead.estimatedBudget)}</div>
+                        <div>
+                          <strong>Budget:</strong>{" "}
+                          {formatCurrency(viewingLead.estimatedBudget)}
+                        </div>
                       )}
                       {viewingLead.budgetRange && (
-                        <div><strong>Budget Range:</strong> {viewingLead.budgetRange}</div>
+                        <div>
+                          <strong>Budget Range:</strong>{" "}
+                          {viewingLead.budgetRange}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -408,13 +556,31 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               <div>
                 <h3 className="font-light text-foreground mb-2">Dates</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Created:</strong> {format(new Date(viewingLead.createdAt), 'MMM dd, yyyy')}</div>
-                  <div><strong>Updated:</strong> {format(new Date(viewingLead.updatedAt), 'MMM dd, yyyy')}</div>
+                  <div>
+                    <strong>Created:</strong>{" "}
+                    {format(new Date(viewingLead.createdAt), "MMM dd, yyyy")}
+                  </div>
+                  <div>
+                    <strong>Updated:</strong>{" "}
+                    {format(new Date(viewingLead.updatedAt), "MMM dd, yyyy")}
+                  </div>
                   {viewingLead.lastContactedDate && (
-                    <div><strong>Last Contact:</strong> {format(new Date(viewingLead.lastContactedDate), 'MMM dd, yyyy')}</div>
+                    <div>
+                      <strong>Last Contact:</strong>{" "}
+                      {format(
+                        new Date(viewingLead.lastContactedDate),
+                        "MMM dd, yyyy"
+                      )}
+                    </div>
                   )}
                   {viewingLead.followUpDate && (
-                    <div><strong>Follow-up:</strong> {format(new Date(viewingLead.followUpDate), 'MMM dd, yyyy')}</div>
+                    <div>
+                      <strong>Follow-up:</strong>{" "}
+                      {format(
+                        new Date(viewingLead.followUpDate),
+                        "MMM dd, yyyy"
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -438,7 +604,9 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                     <h3 className="font-light text-foreground mb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {viewingLead.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary">{tag}</Badge>
+                        <Badge key={index} variant="secondary">
+                          {tag}
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -450,17 +618,23 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteLeadId} onOpenChange={() => setDeleteLeadId(null)}>
+      <AlertDialog
+        open={!!deleteLeadId}
+        onOpenChange={() => setDeleteLeadId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the lead and all associated data.
+              This action cannot be undone. This will permanently delete the
+              lead and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="cancel-delete">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel data-testid="cancel-delete">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="confirm-delete"
@@ -472,24 +646,34 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
       </AlertDialog>
 
       {/* Status Change Confirmation Dialog */}
-      <AlertDialog open={!!statusChangeLeadId} onOpenChange={() => { setStatusChangeLeadId(null); setNewStatus(null); }}>
+      <AlertDialog
+        open={!!statusChangeLeadId}
+        onOpenChange={() => {
+          setStatusChangeLeadId(null);
+          setNewStatus(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
-              {newStatus === 'converted' 
-                ? 'Converting this lead will create a customer record in the Sales module and mark the lead as converted. This action cannot be undone.'
-                : `Are you sure you want to change the lead status to "${newStatus?.replace('_', ' ')}"?`
-              }
+              {newStatus === "converted"
+                ? "Converting this lead will create a customer record in the Sales module and mark the lead as converted. This action cannot be undone."
+                : `Are you sure you want to change the lead status to "${newStatus?.replace(
+                    "_",
+                    " "
+                  )}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="cancel-status-change">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel data-testid="cancel-status-change">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleStatusChange}
               data-testid="confirm-status-change"
             >
-              {newStatus === 'converted' ? 'Convert Lead' : 'Update Status'}
+              {newStatus === "converted" ? "Convert Lead" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
