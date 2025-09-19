@@ -17,10 +17,15 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    port: 5173,          // 👈 Vite dev server runs here
+    strictPort: true,    // fail if port already in use
+    hmr: {
+      host: "localhost", // 👈 force WebSocket host
+      port: 5173,        // 👈 force WebSocket port
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
     },
-    port: 5173, // optional: specify port to avoid conflicts
   },
 });

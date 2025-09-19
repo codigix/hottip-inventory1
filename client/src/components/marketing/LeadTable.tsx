@@ -73,25 +73,12 @@ interface LeadTableProps {
   onView: (lead: LeadWithAssignee) => void;
 }
 
-<<<<<<< HEAD
 export default function LeadTable({
   leads,
   isLoading,
   onEdit,
   onView,
 }: LeadTableProps) {
-=======
-// =====================
-// Utility for safe date formatting
-// =====================
-const safeFormat = (date?: string | null, fmt = 'MMM dd, yyyy') => {
-  if (!date) return "N/A";
-  const d = new Date(date);
-  return isNaN(d.getTime()) ? "Invalid Date" : format(d, fmt);
-};
-
-export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTableProps) {
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
     null
@@ -111,22 +98,16 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
       setDeleteLeadId(null);
     },
     onError: (error: any) => {
-<<<<<<< HEAD
       toast({
         title: "Error deleting lead",
         description: error.message,
         variant: "destructive",
       });
     },
-=======
-      toast({ title: "Error deleting lead", description: error.message, variant: "destructive" });
-    }
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-<<<<<<< HEAD
       apiRequest(`/api/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
@@ -143,38 +124,22 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
         toast({ title: "Lead status updated successfully!" });
       }
 
-=======
-      apiRequest(`/api/leads/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
-      if (variables.status === 'converted') {
-        toast({ title: "Lead converted successfully!", description: "Lead has been handed over to Sales module." });
-      } else {
-        toast({ title: "Lead status updated successfully!" });
-      }
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
       setStatusChangeLeadId(null);
       setNewStatus(null);
     },
     onError: (error: any) => {
-<<<<<<< HEAD
       toast({
         title: "Error updating lead status",
         description: error.message,
         variant: "destructive",
       });
     },
-=======
-      toast({ title: "Error updating lead status", description: error.message, variant: "destructive" });
-    }
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
   });
 
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
       apiRequest(`/api/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-<<<<<<< HEAD
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({
         title: "Lead converted and handed over to Sales!",
@@ -189,14 +154,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
         variant: "destructive",
       });
     },
-=======
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
-      toast({ title: "Lead converted and handed over to Sales!", description: "A new customer record has been created in the Sales module." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error converting lead", description: error.message, variant: "destructive" });
-    }
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
   });
 
   const handleDelete = () => {
@@ -246,7 +203,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
   if (leads.length === 0) {
     return (
       <Card>
-<<<<<<< HEAD
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -257,12 +213,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
               Get started by adding your first lead to the system.
             </p>
           </div>
-=======
-        <CardContent className="pt-6 text-center">
-          <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-light text-foreground mb-2">No leads found</h3>
-          <p className="text-sm text-muted-foreground">Get started by adding your first lead to the system.</p>
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
         </CardContent>
       </Card>
     );
@@ -295,7 +245,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                       <div className="text-sm text-muted-foreground flex items-center space-x-1">{lead.companyName}</div>
                     )}
                     <div className="text-xs text-muted-foreground">
-<<<<<<< HEAD
                       Created{" "}
                       {lead.createdAt
                         ? `Created ${format(
@@ -307,12 +256,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                   </div>
                 </TableCell>
 
-=======
-                      Created {safeFormat(lead.createdAt)}
-                    </div>
-                  </div>
-                </TableCell>
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
                 <TableCell>
                   <div className="space-y-1">
                     {lead.email && (
@@ -339,13 +282,9 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
-<<<<<<< HEAD
                     <Badge variant="outline" className="text-xs">
                       {lead.source?.replace("_", " ").toUpperCase() || ""}
                     </Badge>
-=======
-                    <Badge variant="outline" className="text-xs">{lead.source.replace('_', ' ').toUpperCase()}</Badge>
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
                     {lead.sourceDetails && (
                       <div className="text-xs text-muted-foreground truncate max-w-[100px]">{lead.sourceDetails}</div>
                     )}
@@ -361,14 +300,10 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                   {lead.assignee ? (
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
-<<<<<<< HEAD
                         <AvatarFallback className="text-xs">
                           {lead.assignee.firstName[0]}
                           {lead.assignee.lastName[0]}
                         </AvatarFallback>
-=======
-                        <AvatarFallback className="text-xs">{lead.assignee.firstName[0]}{lead.assignee.lastName[0]}</AvatarFallback>
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
                       </Avatar>
                       <span className="text-sm">
                         {lead.assignee.firstName} {lead.assignee.lastName}
@@ -381,7 +316,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                   )}
                 </TableCell>
                 <TableCell>
-<<<<<<< HEAD
                   {lead.lastContactedDate ? (
                     <div className="flex items-center space-x-1 text-sm">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
@@ -392,12 +326,8 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                   ) : (
                     <span className="text-sm text-muted-foreground">Never</span>
                   )}
-=======
-                  {lead.lastContactedDate ? safeFormat(lead.lastContactedDate, 'MMM dd') : 'Never'}
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
                 </TableCell>
                 <TableCell className="text-right">
-<<<<<<< HEAD
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -454,10 +384,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-=======
-                  {/* Dropdown and actions */}
-                  {/* ... keep your existing DropdownMenu code here ... */}
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
                 </TableCell>
               </TableRow>
             ))}
@@ -465,7 +391,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
         </Table>
       </div>
 
-<<<<<<< HEAD
       {/* Lead Details Modal */}
       <Dialog open={!!viewingLead} onOpenChange={() => setViewingLead(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -724,10 +649,6 @@ export default function LeadTable({ leads, isLoading, onEdit, onView }: LeadTabl
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-=======
-      {/* Modals and dialogs */}
-      {/* All format() calls replaced with safeFormat() */}
->>>>>>> 3d38ea784111a3ee0196e562737937571c5657d0
     </>
   );
 }
