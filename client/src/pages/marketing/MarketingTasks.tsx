@@ -117,7 +117,7 @@ export default function MarketingTasks() {
   });
 
   const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ["api/marketing/leads "],
+    queryKey: ["/api/marketing/leads"],
   });
 
   // Mutations

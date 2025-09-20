@@ -150,7 +150,7 @@ export default function TaskForm({
 
   // Fetch leads for linking
   const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ['api/marketing/leads '],
+    queryKey: ['/api/marketing/leads'],
     enabled: open
   });
 

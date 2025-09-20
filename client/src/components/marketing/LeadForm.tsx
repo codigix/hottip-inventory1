@@ -60,13 +60,13 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
 
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['api/users'],
     enabled: open
   });
 
   // Fetch existing lead data if editing
   const { data: existingLead } = useQuery({
-    queryKey: ['/api/marketing/leads ', leadId],
+    queryKey: ['api/marketing/leads', leadId],
     enabled: !!leadId && open
   });
 
@@ -93,9 +93,9 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
   }, [existingLead, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: LeadFormData) => apiRequest('/api/marketing/leads ', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: LeadFormData) => apiRequest('api/marketing/leads ', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads '] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads '] });
       toast({ title: "Lead created successfully!" });
       onOpenChange(false);
       form.reset();
@@ -110,10 +110,10 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: LeadFormData) => apiRequest(`/api/marketing/leads /${leadId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    mutationFn: (data: LeadFormData) => apiRequest(`api/marketing/leads /${leadId}`, { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads '] });
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads ', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads '] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads ', leadId] });
       toast({ title: "Lead updated successfully!" });
       onOpenChange(false);
     },

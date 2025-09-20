@@ -63,7 +63,7 @@ export default function Reports() {
   });
 
   const { data: leadsMetrics, isLoading: loadingLeadsMetrics } = useQuery({
-    queryKey: ['api/marketing/leads /metrics', dateRangeParam],
+    queryKey: ['api/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 

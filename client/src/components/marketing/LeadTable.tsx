@@ -91,9 +91,9 @@ export default function LeadTable({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads /${id}`, { method: "DELETE" }),
+      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -108,12 +108,12 @@ export default function LeadTable({
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/api/marketing/leads /${id}/status`, {
+      apiRequest(`/api/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
 
       if (variables.status === "converted") {
         toast({
@@ -138,9 +138,9 @@ export default function LeadTable({
 
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads /${id}/convert`, { method: "POST" }),
+      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({
         title: "Lead converted and handed over to Sales!",
         description:

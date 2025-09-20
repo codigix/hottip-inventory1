@@ -35,7 +35,7 @@ export default function Leads() {
 
   // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
-    queryKey: ['/api/marketing/leads ', { 
+    queryKey: ['/api/marketing/leads', { 
       status: selectedStatus,
       source: sourceFilter, 
       priority: priorityFilter,
@@ -50,7 +50,7 @@ export default function Leads() {
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-    queryKey: ['/api/marketing/leads /metrics']
+    queryKey: ['/api/marketing/leads/metrics']
   });
 
   // Fetch users for filters
