@@ -60,18 +60,16 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
   const queryClient = useQueryClient();
 
   // Fetch users for assignment dropdown
-const { data: users = [] } = useQuery<User[]>({
-  queryKey: ["users"],
-  queryFn: () => apiRequest<User[]>("/users"),
-  enabled: open,
-});
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['api/users'],
+    enabled: open
+  });
 
   // Fetch existing lead data if editing
-const { data: existingLead } = useQuery<LeadFormData | null>({
-  queryKey: ["leads", leadId],
-  queryFn: () => (leadId ? apiRequest<LeadFormData>(`/leads/${leadId}`) : null),
-  enabled: !!leadId && open,
-});
+  const { data: existingLead } = useQuery({
+    queryKey: ['api/marketing/leads', leadId],
+    enabled: !!leadId && open
+  });
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadFormSchema),
@@ -96,29 +94,39 @@ const { data: existingLead } = useQuery<LeadFormData | null>({
   }, [existingLead, form]);
 
   const createMutation = useMutation({
-  mutationFn: (data: LeadFormData) => apiRequest("/leads", { method: "POST", body: data }),
-  onSuccess: () => {
-    queryClient.invalidateQueries(["leads"]);
-    toast({ title: "Lead created successfully!" });
-    onOpenChange(false);
-    form.reset();
-  },
-  onError: (error: any) => {
-    toast({ title: "Error creating lead", description: error.message, variant: "destructive" });
-  },
-});
+    mutationFn: (data: LeadFormData) => apiRequest('api/marketing/leads ', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads '] });
+      toast({ title: "Lead created successfully!" });
+      onOpenChange(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error creating lead", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
   const updateMutation = useMutation({
-  mutationFn: (data: LeadFormData) => apiRequest(`/leads/${leadId}`, { method: "PUT", body: data }),
-  onSuccess: () => {
-    queryClient.invalidateQueries(["leads"]);
-    queryClient.invalidateQueries(["leads", leadId]);
-    toast({ title: "Lead updated successfully!" });
-    onOpenChange(false);
-  },
-  onError: (error: any) => {
-    toast({ title: "Error updating lead", description: error.message, variant: "destructive" });
-  },
-});
+    mutationFn: (data: LeadFormData) => apiRequest(`api/marketing/leads /${leadId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads '] });
+      queryClient.invalidateQueries({ queryKey: ['api/marketing/leads ', leadId] });
+      toast({ title: "Lead updated successfully!" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error updating lead", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
   const onSubmit = (data: LeadFormData) => {
     const submitData = {
       ...data,

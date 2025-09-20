@@ -50,8 +50,8 @@ export default function Leads() {
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-  queryKey: ['/marketing/leads/metrics']
-});
+    queryKey: ['/marketing/leads/metrics']
+  });
 
 const { data: users = [] } = useQuery<User[]>({
   queryKey: ['/users']

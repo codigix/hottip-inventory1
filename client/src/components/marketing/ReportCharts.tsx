@@ -94,7 +94,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
   });
 
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['api/marketing/leads/metrics', dateRangeParam],
+    queryKey: ['/api/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
