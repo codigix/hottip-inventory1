@@ -23,7 +23,7 @@ const visitFormSchema = z.object({
   plannedDate: z.date({ required_error: "Visit date is required" }),
   plannedStartTime: z.string().optional(),
   plannedEndTime: z.string().optional(),
-  assignedTo: z.string().min(1, "Assigned employee is required"),
+  assignedTo: z.string().optional(),
   visitAddress: z.string().min(1, "Visit address is required"),
   visitCity: z.string().optional(),
   visitState: z.string().optional(),

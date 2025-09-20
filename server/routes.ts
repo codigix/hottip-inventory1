@@ -8,7 +8,7 @@ import {
   ObjectStorageService,
   ObjectNotFoundError,
 } from "./objectStorage";
-import { 
+import {
   insertUserSchema, insertProductSchema, insertCustomerSchema,
   insertOrderSchema, insertOrderItemSchema, insertSupplierSchema,
   insertShipmentSchema, insertTaskSchema, insertAttendanceSchema,
@@ -57,15 +57,15 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
 
     // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
     if (req.headers['x-user-id']) {
-      res.status(401).json({ 
-        error: "Security violation", 
-        message: "Client identity headers are not allowed for security reasons" 
+      res.status(401).json({
+        error: "Security violation",
+        message: "Client identity headers are not allowed for security reasons"
       });
       return;
     }
 
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       res.status(401).json({ error: "Authentication required" });
       return;
@@ -75,16 +75,16 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
     const jwtSecret = process.env.JWT_SECRET;
     const devTokenSecret = process.env.DEV_TOKEN_SECRET;
     const tokenSecret = jwtSecret || devTokenSecret;
-    
+
     // Try JWT verification first for both production and development
     if (authHeader.startsWith('Bearer ') && !authHeader.startsWith('Bearer dev-') && tokenSecret) {
       try {
         const token = authHeader.replace('Bearer ', '');
         const decoded = jwt.verify(token, tokenSecret, { algorithms: ['HS256'] }) as any;
-        req.user = { 
-          id: decoded.sub, 
-          role: decoded.role, 
-          username: decoded.username 
+        req.user = {
+          id: decoded.sub,
+          role: decoded.role,
+          username: decoded.username
         };
         next();
         return;
@@ -107,61 +107,61 @@ const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextF
       res.status(401).json({ error: "Valid authentication token required" });
       return;
     }
-    
+
     // Development HMAC-signed tokens (dev mode fallback)
     if (process.env.NODE_ENV === 'development' && authHeader.startsWith('Bearer dev-')) {
       // SECURITY: Use HMAC-signed tokens instead of predictable userId tokens
       // Format: "Bearer dev-{userId}-{timestamp}-{hmacSignature}"
       const token = authHeader.replace('Bearer dev-', '');
       const parts = token.split('-');
-      
+
       if (parts.length !== 3) {
         res.status(401).json({ error: "Invalid development token format" });
         return;
       }
-      
+
       const [userId, timestamp, signature] = parts;
-      
+
       // Verify HMAC signature (using a server secret)
       const serverSecret = process.env.DEV_TOKEN_SECRET;
       if (!serverSecret) {
-        res.status(401).json({ 
-          error: "Server misconfiguration", 
-          message: "DEV_TOKEN_SECRET environment variable is required for development authentication" 
+        res.status(401).json({
+          error: "Server misconfiguration",
+          message: "DEV_TOKEN_SECRET environment variable is required for development authentication"
         });
         return;
       }
-      
+
       // Validate timestamp format
       const timestampNum = parseInt(timestamp);
       if (isNaN(timestampNum) || timestampNum <= 0) {
         res.status(401).json({ error: "Invalid development token timestamp" });
         return;
       }
-      
+
       const expectedSignature = crypto
         .createHmac('sha256', serverSecret)
         .update(`${userId}-${timestamp}`)
         .digest('hex'); // Use full HMAC signature for security
-      
+
       if (signature !== expectedSignature) {
         res.status(401).json({ error: "Invalid token signature" });
         return;
       }
-      
+
       // Check token age (expire after 24 hours)
       const tokenAge = Date.now() - timestampNum;
       if (tokenAge > 24 * 60 * 60 * 1000) { // 24 hours
         res.status(401).json({ error: "Token expired" });
         return;
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user || !user.isActive) {
         res.status(401).json({ error: "Invalid or inactive user" });
         return;
       }
-      
+
       req.user = {
         id: user.id,
         role: user.role,
@@ -186,11 +186,11 @@ const requireAccountsAccess = (req: AuthenticatedRequest, res: Response, next: N
 
   const { role } = req.user;
   const allowedRoles = ['admin', 'manager']; // Only admin and manager can access financial reports
-  
+
   if (!allowedRoles.includes(role)) {
-    res.status(403).json({ 
-      error: "Insufficient permissions", 
-      message: "Access to financial reports requires admin or manager role" 
+    res.status(403).json({
+      error: "Insufficient permissions",
+      message: "Access to financial reports requires admin or manager role"
     });
     return;
   }
@@ -207,11 +207,11 @@ const requireMarketingAccess = (req: AuthenticatedRequest, res: Response, next: 
 
   const { role } = req.user;
   const allowedRoles = ['admin', 'manager']; // Only admin and manager can access marketing metrics
-  
+
   if (!allowedRoles.includes(role)) {
-    res.status(403).json({ 
-      error: "Insufficient permissions", 
-      message: "Access to marketing metrics requires admin or manager role" 
+    res.status(403).json({
+      error: "Insufficient permissions",
+      message: "Access to marketing metrics requires admin or manager role"
     });
     return;
   }
@@ -227,57 +227,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/login', async (req, res) => {
     try {
       console.log('🔐 Login attempt received for username:', req.body.username);
-      
+
       const { username, password } = loginSchema.parse(req.body);
       console.log('✅ Login data parsed successfully:', { username });
-      
+
       const user = await storage.getUserByUsername(username);
       console.log('👤 User lookup result:', user ? `Found user: ${user.username} (${user.role})` : 'No user found');
-      
+
       if (!user || !user.isActive) {
         console.log('❌ Login failed: Invalid user or inactive account');
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      
+
       console.log('🔑 Comparing passwords...');
       const validPassword = await bcrypt.compare(password, user.password);
       console.log('🔐 Password comparison result:', validPassword ? 'Valid' : 'Invalid');
-      
+
       if (!validPassword) {
         console.log('❌ Login failed: Invalid password');
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      
+
       const jwtSecret = process.env.JWT_SECRET;
       const devTokenSecret = process.env.DEV_TOKEN_SECRET;
       const tokenSecret = jwtSecret || devTokenSecret;
-      
+
       console.log('🔒 Authentication secret status:', {
         jwt: jwtSecret ? 'Available' : 'Missing',
         dev: devTokenSecret ? 'Available' : 'Missing',
         using: jwtSecret ? 'JWT_SECRET' : 'DEV_TOKEN_SECRET'
       });
-      
+
       if (!tokenSecret) {
         console.error('❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available');
         throw new Error('Authentication secret is required (JWT_SECRET or DEV_TOKEN_SECRET)');
       }
-      
+
       console.log('🎫 Generating JWT token...');
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
         tokenSecret,
         { expiresIn: '15m', algorithm: 'HS256' }
       );
-      
+
       console.log('✅ Login successful for user:', user.username);
-      res.json({ 
-        token, 
-        user: { 
-          id: user.id, 
-          username: user.username, 
-          role: user.role 
-        } 
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        }
       });
     } catch (error) {
       console.error('💥 Login error details:', {
@@ -285,12 +285,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : typeof error
       });
-      
+
       if (error instanceof z.ZodError) {
         console.log('📝 Validation error:', error.errors);
         return res.status(400).json({ error: "Invalid input", details: error.errors });
       }
-      
+
       console.error('❌ Unexpected login error:', error);
       res.status(500).json({ error: "Login failed", details: error instanceof Error ? error.message : "Unknown error" });
     }
@@ -304,11 +304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const { role } = req.user;
     const allowedRoles = ['admin']; // Only admin can access user management
-    
+
     if (!allowedRoles.includes(role)) {
-      return res.status(403).json({ 
-        error: "Insufficient permissions", 
-        message: "Access to user management requires admin role" 
+      return res.status(403).json({
+        error: "Insufficient permissions",
+        message: "Access to user management requires admin role"
       });
     }
 
@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const { role } = req.user;
-        
+
         // Admin and manager roles have full access
         if (role === 'admin' || role === 'manager') {
           next();
@@ -364,14 +364,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check if user owns the resource (assigned to them or created by them)
         const userId = req.user.id;
-        const hasAccess = entity.assignedTo === userId || 
-                         entity.createdBy === userId ||
-                         entity.userId === userId;
+        const hasAccess = entity.assignedTo === userId ||
+          entity.createdBy === userId ||
+          entity.userId === userId;
 
         if (!hasAccess) {
-          res.status(403).json({ 
-            error: "Access denied", 
-            message: "You can only access your own records" 
+          res.status(403).json({
+            error: "Access denied",
+            message: "You can only access your own records"
           });
           return;
         }
@@ -442,12 +442,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", requireAuth, requireAdminAccess, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Hash password if provided
       if (userData.password) {
         userData.password = await bcrypt.hash(userData.password, 12);
       }
-      
+
       const user = await storage.createUser(userData);
       await storage.createActivity({
         userId: user.id,
@@ -468,12 +468,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/users/:id", requireAuth, requireAdminAccess, async (req, res) => {
     try {
       const userData = insertUserSchema.partial().parse(req.body);
-      
+
       // Hash password if provided
       if (userData.password) {
         userData.password = await bcrypt.hash(userData.password, 12);
       }
-      
+
       const user = await storage.updateUser(req.params.id, userData);
       await storage.createActivity({
         userId: user.id,
@@ -511,7 +511,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", (req, res) => {
     res.json({ status: "OK", timestamp: new Date().toISOString() });
   });
+  app.get("/api/tasks", (req: Request, res: Response) => {
+    res.json({ message: "List of tasks", tasks: [] });
+  });
 
+  // POST /api/tasks -> create a task
+  app.post("/api/tasks", (req: Request, res: Response) => {
+    const task = req.body;
+    res.status(201).json({ message: "Task created", task });
+  });
+
+  // GET /api/tasks/:id
+  app.get("/api/tasks/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    res.json({ message: `Task ${id} details` });
+  });
+
+  // PUT /api/tasks/:id
+  app.put("/api/tasks/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    const updates = req.body;
+    res.json({ message: `Task ${id} updated`, updates });
+  });
+
+  // DELETE /api/tasks/:id
+  app.delete("/api/tasks/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    res.json({ message: `Task ${id} deleted` });
+  });
   // Import and register marketing routes safely
   try {
     const { registerMarketingRoutes } = await import("./marketing-routes-registry");

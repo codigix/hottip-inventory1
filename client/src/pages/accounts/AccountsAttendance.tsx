@@ -95,23 +95,23 @@ export default function AccountsAttendance() {
 
   // Data fetching - Real-time data from APIs
   const { data: attendanceRecords = [], isLoading: recordsLoading } = useQuery({
-    queryKey: ["/api/account-attendance"],
+    queryKey: ["api/account-attendance"],
   });
 
   const { data: todayAttendance = [], isLoading: todayLoading } = useQuery({
-    queryKey: ["/api/account-attendance", "today"],
+    queryKey: ["api/account-attendance", "today"],
   });
 
   const { data: attendanceMetrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ["/api/account-attendance", "metrics"],
+    queryKey: ["api/account-attendance", "metrics"],
   });
 
   const { data: attendanceSummary } = useQuery({
-    queryKey: ["/api/account-attendance", "summary"],
+    queryKey: ["api/account-attendance", "summary"],
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["api/users"],
   });
 
   // Form setup
@@ -186,7 +186,7 @@ export default function AccountsAttendance() {
   // Mutations
   const createAttendanceMutation = useMutation({
     mutationFn: async (data: AttendanceFormData) => {
-      const response = await apiRequest("/api/account-attendance", {
+      const response = await apiRequest("api/account-attendance", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -198,9 +198,9 @@ export default function AccountsAttendance() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "metrics"] });
       toast({ title: "Success", description: "Attendance record created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
@@ -212,7 +212,7 @@ export default function AccountsAttendance() {
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ id, ...data }: AttendanceFormData & { id: string }) => {
-      const response = await apiRequest(`/api/account-attendance/${id}`, {
+      const response = await apiRequest(`api/account-attendance/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -224,9 +224,9 @@ export default function AccountsAttendance() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "metrics"] });
       toast({ title: "Success", description: "Attendance record updated successfully" });
       setIsEditOpen(false);
       setSelectedAttendance(null);
@@ -238,16 +238,16 @@ export default function AccountsAttendance() {
 
   const clockInMutation = useMutation({
     mutationFn: async (data: ClockInFormData) => {
-      const response = await apiRequest("/api/account-attendance/clock-in", {
+      const response = await apiRequest("api/account-attendance/clock-in", {
         method: "POST",
         body: JSON.stringify(data),
       });
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "metrics"] });
       toast({ title: "Success", description: "Clocked in successfully" });
       setIsClockInOpen(false);
       clockInForm.reset();
@@ -263,16 +263,16 @@ export default function AccountsAttendance() {
 
   const clockOutMutation = useMutation({
     mutationFn: async (data: ClockOutFormData) => {
-      const response = await apiRequest("/api/account-attendance/clock-out", {
+      const response = await apiRequest("api/account-attendance/clock-out", {
         method: "POST",
         body: JSON.stringify(data),
       });
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "metrics"] });
       toast({ title: "Success", description: "Clocked out successfully" });
       setIsClockOutOpen(false);
       clockOutForm.reset();
@@ -288,11 +288,11 @@ export default function AccountsAttendance() {
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/account-attendance/${id}`, { method: "DELETE" }),
+      apiRequest(`api/account-attendance/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["api/account-attendance", "metrics"] });
       toast({ title: "Success", description: "Attendance record deleted successfully" });
       setIsDeleteOpen(false);
       setAttendanceToDelete(null);

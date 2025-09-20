@@ -1,3 +1,4 @@
+// LeadForm.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,13 +14,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
-import type { LeadFormData, LeadSource, LeadPriority, User } from "@/types";
+import type { LeadFormData, User } from "@/types";
 
+
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 const leadFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -59,16 +60,18 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
   const queryClient = useQueryClient();
 
   // Fetch users for assignment dropdown
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
-    enabled: open
-  });
+const { data: users = [] } = useQuery<User[]>({
+  queryKey: ["users"],
+  queryFn: () => apiRequest<User[]>("/users"),
+  enabled: open,
+});
 
   // Fetch existing lead data if editing
-  const { data: existingLead } = useQuery({
-    queryKey: ['/api/marketing/leads ', leadId],
-    enabled: !!leadId && open
-  });
+const { data: existingLead } = useQuery<LeadFormData | null>({
+  queryKey: ["leads", leadId],
+  queryFn: () => (leadId ? apiRequest<LeadFormData>(`/leads/${leadId}`) : null),
+  enabled: !!leadId && open,
+});
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadFormSchema),
@@ -82,7 +85,7 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
 
   useEffect(() => {
     if (existingLead) {
-      const leadData = existingLead as any; // Type assertion for nested properties
+      const leadData = existingLead as any;
       form.reset({
         ...existingLead,
         followUpDate: leadData.followUpDate ? new Date(leadData.followUpDate).toISOString().split('T')[0] : "",
@@ -93,55 +96,40 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
   }, [existingLead, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: LeadFormData) => apiRequest('/api/marketing/leads ', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads '] });
-      toast({ title: "Lead created successfully!" });
-      onOpenChange(false);
-      form.reset();
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error creating lead", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
+  mutationFn: (data: LeadFormData) => apiRequest("/leads", { method: "POST", body: data }),
+  onSuccess: () => {
+    queryClient.invalidateQueries(["leads"]);
+    toast({ title: "Lead created successfully!" });
+    onOpenChange(false);
+    form.reset();
+  },
+  onError: (error: any) => {
+    toast({ title: "Error creating lead", description: error.message, variant: "destructive" });
+  },
+});
   const updateMutation = useMutation({
-    mutationFn: (data: LeadFormData) => apiRequest(`/api/marketing/leads /${leadId}`, { method: 'PUT', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads '] });
-      queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads ', leadId] });
-      toast({ title: "Lead updated successfully!" });
-      onOpenChange(false);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error updating lead", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
-
+  mutationFn: (data: LeadFormData) => apiRequest(`/leads/${leadId}`, { method: "PUT", body: data }),
+  onSuccess: () => {
+    queryClient.invalidateQueries(["leads"]);
+    queryClient.invalidateQueries(["leads", leadId]);
+    toast({ title: "Lead updated successfully!" });
+    onOpenChange(false);
+  },
+  onError: (error: any) => {
+    toast({ title: "Error updating lead", description: error.message, variant: "destructive" });
+  },
+});
   const onSubmit = (data: LeadFormData) => {
-    // Prepare submit data with proper types
     const submitData = {
       ...data,
       estimatedBudget: data.estimatedBudget || undefined,
       tags: data.tags || []
     };
-
-    if (leadId) {
-      updateMutation.mutate(submitData);
-    } else {
-      createMutation.mutate(submitData);
-    }
+    if (leadId) updateMutation.mutate(submitData);
+    else createMutation.mutate(submitData);
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isLoading || updateMutation.isLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -553,21 +541,8 @@ export default function LeadForm({ open, onOpenChange, leadId, defaultValues }: 
             </Tabs>
 
             <div className="flex justify-end space-x-2 pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                data-testid="button-cancel"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isPending}
-                data-testid="button-submit"
-              >
-                {isPending ? 'Saving...' : (leadId ? 'Update Lead' : 'Create Lead')}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={isPending}>{isPending ? 'Saving...' : (leadId ? 'Update Lead' : 'Create Lead')}</Button>
             </div>
           </form>
         </Form>

@@ -35,7 +35,7 @@ export default function Leads() {
 
   // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
-    queryKey: ['/api/marketing/leads ', { 
+    queryKey: ['/marketing/leads', { 
       status: selectedStatus,
       source: sourceFilter, 
       priority: priorityFilter,
@@ -43,20 +43,19 @@ export default function Leads() {
       search: searchQuery.trim()
     }],
     queryFn: () => {
-      const url = queryParams ? `/api/marketing/leads ?${queryParams}` : '/api/marketing/leads ';
+      const url = queryParams ? `/marketing/leads?${queryParams}` : '/marketing/leads';
       return fetch(url).then(res => res.json());
     }
   });
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-    queryKey: ['/api/marketing/leads /metrics']
-  });
+  queryKey: ['/marketing/leads/metrics']
+});
 
-  // Fetch users for filters
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users']
-  });
+const { data: users = [] } = useQuery<User[]>({
+  queryKey: ['/users']
+});
 
   // Use leads directly from server-side filtering (no client-side filtering needed)
   const filteredLeads = leads;
@@ -150,7 +149,7 @@ export default function Leads() {
               <UserCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.conversionRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold">{(metrics?.conversionRate ?? 0).toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground">
                 Leads to customers
               </p>

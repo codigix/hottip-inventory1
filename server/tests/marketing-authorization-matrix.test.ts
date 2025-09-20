@@ -80,7 +80,7 @@ describe('Marketing Routes Registry Authorization Matrix', () => {
         '/api/marketing/leads /:id',
         '/api/marketing/leads /:id/status',
         '/api/marketing/leads /:id/convert',
-        '/api/marketing/leads /metrics',
+        '/api/marketing/leads/metrics',
         '/api/marketing/leads /search'
       ];
       

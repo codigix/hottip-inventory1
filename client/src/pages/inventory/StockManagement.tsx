@@ -26,23 +26,23 @@ export default function StockManagement() {
 
   // Fetch products for stock management
   const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ["/api/products"],
+    queryKey: ["/products"],
   });
 
   // Fetch stock transactions
   const { data: stockTransactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ["/api/stock-transactions"],
+    queryKey: ["/stock-transactions"],
   });
 
   // Fetch reorder points
   const { data: reorderPoints, isLoading: reorderLoading, refetch: refetchReorderPoints } = useQuery({
-    queryKey: ["/api/reorder-points"],
+    queryKey: ["/reorder-points"],
   });
 
   // Stock transaction mutation
   const stockTransactionMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('POST', '/api/stock-transactions', data);
+      return apiRequest('POST', '/stock-transactions', data);
     },
     onSuccess: () => {
       toast({
@@ -52,9 +52,9 @@ export default function StockManagement() {
       setIsStockTransactionDialogOpen(false);
       resetForm();
       // Invalidate and refetch all related queries
-      queryClient.invalidateQueries({ queryKey: ["/api/stock-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/reorder-points"] });
+      queryClient.invalidateQueries({ queryKey: ["/stock-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/reorder-points"] });
     },
     onError: (error: any) => {
       toast({
@@ -97,9 +97,9 @@ export default function StockManagement() {
   };
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/stock-transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/reorder-points"] });
+    queryClient.invalidateQueries({ queryKey: ["/products"] });
+    queryClient.invalidateQueries({ queryKey: ["/stock-transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["/reorder-points"] });
     toast({
       title: "Refreshed",
       description: "Stock data has been refreshed",

@@ -46,11 +46,11 @@ export default function InventoryDashboard() {
   const { toast } = useToast();
 
   const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ["/api/products"],
+    queryKey: ["/products"],
   });
 
   const { data: lowStockProducts, isLoading: lowStockLoading } = useQuery({
-    queryKey: ["/api/products/low-stock"],
+    queryKey: ["/products/low-stock"],
   });
 
   const form = useForm<ProductForm>({
@@ -75,11 +75,11 @@ export default function InventoryDashboard() {
         price: data.price,
         costPrice: data.costPrice,
       };
-      return await apiRequest("POST", "/api/products", productData);
+      return await apiRequest("POST", "/products", productData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products/low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
       setIsAddDialogOpen(false);
       form.reset();
       toast({
@@ -98,11 +98,11 @@ export default function InventoryDashboard() {
 
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ProductForm> }) => {
-      return await apiRequest("PUT", `/api/products/${id}`, data);
+      return await apiRequest("PUT", `/products/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products/low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
       setEditingProduct(null);
       form.reset();
       toast({
@@ -121,11 +121,11 @@ export default function InventoryDashboard() {
 
   const deleteProductMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/products/${id}`);
+      return await apiRequest("DELETE", `/products/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products/low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
       toast({
         title: "Success",
         description: "Product deleted successfully",

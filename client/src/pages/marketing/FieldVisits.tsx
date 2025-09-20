@@ -56,26 +56,26 @@ export default function FieldVisits() {
   /** ===== Queries ===== **/
   const { data: visitsData, isLoading: visitsLoading, error: visitsError } = useQuery<VisitWithDetails[]>({
     queryKey: ["field-visits"],
-    queryFn: () => apiRequest("/api/field-visits"),
+    queryFn: () => apiRequest("/field-visits"),
   });
   const safeVisits = Array.isArray(visitsData) ? visitsData : [];
 
   const { data: usersData } = useQuery<User[]>({
     queryKey: ["users"],
-    queryFn: () => apiRequest("/api/users"),
+    queryFn: () => apiRequest("/users"),
   });
   const users = Array.isArray(usersData) ? usersData : [];
 
   const { data: leadsData } = useQuery<Lead[]>({
     queryKey: ["leads"],
-    queryFn: () => apiRequest("/api/leads"),
+    queryFn: () => apiRequest("/leads"),
   });
   const leads = Array.isArray(leadsData) ? leadsData : [];
 
   /** ===== Mutations ===== **/
   const createVisitMutation = useMutation({
     mutationFn: (data: InsertFieldVisit) =>
-      apiRequest("/api/field-visits", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/field-visits", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["field-visits"] });
       toast({ title: "Visit scheduled successfully!" });
@@ -88,7 +88,7 @@ export default function FieldVisits() {
 
   // Example delete mutation
   const deleteVisitMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/field-visits/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiRequest(`/field-visits/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["field-visits"] });
       toast({ title: "Visit deleted successfully" });
@@ -165,7 +165,7 @@ const handleCheckOut = (visit: VisitWithDetails) => {
 };
 const checkInMutation = useMutation({
   mutationFn: (visitId: string) =>
-    apiRequest(`/api/field-visits/${visitId}/check-in`, { method: "POST" }),
+    apiRequest(`/field-visits/${visitId}/check-in`, { method: "POST" }),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["field-visits"] });
     toast({ title: "Checked in successfully!" });
@@ -177,7 +177,7 @@ const checkInMutation = useMutation({
 
 const checkOutMutation = useMutation({
   mutationFn: (visitId: string) =>
-    apiRequest(`/api/field-visits/${visitId}/check-out`, { method: "POST" }),
+    apiRequest(`/field-visits/${visitId}/check-out`, { method: "POST" }),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["field-visits"] });
     toast({ title: "Checked out successfully!" });
@@ -188,7 +188,7 @@ const checkOutMutation = useMutation({
 });
 const updateVisitMutation = useMutation({
   mutationFn: (data: VisitWithDetails) =>
-    apiRequest(`/api/field-visits/${data.id}`, {
+    apiRequest(`/field-visits/${data.id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
@@ -436,7 +436,7 @@ const updateVisitMutation = useMutation({
         onOpenChange={setProofModalOpen}
         visit={selectedVisit}
         onUploadComplete={() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/field-visits'] });
+          queryClient.invalidateQueries({ queryKey: ['/field-visits'] });
           setProofModalOpen(false);
         }}
       />

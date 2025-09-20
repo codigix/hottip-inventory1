@@ -61,11 +61,11 @@ export default function EmployeesDashboard() {
   const { toast } = useToast();
 
   const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/users"],
   });
 
   const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ["/api/tasks"],
+    queryKey: ["/tasks"],
   });
 
   const userForm = useForm<UserForm>({
@@ -94,17 +94,12 @@ export default function EmployeesDashboard() {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: async (data: UserForm) => {
-      return await apiRequest("POST", "/api/users", data);
-    },
+    mutationFn: async (data: UserForm) => apiRequest("/users", { method: "POST", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
       setIsUserDialogOpen(false);
       userForm.reset();
-      toast({
-        title: "Success",
-        description: "Employee added successfully",
-      });
+      toast({ title: "Success", description: "Employee added successfully" });
     },
     onError: (error: any) => {
       toast({
@@ -117,10 +112,10 @@ export default function EmployeesDashboard() {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskForm) => {
-      return await apiRequest("POST", "/api/tasks", data);
+      return await apiRequest("/tasks", { method: "POST", body: data });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
       setIsTaskDialogOpen(false);
       taskForm.reset();
       toast({
@@ -139,10 +134,10 @@ export default function EmployeesDashboard() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<TaskForm> }) => {
-      return await apiRequest("PUT", `/api/tasks/${id}`, data);
+      return await apiRequest("PUT", `/tasks/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
       setEditingTask(null);
       taskForm.reset();
       toast({
@@ -251,7 +246,7 @@ export default function EmployeesDashboard() {
           high: "bg-orange-100 text-orange-800",
           urgent: "bg-red-100 text-red-800",
         };
-        
+
         return (
           <Badge className={priorityColors[task.priority as keyof typeof priorityColors]}>
             {task.priority}
@@ -269,7 +264,7 @@ export default function EmployeesDashboard() {
           completed: "bg-green-100 text-green-800",
           cancelled: "bg-red-100 text-red-800",
         };
-        
+
         const statusLabels = {
           new: "New",
           in_progress: "In Progress",
@@ -300,9 +295,11 @@ export default function EmployeesDashboard() {
     return acc;
   }, {});
 
-  const totalTasks = (tasks || []).length;
-  const completedTasks = (tasks || []).filter((t: any) => t.status === 'completed').length;
-  const pendingTasks = (tasks || []).filter((t: any) => t.status === 'new' || t.status === 'in_progress').length;
+const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const totalTasks = safeTasks.length;
+const completedTasks = safeTasks.filter((t) => t.status === "completed").length;
+const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 'in_progress').length;
+
 
   if (usersLoading) {
     return (
@@ -444,9 +441,9 @@ export default function EmployeesDashboard() {
                   />
 
                   <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => {
                         setIsTaskDialogOpen(false);
                         setEditingTask(null);
@@ -456,8 +453,8 @@ export default function EmployeesDashboard() {
                     >
                       Cancel
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
                       data-testid="button-save-task"
                     >
@@ -608,16 +605,16 @@ export default function EmployeesDashboard() {
                   </div>
 
                   <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setIsUserDialogOpen(false)}
                       data-testid="button-cancel-user"
                     >
                       Cancel
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createUserMutation.isPending}
                       data-testid="button-save-user"
                     >
@@ -740,9 +737,9 @@ export default function EmployeesDashboard() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => setIsUserDialogOpen(true)}
                 data-testid="button-quick-add-employee"
               >
@@ -750,9 +747,9 @@ export default function EmployeesDashboard() {
                 Add Employee
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => setIsTaskDialogOpen(true)}
                 data-testid="button-quick-assign-task"
               >
@@ -760,9 +757,9 @@ export default function EmployeesDashboard() {
                 Assign Task
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Record attendance")}
                 data-testid="button-record-attendance"
               >
@@ -770,9 +767,9 @@ export default function EmployeesDashboard() {
                 Record Attendance
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Performance review")}
                 data-testid="button-performance-review"
               >
@@ -810,7 +807,9 @@ export default function EmployeesDashboard() {
                   </div>
                   <span className="text-sm font-light text-foreground">New</span>
                 </div>
-                <Badge variant="secondary">{tasks?.filter((t: any) => t.status === 'new').length || 0}</Badge>
+                <Badge variant="secondary">
+                  {Array.isArray(tasks) ? tasks.filter((t) => t.status === 'new').length : 0}
+                </Badge>
               </div>
 
               <div className="flex items-center justify-between">
@@ -820,7 +819,9 @@ export default function EmployeesDashboard() {
                   </div>
                   <span className="text-sm font-light text-foreground">In Progress</span>
                 </div>
-                <Badge variant="secondary">{tasks?.filter((t: any) => t.status === 'in_progress').length || 0}</Badge>
+                <Badge variant="secondary">
+                  {Array.isArray(tasks) ? tasks.filter((t: any) => t.status === 'in_progress').length : 0}
+                </Badge>
               </div>
 
               <div className="flex items-center justify-between">

@@ -114,12 +114,24 @@ export default function MarketingAttendance() {
 
     return () => clearInterval(interval);
   }, [queryClient]);
+const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
+  queryKey: ['/api/marketing'],
+  queryFn: async () => {
+    const res = await fetch(`${BASE_URL}/api/marketing`);
+    if (!res.ok) throw new Error('Failed to fetch dashboard data');
+    return res.json();
+  },
+});
 
-  // Fetch today's attendance
-  const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
-    queryKey: ['api/marketing-attendance/today'],
-    meta: { errorMessage: "Failed to load today's attendance" }
-  });
+// Fetch today's attendance
+const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
+  queryKey: ['api/marketing-attendance/today'],
+  queryFn: async () => {
+    const res = await apiRequest(`${BASE_URL}/api/marketing-attendance/today`);
+    if (!res.ok) throw new Error('Failed to fetch today attendance');
+    return res.json();
+  },
+});
 
   // Fetch all attendance records for calendar view
   const { data: allAttendance = [] } = useQuery<AttendanceWithUser[]>({
