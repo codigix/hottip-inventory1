@@ -32,20 +32,28 @@ export default function StatusWorkflow() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch shipments data
-  const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
-    queryKey: ["/api/logistics/shipments"],
-  });
+ const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
+  queryKey: ["api/logistics/shipments"],
+  queryFn: async () => {
+    const res = await fetch("http://localhost:5000/api/logistics/shipments");
+    if (!res.ok) throw new Error("Failed to fetch shipments");
+    const data = await res.json();
+
+    // If your API returns { shipments: [...] }, return the array
+    return data.shipments ?? [];
+  },
+});
 
   // Filter shipments based on status and search
-  const filteredShipments = shipments.filter((shipment) => {
-    const matchesStatus = statusFilter === "all" || shipment.currentStatus === statusFilter;
-    const matchesSearch = searchTerm === "" || 
-      shipment.consignmentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shipment.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shipment.destination.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesStatus && matchesSearch;
-  });
+  const filteredShipments = (shipments ?? []).filter((shipment) => {
+  const matchesStatus = statusFilter === "all" || shipment.currentStatus === statusFilter;
+  const matchesSearch = searchTerm === "" || 
+    shipment.consignmentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    shipment.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    shipment.destination.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  return matchesStatus && matchesSearch;
+});
 
   // Calculate workflow metrics
   const workflowMetrics = LOGISTICS_SHIPMENT_STATUSES.reduce((acc, status) => {

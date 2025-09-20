@@ -56,23 +56,45 @@ export default function LogisticsDashboard() {
   const [isShipmentDialogOpen, setIsShipmentDialogOpen] = useState(false);
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const { toast } = useToast();
+  const [selectedClient, setSelectedClient] = useState("none");
+  
+  const apiBaseUrl = import.meta.env.VITE_API_URL;
 
   const { data: shipments = [], isLoading: shipmentsLoading } = useQuery<any[]>({
-    queryKey: ["/api/logistics/shipments"],
+    queryKey: ["api/logistics/shipments"],
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery<any[]>({
-    queryKey: ["/api/customers"],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBaseUrl}/api/customers`);
+      if (!res.ok) throw new Error("Failed to fetch customers");
+      const json = await res.json();
+      return Array.isArray(json.customers) ? json.customers : [];
+    },
   });
 
   const { data: suppliers = [], isLoading: suppliersLoading } = useQuery<any[]>({
-    queryKey: ["/api/suppliers"],
+    queryKey: ["api/suppliers"],
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["api/users"],
   });
 
+
+const { data: customersData = [], isLoading: customersLoading } = useQuery({
+  queryKey: ["customers"],
+  queryFn: async () => {
+    const res = await fetch(`${apiBaseUrl}/api/customers`);
+    if (!res.ok) throw new Error("Failed to fetch customers");
+    const json = await res.json();
+    return Array.isArray(json.customers) ? json.customers : [];
+  },
+});
+
+// Normalize after fetching
+const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
   const form = useForm<ShipmentForm>({
     resolver: zodResolver(shipmentFormSchema),
     defaultValues: {
@@ -96,13 +118,13 @@ export default function LogisticsDashboard() {
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("/api/logistics/shipments", {
+      return await apiRequest("api/logistics/shipments", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
       setIsShipmentDialogOpen(false);
       form.reset();
       toast({
@@ -121,13 +143,13 @@ export default function LogisticsDashboard() {
 
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest(`/api/logistics/shipments/${id}`, {
+      return await apiRequest(`api/logistics/shipments/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
       setEditingShipment(null);
       form.reset();
       toast({
@@ -199,7 +221,7 @@ export default function LogisticsDashboard() {
           delivered: "bg-green-100 text-green-800",
           closed: "bg-gray-500 text-white",
         };
-        
+
         const statusLabels = {
           created: "Created",
           packed: "Packed",
@@ -226,7 +248,7 @@ export default function LogisticsDashboard() {
           high: "bg-orange-100 text-orange-800",
           urgent: "bg-red-100 text-red-800",
         };
-        
+
         return (
           <Badge className={priorityColors[shipment.priority as keyof typeof priorityColors] || "bg-gray-100 text-gray-800"}>
             {(shipment.priority || "normal").charAt(0).toUpperCase() + (shipment.priority || "normal").slice(1)}
@@ -237,17 +259,34 @@ export default function LogisticsDashboard() {
     {
       key: "expectedDeliveryDate",
       header: "Expected Delivery",
-      cell: (shipment: any) => shipment.expectedDeliveryDate 
-        ? new Date(shipment.expectedDeliveryDate).toLocaleDateString() 
+      cell: (shipment: any) => shipment.expectedDeliveryDate
+        ? new Date(shipment.expectedDeliveryDate).toLocaleDateString()
         : "TBD",
     },
   ];
 
   // Calculate logistics metrics
   const totalShipments = (shipments || []).length;
-  const inTransitShipments = (shipments || []).filter((s: any) => s.currentStatus === 'in_transit' || s.currentStatus === 'dispatched' || s.currentStatus === 'out_for_delivery').length;
-  const deliveredShipments = (shipments || []).filter((s: any) => s.currentStatus === 'delivered' || s.currentStatus === 'closed').length;
-  const pendingShipments = (shipments || []).filter((s: any) => s.currentStatus === 'created' || s.currentStatus === 'packed').length;
+  const shipmentsArray = Array.isArray(shipments) ? shipments : [];
+
+  const inTransitShipments = shipmentsArray.filter(
+    (s: any) =>
+      s.currentStatus === "in_transit" ||
+      s.currentStatus === "dispatched" ||
+      s.currentStatus === "out_for_delivery"
+  ).length;
+
+  const deliveredShipments = shipmentsArray.filter(
+    (s: any) =>
+      s.currentStatus === "delivered" ||
+      s.currentStatus === "closed"
+  ).length;
+
+  const pendingShipments = shipmentsArray.filter(
+    (s: any) =>
+      s.currentStatus === "created" ||
+      s.currentStatus === "packed"
+  ).length;
 
   if (shipmentsLoading || customersLoading || suppliersLoading || usersLoading) {
     return (
@@ -345,15 +384,13 @@ export default function LogisticsDashboard() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Client (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-client">
-                              <SelectValue placeholder="Select client" />
-                            </SelectTrigger>
-                          </FormControl>
+                        <Select value={selectedClient} onValueChange={setSelectedClient}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select client" />
+                          </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No client</SelectItem>
-                            {(customers || []).map((customer: any) => (
+                            <SelectItem value="none">No client</SelectItem>
+                            {normalizedCustomers.map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name}
                               </SelectItem>
@@ -568,9 +605,9 @@ export default function LogisticsDashboard() {
                 />
 
                 <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       setIsShipmentDialogOpen(false);
                       setEditingShipment(null);
@@ -580,8 +617,8 @@ export default function LogisticsDashboard() {
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createShipmentMutation.isPending || updateShipmentMutation.isPending}
                     data-testid="button-save-shipment"
                   >
@@ -683,9 +720,9 @@ export default function LogisticsDashboard() {
               <CardTitle>Logistics Tools</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => setIsShipmentDialogOpen(true)}
                 data-testid="button-quick-shipment"
               >
@@ -693,9 +730,9 @@ export default function LogisticsDashboard() {
                 Create Shipment
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Route planning")}
                 data-testid="button-route-planning"
               >
@@ -703,9 +740,9 @@ export default function LogisticsDashboard() {
                 Route Planning
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Track shipments")}
                 data-testid="button-track-shipments"
               >
@@ -713,9 +750,9 @@ export default function LogisticsDashboard() {
                 Track Shipments
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Upload POD")}
                 data-testid="button-upload-pod"
               >
@@ -779,7 +816,7 @@ export default function LogisticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {(shipments || []).filter((s: any) => s.currentStatus === 'delivered').slice(0, 3).map((shipment: any) => (
+                {shipmentsArray.filter((s: any) => s.currentStatus === 'delivered').slice(0, 3).map((shipment: any) => (
                   <div key={shipment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
                     <div>
                       <p className="text-sm font-light">{shipment.consignmentNumber}</p>
@@ -794,7 +831,9 @@ export default function LogisticsDashboard() {
                       </p>
                     </div>
                   </div>
-                )) || (
+                ))}
+
+                {shipmentsArray.filter((s: any) => s.currentStatus === 'delivered').length === 0 && (
                   <p className="text-muted-foreground text-center py-4">No recent deliveries</p>
                 )}
               </div>

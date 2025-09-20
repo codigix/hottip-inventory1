@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { 
+import {
   Plus, CalendarIcon, Users, Clock, AlertCircle, CheckCircle,
   MoreVertical, Edit, Trash2, User, Calendar as CalendarDays,
   Filter, Search, ListTodo, UserCheck, FileText, Briefcase
@@ -96,18 +96,18 @@ export default function LogisticsTasks() {
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<LogisticsTask[]>({
-    queryKey: ['/api/logistics/tasks'],
+    queryKey: ['api/logistics/tasks'],
   });
 
   // Fetch users for assignment
   const { data: users = [] } = useQuery<TaskUser[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['api/users'],
     enabled: showCreateDialog || showEditDialog,
   });
 
   // Create task mutation
   const createTaskMutation = useMutation({
-    mutationFn: (data: CreateTaskForm) => apiRequest('/api/logistics/tasks', {
+    mutationFn: (data: CreateTaskForm) => apiRequest('api/logistics/tasks', {
       method: 'POST',
       body: JSON.stringify({
         ...data,
@@ -115,7 +115,7 @@ export default function LogisticsTasks() {
       }),
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
       setShowCreateDialog(false);
       toast({ title: "Task created successfully" });
     },
@@ -126,8 +126,8 @@ export default function LogisticsTasks() {
 
   // Update task mutation
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<UpdateTaskForm> }) => 
-      apiRequest(`/api/logistics/tasks/${id}`, {
+    mutationFn: ({ id, data }: { id: string; data: Partial<UpdateTaskForm> }) =>
+      apiRequest(`api/logistics/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
           ...data,
@@ -135,7 +135,7 @@ export default function LogisticsTasks() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
       setShowEditDialog(false);
       setSelectedTask(null);
       toast({ title: "Task updated successfully" });
@@ -147,9 +147,9 @@ export default function LogisticsTasks() {
 
   // Delete task mutation
   const deleteTaskMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/logistics/tasks/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest(`api/logistics/tasks/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
       toast({ title: "Task deleted successfully" });
     },
     onError: () => {
@@ -184,10 +184,10 @@ export default function LogisticsTasks() {
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
     const matchesAssignee = filterAssignee === 'all' || task.assignee.id === filterAssignee;
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = searchQuery === '' ||
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesStatus && matchesPriority && matchesAssignee && matchesSearch;
   });
 
@@ -208,8 +208,8 @@ export default function LogisticsTasks() {
   };
 
   const handleTaskStatusChange = (taskId: string, newStatus: string) => {
-    updateTaskMutation.mutate({ 
-      id: taskId, 
+    updateTaskMutation.mutate({
+      id: taskId,
       data: { status: newStatus as any }
     });
   };
@@ -254,7 +254,7 @@ export default function LogisticsTasks() {
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => handleDeleteTask(task.id)}
                   className="text-red-600"
                   data-testid={`task-delete-${task.id}`}
@@ -272,8 +272,14 @@ export default function LogisticsTasks() {
 
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className={cn("text-xs", priorityConfig.color)}>
-                {priorityConfig.label}
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "text-xs",
+                  priorityConfig?.color ?? "bg-gray-200 text-gray-800"
+                )}
+              >
+                {priorityConfig?.label ?? "N/A"}
               </Badge>
               <Badge variant="secondary" className={cn("text-xs", statusConfig.color)}>
                 <StatusIcon className="h-3 w-3 mr-1" />
@@ -288,11 +294,15 @@ export default function LogisticsTasks() {
             <div className="flex items-center space-x-2">
               <Avatar className="h-6 w-6" data-testid={`avatar-assignee-${task.id}`}>
                 <AvatarFallback className="text-xs">
-                  {task.assignee.firstName.charAt(0)}{task.assignee.lastName.charAt(0)}
-                </AvatarFallback>
+  {task.assignee
+    ? `${task.assignee.firstName.charAt(0)}${task.assignee.lastName.charAt(0)}`
+    : "NA"}
+</AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground" data-testid={`text-assignee-${task.id}`}>
-                {task.assignee.firstName} {task.assignee.lastName}
+                {task.assignee
+  ? `${task.assignee.firstName} ${task.assignee.lastName}`
+  : "Unassigned"}
               </span>
             </div>
 
@@ -401,7 +411,7 @@ export default function LogisticsTasks() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={createForm.control}
                     name="description"
@@ -409,10 +419,10 @@ export default function LogisticsTasks() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Enter task description" 
+                          <Textarea
+                            placeholder="Enter task description"
                             className="min-h-[80px]"
-                            {...field} 
+                            {...field}
                             data-testid="input-create-description"
                           />
                         </FormControl>
@@ -515,16 +525,16 @@ export default function LogisticsTasks() {
                   />
 
                   <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setShowCreateDialog(false)}
                       data-testid="button-cancel-create"
                     >
                       Cancel
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createTaskMutation.isPending}
                       data-testid="button-submit-create"
                     >
@@ -554,7 +564,7 @@ export default function LogisticsTasks() {
                 />
               </div>
             </div>
-            
+
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[120px]" data-testid="select-filter-status">
                 <SelectValue />
@@ -604,7 +614,7 @@ export default function LogisticsTasks() {
           {Object.entries(taskStatuses).map(([status, config]) => {
             const StatusIcon = config.icon;
             const statusTasks = tasksByStatus[status] || [];
-            
+
             return (
               <div key={status} className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -616,7 +626,7 @@ export default function LogisticsTasks() {
                     </Badge>
                   </div>
                 </div>
-                
+
                 <ScrollArea className="h-[600px]" data-testid={`kanban-column-${status}`}>
                   <div className="space-y-3 pr-4">
                     {statusTasks.map((task) => (
@@ -683,7 +693,7 @@ export default function LogisticsTasks() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={updateForm.control}
                 name="description"
@@ -691,9 +701,9 @@ export default function LogisticsTasks() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
+                      <Textarea
                         className="min-h-[80px]"
-                        {...field} 
+                        {...field}
                         data-testid="input-edit-description"
                       />
                     </FormControl>
@@ -753,16 +763,16 @@ export default function LogisticsTasks() {
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setShowEditDialog(false)}
                   data-testid="button-cancel-edit"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={updateTaskMutation.isPending}
                   data-testid="button-submit-edit"
                 >

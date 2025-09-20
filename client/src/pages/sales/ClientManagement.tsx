@@ -50,9 +50,9 @@ export default function ClientManagement() {
 
   const createCustomerMutation = useMutation({
     mutationFn: (data: InsertCustomer) => 
-      apiRequest('POST', '/api/customers', data),
+      apiRequest('POST', 'api/customers', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['api/customers'] });
       toast({
         title: "Success",
         description: "Client created successfully",

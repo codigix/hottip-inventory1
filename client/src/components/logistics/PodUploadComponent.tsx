@@ -91,7 +91,7 @@ export default function PodUploadComponent({
       }
 
       // Step 1: Get upload URL from backend
-      const uploadUrlResponse = await fetch('/api/logistics/pod/upload-url', {
+      const uploadUrlResponse = await fetch('api/logistics/pod/upload-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

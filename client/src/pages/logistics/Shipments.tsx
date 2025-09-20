@@ -79,22 +79,22 @@ export default function Shipments() {
 
   // Fetch shipments data
   const { data: shipments = [], isLoading } = useQuery<LogisticsShipment[]>({
-    queryKey: ['/api/logistics/shipments']
+    queryKey: ['api/logistics/shipments']
   });
 
   // Fetch shipment metrics
   const { data: metrics } = useQuery<ShipmentMetrics>({
-    queryKey: ['/api/logistics/dashboard']
+    queryKey: ['api/logistics/dashboard']
   });
 
   // Fetch customers for filters
   const { data: customers = [] } = useQuery<Array<{id: string; name: string}>>({
-    queryKey: ['/api/customers']
+    queryKey: ['api/customers']
   });
 
   // Fetch suppliers for filters
   const { data: suppliers = [] } = useQuery<Array<{id: string; name: string}>>({
-    queryKey: ['/api/suppliers']
+    queryKey: ['api/suppliers']
   });
 
   const form = useForm<ShipmentForm>({
@@ -114,14 +114,14 @@ export default function Shipments() {
   // Create shipment mutation
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("/api/logistics/shipments", {
+      return await apiRequest("api/logistics/shipments", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
       setIsFormOpen(false);
       form.reset();
       toast({
@@ -141,14 +141,14 @@ export default function Shipments() {
   // Update shipment mutation
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest(`/api/logistics/shipments/${id}`, {
+      return await apiRequest(`api/logistics/shipments/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
       setEditingShipment(null);
       form.reset();
       toast({
@@ -168,13 +168,13 @@ export default function Shipments() {
   // Delete shipment mutation
   const deleteShipmentMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/logistics/shipments/${id}`, {
+      return await apiRequest(`api/logistics/shipments/${id}`, {
         method: "DELETE",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
       toast({
         title: "Success",
         description: "Shipment deleted successfully",

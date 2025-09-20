@@ -9,12 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
 } from "recharts";
-import { 
-  CalendarIcon, Download, TrendingUp, TrendingDown, 
+import {
+  CalendarIcon, Download, TrendingUp, TrendingDown,
   Package, Clock, Users, CheckCircle, AlertCircle,
   FileText, BarChart3, Activity
 } from "lucide-react";
@@ -76,7 +76,7 @@ export default function LogisticsReports() {
 
   // Fetch dashboard metrics
   const { data: dashboardMetrics, isLoading: loadingDashboard } = useQuery<DashboardMetrics>({
-    queryKey: ['/api/logistics/dashboard'],
+    queryKey: ['api/logistics/dashboard'],
   });
 
   // Create normalized metrics with safe defaults to prevent runtime errors
@@ -102,35 +102,35 @@ export default function LogisticsReports() {
 
   // Fetch daily shipments report
   const { data: dailyData, isLoading: loadingDaily } = useQuery<DailyShipmentData[]>({
-    queryKey: ['/api/logistics/reports/daily', dateRange],
+    queryKey: ['api/logistics/reports/daily', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch vendor performance
   const { data: vendorPerformance, isLoading: loadingVendors } = useQuery<VendorPerformance[]>({
-    queryKey: ['/api/logistics/reports/vendor-performance', dateRange],
+    queryKey: ['api/logistics/reports/vendor-performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch volume metrics
   const { data: volumeMetrics, isLoading: loadingVolume } = useQuery<VolumeMetrics[]>({
-    queryKey: ['/api/logistics/reports/volume', dateRange],
+    queryKey: ['api/logistics/reports/volume', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch performance metrics
   const { data: performanceMetrics, isLoading: loadingPerformance } = useQuery<PerformanceMetrics[]>({
-    queryKey: ['/api/logistics/reports/performance', dateRange],
+    queryKey: ['api/logistics/reports/performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Normalize array data with safe defaults to prevent runtime errors
-  const normalizedDailyData = dailyData?.map(item => ({
-    date: item.date || '',
-    shipped: Number(item.shipped) || 0,
-    delivered: Number(item.delivered) || 0,
-    revenue: Number(item.revenue) || 0,
-  })) || [];
+  const normalizedDailyData = (dailyData ?? []).map(item => ({
+  date: item.date || '',
+  shipped: Number(item.shipped) || 0,
+  delivered: Number(item.delivered) || 0,
+  revenue: Number(item.revenue) || 0,
+}));
 
   const normalizedVendorPerformance = vendorPerformance?.map(vendor => ({
     vendorName: vendor.vendorName || 'Unknown Vendor',
@@ -141,19 +141,17 @@ export default function LogisticsReports() {
     rating: Number(vendor.rating) || 0,
   })) || [];
 
-  const normalizedVolumeMetrics = volumeMetrics?.map(item => ({
-    period: item.period || '',
-    volume: Number(item.volume) || 0,
-    growth: Number(item.growth) || 0,
-  })) || [];
+ const normalizedVolumeMetrics = (volumeMetrics ?? []).map(item => ({
+  period: item.period || '',
+  volume: Number(item.volume) || 0,
+  averagePerShipment: Number(item.averagePerShipment) || 0,
+}));
 
-  const normalizedPerformanceMetrics = performanceMetrics?.map(metric => ({
-    metric: metric.metric || 'Unknown Metric',
-    current: Number(metric.current) || 0,
-    previous: Number(metric.previous) || 0,
-    change: Number(metric.change) || 0,
-    trend: metric.trend || 'stable' as 'up' | 'down' | 'stable',
-  })) || [];
+ const normalizedPerformanceMetrics = (performanceMetrics ?? []).map(item => ({
+  period: item.period || '',
+  avgDeliveryTimeHours: Number(item.avgDeliveryTimeHours) || 0,
+  onTimePercentage: Number(item.onTimePercentage) || 0,
+}));
 
   const handleExportReport = async (reportType: string) => {
     try {
@@ -162,10 +160,10 @@ export default function LogisticsReports() {
         to: dateRange.to?.toISOString() || '',
         format: 'pdf'
       });
-      
-      const response = await fetch(`/api/logistics/reports/${reportType}/export?${params}`);
+
+      const response = await fetch(`api/logistics/reports/${reportType}/export?${params}`);
       if (!response.ok) throw new Error('Export failed');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -199,7 +197,7 @@ export default function LogisticsReports() {
             Comprehensive delivery analytics and performance metrics
           </p>
         </div>
-        
+
         {/* Date Range Picker */}
         <div className="flex items-center space-x-2">
           <Popover>
@@ -243,9 +241,9 @@ export default function LogisticsReports() {
               />
             </PopoverContent>
           </Popover>
-          
-          <Button 
-            onClick={() => handleExportReport('comprehensive')} 
+
+          <Button
+            onClick={() => handleExportReport('comprehensive')}
             variant="outline"
             data-testid="button-export-all"
           >
@@ -349,7 +347,7 @@ export default function LogisticsReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">₹{normalizedMetrics.totalRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">₹{(normalizedMetrics.totalRevenue ?? 0).toLocaleString()}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-emerald-600" />
               </div>
@@ -389,8 +387,8 @@ export default function LogisticsReports() {
                   <CardTitle>Daily Shipments</CardTitle>
                   <CardDescription>Shipped vs Delivered over time</CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => handleExportReport('daily')}
                   data-testid="button-export-daily"
@@ -466,8 +464,8 @@ export default function LogisticsReports() {
                 <CardTitle>Volume Trends</CardTitle>
                 <CardDescription>Shipment volume over time with growth indicators</CardDescription>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => handleExportReport('volume')}
                 data-testid="button-export-volume"
@@ -505,8 +503,8 @@ export default function LogisticsReports() {
                 <CardTitle>Vendor Performance</CardTitle>
                 <CardDescription>Delivery performance by vendor</CardDescription>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => handleExportReport('vendor-performance')}
                 data-testid="button-export-vendors"
@@ -568,8 +566,8 @@ export default function LogisticsReports() {
                 <CardTitle>Performance Metrics</CardTitle>
                 <CardDescription>Key performance indicators with trends</CardDescription>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => handleExportReport('performance')}
                 data-testid="button-export-performance"
@@ -593,17 +591,17 @@ export default function LogisticsReports() {
                     <div key={index} className="flex justify-between items-center p-4 border rounded-lg" data-testid={`performance-${index}`}>
                       <div>
                         <h4 className="font-semibold">{metric.metric}</h4>
-                        <p className="text-2xl font-bold">{metric.current.toLocaleString()}</p>
+                        <p className="text-2xl font-bold">{(metric.current ?? 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <div className={cn(
                           "flex items-center space-x-1",
                           metric.trend === 'up' ? "text-green-600" : metric.trend === 'down' ? "text-red-600" : "text-gray-600"
                         )}>
-                          {metric.trend === 'up' ? <TrendingUp className="h-4 w-4" /> : 
-                           metric.trend === 'down' ? <TrendingDown className="h-4 w-4" /> : 
-                           <span className="h-4 w-4">→</span>}
-                          <span className="font-light">{metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}%</span>
+                          {metric.trend === 'up' ? <TrendingUp className="h-4 w-4" /> :
+                            metric.trend === 'down' ? <TrendingDown className="h-4 w-4" /> :
+                              <span className="h-4 w-4">→</span>}
+                          <span className="font-light">{(metric.change ?? 0).toFixed(1) > 0 ? '+' : ''}{(metric.change ?? 0).toFixed(1)}%</span>
                         </div>
                         <p className="text-sm text-muted-foreground">vs previous period</p>
                       </div>

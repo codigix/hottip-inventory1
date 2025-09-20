@@ -82,7 +82,7 @@ export default function AccountsDashboard() {
       // Generate invoice number
       const invoiceCount = (invoices || []).length;
       const invoiceNumber = `INV${String(invoiceCount + 1).padStart(6, '0')}`;
-      
+
       // Calculate total amount - let server handle invoice number generation
       const subtotal = parseFloat(data.subtotalAmount);
       const cgst = parseFloat(data.cgstAmount || '0');
@@ -90,7 +90,7 @@ export default function AccountsDashboard() {
       const igst = parseFloat(data.igstAmount || '0');
       const discount = parseFloat(data.discountAmount || '0');
       const totalAmount = (subtotal + cgst + sgst + igst - discount).toString();
-      
+
       const invoiceData = {
         customerId: data.customerId,
         // userId will be determined server-side from authentication
@@ -264,12 +264,13 @@ export default function AccountsDashboard() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {(customers || []).map((customer: any) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+  <SelectItem value="none">No client</SelectItem>
+  {(customers || []).map((customer: any) => (
+    <SelectItem key={customer.id} value={customer.id}>
+      {customer.name}
+    </SelectItem>
+  ))}
+</SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
@@ -297,11 +298,11 @@ export default function AccountsDashboard() {
                       <FormItem>
                         <FormLabel>Due Date</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="date" 
+                          <Input
+                            type="date"
                             value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
-                            data-testid="input-due-date" 
+                            data-testid="input-due-date"
                           />
                         </FormControl>
                         <FormMessage />
@@ -391,7 +392,7 @@ export default function AccountsDashboard() {
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="discountAmount"
@@ -421,16 +422,16 @@ export default function AccountsDashboard() {
                 />
 
                 <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setIsInvoiceDialogOpen(false)}
                     data-testid="button-cancel"
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createInvoiceMutation.isPending}
                     data-testid="button-create"
                   >
@@ -541,17 +542,17 @@ export default function AccountsDashboard() {
         </div>
 
         {/* Financial Summary & Quick Actions */}
-        
-          {/* Quick Actions */}
-          <div className="lg:col-span-1">
-            <Card>
+
+        {/* Quick Actions */}
+        <div className="lg:col-span-1">
+          <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => setIsInvoiceDialogOpen(true)}
                 data-testid="button-quick-invoice"
               >
@@ -559,9 +560,9 @@ export default function AccountsDashboard() {
                 Create Invoice
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Record payment")}
                 data-testid="button-record-payment"
               >
@@ -569,9 +570,9 @@ export default function AccountsDashboard() {
                 Record Payment
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Generate report")}
                 data-testid="button-financial-report"
               >
@@ -579,9 +580,9 @@ export default function AccountsDashboard() {
                 Financial Report
               </Button>
 
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start" 
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => console.log("Tally integration")}
                 data-testid="button-tally-sync"
               >
@@ -590,86 +591,86 @@ export default function AccountsDashboard() {
               </Button>
             </CardContent>
           </Card>
-          </div>
+        </div>
 
-          {/* Payment Status Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <span className="text-sm font-light text-foreground">Paid</span>
+        {/* Payment Status Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-light text-foreground">
-                    {invoices?.filter(i => i.status === 'paid').length || 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">invoices</p>
-                </div>
+                <span className="text-sm font-light text-foreground">Paid</span>
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Clock className="h-4 w-4 text-yellow-600" />
-                  </div>
-                  <span className="text-sm font-light text-foreground">Pending</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-light text-foreground">
-                    {invoices?.filter(i => i.status === 'sent' || i.status === 'draft').length || 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">invoices</p>
-                </div>
+              <div className="text-right">
+                <p className="text-sm font-light text-foreground">
+                  {invoices?.filter(i => i.status === 'paid').length || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">invoices</p>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  </div>
-                  <span className="text-sm font-light text-foreground">Overdue</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-yellow-600" />
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-light text-foreground">{overdueInvoices}</p>
-                  <p className="text-xs text-muted-foreground">invoices</p>
-                </div>
+                <span className="text-sm font-light text-foreground">Pending</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-right">
+                <p className="text-sm font-light text-foreground">
+                  {invoices?.filter(i => i.status === 'sent' || i.status === 'draft').length || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">invoices</p>
+              </div>
+            </div>
 
-          {/* Recent Payments */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Payments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {invoices?.filter(i => i.status === 'paid').slice(0, 3).map((payment: any) => (
-                  <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
-                    <div>
-                      <p className="text-sm font-light">{payment.customer?.name || 'Unknown Customer'}</p>
-                      <p className="text-xs text-muted-foreground">{payment.invoiceNumber}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-light">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(payment.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                </div>
+                <span className="text-sm font-light text-foreground">Overdue</span>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-light text-foreground">{overdueInvoices}</p>
+                <p className="text-xs text-muted-foreground">invoices</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Payments */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {invoices?.filter(i => i.status === 'paid').slice(0, 3).map((payment: any) => (
+                <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
+                  <div>
+                    <p className="text-sm font-light">{payment.customer?.name || 'Unknown Customer'}</p>
+                    <p className="text-xs text-muted-foreground">{payment.invoiceNumber}</p>
                   </div>
-                )) || (
+                  <div className="text-right">
+                    <p className="text-sm font-light">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(payment.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              )) || (
                   <p className="text-muted-foreground text-center py-4">No recent payments</p>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
     </main>
   );

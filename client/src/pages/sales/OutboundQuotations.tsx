@@ -20,7 +20,7 @@ import { z } from "zod";
 export default function OutboundQuotations() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
-  
+
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
     queryKey: ["/api/outbound-quotations"],
   });
@@ -64,7 +64,7 @@ export default function OutboundQuotations() {
   });
 
   const createQuotationMutation = useMutation({
-    mutationFn: (data: InsertOutboundQuotation) => 
+    mutationFn: (data: InsertOutboundQuotation) =>
       apiRequest('POST', '/api/outbound-quotations', {
         ...data,
         userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3' // Real user ID from database
@@ -80,7 +80,7 @@ export default function OutboundQuotations() {
     },
     onError: (error: any) => {
       console.error('Quotation creation error:', error);
-      
+
       // Parse server validation errors and set field errors
       const issues = error?.data?.errors ?? error?.errors;
       if (Array.isArray(issues)) {
@@ -91,7 +91,7 @@ export default function OutboundQuotations() {
           }
         });
       }
-      
+
       toast({
         title: "Validation Error",
         description: error?.message || "Please fix the highlighted fields and try again",
@@ -190,7 +190,7 @@ export default function OutboundQuotations() {
                 Create a new outbound quotation for your client
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(
                 (data) => createQuotationMutation.mutate(data),
@@ -217,7 +217,7 @@ export default function OutboundQuotations() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="customerId"
@@ -231,9 +231,10 @@ export default function OutboundQuotations() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="none">No client</SelectItem>
                             {(customers || []).map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} - {customer.email}
+                                {customer.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -252,18 +253,18 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Quotation Date</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="date" 
-                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
+                          <Input
+                            type="date"
+                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
-                            data-testid="input-quotation-date" 
+                            data-testid="input-quotation-date"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="validUntil"
@@ -271,11 +272,11 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Valid Until</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="date" 
-                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
+                          <Input
+                            type="date"
+                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
-                            data-testid="input-valid-until-date" 
+                            data-testid="input-valid-until-date"
                           />
                         </FormControl>
                         <FormMessage />
@@ -390,16 +391,16 @@ export default function OutboundQuotations() {
                 />
 
                 <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setIsDialogOpen(false)}
                     data-testid="button-cancel"
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createQuotationMutation.isPending}
                     data-testid="button-submit"
                   >

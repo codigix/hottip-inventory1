@@ -13,7 +13,32 @@ app.use(cors({
   credentials: true                // <-- allow cookies/auth headers
 }));
 app.use(bodyParser.json());
-
+const shipments = [
+  {
+    id: "1",
+    consignmentNumber: "CN001",
+    source: "Warehouse A",
+    destination: "Customer X",
+    currentStatus: "in_transit",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    consignmentNumber: "CN002",
+    source: "Warehouse B",
+    destination: "Customer Y",
+    currentStatus: "delivered",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    consignmentNumber: "CN003",
+    source: "Warehouse C",
+    destination: "Customer Z",
+    currentStatus: "out_for_delivery",
+    updatedAt: new Date().toISOString(),
+  },
+];
 // =====================
 // In-memory Mock Data
 // =====================
@@ -23,7 +48,11 @@ let users = [
   { id: "2", firstName: "Carol", lastName: "Brown" },
 ];
 
-
+const dailyReports = [
+  { date: "2025-09-19", shipped: 5, delivered: 3, revenue: 5000 },
+  { date: "2025-09-18", shipped: 7, delivered: 6, revenue: 7000 },
+  { date: "2025-09-17", shipped: 6, delivered: 4, revenue: 6000 },
+];
 
 let visits = Array.from({ length: 10 }, (_, i) => ({
   id: (i + 1).toString(),
@@ -235,6 +264,123 @@ app.get("/api/marketing/team-performance", (req, res) => {
     tasksCompleted: marketingTasks.filter(t => t.assignedToUserId === u.id && t.status === "completed").length
   }));
   res.json(teamPerformance);
+});
+app.get("/api/logistics/shipments", (req, res) => {
+  // return shipments data
+  res.json({ shipments: [] });
+});
+
+app.get("/api/logistics/dashboard", (req, res) => {
+  res.json({
+    totalShipments: shipments.length,
+    inTransit: shipments.filter(s => s.currentStatus === "in_transit").length,
+    outForDelivery: shipments.filter(s => s.currentStatus === "out_for_delivery").length,
+    delivered: shipments.filter(s => s.currentStatus === "delivered").length,
+  });
+});
+
+// Shipments list
+app.get("/api/logistics/shipments", (req, res) => {
+  res.json({ shipments });
+});
+
+// Daily report
+app.get("/api/logistics/reports/daily/:date", (req, res) => {
+  const { date } = req.params;
+
+  // Mock daily report object
+  const dailyReport = {
+    date,
+    shipped: shipments.length,
+    delivered: shipments.filter(
+      s => new Date(s.updatedAt).toDateString() === new Date(date).toDateString()
+    ).length,
+    revenue: 5000, // example mock revenue
+  };
+
+  res.json([dailyReport]); // ✅ return as array
+});
+app.get("/api/customers", (req, res) => {
+  res.json({
+    customers: [
+      { id: "1", name: "Alice Corp" },
+      { id: "2", name: "Beta Ltd" },
+      { id: "3", name: "Gamma Inc" },
+    ],
+  });
+});
+
+app.get("/api/suppliers", (req, res) => {
+  res.json({
+    suppliers: [
+      { id: "1", name: "Supplier A" },
+      { id: "2", name: "Supplier B" },
+      { id: "3", name: "Supplier C" },
+    ],
+  });
+});
+// Vendor performance
+
+
+// Volume report
+app.get("/api/logistics/reports/volume/:param", (req, res) => {
+  const { param } = req.params;
+
+  const report = {
+    period: param,              // rename param → period for consistency
+    volume: 1500,               // totalVolume
+    averagePerShipment: 250,    // average
+  };
+
+  res.json([report]); // ✅ return as array
+});
+
+// Performance report
+app.get("/api/logistics/reports/performance/:param", (req, res) => {
+  const { param } = req.params;
+
+  const report = {
+    period: param,
+    avgDeliveryTimeHours: 48,
+    onTimePercentage: 92,
+  };
+
+  res.json([report]); // ✅ always return an array
+});
+
+app.get("/api/logistics/tasks", (req, res) => {
+  // Mock tasks data
+  const tasks = [
+    { id: 1, title: "Load truck #12", status: "pending", assignedTo: "John" },
+    { id: 2, title: "Deliver consignment #45", status: "in_progress", assignedTo: "Alice" },
+    { id: 3, title: "Return empty container", status: "completed", assignedTo: "Bob" },
+  ];
+
+  res.json(tasks);
+});
+
+app.get("/api/logistics/attendance", (req, res) => {
+  res.json([
+    { id: 1, employee: "Alice", status: "present" },
+    { id: 2, employee: "Bob", status: "absent" }
+  ]);
+});
+
+// Get today's attendance
+app.get("/api/logistics/attendance/today", (req, res) => {
+  res.json([
+    { id: 1, employee: "Alice", status: "present" },
+    { id: 2, employee: "Bob", status: "absent" }
+  ]);
+});
+
+// Get attendance metrics
+app.get("/api/logistics/attendance/metrics", (req, res) => {
+  res.json({
+    totalEmployees: 10,
+    presentToday: 8,
+    absentToday: 2,
+  });
 });
 // =====================
 // HTTP + WebSocket Setup

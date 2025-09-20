@@ -41,9 +41,9 @@ interface TimelineHistoryProps {
 export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
   // Fetch status updates for this shipment
   const { data: statusUpdates = [], isLoading: updatesLoading } = useQuery<StatusUpdate[]>({
-    queryKey: ['/api/logistics/status-updates', shipment.id],
+    queryKey: ['api/logistics/status-updates', shipment.id],
     queryFn: async () => {
-      const response = await fetch(`/api/logistics/status-updates?shipmentId=${shipment.id}`);
+      const response = await fetch(`api/logistics/status-updates?shipmentId=${shipment.id}`);
       if (!response.ok) throw new Error('Failed to fetch status updates');
       return response.json();
     }
@@ -51,9 +51,9 @@ export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
 
   // Fetch GPS checkpoints for this shipment
   const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery<Checkpoint[]>({
-    queryKey: ['/api/logistics/checkpoints', shipment.id],
+    queryKey: ['api/logistics/checkpoints', shipment.id],
     queryFn: async () => {
-      const response = await fetch(`/api/logistics/checkpoints?shipmentId=${shipment.id}`);
+      const response = await fetch(`api/logistics/checkpoints?shipmentId=${shipment.id}`);
       if (!response.ok) throw new Error('Failed to fetch checkpoints');
       return response.json();
     }
