@@ -58,12 +58,10 @@ interface VolumeMetrics {
   growth: number;
 }
 
-interface PerformanceMetrics {
-  metric: string;
-  current: number;
-  previous: number;
-  change: number;
-  trend: 'up' | 'down' | 'stable';
+interface DeliveryPerformanceSummary {
+  totalDeliveries: number;
+  totalVolume: number;
+  averageVolume: number;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -118,8 +116,8 @@ export default function LogisticsReports() {
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
-  // Fetch performance metrics
-  const { data: performanceMetrics, isLoading: loadingPerformance } = useQuery<PerformanceMetrics[]>({
+  // Fetch performance metrics summary (object)
+  const { data: performanceSummary, isLoading: loadingPerformance } = useQuery<DeliveryPerformanceSummary>({
     queryKey: ['/logistics/reports/performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
@@ -147,11 +145,11 @@ export default function LogisticsReports() {
   averagePerShipment: Number(item.averagePerShipment) || 0,
 }));
 
- const normalizedPerformanceMetrics = (performanceMetrics ?? []).map(item => ({
-  period: item.period || '',
-  avgDeliveryTimeHours: Number(item.avgDeliveryTimeHours) || 0,
-  onTimePercentage: Number(item.onTimePercentage) || 0,
-}));
+ const normalizedPerformanceMetrics = [
+  { metric: 'Total Deliveries', current: Number(performanceSummary?.totalDeliveries ?? 0), previous: 0, change: 0, trend: 'stable' as const },
+  { metric: 'Total Volume', current: Number(performanceSummary?.totalVolume ?? 0), previous: 0, change: 0, trend: 'stable' as const },
+  { metric: 'Average Volume', current: Number(performanceSummary?.averageVolume ?? 0), previous: 0, change: 0, trend: 'stable' as const },
+];
 
   const handleExportReport = async (reportType: string) => {
     try {

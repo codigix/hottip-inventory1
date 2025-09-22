@@ -38,7 +38,24 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-import type { MarketingTask, User, Lead, FieldVisit } from "@shared/schema";
+// Local client-side interfaces for this form
+interface User { id: string; firstName?: string; lastName?: string }
+interface Lead { id: string; firstName?: string; lastName?: string; companyName?: string }
+interface FieldVisit { id: string; visitNumber?: string; plannedDate?: string | Date }
+interface MarketingTask {
+  title: string;
+  description?: string;
+  type: string;
+  assignedTo: string;
+  priority: string;
+  dueDate?: string | Date;
+  estimatedHours?: number;
+  leadId?: string;
+  fieldVisitId?: string;
+  tags?: string[];
+  isRecurring?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'monthly';
+}
 
 const taskFormSchema = z.object({
   title: z.string().min(1, "Task title is required"),
@@ -199,7 +216,7 @@ export default function TaskForm({
   }, [existingTask, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest('/marketing-tasks', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
@@ -454,10 +471,10 @@ export default function TaskForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {users.filter(user => user.id && user.id.trim() !== "").map((user) => {
-                            const workload = getAssigneeWorkload(user.id);
+                          {users.filter(user => user.id != null && String(user.id).trim() !== "").map((user) => {
+                            const workload = getAssigneeWorkload(String(user.id));
                             return (
-                              <SelectItem key={user.id} value={user.id}>
+                              <SelectItem key={String(user.id)} value={String(user.id)}>
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex flex-col">
                                     <span>{user.firstName} {user.lastName}</span>
@@ -545,8 +562,8 @@ export default function TaskForm({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Lead Selected</SelectItem>
-                            {leads.filter(lead => lead.id && lead.id.trim() !== "").map((lead) => (
-                              <SelectItem key={lead.id} value={lead.id}>
+                            {leads.filter(lead => lead.id != null && String(lead.id).trim() !== "").map((lead) => (
+                              <SelectItem key={String(lead.id)} value={String(lead.id)}>
                                 {lead.firstName} {lead.lastName} 
                                 {lead.companyName && ` - ${lead.companyName}`}
                               </SelectItem>
@@ -572,9 +589,9 @@ export default function TaskForm({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Visit Selected</SelectItem>
-                            {fieldVisits.filter(visit => visit.id && visit.id.trim() !== "").map((visit) => (
-                              <SelectItem key={visit.id} value={visit.id}>
-                                {visit.visitNumber} - {format(new Date(visit.plannedDate), "PPP")}
+                            {fieldVisits.filter(visit => visit.id != null && String(visit.id).trim() !== "").map((visit) => (
+                              <SelectItem key={String(visit.id)} value={String(visit.id)}>
+                                {visit.visitNumber} - {format(new Date(visit.plannedDate ?? Date.now()), "PPP")}
                               </SelectItem>
                             ))}
                           </SelectContent>
