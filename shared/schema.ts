@@ -57,10 +57,10 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 // MARKETING ATTENDANCE
 // =====================
-export const marketingAttendance = pgTable("marketing_attendance", {
+export const marketingAttendance = pgTable("marketingAttendance", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  date: timestamp("date").defaultNow(),
+  date: timestamp("date").defaultNow(), // timestamp column
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
   latitude: numeric("latitude"),

@@ -58,15 +58,15 @@ export default function TaxGst() {
 
   // Data fetching
   const { data: gstReturns = [], isLoading: returnsLoading } = useQuery({
-    queryKey: ["/api/gst-returns"],
+    queryKey: ["/gst-returns"],
   });
 
   const { data: overdueReturns = [] } = useQuery({
-    queryKey: ["/api/gst-returns/status/overdue"],
+    queryKey: ["/gst-returns/status/overdue"],
   });
 
   const { data: draftReturns = [] } = useQuery({
-    queryKey: ["/api/gst-returns/status/draft"],
+    queryKey: ["/gst-returns/status/draft"],
   });
 
   // Form setup
@@ -99,7 +99,7 @@ export default function TaxGst() {
   // Mutations
   const createReturnMutation = useMutation({
     mutationFn: (data: GstReturnFormData) =>
-      apiRequest("/api/gst-returns", {
+      apiRequest("/gst-returns", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -111,9 +111,9 @@ export default function TaxGst() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/draft"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/draft"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/overdue"] });
       toast({ title: "Success", description: "GST return created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
@@ -125,7 +125,7 @@ export default function TaxGst() {
 
   const updateReturnMutation = useMutation({
     mutationFn: ({ id, ...data }: GstReturnFormData & { id: string }) =>
-      apiRequest(`/api/gst-returns/${id}`, {
+      apiRequest(`/gst-returns/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -137,9 +137,9 @@ export default function TaxGst() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/draft"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/draft"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/overdue"] });
       toast({ title: "Success", description: "GST return updated successfully" });
       setIsEditOpen(false);
       setSelectedReturn(null);
@@ -151,11 +151,11 @@ export default function TaxGst() {
 
   const deleteReturnMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/gst-returns/${id}`, { method: "DELETE" }),
+      apiRequest(`/gst-returns/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/draft"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/draft"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/overdue"] });
       toast({ title: "Success", description: "GST return deleted successfully" });
       setIsDeleteOpen(false);
       setReturnToDelete(null);
@@ -167,7 +167,7 @@ export default function TaxGst() {
 
   const markAsFiledMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/gst-returns/${id}`, {
+      apiRequest(`/gst-returns/${id}`, {
         method: "PUT",
         body: JSON.stringify({ 
           status: "filed",
@@ -175,9 +175,9 @@ export default function TaxGst() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/draft"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gst-returns/status/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/draft"] });
+      queryClient.invalidateQueries({ queryKey: ["/gst-returns/status/overdue"] });
       toast({ title: "Success", description: "GST return marked as filed" });
     },
     onError: () => {

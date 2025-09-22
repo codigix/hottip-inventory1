@@ -124,23 +124,23 @@ export default function AccountsReports() {
 
   // Data fetching - Fetch real-time data from APIs
   const { data: reports = [], isLoading: reportsLoading } = useQuery({
-    queryKey: ["/api/reports"],
+    queryKey: ["/reports"],
   });
 
   const { data: dashboardMetrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ["/api/accounts/dashboard-metrics"],
+    queryKey: ["/accounts/dashboard-metrics"],
   });
 
   const { data: cashFlowSummary } = useQuery({
-    queryKey: ["/api/accounts/cash-flow-summary"],
+    queryKey: ["/accounts/cash-flow-summary"],
   });
 
   const { data: receivablesTotal } = useQuery({
-    queryKey: ["/api/accounts/receivables-total"],
+    queryKey: ["/accounts/receivables-total"],
   });
 
   const { data: payablesTotal } = useQuery({
-    queryKey: ["/api/accounts/payables-total"],
+    queryKey: ["/accounts/payables-total"],
   });
 
   // Form setup
@@ -229,7 +229,7 @@ export default function AccountsReports() {
   // Mutations
   const generateReportMutation = useMutation({
     mutationFn: async (data: ReportFormData) => {
-      const response = await apiRequest("/api/reports", {
+      const response = await apiRequest("/reports", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -240,7 +240,7 @@ export default function AccountsReports() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/reports"] });
       toast({ title: "Success", description: "Report generated successfully" });
       setIsGenerateOpen(false);
       generateForm.reset();
@@ -252,7 +252,7 @@ export default function AccountsReports() {
 
   const exportReportMutation = useMutation({
     mutationFn: async ({ reportId, format }: { reportId: string; format: string }) => {
-      const response = await apiRequest(`/api/reports/${reportId}/export?format=${format}`, {
+      const response = await apiRequest(`/reports/${reportId}/export?format=${format}`, {
         method: "GET",
       });
       return response;
@@ -274,9 +274,9 @@ export default function AccountsReports() {
 
   const deleteReportMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/reports/${id}`, { method: "DELETE" }),
+      apiRequest(`/reports/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/reports"] });
       toast({ title: "Success", description: "Report deleted successfully" });
       setIsDeleteOpen(false);
       setReportToDelete(null);

@@ -1324,7 +1324,7 @@ function checkOwnership(entityType: string) {
           case 'marketing_task':
             entity = await storage.getMarketingTask(req.params.id);
             break;
-          case 'marketing_attendance':
+          case 'marketingAttendance':
             entity = await storage.getMarketingAttendance(req.params.id);
             break;
           default:
@@ -1432,10 +1432,10 @@ export function registerMarketingRoutes(
     // MARKETING ATTENDANCE ROUTES (10 endpoints)
     // ==========================================
     { method: 'get', path: '/api/marketing-attendance', middlewares: ['requireAuth'], handler: getMarketingAttendances },
-    { method: 'get', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketing_attendance'], handler: getMarketingAttendance },
+    { method: 'get', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketingAttendance'], handler: getMarketingAttendance },
     { method: 'post', path: '/api/marketing-attendance', middlewares: ['requireAuth'], handler: createMarketingAttendance },
-    { method: 'put', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketing_attendance'], handler: updateMarketingAttendance },
-    { method: 'delete', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketing_attendance'], handler: deleteMarketingAttendance },
+    { method: 'put', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketingAttendance'], handler: updateMarketingAttendance },
+    { method: 'delete', path: '/api/marketing-attendance/:id', middlewares: ['requireAuth', 'checkOwnership:marketingAttendance'], handler: deleteMarketingAttendance },
     { method: 'post', path: '/api/marketing-attendance/check-in', middlewares: ['requireAuth'], handler: checkInMarketingAttendance },
     { method: 'post', path: '/api/marketing-attendance/check-out', middlewares: ['requireAuth'], handler: checkOutMarketingAttendance },
     { method: 'get', path: '/api/marketing-attendance/today', middlewares: ['requireAuth'], handler: getTodayMarketingAttendance },

@@ -24,13 +24,13 @@ export default function InventoryAttendance() {
 
   // Fetch attendance data
   const { data: attendance, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
-    queryKey: ["/api/attendance"],
+    queryKey: ["/attendance"],
   });
 
   // Check-in/check-out mutation
   const attendanceMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('POST', '/api/attendance', data);
+      return apiRequest('POST', '/attendance', data);
     },
     onSuccess: () => {
       toast({
@@ -39,7 +39,7 @@ export default function InventoryAttendance() {
       });
       setIsCheckInDialogOpen(false);
       resetAttendanceForm();
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/attendance"] });
     },
     onError: (error: any) => {
       toast({
