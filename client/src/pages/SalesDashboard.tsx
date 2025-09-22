@@ -41,11 +41,11 @@ export default function SalesDashboard() {
   const { toast } = useToast();
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["/api/orders"],
+    queryKey: ["/orders"],
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   const form = useForm<OrderForm>({
@@ -68,10 +68,10 @@ export default function SalesDashboard() {
         taxAmount: data.taxAmount,
         discountAmount: data.discountAmount,
       };
-      return await apiRequest("POST", "/api/orders", orderData);
+      return await apiRequest("POST", "/orders", orderData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/orders"] });
       setIsAddDialogOpen(false);
       form.reset();
       toast({
@@ -90,10 +90,10 @@ export default function SalesDashboard() {
 
   const updateOrderMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<OrderForm> }) => {
-      return await apiRequest("PUT", `/api/orders/${id}`, data);
+      return await apiRequest("PUT", `/orders/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/orders"] });
       setEditingOrder(null);
       form.reset();
       toast({

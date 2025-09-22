@@ -24,7 +24,7 @@ export default function InboundQuotations() {
   const { toast } = useToast();
 
   const { data: quotations, isLoading } = useQuery({
-    queryKey: ["/api/inbound-quotations"],
+    queryKey: ["/inbound-quotations"],
   });
 
   const quotationFormSchema = insertInboundQuotationSchema.extend({
@@ -49,14 +49,14 @@ export default function InboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: InsertInboundQuotation) => 
-      apiRequest('POST', '/api/inbound-quotations', {
+      apiRequest('POST', '/inbound-quotations', {
         ...data,
         userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3', // Use the test user ID
         attachmentPath: uploadedFile ? '/objects/' + uploadedFile.uploadURL.split('/uploads/')[1] : null,
         attachmentName: uploadedFile ? uploadedFile.fileName : null,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inbound-quotations"] });
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
       toast({
         title: "Success",
         description: "Inbound quotation created successfully.",

@@ -13,6 +13,8 @@ interface MarketingPhotoUploadResult {
   error?: string;
 }
 
+import { apiRequest } from '@/lib/queryClient';
+
 export const uploadMarketingAttendancePhoto = async ({ 
   file, 
   attendanceId, 
@@ -20,25 +22,18 @@ export const uploadMarketingAttendancePhoto = async ({
 }: MarketingPhotoUploadOptions): Promise<MarketingPhotoUploadResult> => {
   try {
     // Step 1: Get upload URL from backend
-    const uploadUrlResponse = await fetch('/marketing-attendance/photo/upload-url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        attendanceId,
-        fileName: file.name,
-        contentType: file.type,
-        photoType,
-      }),
-    });
-
-    if (!uploadUrlResponse.ok) {
-      const error = await uploadUrlResponse.json();
-      throw new Error(error.error || `Failed to get upload URL: ${uploadUrlResponse.statusText}`);
-    }
-
-    const { uploadURL, objectPath } = await uploadUrlResponse.json();
+    const { uploadURL, objectPath } = await apiRequest<{ uploadURL: string; objectPath: string }>(
+      '/marketing-attendance/photo/upload-url',
+      {
+        method: 'POST',
+        body: {
+          attendanceId,
+          fileName: file.name,
+          contentType: file.type,
+          photoType,
+        },
+      }
+    );
 
     // Step 2: Upload file directly to object storage using signed URL
     const uploadResponse = await fetch(uploadURL, {

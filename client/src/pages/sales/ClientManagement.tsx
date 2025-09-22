@@ -22,7 +22,7 @@ export default function ClientManagement() {
   const { toast } = useToast();
   
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   const form = useForm<InsertCustomer>({

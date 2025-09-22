@@ -20,7 +20,7 @@ import {
   Pause,
   Play
 } from "lucide-react";
-import { format, isToday, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,7 +40,25 @@ import CheckOutModal from "@/components/marketing/CheckOutModal";
 import LeaveRequestForm from "@/components/marketing/LeaveRequestForm";
 import AttendanceCalendar from "@/components/marketing/AttendanceCalendar";
 
-import type { MarketingAttendance, User, InsertMarketingAttendance } from "@shared/schema";
+// Local types to avoid coupling to server schema typings in the client
+// Only include fields actually used by this page
+type User = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  role?: string;
+};
+
+interface MarketingAttendance {
+  id: string;
+  userId: string;
+  date?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  attendanceStatus?: 'present' | 'absent' | 'late';
+  isOnLeave?: boolean;
+}
 
 interface AttendanceWithUser extends MarketingAttendance {
   user?: {
@@ -114,24 +132,12 @@ export default function MarketingAttendance() {
 
     return () => clearInterval(interval);
   }, [queryClient]);
-const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
-  queryKey: ['/marketing'],
-  queryFn: async () => {
-    const res = await fetch(`${BASE_URL}/marketing`);
-    if (!res.ok) throw new Error('Failed to fetch dashboard data');
-    return res.json();
-  },
-});
+  // Dashboard data query removed: endpoint and type mismatch. Use separate dashboard page/queries if needed.
 
-// Fetch today's attendance
-const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
-  queryKey: ['/marketing-attendance/today'],
-  queryFn: async () => {
-    const res = await apiRequest(`${BASE_URL}/marketing-attendance/today`);
-    if (!res.ok) throw new Error('Failed to fetch today attendance');
-    return res.json();
-  },
-});
+  // Fetch today's attendance
+  const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
+    queryKey: ['/marketing-attendance/today'],
+  });
 
   // Fetch all attendance records for calendar view
   const { data: allAttendance = [] } = useQuery<AttendanceWithUser[]>({
@@ -164,7 +170,7 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
   // Check-in mutation - FIXED: Remove automatic modal handling, let modals control flow
   const checkInMutation = useMutation({
     mutationFn: (data: { userId?: string; latitude: number; longitude: number; location?: string; photoPath?: string; workDescription?: string }) =>
-      apiRequest('/marketing-attendance/check-in', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequest('/marketing-attendance/check-in', { method: 'POST', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
@@ -191,7 +197,7 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
       outcome?: string;
       nextAction?: string;
     }) =>
-      apiRequest('/marketing-attendance/check-out', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequest('/marketing-attendance/check-out', { method: 'POST', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
@@ -207,7 +213,7 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
   // Leave request submission mutation
   const leaveRequestMutation = useMutation({
     mutationFn: (leaveRequest: LeaveRequest) =>
-      apiRequest('/marketing-attendance/leave-request', { method: 'POST', body: JSON.stringify(leaveRequest) }),
+      apiRequest('/marketing-attendance/leave-request', { method: 'POST', body: leaveRequest }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
@@ -374,8 +380,8 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
           <Button
             variant="outline"
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['//marketing-attendance/today'] });
-              queryClient.invalidateQueries({ queryKey: ['//marketing-attendance/metrics'] });
+              queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
+              queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
             }}
             data-testid="button-refresh"
           >
