@@ -227,6 +227,7 @@ const inventoryAttendance: any[] = [];
 const inMemoryMarketingLeaves: any[] = [];
 const inMemoryInventoryLeaves: any[] = [];
 const inMemoryInventoryTasks: any[] = [];
+const inMemoryLogisticsTasks: any[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Normalize accidental double /api prefix from client (e.g., /api/api/...)
@@ -1277,9 +1278,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logistics tasks stub
+  // Logistics tasks (in-memory fallback when registries are disabled)
   app.get('/api/logistics/tasks', requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      res.json(inMemoryLogisticsTasks);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
+  app.post('/api/logistics/tasks', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { title, description, assignedTo, priority, dueDate } = req.body || {};
+      if (!title || !assignedTo || !priority) {
+        res.status(400).json({ error: 'title, assignedTo, and priority are required' });
+        return;
+      }
+      const record = {
+        id: 'ltask-' + Date.now(),
+        title: String(title),
+        description: description ? String(description) : null,
+        status: 'new',
+        priority: String(priority),
+        dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        assignee: { id: String(assignedTo), firstName: '', lastName: '', email: '' },
+        assigner: { id: String(req.user?.id || ''), firstName: '', lastName: '', email: '' },
+      };
+      inMemoryLogisticsTasks.push(record);
+      res.status(201).json(record);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to create task' });
+    }
+  });
+
+  app.put('/api/logistics/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const id = String(req.params.id);
+      const idx = inMemoryLogisticsTasks.findIndex(t => String(t.id) === id);
+      if (idx === -1) {
+        res.status(404).json({ error: 'Task not found' });
+        return;
+      }
+      const { title, description, status, priority, dueDate } = req.body || {};
+      const allowedStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
+      const allowedPriorities = ['low', 'medium', 'high', 'urgent'];
+      const patch: any = {};
+      if (typeof title === 'string') patch.title = title;
+      if (typeof description === 'string') patch.description = description;
+      if (typeof status === 'string' && allowedStatuses.includes(status)) patch.status = status;
+      if (typeof priority === 'string' && allowedPriorities.includes(priority)) patch.priority = priority;
+      if (dueDate !== undefined) patch.dueDate = dueDate ? new Date(dueDate).toISOString() : null;
+      patch.updatedAt = new Date().toISOString();
+      inMemoryLogisticsTasks[idx] = { ...inMemoryLogisticsTasks[idx], ...patch };
+      res.json(inMemoryLogisticsTasks[idx]);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to update task' });
+    }
+  });
+
+  app.delete('/api/logistics/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const id = String(req.params.id);
+      const idx = inMemoryLogisticsTasks.findIndex(t => String(t.id) === id);
+      if (idx === -1) {
+        res.status(404).json({ error: 'Task not found' });
+        return;
+      }
+      inMemoryLogisticsTasks.splice(idx, 1);
+      res.status(204).send();
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to delete task' });
+    }
   });
 
   // Logistics reports
