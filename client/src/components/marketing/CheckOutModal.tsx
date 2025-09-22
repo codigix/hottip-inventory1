@@ -295,7 +295,7 @@ export default function CheckOutModal({
             setUploadedPhotoPath(photoResult.objectPath);
             
             // Step 3: Update attendance record with photo path
-            const updateResponse = await fetch(`/api/marketing-attendance/${result.attendanceId}`, {
+            const updateResponse = await fetch(`/marketing-attendance/${result.attendanceId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ checkOutPhotoPath: photoResult.objectPath })

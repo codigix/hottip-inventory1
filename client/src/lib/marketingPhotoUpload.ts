@@ -20,7 +20,7 @@ export const uploadMarketingAttendancePhoto = async ({
 }: MarketingPhotoUploadOptions): Promise<MarketingPhotoUploadResult> => {
   try {
     // Step 1: Get upload URL from backend
-    const uploadUrlResponse = await fetch('/api/marketing-attendance/photo/upload-url', {
+    const uploadUrlResponse = await fetch('/marketing-attendance/photo/upload-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

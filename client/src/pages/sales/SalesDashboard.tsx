@@ -15,19 +15,19 @@ import {
 
 export default function SalesDashboard() {
   const { data: outboundQuotations, isLoading: outboundLoading } = useQuery({
-    queryKey: ["/api/outbound-quotations"],
+    queryKey: ["/outbound-quotations"],
   });
 
   const { data: inboundQuotations, isLoading: inboundLoading } = useQuery({
-    queryKey: ["/api/inbound-quotations"],
+    queryKey: ["/inbound-quotations"],
   });
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/invoices"],
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   // Calculate metrics

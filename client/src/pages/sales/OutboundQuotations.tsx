@@ -22,11 +22,11 @@ export default function OutboundQuotations() {
   const { toast } = useToast();
 
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
-    queryKey: ["/api/outbound-quotations"],
+    queryKey: ["/outbound-quotations"],
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   // Use shared schema with enhanced validation messages
@@ -65,12 +65,12 @@ export default function OutboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: InsertOutboundQuotation) =>
-      apiRequest('POST', '/api/outbound-quotations', {
+      apiRequest('POST', '/outbound-quotations', {
         ...data,
         userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3' // Real user ID from database
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['/outbound-quotations'] });
       toast({
         title: "Success",
         description: "Quotation created successfully",

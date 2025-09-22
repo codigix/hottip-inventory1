@@ -56,23 +56,23 @@ export default function AccountsReceivables() {
 
   // Data fetching
   const { data: receivables = [], isLoading: receivablesLoading } = useQuery({
-    queryKey: ["/api/accounts-receivables"],
+    queryKey: ["/accounts-receivables"],
   });
 
   const { data: overdueReceivables = [] } = useQuery({
-    queryKey: ["/api/accounts-receivables/overdue"],
+    queryKey: ["/accounts-receivables/overdue"],
   });
 
   const { data: totalReceivables } = useQuery({
-    queryKey: ["/api/accounts/receivables-total"],
+    queryKey: ["/accounts/receivables-total"],
   });
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   const { data: invoices = [] } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/invoices"],
   });
 
   // Form setup
@@ -102,7 +102,7 @@ export default function AccountsReceivables() {
   // Mutations
   const createReceivableMutation = useMutation({
     mutationFn: (data: ReceivableFormData) =>
-      apiRequest("/api/accounts-receivables", {
+      apiRequest("/accounts-receivables", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -111,9 +111,9 @@ export default function AccountsReceivables() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/receivables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
       toast({ title: "Success", description: "Receivable created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
@@ -125,7 +125,7 @@ export default function AccountsReceivables() {
 
   const updateReceivableMutation = useMutation({
     mutationFn: ({ id, ...data }: ReceivableFormData & { id: string }) =>
-      apiRequest(`/api/accounts-receivables/${id}`, {
+      apiRequest(`/accounts-receivables/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -134,9 +134,9 @@ export default function AccountsReceivables() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/receivables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
       toast({ title: "Success", description: "Receivable updated successfully" });
       setIsEditOpen(false);
       setSelectedReceivable(null);
@@ -148,11 +148,11 @@ export default function AccountsReceivables() {
 
   const deleteReceivableMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/accounts-receivables/${id}`, { method: "DELETE" }),
+      apiRequest(`/accounts-receivables/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/receivables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
       toast({ title: "Success", description: "Receivable deleted successfully" });
       setIsDeleteOpen(false);
       setReceivableToDelete(null);
@@ -165,14 +165,14 @@ export default function AccountsReceivables() {
   // Payment record mutation
   const recordPaymentMutation = useMutation({
     mutationFn: ({ id, amount, notes }: { id: string; amount: number; notes?: string }) =>
-      apiRequest(`/api/accounts-receivables/${id}/payment`, {
+      apiRequest(`/accounts-receivables/${id}/payment`, {
         method: "POST",
         body: JSON.stringify({ amount, notes }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/receivables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
       toast({ title: "Success", description: "Payment recorded successfully" });
       setIsPaymentOpen(false);
       setSelectedReceivable(null);

@@ -110,13 +110,13 @@ export default function TaskTable({
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: string }) => 
-      apiRequest(`api/marketing-tasks/${taskId}/status`, { 
+      apiRequest(`/marketing-tasks/${taskId}/status`, { 
         method: 'PUT', 
         body: JSON.stringify({ status }) 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
       toast({ title: "Task status updated successfully!" });
     },
     onError: (error: any) => {
@@ -132,8 +132,8 @@ export default function TaskTable({
     mutationFn: (taskId: string) => 
       apiRequest(`/${taskId}/complete`, { method: 'POST' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
       toast({ title: "Task completed successfully!" });
     },
     onError: (error: any) => {

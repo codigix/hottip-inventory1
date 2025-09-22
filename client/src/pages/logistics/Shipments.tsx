@@ -79,22 +79,22 @@ export default function Shipments() {
 
   // Fetch shipments data
   const { data: shipments = [], isLoading } = useQuery<LogisticsShipment[]>({
-    queryKey: ['api/logistics/shipments']
+    queryKey: ['/logistics/shipments']
   });
 
   // Fetch shipment metrics
   const { data: metrics } = useQuery<ShipmentMetrics>({
-    queryKey: ['api/logistics/dashboard']
+    queryKey: ['/logistics/dashboard']
   });
 
   // Fetch customers for filters
-  const { data: customers = [] } = useQuery<Array<{id: string; name: string}>>({
-    queryKey: ['api/customers']
+  const { data: customers = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['/customers']
   });
 
   // Fetch suppliers for filters
-  const { data: suppliers = [] } = useQuery<Array<{id: string; name: string}>>({
-    queryKey: ['api/suppliers']
+  const { data: suppliers = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['/suppliers']
   });
 
   const form = useForm<ShipmentForm>({
@@ -114,14 +114,14 @@ export default function Shipments() {
   // Create shipment mutation
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("api/logistics/shipments", {
+      return await apiRequest("/logistics/shipments", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
       setIsFormOpen(false);
       form.reset();
       toast({
@@ -141,14 +141,14 @@ export default function Shipments() {
   // Update shipment mutation
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest(`api/logistics/shipments/${id}`, {
+      return await apiRequest(`/logistics/shipments/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
       setEditingShipment(null);
       form.reset();
       toast({
@@ -168,13 +168,13 @@ export default function Shipments() {
   // Delete shipment mutation
   const deleteShipmentMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`api/logistics/shipments/${id}`, {
+      return await apiRequest(`/logistics/shipments/${id}`, {
         method: "DELETE",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
       toast({
         title: "Success",
         description: "Shipment deleted successfully",
@@ -194,13 +194,13 @@ export default function Shipments() {
     return shipments.filter(shipment => {
       // Status filter
       if (selectedStatus !== 'all' && shipment.currentStatus !== selectedStatus) return false;
-      
+
       // Client filter
       if (clientFilter !== 'all' && shipment.clientId !== clientFilter) return false;
-      
+
       // Vendor filter
       if (vendorFilter !== 'all' && shipment.vendorId !== vendorFilter) return false;
-      
+
       // Search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -212,7 +212,7 @@ export default function Shipments() {
           shipment.vendor?.name?.toLowerCase().includes(query)
         );
       }
-      
+
       return true;
     });
   }, [shipments, selectedStatus, clientFilter, vendorFilter, searchQuery]);
@@ -375,7 +375,7 @@ export default function Shipments() {
                 />
               </div>
             </div>
-            
+
             <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as LogisticsShipmentStatus | 'all')}>
               <SelectTrigger className="w-[200px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Filter by status" />
@@ -398,11 +398,13 @@ export default function Shipments() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Clients</SelectItem>
-                {customers.map((customer: any) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
+                {Array.isArray(customers) && customers.length > 0
+                  ? customers.map((customer: any) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))
+                  : null}
               </SelectContent>
             </Select>
 
@@ -417,10 +419,10 @@ export default function Shipments() {
             {(['created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed'] as LogisticsShipmentStatus[]).map((status) => {
               const count = getStatusCount(status);
               const isSelected = selectedStatus === status;
-              
+
               return (
-                <Card 
-                  key={status} 
+                <Card
+                  key={status}
                   className={`cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}
                   onClick={() => setSelectedStatus(isSelected ? 'all' : status)}
                   data-testid={`card-status-${status}`}
@@ -459,7 +461,7 @@ export default function Shipments() {
               {editingShipment ? "Update shipment details and tracking information" : "Create a new shipment for logistics tracking"}
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -521,17 +523,20 @@ export default function Shipments() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="">No client</SelectItem>
-                          {customers.map((customer: any) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(customers) && customers.length > 0
+                            ? customers.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))
+                            : null}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
 
                 <FormField
                   control={form.control}
@@ -547,11 +552,13 @@ export default function Shipments() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="">No vendor</SelectItem>
-                          {suppliers.map((supplier: any) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(suppliers) && suppliers.length > 0
+                            ? suppliers.map((supplier: any) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))
+                            : null}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -605,16 +612,16 @@ export default function Shipments() {
               />
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={handleFormClose}
                   data-testid="button-cancel"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createShipmentMutation.isPending || updateShipmentMutation.isPending}
                   data-testid="button-save-shipment"
                 >
@@ -638,12 +645,12 @@ export default function Shipments() {
               Complete status history and timeline for shipment {selectedShipment?.consignmentNumber}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedShipment && (
             <TimelineHistory shipment={selectedShipment} />
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  MapPin, 
-  Target, 
+import {
+  BarChart3,
+  TrendingUp,
+  Users,
+  MapPin,
+  Target,
   Calendar,
   Activity,
   CheckCircle,
@@ -58,42 +58,52 @@ export default function Reports() {
 
   // API Queries
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['api/marketing/leads', dateRangeParam],
+    queryKey: ['/marketing/leads', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: leadsMetrics, isLoading: loadingLeadsMetrics } = useQuery({
-    queryKey: ['api/marketing/leads/metrics', dateRangeParam],
+    queryKey: ['/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: fieldVisitsData, isLoading: loadingVisits } = useQuery({
-    queryKey: ['api/field-visits', dateRangeParam],
+    queryKey: ['/field-visits', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
-  const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
-    queryKey: ['api/field-visits/metrics', dateRangeParam],
-    enabled: !!dateRangeParam
-  });
+const today = new Date();
+const startDate = new Date(today);
+startDate.setHours(0, 0, 0, 0); // start of today
+const endDate = new Date(today);
+endDate.setHours(23, 59, 59, 999); // end of today
+
+const queryDateRange = {
+  from: startDate.toISOString(),
+  to: endDate.toISOString(),
+};
+const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
+  queryKey: ['/field-visits/metrics', queryDateRange],
+  enabled: !!queryDateRange.from && !!queryDateRange.to
+});
 
   const { data: tasksData, isLoading: loadingTasks } = useQuery({
-    queryKey: ['api/marketing-tasks', dateRangeParam],
+    queryKey: ['/marketing-tasks', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: tasksMetrics, isLoading: loadingTasksMetrics } = useQuery({
-    queryKey: ['api/marketing-tasks/metrics', dateRangeParam],
+    queryKey: ['/marketing-tasks/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: conversionData, isLoading: loadingConversion } = useQuery({
-    queryKey: ['api/marketing/conversion-rates', dateRangeParam],
+    queryKey: ['/marketing/conversion-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: teamPerformance, isLoading: loadingTeamPerf } = useQuery({
-    queryKey: ['api/marketing/team-performance', dateRangeParam],
+    queryKey: ['/marketing/team-performance', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
@@ -108,7 +118,7 @@ export default function Reports() {
     },
     {
       label: 'Lead Conversion Rate',
-      value: leadsMetrics && typeof leadsMetrics === 'object' && 'conversionRate' in leadsMetrics 
+      value: leadsMetrics && typeof leadsMetrics === 'object' && 'conversionRate' in leadsMetrics
         ? `${leadsMetrics.conversionRate}%` : '0%',
       change: { value: 3.2, type: 'increase' },
       icon: Target,
@@ -116,8 +126,8 @@ export default function Reports() {
     },
     {
       label: 'Field Visits Completed',
-      value: Array.isArray(fieldVisitsData) 
-        ? fieldVisitsData.filter((v: any) => v.status === 'completed').length 
+      value: Array.isArray(fieldVisitsData)
+        ? fieldVisitsData.filter((v: any) => v.status === 'completed').length
         : 0,
       change: { value: 8, type: 'increase' },
       icon: MapPin,
@@ -133,8 +143,8 @@ export default function Reports() {
     },
     {
       label: 'Tasks Completed',
-      value: Array.isArray(tasksData) 
-        ? tasksData.filter((t: any) => t.status === 'completed').length 
+      value: Array.isArray(tasksData)
+        ? tasksData.filter((t: any) => t.status === 'completed').length
         : 0,
       change: { value: 15, type: 'increase' },
       icon: Activity,
@@ -152,33 +162,33 @@ export default function Reports() {
 
   // Table column configurations
   const leadsColumns: TableColumn[] = [
-    { 
-      key: 'name', 
-      header: 'Lead Name', 
+    {
+      key: 'name',
+      header: 'Lead Name',
       sortable: true,
       formatter: (value) => value || 'N/A'
     },
-    { 
-      key: 'email', 
-      header: 'Email', 
-      sortable: true 
+    {
+      key: 'email',
+      header: 'Email',
+      sortable: true
     },
-    { 
-      key: 'phone', 
-      header: 'Phone', 
-      sortable: true 
+    {
+      key: 'phone',
+      header: 'Phone',
+      sortable: true
     },
-    { 
-      key: 'source', 
-      header: 'Source', 
+    {
+      key: 'source',
+      header: 'Source',
       sortable: true,
       formatter: (value) => (
         <Badge variant="outline">{value || 'Unknown'}</Badge>
       )
     },
-    { 
-      key: 'status', 
-      header: 'Status', 
+    {
+      key: 'status',
+      header: 'Status',
       sortable: true,
       formatter: (value) => {
         const statusColors = {
@@ -195,34 +205,34 @@ export default function Reports() {
         );
       }
     },
-    { 
-      key: 'createdAt', 
-      header: 'Created Date', 
+    {
+      key: 'createdAt',
+      header: 'Created Date',
       sortable: true,
       formatter: (value) => value ? format(new Date(value), 'MMM dd, yyyy') : 'N/A'
     }
   ];
 
   const visitsColumns: TableColumn[] = [
-    { 
-      key: 'customerName', 
-      header: 'Customer', 
-      sortable: true 
+    {
+      key: 'customerName',
+      header: 'Customer',
+      sortable: true
     },
-    { 
-      key: 'visitDate', 
-      header: 'Visit Date', 
+    {
+      key: 'visitDate',
+      header: 'Visit Date',
       sortable: true,
       formatter: (value) => value ? format(new Date(value), 'MMM dd, yyyy HH:mm') : 'N/A'
     },
-    { 
-      key: 'assignedTo', 
-      header: 'Assigned To', 
-      sortable: true 
+    {
+      key: 'assignedTo',
+      header: 'Assigned To',
+      sortable: true
     },
-    { 
-      key: 'status', 
-      header: 'Status', 
+    {
+      key: 'status',
+      header: 'Status',
       sortable: true,
       formatter: (value) => {
         const statusColors = {
@@ -238,33 +248,33 @@ export default function Reports() {
         );
       }
     },
-    { 
-      key: 'location', 
-      header: 'Location', 
-      sortable: true 
+    {
+      key: 'location',
+      header: 'Location',
+      sortable: true
     },
-    { 
-      key: 'outcome', 
-      header: 'Outcome', 
+    {
+      key: 'outcome',
+      header: 'Outcome',
       sortable: true,
       formatter: (value) => value || 'Pending'
     }
   ];
 
   const tasksColumns: TableColumn[] = [
-    { 
-      key: 'title', 
-      header: 'Task Title', 
-      sortable: true 
+    {
+      key: 'title',
+      header: 'Task Title',
+      sortable: true
     },
-    { 
-      key: 'assignedTo', 
-      header: 'Assigned To', 
-      sortable: true 
+    {
+      key: 'assignedTo',
+      header: 'Assigned To',
+      sortable: true
     },
-    { 
-      key: 'status', 
-      header: 'Status', 
+    {
+      key: 'status',
+      header: 'Status',
       sortable: true,
       formatter: (value) => {
         const statusColors = {
@@ -280,9 +290,9 @@ export default function Reports() {
         );
       }
     },
-    { 
-      key: 'priority', 
-      header: 'Priority', 
+    {
+      key: 'priority',
+      header: 'Priority',
       sortable: true,
       formatter: (value) => {
         const priorityColors = {
@@ -297,9 +307,9 @@ export default function Reports() {
         );
       }
     },
-    { 
-      key: 'dueDate', 
-      header: 'Due Date', 
+    {
+      key: 'dueDate',
+      header: 'Due Date',
       sortable: true,
       formatter: (value) => value ? format(new Date(value), 'MMM dd, yyyy') : 'No due date'
     }
@@ -319,8 +329,8 @@ export default function Reports() {
       ['Total Leads', Array.isArray(leadsData) ? leadsData.length : 0, '', ''],
       ['Total Field Visits', Array.isArray(fieldVisitsData) ? fieldVisitsData.length : 0, '', ''],
       ['Total Marketing Tasks', Array.isArray(tasksData) ? tasksData.length : 0, '', ''],
-      ['Date Range', dateRange.from ? format(dateRange.from, 'MMM dd, yyyy') : '', 
-       dateRange.to ? format(dateRange.to, 'MMM dd, yyyy') : '', '']
+      ['Date Range', dateRange.from ? format(dateRange.from, 'MMM dd, yyyy') : '',
+        dateRange.to ? format(dateRange.to, 'MMM dd, yyyy') : '', '']
     ];
 
     return {
@@ -345,8 +355,8 @@ export default function Reports() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleMasterExport}
             disabled={!hasDateRange}
             data-testid="master-export-button"
@@ -389,9 +399,9 @@ export default function Reports() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {kpiMetrics.map((metric, index) => {
               const Icon = metric.icon;
-              const isLoading = loadingLeads || loadingLeadsMetrics || loadingVisits || 
-                              loadingVisitsMetrics || loadingTasks || loadingTasksMetrics;
-              
+              const isLoading = loadingLeads || loadingLeadsMetrics || loadingVisits ||
+                loadingVisitsMetrics || loadingTasks || loadingTasksMetrics;
+
               return (
                 <Card key={index} data-testid={`kpi-card-${index}`}>
                   <CardContent className="p-6">
@@ -411,9 +421,8 @@ export default function Reports() {
                             {metric.value}
                           </p>
                           {metric.change && (
-                            <p className={`text-xs flex items-center ${
-                              metric.change.type === 'increase' ? 'text-green-600' : 'text-red-600'
-                            }`}>
+                            <p className={`text-xs flex items-center ${metric.change.type === 'increase' ? 'text-green-600' : 'text-red-600'
+                              }`}>
                               <TrendingUp className="h-3 w-3 mr-1" />
                               {metric.change.type === 'increase' ? '+' : '-'}{metric.change.value}%
                             </p>

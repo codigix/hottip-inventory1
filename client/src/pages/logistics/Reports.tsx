@@ -76,7 +76,7 @@ export default function LogisticsReports() {
 
   // Fetch dashboard metrics
   const { data: dashboardMetrics, isLoading: loadingDashboard } = useQuery<DashboardMetrics>({
-    queryKey: ['api/logistics/dashboard'],
+    queryKey: ['/logistics/dashboard'],
   });
 
   // Create normalized metrics with safe defaults to prevent runtime errors
@@ -102,25 +102,25 @@ export default function LogisticsReports() {
 
   // Fetch daily shipments report
   const { data: dailyData, isLoading: loadingDaily } = useQuery<DailyShipmentData[]>({
-    queryKey: ['api/logistics/reports/daily', dateRange],
+    queryKey: ['/logistics/reports/daily', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch vendor performance
   const { data: vendorPerformance, isLoading: loadingVendors } = useQuery<VendorPerformance[]>({
-    queryKey: ['api/logistics/reports/vendor-performance', dateRange],
+    queryKey: ['/logistics/reports/vendor-performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch volume metrics
   const { data: volumeMetrics, isLoading: loadingVolume } = useQuery<VolumeMetrics[]>({
-    queryKey: ['api/logistics/reports/volume', dateRange],
+    queryKey: ['/logistics/reports/volume', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
   // Fetch performance metrics
   const { data: performanceMetrics, isLoading: loadingPerformance } = useQuery<PerformanceMetrics[]>({
-    queryKey: ['api/logistics/reports/performance', dateRange],
+    queryKey: ['/logistics/reports/performance', dateRange],
     enabled: !!dateRange.from && !!dateRange.to,
   });
 
@@ -161,7 +161,7 @@ export default function LogisticsReports() {
         format: 'pdf'
       });
 
-      const response = await fetch(`api/logistics/reports/${reportType}/export?${params}`);
+      const response = await fetch(`/logistics/reports/${reportType}/export?${params}`);
       if (!response.ok) throw new Error('Export failed');
 
       const blob = await response.blob();

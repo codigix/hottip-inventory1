@@ -96,18 +96,18 @@ export default function LogisticsTasks() {
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<LogisticsTask[]>({
-    queryKey: ['api/logistics/tasks'],
+    queryKey: ['/logistics/tasks'],
   });
 
   // Fetch users for assignment
   const { data: users = [] } = useQuery<TaskUser[]>({
-    queryKey: ['api/users'],
+    queryKey: ['/users'],
     enabled: showCreateDialog || showEditDialog,
   });
 
   // Create task mutation
   const createTaskMutation = useMutation({
-    mutationFn: (data: CreateTaskForm) => apiRequest('api/logistics/tasks', {
+    mutationFn: (data: CreateTaskForm) => apiRequest('/logistics/tasks', {
       method: 'POST',
       body: JSON.stringify({
         ...data,
@@ -115,7 +115,7 @@ export default function LogisticsTasks() {
       }),
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/tasks'] });
       setShowCreateDialog(false);
       toast({ title: "Task created successfully" });
     },
@@ -127,7 +127,7 @@ export default function LogisticsTasks() {
   // Update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<UpdateTaskForm> }) =>
-      apiRequest(`api/logistics/tasks/${id}`, {
+      apiRequest(`/logistics/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
           ...data,
@@ -135,7 +135,7 @@ export default function LogisticsTasks() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/tasks'] });
       setShowEditDialog(false);
       setSelectedTask(null);
       toast({ title: "Task updated successfully" });
@@ -147,9 +147,9 @@ export default function LogisticsTasks() {
 
   // Delete task mutation
   const deleteTaskMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`api/logistics/tasks/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest(`/logistics/tasks/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/tasks'] });
       toast({ title: "Task deleted successfully" });
     },
     onError: () => {

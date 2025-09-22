@@ -79,22 +79,22 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
   }, [dateRange.from, dateRange.to]);
 
   const { data: conversionData, isLoading: loadingConversion } = useQuery({
-    queryKey: ['api/marketing/conversion-rates', dateRangeParam],
+    queryKey: ['/marketing/conversion-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: visitData, isLoading: loadingVisits } = useQuery({
-    queryKey: ['api/marketing/visit-success-rates', dateRangeParam],
+    queryKey: ['/marketing/visit-success-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: teamData, isLoading: loadingTeam } = useQuery({
-    queryKey: ['api/marketing/team-performance', dateRangeParam],
+    queryKey: ['/marketing/team-performance', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['/api/marketing/leads/metrics', dateRangeParam],
+    queryKey: ['/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 

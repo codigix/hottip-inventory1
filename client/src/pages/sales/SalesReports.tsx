@@ -14,15 +14,15 @@ export default function SalesReports() {
   const [reportType, setReportType] = useState("pipeline");
 
   const { data: outboundQuotations } = useQuery({
-    queryKey: ["/api/outbound-quotations"],
+    queryKey: ["/outbound-quotations"],
   });
 
   const { data: inboundQuotations } = useQuery({
-    queryKey: ["/api/inbound-quotations"],
+    queryKey: ["/inbound-quotations"],
   });
 
   const { data: invoices } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/invoices"],
   });
 
   // Calculate report metrics

@@ -27,7 +27,7 @@ interface TaskMetricsData {
 
 export default function TaskMetrics() {
   const { data: metrics, isLoading } = useQuery<TaskMetricsData>({
-    queryKey: ['api/marketing-tasks/metrics']
+    queryKey: ['/marketing-tasks/metrics']
   });
 
   if (isLoading || !metrics) {

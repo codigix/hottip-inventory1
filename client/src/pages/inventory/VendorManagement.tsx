@@ -24,12 +24,12 @@ export default function VendorManagement() {
 
   // Fetch vendors
   const { data: vendors, isLoading: vendorsLoading } = useQuery({
-    queryKey: ["/api/suppliers"],
+    queryKey: ["/suppliers"],
   });
 
   // Fetch vendor communications
   const { data: communications, isLoading: communicationsLoading } = useQuery({
-    queryKey: ["/api/vendor-communications"],
+    queryKey: ["/vendor-communications"],
   });
 
   // Vendor columns
@@ -149,7 +149,7 @@ export default function VendorManagement() {
     );
   }
 
-  const activeVendors = (vendors || []).filter((v: any) => v.isActive).length;
+  const activeVendors = (vendors?.suppliers || []).filter((v: any) => v.isActive).length;
   const totalCommunications = (communications || []).length;
   const pendingFollowUps = (communications || []).filter((c: any) => c.followUpRequired).length;
 
@@ -225,7 +225,7 @@ export default function VendorManagement() {
               </div>
             </DialogContent>
           </Dialog>
-          
+
           <Dialog open={isCommunicationDialogOpen} onOpenChange={setIsCommunicationDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-add-communication">
@@ -245,7 +245,7 @@ export default function VendorManagement() {
                       <SelectValue placeholder="Select vendor..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(vendors || []).map((vendor: any) => (
+                      {(vendors?.suppliers || []).map((vendor: any) => (
                         <SelectItem key={vendor.id} value={vendor.id}>
                           {vendor.name}
                         </SelectItem>
@@ -374,7 +374,7 @@ export default function VendorManagement() {
                 onView={(vendor) => {
                   setSelectedVendor(vendor);
                 }}
-                onDelete={() => {}}
+                onDelete={() => { }}
               />
             </CardContent>
           </Card>
@@ -401,8 +401,8 @@ export default function VendorManagement() {
                   columns={communicationColumns}
                   searchable={true}
                   searchKey="subject"
-                  onView={() => {}}
-                  onEdit={() => {}}
+                  onView={() => { }}
+                  onEdit={() => { }}
                 />
               )}
             </CardContent>

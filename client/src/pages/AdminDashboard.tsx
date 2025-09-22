@@ -25,15 +25,15 @@ import {
 
 export default function AdminDashboard() {
   const { data: metrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ["/api/dashboard/metrics"],
+    queryKey: ["/dashboard/metrics"],
   });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery({
-    queryKey: ["/api/activities"],
+    queryKey: ["/activities"],
   });
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["/api/orders"],
+    queryKey: ["/orders"],
   });
 
   if (metricsLoading) {

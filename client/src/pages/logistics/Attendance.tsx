@@ -77,11 +77,11 @@ export default function LogisticsAttendance() {
 
   // Queries
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery<LogisticsAttendance[]>({
-    queryKey: ['api/logistics/attendance'],
+    queryKey: ['/logistics/attendance'],
   });
 
   const { data: todayAttendance = [] } = useQuery<LogisticsAttendance[]>({
-    queryKey: ['api/logistics/attendance/today'],
+    queryKey: ['/logistics/attendance/today'],
   });
 
   const { data: metrics = {
@@ -92,11 +92,11 @@ export default function LogisticsAttendance() {
     totalDeliveries: 0,
     activeTasks: 0
   } } = useQuery<AttendanceMetrics>({
-    queryKey: ['api/logistics/attendance/metrics'],
+    queryKey: ['/logistics/attendance/metrics'],
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['api/users'],
+    queryKey: ['/users'],
     enabled: checkInModalOpen || checkOutModalOpen,
   });
 
@@ -121,7 +121,7 @@ export default function LogisticsAttendance() {
         accuracy: data.accuracy,
       };
       
-      const attendance = await apiRequest('api/logistics/attendance/check-in', { 
+      const attendance = await apiRequest('/logistics/attendance/check-in', { 
         method: 'POST', 
         body: JSON.stringify(attendanceData) 
       });
@@ -137,7 +137,7 @@ export default function LogisticsAttendance() {
         
         if (uploadResult.success) {
           // Step 3: Update attendance record with photo path
-          await apiRequest(`api/logistics/attendance/${attendance.id}`, {
+          await apiRequest(`/logistics/attendance/${attendance.id}`, {
             method: 'PUT',
             body: JSON.stringify({ checkInPhotoPath: uploadResult.objectPath })
           });
@@ -147,9 +147,9 @@ export default function LogisticsAttendance() {
       return attendance;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance/metrics'] });
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance'] });
       toast({ title: "Successfully checked in!" });
       setCheckInModalOpen(false);
     },
@@ -190,7 +190,7 @@ export default function LogisticsAttendance() {
         accuracy: data.accuracy,
       };
       
-      const updatedAttendance = await apiRequest(`api/logistics/attendance/${attendanceRecord.id}/check-out`, { 
+      const updatedAttendance = await apiRequest(`/logistics/attendance/${attendanceRecord.id}/check-out`, { 
         method: 'PUT', 
         body: JSON.stringify(checkOutData) 
       });
@@ -206,7 +206,7 @@ export default function LogisticsAttendance() {
         
         if (uploadResult.success) {
           // Step 3: Update attendance record with photo path
-          await apiRequest(`api/logistics/attendance/${attendanceRecord.id}`, {
+          await apiRequest(`/logistics/attendance/${attendanceRecord.id}`, {
             method: 'PUT',
             body: JSON.stringify({ checkOutPhotoPath: uploadResult.objectPath })
           });
@@ -216,9 +216,9 @@ export default function LogisticsAttendance() {
       return updatedAttendance;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance/metrics'] });
-      queryClient.invalidateQueries({ queryKey: ['api/logistics/attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/logistics/attendance'] });
       toast({ title: "Successfully checked out!" });
       setCheckOutModalOpen(false);
     },

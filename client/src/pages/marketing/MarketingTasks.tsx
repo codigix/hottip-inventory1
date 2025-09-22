@@ -109,23 +109,23 @@ export default function MarketingTasks() {
 
   // Data fetching
   const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery<TaskWithDetails[]>({
-    queryKey: ["api/marketing-tasks"],
+    queryKey: ["/marketing-tasks"],
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["api/users"],
+    queryKey: ["/users"],
   });
 
   const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ["api/marketing/leads"],
+    queryKey: ["/marketing/leads"],
   });
 
   // Mutations
   const deleteTaskMutation = useMutation({
-    mutationFn: (taskId: string) => apiRequest(`api/marketing-tasks/${taskId}`, { method: "DELETE" }),
+    mutationFn: (taskId: string) => apiRequest(`/marketing-tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/marketing-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["api/marketing-tasks/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks/metrics"] });
       toast({ title: "Task deleted successfully!" });
       setTaskToDelete(null);
     },
@@ -253,7 +253,7 @@ export default function MarketingTasks() {
               There was an error loading the marketing tasks. Please check your authentication and try again.
             </p>
             <Button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["api/marketing-tasks"] })}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })}
               className="flex items-center space-x-2"
             >
               <RefreshCw className="h-4 w-4" />
@@ -277,7 +277,7 @@ export default function MarketingTasks() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["api/marketing-tasks"] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })}
             disabled={tasksLoading}
           >
             <RefreshCw className={`h-4 w-4 ${tasksLoading ? "animate-spin" : ""}`} />

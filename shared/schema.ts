@@ -1,2139 +1,337 @@
-import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, uuid, pgEnum, check } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+// shared/schema.ts
+import { pgTable, serial, varchar, integer, numeric, timestamp, boolean, text } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Users and Roles
-export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'employee']);
-
+// =====================
+// USERS
+// =====================
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  role: userRoleEnum("role").notNull().default('employee'),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  department: text("department"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  id: serial("id").primaryKey(),
+  username: varchar("username", { length: 50 }).notNull(),
+  email: varchar("email", { length: 100 }).notNull(),
+  password: varchar("password", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  role: varchar("role", { length: 20 }).default("employee"),
+  department: varchar("department", { length: 50 }).default("General"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Products and Inventory
-export const products = pgTable("products", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  sku: text("sku").notNull().unique(),
-  category: text("category").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  costPrice: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
-  stock: integer("stock").notNull().default(0),
-  lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
-  unit: text("unit").notNull().default('pcs'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Customers (Enhanced for Sales Module)
-export const customers = pgTable("customers", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  zipCode: text("zip_code"),
-  country: text("country").notNull().default('India'),
-  // GST and Tax Details
-  gstNumber: text("gst_number"),
-  panNumber: text("pan_number"),
-  // Business Details
-  companyType: text("company_type").default('individual'), // individual, partnership, company, etc.
-  contactPerson: text("contact_person"),
-  website: text("website"),
-  // Financial Details
-  creditLimit: decimal("credit_limit", { precision: 10, scale: 2 }).default('0'),
-  paymentTerms: integer("payment_terms").default(30), // days
-  // Status
-  isActive: boolean("is_active").notNull().default(true),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Orders
-export const orderStatusEnum = pgEnum('order_status', ['pending', 'processing', 'shipped', 'delivered', 'cancelled']);
-
-export const orders = pgTable("orders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: text("order_number").notNull().unique(),
-  customerId: uuid("customer_id").references(() => customers.id).notNull(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  status: orderStatusEnum("status").notNull().default('pending'),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default('0'),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Order Items
-export const orderItems = pgTable("order_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: uuid("order_id").references(() => orders.id).notNull(),
-  productId: uuid("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-});
-
-// Suppliers/Vendors (Enhanced for Sales Module)
-export const suppliers = pgTable("suppliers", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  zipCode: text("zip_code"),
-  country: text("country").notNull().default('India'),
-  // GST and Tax Details
-  gstNumber: text("gst_number"),
-  panNumber: text("pan_number"),
-  // Business Details  
-  companyType: text("company_type").default('company'),
-  contactPerson: text("contact_person"),
-  website: text("website"),
-  // Financial Details
-  creditLimit: decimal("credit_limit", { precision: 10, scale: 2 }).default('0'),
-  paymentTerms: integer("payment_terms").default(30), // days
-  // Status
-  isActive: boolean("is_active").notNull().default(true),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Purchase Orders
-export const purchaseOrders = pgTable("purchase_orders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  poNumber: text("po_number").notNull().unique(),
-  supplierId: uuid("supplier_id").references(() => suppliers.id).notNull(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  status: orderStatusEnum("status").notNull().default('pending'),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  expectedDelivery: timestamp("expected_delivery"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Shipments
-export const shipmentStatusEnum = pgEnum('shipment_status', ['preparing', 'in_transit', 'delivered', 'cancelled']);
-
-export const shipments = pgTable("shipments", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  shipmentNumber: text("shipment_number").notNull().unique(),
-  orderId: uuid("order_id").references(() => orders.id),
-  trackingNumber: text("tracking_number"),
-  carrier: text("carrier"),
-  status: shipmentStatusEnum("status").notNull().default('preparing'),
-  shippingAddress: text("shipping_address").notNull(),
-  estimatedDelivery: timestamp("estimated_delivery"),
-  actualDelivery: timestamp("actual_delivery"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Quotations Status (for both outbound and inbound)
-export const quotationStatusEnum = pgEnum('quotation_status', ['draft', 'sent', 'pending', 'approved', 'rejected', 'received', 'under_review']);
-
-export const outboundQuotations = pgTable("outbound_quotations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  quotationNumber: text("quotation_number").notNull().unique(),
-  customerId: uuid("customer_id").references(() => customers.id).notNull(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  status: quotationStatusEnum("status").notNull().default('draft'),
-  
-  // PDF Fields
-  quotationDate: timestamp("quotation_date").notNull().defaultNow(),
-  validUntil: timestamp("valid_until").notNull(),
-  jobCardNumber: text("job_card_number"),
-  partNumber: text("part_number"),
-  
-  // Financial Details
-  subtotalAmount: decimal("subtotal_amount", { precision: 10, scale: 2 }).notNull(),
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default('0'),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  
-  // Terms and Conditions
-  deliveryTerms: text("delivery_terms"),
-  paymentTerms: text("payment_terms"),
-  warrantyTerms: text("warranty_terms"),
-  specialTerms: text("special_terms"),
-  
-  // Bank Details
-  bankName: text("bank_name"),
-  accountNumber: text("account_number"),
-  ifscCode: text("ifsc_code"),
-  
-  // Additional Info
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Quotation Items
-export const quotationItems = pgTable("quotation_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  quotationId: uuid("quotation_id").references(() => outboundQuotations.id).notNull(),
-  productId: uuid("product_id").references(() => products.id),
-  description: text("description").notNull(),
-  quantity: integer("quantity").notNull(),
-  unit: text("unit").notNull().default('pcs'),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-  hsnSacCode: text("hsn_sac_code"), // HSN/SAC Code for tax classification
-  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('18.00'), // GST rate in percentage
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0'),
-});
-
-// Inbound Quotations (Clients/Vendors → Company)
-export const inboundQuotations = pgTable("inbound_quotations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  quotationNumber: text("quotation_number").notNull(),
-  quotationRef: text("quotation_ref"), // Their reference number
-  senderId: uuid("sender_id").references(() => suppliers.id).notNull(), // Can be customer or supplier
-  senderType: text("sender_type").notNull().default('supplier'), // 'customer' or 'supplier'
-  userId: uuid("user_id").references(() => users.id).notNull(), // Who received/reviewed it
-  status: quotationStatusEnum("status").notNull().default('received'),
-  
-  // Basic Details
-  quotationDate: timestamp("quotation_date").notNull(),
-  validUntil: timestamp("valid_until"),
-  subject: text("subject"),
-  
-  // Financial Details
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  currency: text("currency").notNull().default('INR'),
-  
-  // Terms
-  paymentTerms: text("payment_terms"),
-  deliveryTerms: text("delivery_terms"),
-  
-  // File Upload
-  attachmentPath: text("attachment_path"), // Path to uploaded document
-  attachmentName: text("attachment_name"), // Original filename
-  
-  // Additional Info
-  notes: text("notes"),
-  reviewedBy: uuid("reviewed_by").references(() => users.id),
-  reviewedAt: timestamp("reviewed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Inbound Quotation Items
-export const inboundQuotationItems = pgTable("inbound_quotation_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  quotationId: uuid("quotation_id").references(() => inboundQuotations.id).notNull(),
-  description: text("description").notNull(),
-  quantity: integer("quantity").notNull(),
-  unit: text("unit").notNull().default('pcs'),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-});
-
-// Invoices (Generated from Approved Outbound Quotations)
-export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'sent', 'paid', 'overdue', 'cancelled']);
-
-export const invoices = pgTable("invoices", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  invoiceNumber: text("invoice_number").notNull().unique(),
-  quotationId: uuid("quotation_id").references(() => outboundQuotations.id),
-  customerId: uuid("customer_id").references(() => customers.id).notNull(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  status: invoiceStatusEnum("status").notNull().default('draft'),
-  
-  // Dates
-  invoiceDate: timestamp("invoice_date").notNull().defaultNow(),
-  dueDate: timestamp("due_date").notNull(),
-  
-  // Financial Details
-  subtotalAmount: decimal("subtotal_amount", { precision: 10, scale: 2 }).notNull(),
-  cgstAmount: decimal("cgst_amount", { precision: 10, scale: 2 }).default('0'), // Central GST
-  sgstAmount: decimal("sgst_amount", { precision: 10, scale: 2 }).default('0'), // State GST
-  igstAmount: decimal("igst_amount", { precision: 10, scale: 2 }).default('0'), // Integrated GST
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0'),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  
-  // Payment Details
-  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).default('0'),
-  balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 }).notNull(),
-  
-  // Terms and Bank Details
-  paymentTerms: text("payment_terms"),
-  bankName: text("bank_name"),
-  accountNumber: text("account_number"),
-  ifscCode: text("ifsc_code"),
-  
-  // Additional Info
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Invoice Items
-export const invoiceItems = pgTable("invoice_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  invoiceId: uuid("invoice_id").references(() => invoices.id).notNull(),
-  productId: uuid("product_id").references(() => products.id),
-  description: text("description").notNull(),
-  quantity: integer("quantity").notNull(),
-  unit: text("unit").notNull().default('pcs'),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-  hsnSacCode: text("hsn_sac_code"),
-  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('18.00'),
-  cgstRate: decimal("cgst_rate", { precision: 5, scale: 2 }).default('9.00'),
-  sgstRate: decimal("sgst_rate", { precision: 5, scale: 2 }).default('9.00'),
-  igstRate: decimal("igst_rate", { precision: 5, scale: 2 }).default('0.00'),
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0'),
-});
-
-// Employee Attendance
-export const attendance = pgTable("attendance", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  date: timestamp("date").notNull(),
-  checkIn: timestamp("check_in"),
-  checkOut: timestamp("check_out"),
-  location: text("location"),
-  status: text("status").notNull().default('present'),
-  notes: text("notes"),
-});
-
-// Tasks
-export const taskStatusEnum = pgEnum('task_status', ['new', 'in_progress', 'completed', 'cancelled']);
-export const taskPriorityEnum = pgEnum('task_priority', ['low', 'medium', 'high', 'urgent']);
-
-export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  status: taskStatusEnum("status").notNull().default('new'),
-  priority: taskPriorityEnum("priority").notNull().default('medium'),
-  dueDate: timestamp("due_date"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Activity Log
-export const activityLog = pgTable("activity_log", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id),
-  action: text("action").notNull(),
-  entityType: text("entity_type").notNull(),
-  entityId: text("entity_id"),
-  details: text("details"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Stock Transactions - Track all stock movements (in/out)
-export const stockTransactionTypeEnum = pgEnum('stock_transaction_type', ['in', 'out', 'adjustment', 'transfer']);
-export const stockTransactionReasonEnum = pgEnum('stock_transaction_reason', ['purchase', 'sale', 'adjustment', 'damage', 'return', 'transfer']);
-
-export const stockTransactions = pgTable("stock_transactions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: uuid("product_id").references(() => products.id).notNull(),
-  batchId: uuid("batch_id").references(() => batches.id),
-  type: stockTransactionTypeEnum("type").notNull(),
-  reason: stockTransactionReasonEnum("reason").notNull(),
-  quantity: integer("quantity").notNull(),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
-  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
-  referenceNumber: text("reference_number"), // PO number, invoice number, etc.
-  notes: text("notes"),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Spare Parts - Track fabrication parts separately
-export const sparePartStatusEnum = pgEnum('spare_part_status', ['available', 'in_fabrication', 'quality_check', 'ready', 'shipped', 'damaged']);
-export const sparePartTypeEnum = pgEnum('spare_part_type', ['raw_material', 'component', 'finished_part', 'tool']);
-
-export const spareParts = pgTable("spare_parts", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  partNumber: text("part_number").notNull().unique(),
-  name: text("name").notNull(),
-  description: text("description"),
-  type: sparePartTypeEnum("type").notNull().default('component'),
-  status: sparePartStatusEnum("status").notNull().default('available'),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").notNull().default(5),
-  maxStock: integer("max_stock").notNull().default(100),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
-  location: text("location"), // Storage location
-  supplierId: uuid("supplier_id").references(() => suppliers.id),
-  // Fabrication details
-  fabricationTime: integer("fabrication_time"), // hours
-  qualityCheckRequired: boolean("quality_check_required").default(true),
-  specifications: text("specifications"), // JSON or text
-  drawingPath: text("drawing_path"), // Path to technical drawing
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Batches/Lots - For batch tracking
-export const batches = pgTable("batches", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  batchNumber: text("batch_number").notNull().unique(),
-  productId: uuid("product_id").references(() => products.id),
-  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
-  supplierId: uuid("supplier_id").references(() => suppliers.id),
-  quantity: integer("quantity").notNull(),
-  remainingQuantity: integer("remaining_quantity").notNull(),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
-  manufactureDate: timestamp("manufacture_date"),
-  expiryDate: timestamp("expiry_date"),
-  location: text("location"),
-  qualityStatus: text("quality_status").default('pending'), // pending, approved, rejected
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Barcodes/QR Codes - For scanning support
-export const barcodes = pgTable("barcodes", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  barcode: text("barcode").notNull().unique(),
-  type: text("type").notNull().default('QR'), // QR, Code128, EAN13, etc.
-  entityType: text("entity_type").notNull(), // product, spare_part, batch
-  entityId: uuid("entity_id").notNull(),
-  generatedAt: timestamp("generated_at").notNull().defaultNow(),
-  generatedBy: uuid("generated_by").references(() => users.id),
-});
-
-// Vendor Communications - Track communication history
-export const communicationTypeEnum = pgEnum('communication_type', ['email', 'phone', 'meeting', 'quote_request', 'order', 'complaint', 'follow_up']);
-export const communicationStatusEnum = pgEnum('communication_status', ['pending', 'completed', 'cancelled']);
-
-export const vendorCommunications = pgTable("vendor_communications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  supplierId: uuid("supplier_id").references(() => suppliers.id).notNull(),
-  type: communicationTypeEnum("type").notNull(),
-  status: communicationStatusEnum("status").notNull().default('completed'),
-  subject: text("subject").notNull(),
-  notes: text("notes"),
-  contactPerson: text("contact_person"),
-  scheduledDate: timestamp("scheduled_date"),
-  completedDate: timestamp("completed_date"),
-  followUpRequired: boolean("follow_up_required").default(false),
-  followUpDate: timestamp("follow_up_date"),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Reorder Points - Automated reorder planning
-export const reorderPoints = pgTable("reorder_points", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: uuid("product_id").references(() => products.id),
-  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
-  minQuantity: integer("min_quantity").notNull(),
-  maxQuantity: integer("max_quantity").notNull(),
-  reorderQuantity: integer("reorder_quantity").notNull(),
-  leadTimeDays: integer("lead_time_days").notNull().default(7),
-  supplierId: uuid("supplier_id").references(() => suppliers.id),
-  isActive: boolean("is_active").notNull().default(true),
-  lastTriggered: timestamp("last_triggered"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Fabrication Orders - For custom fabrication workflow
-export const fabricationOrderStatusEnum = pgEnum('fabrication_order_status', ['pending', 'in_progress', 'quality_check', 'completed', 'cancelled']);
-export const fabricationOrderPriorityEnum = pgEnum('fabrication_order_priority', ['low', 'normal', 'high', 'urgent']);
-
-export const fabricationOrders = pgTable("fabrication_orders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: text("order_number").notNull().unique(),
-  sparePartId: uuid("spare_part_id").references(() => spareParts.id).notNull(),
-  customerId: uuid("customer_id").references(() => customers.id),
-  quantity: integer("quantity").notNull(),
-  status: fabricationOrderStatusEnum("status").notNull().default('pending'),
-  priority: fabricationOrderPriorityEnum("priority").notNull().default('normal'),
-  estimatedHours: integer("estimated_hours"),
-  actualHours: integer("actual_hours"),
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  specifications: text("specifications"),
-  notes: text("notes"),
-  qualityCheckPassed: boolean("quality_check_passed"),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Inventory Tasks - For task assignment to inventory staff
-export const inventoryTaskTypeEnum = pgEnum('inventory_task_type', ['stock_count', 'reorder', 'quality_check', 'location_move', 'maintenance', 'fabrication']);
-export const inventoryTaskStatusEnum = pgEnum('inventory_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
-
-export const inventoryTasks = pgTable("inventory_tasks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  type: inventoryTaskTypeEnum("type").notNull(),
-  status: inventoryTaskStatusEnum("status").notNull().default('pending'),
-  priority: taskPriorityEnum("priority").notNull().default('medium'),
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  // Related entities
-  productId: uuid("product_id").references(() => products.id),
-  sparePartId: uuid("spare_part_id").references(() => spareParts.id),
-  batchId: uuid("batch_id").references(() => batches.id),
-  fabricationOrderId: uuid("fabrication_order_id").references(() => fabricationOrders.id),
-  // Task details
-  expectedQuantity: integer("expected_quantity"),
-  actualQuantity: integer("actual_quantity"),
-  fromLocation: text("from_location"),
-  toLocation: text("to_location"),
-  dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
-  notes: text("notes"),
-  attachmentPath: text("attachment_path"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// ===== MARKETING MODULE TABLES =====
-
-// Marketing Enums
-export const leadStatusEnum = pgEnum('lead_status', ['new', 'contacted', 'in_progress', 'converted', 'dropped']);
-export const leadSourceEnum = pgEnum('lead_source', ['website', 'referral', 'advertisement', 'social_media', 'trade_show', 'cold_call', 'email_campaign', 'other']);
-export const leadPriorityEnum = pgEnum('lead_priority', ['low', 'medium', 'high', 'urgent']);
-
-export const fieldVisitStatusEnum = pgEnum('field_visit_status', ['scheduled', 'in_progress', 'completed', 'cancelled']);
-export const visitPurposeEnum = pgEnum('visit_purpose', ['initial_meeting', 'demo', 'follow_up', 'quotation_discussion', 'negotiation', 'closing', 'support', 'other']);
-
-export const marketingTaskTypeEnum = pgEnum('marketing_task_type', ['visit_client', 'follow_up', 'demo', 'presentation', 'proposal', 'phone_call', 'email_campaign', 'market_research', 'other']);
-export const marketingTaskStatusEnum = pgEnum('marketing_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
-
-export const leaveTypeEnum = pgEnum('leave_type', ['sick', 'vacation', 'personal', 'emergency', 'training', 'other']);
-
-// ===== LOGISTICS MODULE ENUMS =====
-export const logisticsShipmentStatusEnum = pgEnum('logistics_shipment_status', [
-  'created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed'
-]);
-export const leaveStatusEnum = pgEnum('leave_status', ['pending', 'approved', 'rejected', 'cancelled']);
-
-// ==========================================
-// LEAVE MANAGEMENT TABLES
-// ==========================================
-
-// User Leave Balance - tracks annual leave allocations and usage
-export const userLeaveBalance = pgTable("user_leave_balance", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  year: integer("year").notNull(), // Leave allocation year
-  
-  // Annual Leave Allocation
-  totalAnnualLeave: integer("total_annual_leave").notNull().default(30), // Total days allocated per year
-  usedAnnualLeave: integer("used_annual_leave").notNull().default(0), // Days used so far
-  
-  // Leave Type Breakdown
-  totalSickLeave: integer("total_sick_leave").notNull().default(10),
-  usedSickLeave: integer("used_sick_leave").notNull().default(0),
-  
-  totalVacationLeave: integer("total_vacation_leave").notNull().default(20),
-  usedVacationLeave: integer("used_vacation_leave").notNull().default(0),
-  
-  totalPersonalLeave: integer("total_personal_leave").notNull().default(5),
-  usedPersonalLeave: integer("used_personal_leave").notNull().default(0),
-  
-  // Emergency and training leave typically don't have specific allocations
-  usedEmergencyLeave: integer("used_emergency_leave").notNull().default(0),
-  usedTrainingLeave: integer("used_training_leave").notNull().default(0),
-  usedOtherLeave: integer("used_other_leave").notNull().default(0),
-  
-  // Metadata
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Leave Requests - separate table for tracking individual leave requests
-export const leaveRequests = pgTable("leave_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
-  // Leave Details
-  leaveType: leaveTypeEnum("leave_type").notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  totalDays: integer("total_days").notNull(),
-  reason: text("reason").notNull(),
-  
-  // Approval Workflow
-  status: leaveStatusEnum("status").notNull().default('pending'),
-  approvedBy: uuid("approved_by").references(() => users.id),
-  approvedDate: timestamp("approved_date"),
-  rejectionReason: text("rejection_reason"),
-  
-  // Manager/HR Notes
-  approverNotes: text("approver_notes"),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Leads - Comprehensive lead management
+// =====================
+// LEADS
+// =====================
 export const leads = pgTable("leads", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  // Basic Lead Information
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  companyName: text("company_name"),
-  email: text("email"),
-  phone: text("phone"),
-  alternatePhone: text("alternate_phone"),
-  
-  // Address Information
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  zipCode: text("zip_code"),
-  country: text("country").notNull().default('India'),
-  
-  // Lead Source and Tracking
-  source: leadSourceEnum("source").notNull().default('other'),
-  sourceDetails: text("source_details"), // Additional source information
-  referredBy: text("referred_by"), // Name of person who referred
-  
-  // Requirement Details
-  requirementDescription: text("requirement_description"),
-  estimatedBudget: decimal("estimated_budget", { precision: 10, scale: 2 }),
-  budgetRange: text("budget_range"), // e.g., "10L-50L", "50L-1Cr"
-  priority: leadPriorityEnum("priority").notNull().default('medium'),
-  
-  // Status and Assignment
-  status: leadStatusEnum("status").notNull().default('new'),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  assignedBy: uuid("assigned_by").references(() => users.id),
-  assignedDate: timestamp("assigned_date"),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  
-  // Important Dates
-  lastContactedDate: timestamp("last_contacted_date"),
+  id: serial("id").primaryKey(),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  companyName: varchar("company_name", { length: 100 }),
+  email: varchar("email", { length: 100 }),
+  phone: varchar("phone", { length: 20 }),
+  status: varchar("status", { length: 20 }).default("new"),
+  priority: varchar("priority", { length: 20 }).default("medium"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
   followUpDate: timestamp("follow_up_date"),
-  conversionDate: timestamp("conversion_date"),
-  expectedClosingDate: timestamp("expected_closing_date"),
-  
-  // Additional Information
+  convertedAt: timestamp("converted_at"),
+  estimatedBudget: numeric("estimated_budget"),
+  requirementDescription: text("requirement_description"),
   notes: text("notes"),
-  tags: text("tags").array(), // Array of tags for categorization
-  isActive: boolean("is_active").notNull().default(true),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  assignedTo: integer("assigned_to").references(() => users.id),
 });
 
-// Field Visits - Comprehensive visit management
-export const fieldVisits = pgTable("field_visits", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  visitNumber: text("visit_number").notNull().unique(), // Auto-generated unique number
-  
-  // Related Lead
-  leadId: uuid("lead_id").references(() => leads.id).notNull(),
-  
-  // Visit Scheduling
-  plannedDate: timestamp("planned_date").notNull(),
-  plannedStartTime: timestamp("planned_start_time"),
-  plannedEndTime: timestamp("planned_end_time"),
-  actualDate: timestamp("actual_date"),
-  actualStartTime: timestamp("actual_start_time"),
-  actualEndTime: timestamp("actual_end_time"),
-  
-  // Employee Assignment
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  
-  // Visit Location
-  visitAddress: text("visit_address").notNull(),
-  visitCity: text("visit_city"),
-  visitState: text("visit_state"),
-  latitude: decimal("latitude", { precision: 10, scale: 7 }), // GPS coordinates
-  longitude: decimal("longitude", { precision: 10, scale: 7 }),
-  
-  // Visit Details
-  purpose: visitPurposeEnum("purpose").notNull().default('initial_meeting'),
-  status: fieldVisitStatusEnum("status").notNull().default('scheduled'),
-  
-  // Visit Notes and Outcomes
-  preVisitNotes: text("pre_visit_notes"), // Notes before visit
-  visitNotes: text("visit_notes"), // Notes during/after visit
-  clientFeedback: text("client_feedback"),
-  nextAction: text("next_action"),
-  outcome: text("outcome"), // Success, follow-up needed, etc.
-  
-  // Proof and Attachments
-  checkInPhotoPath: text("check_in_photo_path"), // Photo at check-in
-  checkOutPhotoPath: text("check_out_photo_path"), // Photo at check-out
-  attachmentPaths: text("attachment_paths").array(), // Multiple file paths
-  
-  // Check-in/Check-out Details
-  checkInLocation: text("check_in_location"),
-  checkOutLocation: text("check_out_location"),
-  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
-  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
-  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
-  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
-  
-  // Travel Information
-  travelDistance: decimal("travel_distance", { precision: 8, scale: 2 }), // in km
-  travelExpense: decimal("travel_expense", { precision: 10, scale: 2 }),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Marketing Tasks - Comprehensive task management
-export const marketingTasks: any = pgTable("marketing_tasks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Task Details
-  title: text("title").notNull(),
-  description: text("description"),
-  type: marketingTaskTypeEnum("type").notNull().default('follow_up'),
-  
-  // Assignment and Priority
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  priority: leadPriorityEnum("priority").notNull().default('medium'),
-  
-  // Status and Dates
-  status: marketingTaskStatusEnum("status").notNull().default('pending'),
+// =====================
+// MARKETING TASKS
+// =====================
+export const marketingTasks = pgTable("marketing_tasks", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).default("pending"),
+  priority: varchar("priority", { length: 20 }).default("medium"),
+  assignedToUserId: integer("assigned_to").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
   dueDate: timestamp("due_date"),
-  startedDate: timestamp("started_date"),
   completedDate: timestamp("completed_date"),
-  
-  // Related Entities
-  leadId: uuid("lead_id").references(() => leads.id),
-  fieldVisitId: uuid("field_visit_id").references(() => fieldVisits.id),
-  customerId: uuid("customer_id").references(() => customers.id), // If converted lead
-  
-  // Task Execution Details
-  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
-  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
-  
-  // Completion Details
-  completionNotes: text("completion_notes"),
-  outcome: text("outcome"),
-  nextAction: text("next_action"),
-  
-  // Attachments and Files
-  attachmentPaths: text("attachment_paths").array(),
-  
-  // Additional Information
-  tags: text("tags").array(),
-  isRecurring: boolean("is_recurring").notNull().default(false),
-  recurringFrequency: text("recurring_frequency"), // daily, weekly, monthly
-  parentTaskId: uuid("parent_task_id").references((): any => marketingTasks.id), // For recurring tasks
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Marketing Attendance - Comprehensive attendance and leave management
+// =====================
+// MARKETING ATTENDANCE
+// =====================
 export const marketingAttendance = pgTable("marketing_attendance", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Employee Reference
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  
-  // Date and Attendance
-  date: timestamp("date").notNull(),
-  
-  // Check-in/Check-out Times
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  date: timestamp("date").defaultNow(),
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
-  
-  // Location Tracking
-  checkInLocation: text("check_in_location"),
-  checkOutLocation: text("check_out_location"),
-  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
-  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
-  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
-  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
-  
-  // Live Location (for real-time tracking)
-  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
-  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
-  locationLastUpdated: timestamp("location_last_updated"),
-  
-  // Work Hours Calculation
-  regularHours: decimal("regular_hours", { precision: 5, scale: 2 }).default('0'),
-  overtimeHours: decimal("overtime_hours", { precision: 5, scale: 2 }).default('0'),
-  totalHours: decimal("total_hours", { precision: 5, scale: 2 }).default('0'),
-  
-  // Break Times
-  breakStartTime: timestamp("break_start_time"),
-  breakEndTime: timestamp("break_end_time"),
-  breakDuration: integer("break_duration").default(0), // in minutes
-  
-  // Attendance Status
-  attendanceStatus: text("attendance_status").notNull().default('present'), // present, absent, half_day, late, holiday
-  
-  // Leave Management
-  isOnLeave: boolean("is_on_leave").notNull().default(false),
-  leaveType: leaveTypeEnum("leave_type"),
-  leaveStartDate: timestamp("leave_start_date"),
-  leaveEndDate: timestamp("leave_end_date"),
-  leaveReason: text("leave_reason"),
-  leaveStatus: leaveStatusEnum("leave_status"),
-  leaveApprovedBy: uuid("leave_approved_by").references(() => users.id),
-  leaveApprovedDate: timestamp("leave_approved_date"),
-  
-  // Work Details
-  workDescription: text("work_description"), // What they worked on today
-  visitCount: integer("visit_count").default(0), // Number of client visits
-  tasksCompleted: integer("tasks_completed").default(0),
-  
-  // Photo Proof
-  checkInPhotoPath: text("check_in_photo_path"),
-  checkOutPhotoPath: text("check_out_photo_path"),
-  
-  // Additional Notes
-  notes: text("notes"),
-  managerNotes: text("manager_notes"), // Notes from manager/supervisor
-  
-  // Approval Workflow
-  isApproved: boolean("is_approved").default(false),
-  approvedBy: uuid("approved_by").references(() => users.id),
-  approvedDate: timestamp("approved_date"),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// ===== LOGISTICS MODULE TABLES =====
-
-// Logistics Shipments - Manual shipment and delivery management
-export const logisticsShipments = pgTable("logistics_shipments", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Shipment Details
-  consignmentNumber: text("consignment_number").notNull().unique(),
-  source: text("source").notNull(),
-  destination: text("destination").notNull(),
-  
-  // Client/Vendor Links
-  clientId: uuid("client_id").references(() => customers.id),
-  vendorId: uuid("vendor_id").references(() => suppliers.id),
-  
-  // Dates
-  dispatchDate: timestamp("dispatch_date"),
-  expectedDeliveryDate: timestamp("expected_delivery_date"),
-  deliveredAt: timestamp("delivered_at"),
-  closedAt: timestamp("closed_at"),
-  
-  // Status and Workflow
-  currentStatus: logisticsShipmentStatusEnum("current_status").notNull().default('created'),
-  
-  // Additional Details
-  notes: text("notes"),
-  weight: decimal("weight", { precision: 10, scale: 2 }),
-  volume: decimal("volume", { precision: 10, scale: 2 }),
-  value: decimal("value", { precision: 10, scale: 2 }),
-  
-  // Tracking
-  trackingUrl: text("tracking_url"),
-  priority: text("priority").notNull().default('normal'), // normal, high, urgent
-  
-  // POD (Proof of Delivery)
-  podObjectKey: text("pod_object_key"), // Object storage key for POD document
-  podUploadedAt: timestamp("pod_uploaded_at"),
-  podUploadedBy: uuid("pod_uploaded_by").references(() => users.id),
-  
-  // Assignment
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Logistics Status Updates - Timeline history for each shipment
-export const logisticsStatusUpdates = pgTable("logistics_status_updates", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Reference to shipment
-  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id).notNull(),
-  
-  // Status Details
-  status: logisticsShipmentStatusEnum("status").notNull(),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  location: text("location"),
-  notes: text("notes"),
-  
-  // POD Upload (for delivered/closed status)
-  podObjectKey: text("pod_object_key"), // Object storage key
-  
-  // User who made the update
-  updatedBy: uuid("updated_by").references(() => users.id).notNull(),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Logistics Checkpoints - In-transit tracking points
-export const logisticsCheckpoints = pgTable("logistics_checkpoints", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Reference to shipment
-  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id).notNull(),
-  
-  // Checkpoint Details
-  checkpointTime: timestamp("checkpoint_time").notNull(),
-  location: text("location").notNull(),
-  notes: text("notes"),
-  
-  // GPS Coordinates
-  latitude: decimal("latitude", { precision: 10, scale: 7 }),
-  longitude: decimal("longitude", { precision: 10, scale: 7 }),
-  
-  // User who added checkpoint
-  addedBy: uuid("added_by").references(() => users.id).notNull(),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Logistics Attendance - GPS-enabled check-in/check-out for logistics staff
-export const logisticsAttendance = pgTable("logistics_attendance", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Employee Reference
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  
-  // Date and Attendance
-  date: timestamp("date").notNull(),
-  
-  // Check-in/Check-out Times
-  checkInTime: timestamp("check_in_time"),
-  checkOutTime: timestamp("check_out_time"),
-  
-  // Location Tracking (GPS coordinates with same precision as checkpoints)
-  checkInLocation: text("check_in_location"),
-  checkOutLocation: text("check_out_location"),
-  checkInLatitude: decimal("check_in_latitude", { precision: 10, scale: 7 }),
-  checkInLongitude: decimal("check_in_longitude", { precision: 10, scale: 7 }),
-  checkOutLatitude: decimal("check_out_latitude", { precision: 10, scale: 7 }),
-  checkOutLongitude: decimal("check_out_longitude", { precision: 10, scale: 7 }),
-  
-  // Photo Verification
-  checkInPhotoPath: text("check_in_photo_path"),
-  checkOutPhotoPath: text("check_out_photo_path"),
-  
-  // Work Description and Metrics
+  latitude: numeric("latitude"),
+  longitude: numeric("longitude"),
+  location: varchar("location", { length: 255 }),
+  photoPath: varchar("photo_path", { length: 255 }),
   workDescription: text("work_description"),
-  taskCount: integer("task_count"),
-  deliveriesCompleted: integer("deliveries_completed"),
-  
-  // Status
-  status: text("status").notNull().default('checked_in'), // checked_in, checked_out
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Logistics Task Management - Task assignment and tracking for logistics team
-export const logisticsTaskStatusEnum = pgEnum('logistics_task_status', ['new', 'in_progress', 'completed', 'cancelled']);
-export const logisticsTaskPriorityEnum = pgEnum('logistics_task_priority', ['low', 'medium', 'high', 'urgent']);
-
-export const logisticsTasks = pgTable("logistics_tasks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Task Details
-  title: text("title").notNull(),
-  description: text("description"),
-  priority: logisticsTaskPriorityEnum("priority").notNull().default('medium'),
-  
-  // Assignment and Status
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  status: logisticsTaskStatusEnum("status").notNull().default('new'),
-  
-  // Dates
-  dueDate: timestamp("due_date"),
-  startedDate: timestamp("started_date"),
-  completedDate: timestamp("completed_date"),
-  
-  // Related Entities
-  shipmentId: uuid("shipment_id").references(() => logisticsShipments.id),
-  
-  // Task Execution Details
-  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
-  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
-  
-  // Completion Details
-  completionNotes: text("completion_notes"),
+  visitCount: integer("visit_count"),
+  tasksCompleted: integer("tasks_completed"),
   outcome: text("outcome"),
-  
-  // Additional Information
-  tags: text("tags").array(),
-  attachmentPaths: text("attachment_paths").array(),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  nextAction: text("next_action"),
+  attendanceStatus: varchar("attendance_status", { length: 20 }).default("present"),
 });
 
-// ===== ACCOUNTS MODULE TABLES =====
-
-// Enums for Accounts
-export const receivableStatusEnum = pgEnum('receivable_status', ['pending', 'partial', 'paid', 'overdue']);
-export const payableStatusEnum = pgEnum('payable_status', ['pending', 'partial', 'paid', 'overdue']);
-export const paymentKindEnum = pgEnum('payment_kind', ['receive', 'pay']);
-export const paymentMethodEnum = pgEnum('payment_method', ['cash', 'bank', 'upi', 'cheque']);
-export const paymentLinkedTypeEnum = pgEnum('payment_linked_type', ['invoice', 'po', 'inbound_quotation']);
-export const bankTransactionTypeEnum = pgEnum('bank_transaction_type', ['credit', 'debit']);
-export const gstFrequencyEnum = pgEnum('gst_frequency', ['monthly', 'quarterly']);
-export const gstStatusEnum = pgEnum('gst_status', ['draft', 'filed', 'paid', 'reconciled']);
-export const reminderTargetTypeEnum = pgEnum('reminder_target_type', ['receivable', 'payable', 'gst']);
-export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms', 'whatsapp']);
-export const reminderStatusEnum = pgEnum('reminder_status', ['pending', 'sent', 'stopped']);
-export const accountTaskTypeEnum = pgEnum('account_task_type', ['reconcile', 'send_reminder', 'file_gst']);
-export const accountTaskStatusEnum = pgEnum('account_task_status', ['open', 'in_progress', 'done']);
-export const reportTypeEnum = pgEnum('report_type', ['daily_collections', 'receivables', 'payables', 'gst_filing', 'cash_flow', 'profit_loss']);
-export const reportStatusEnum = pgEnum('report_status', ['generating', 'generated', 'failed']);
-
-// Account Reports - Generated financial reports
-export const accountReports = pgTable("account_reports", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportType: reportTypeEnum("report_type").notNull(),
-  title: text("title").notNull(),
+// =====================
+// LEAVE REQUESTS
+// =====================
+export const leaveRequests = pgTable("leave_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  leaveType: varchar("leave_type", { length: 50 }).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  status: reportStatusEnum("status").notNull().default('generating'),
-  fileUrl: text("file_url"),
-  fileName: text("file_name"),
-  fileSize: integer("file_size"), // in bytes
-  generatedBy: uuid("generated_by").references(() => users.id),
-  downloadCount: integer("download_count").notNull().default(0),
-  parameters: text("parameters"), // JSON string for report parameters
-  summary: text("summary"), // Brief summary of the report content
-  generatedAt: timestamp("generated_at").notNull().defaultNow(),
-  expiresAt: timestamp("expires_at"), // Optional expiration for temporary reports
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  reason: text("reason").notNull(),
+  status: varchar("status", { length: 20 }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Accounts Receivables - Client payments linked to invoices
-export const accountsReceivables = pgTable("accounts_receivables", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  invoiceId: uuid("invoice_id").references(() => invoices.id).notNull(),
-  customerId: uuid("customer_id").references(() => customers.id).notNull(),
-  amountDue: decimal("amount_due", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull().default('0'),
-  dueDate: timestamp("due_date").notNull(),
-  status: receivableStatusEnum("status").notNull().default('pending'),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// =====================
+// FIELD VISITS
+// =====================
+export const fieldVisits = pgTable("field_visits", {
+  id: serial("id").primaryKey(),
+  visitNumber: varchar("visit_number", { length: 50 }).notNull(),
+  leadId: integer("lead_id").references(() => leads.id),
+  plannedDate: timestamp("planned_date"),
+  actualDate: timestamp("actual_date"),
+  assignedTo: integer("assigned_to").references(() => users.id),
+  assignedBy: integer("assigned_by").references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id),
+  visitAddress: varchar("visit_address", { length: 255 }),
+  status: varchar("status", { length: 20 }).default("scheduled"),
 });
 
-// Accounts Payables - Vendor payments linked to POs/quotations
-export const accountsPayables = pgTable("accounts_payables", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  poId: uuid("po_id").references(() => purchaseOrders.id),
-  inboundQuotationId: uuid("inbound_quotation_id").references(() => inboundQuotations.id),
-  supplierId: uuid("supplier_id").references(() => suppliers.id).notNull(),
-  amountDue: decimal("amount_due", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull().default('0'),
-  dueDate: timestamp("due_date").notNull(),
-  status: payableStatusEnum("status").notNull().default('pending'),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (table) => ({
-  // Ensure at least one of poId or inboundQuotationId is not null
-  sourceDocCheck: check('accounts_payables_source_doc_check', sql`(${table.poId} IS NOT NULL OR ${table.inboundQuotationId} IS NOT NULL)`),
-}));
-
-// Bank Accounts - Manage company bank details (defined first for references)
-export const bankAccounts = pgTable("bank_accounts", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(), // Account nickname
-  bankName: text("bank_name").notNull(),
-  accountNumberMasked: text("account_number_masked").notNull(), // Only last 4 digits visible
-  ifsc: text("ifsc").notNull(),
-  upiId: text("upi_id"),
-  openingBalance: decimal("opening_balance", { precision: 10, scale: 2 }).notNull().default('0'),
-  currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).notNull().default('0'),
-  isDefault: boolean("is_default").notNull().default(false),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// =====================
+// DELIVERIES
+// =====================
+export const deliveries = pgTable("deliveries", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").references(() => suppliers.id),
+  date: timestamp("date").defaultNow(),
+  volume: numeric("volume"),
+  status: varchar("status", { length: 20 }).default("pending"),
 });
 
-// Payments - Record of all payments (receivables and payables)
-export const payments = pgTable("payments", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  kind: paymentKindEnum("kind").notNull(), // receive or pay
-  method: paymentMethodEnum("method").notNull(),
-  bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  date: timestamp("date").notNull().defaultNow(),
-  reference: text("reference"), // Cheque number, transaction ID, etc.
-  linkedType: paymentLinkedTypeEnum("linked_type").notNull(),
-  linkedId: uuid("linked_id").notNull(), // Invoice ID, PO ID, etc.
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+// =====================
+// OUTBOUND QUOTATIONS
+// =====================
+export const outboundQuotations = pgTable("outbound_quotations", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").references(() => customers.id),
+  quotationNumber: varchar("quotation_number", { length: 50 }),
+  totalAmount: numeric("total_amount"),
+  status: varchar("status", { length: 20 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Bank Transactions - Track all bank account transactions
-export const bankTransactions = pgTable("bank_transactions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id).notNull(),
-  date: timestamp("date").notNull(),
-  type: bankTransactionTypeEnum("type").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  description: text("description").notNull(),
-  paymentId: uuid("payment_id").references(() => payments.id), // Link to payment if applicable
-  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(), // Running balance
-  reference: text("reference"), // Bank reference number
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+// =====================
+// INBOUND QUOTATIONS
+// =====================
+export const inboundQuotations = pgTable("inbound_quotations", {
+  id: serial("id").primaryKey(),
+  supplierId: integer("supplier_id").references(() => suppliers.id),
+  quotationNumber: varchar("quotation_number", { length: 50 }),
+  totalAmount: numeric("total_amount"),
+  status: varchar("status", { length: 20 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// GST Returns - Track GST filing and reconciliation
-export const gstReturns = pgTable("gst_returns", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  periodStart: timestamp("period_start").notNull(),
-  periodEnd: timestamp("period_end").notNull(),
-  frequency: gstFrequencyEnum("frequency").notNull(),
-  outputTax: decimal("output_tax", { precision: 10, scale: 2 }).notNull().default('0'), // Tax collected on sales
-  inputTax: decimal("input_tax", { precision: 10, scale: 2 }).notNull().default('0'), // Tax paid on purchases
-  liability: decimal("liability", { precision: 10, scale: 2 }).notNull().default('0'), // Net GST liability
-  status: gstStatusEnum("status").notNull().default('draft'),
-  filedAt: timestamp("filed_at"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// =====================
+// INVOICES
+// =====================
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").references(() => customers.id),
+  invoiceNumber: varchar("invoice_number", { length: 50 }),
+  totalAmount: numeric("total_amount"),
+  status: varchar("status", { length: 20 }),
+  issuedAt: timestamp("issued_at").defaultNow(),
 });
 
-// Account Reminders - Automated payment reminders
-export const accountReminders = pgTable("account_reminders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  targetType: reminderTargetTypeEnum("target_type").notNull(),
-  targetId: uuid("target_id").notNull(), // Receivable ID, Payable ID, or GST Return ID
-  dueDate: timestamp("due_date").notNull(),
-  nextReminderAt: timestamp("next_reminder_at").notNull(),
-  lastSentAt: timestamp("last_sent_at"),
-  channel: reminderChannelEnum("channel").notNull(),
-  status: reminderStatusEnum("status").notNull().default('pending'),
-  template: text("template"), // Message template
-  frequency: integer("frequency").notNull().default(7), // Days between reminders
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// =====================
+// PRODUCTS
+// =====================
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  sku: varchar("sku", { length: 50 }),
+  stock: integer("stock").default(0),
+  price: numeric("price"),
+  supplierId: integer("supplier_id").references(() => suppliers.id),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Account Tasks - Assign tasks to accounts staff
-export const accountTasks = pgTable("account_tasks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  type: accountTaskTypeEnum("type").notNull(),
-  assignedTo: uuid("assigned_to").references(() => users.id).notNull(),
-  assignedBy: uuid("assigned_by").references(() => users.id).notNull(),
-  status: accountTaskStatusEnum("status").notNull().default('open'),
-  dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
-  relatedType: text("related_type"), // 'invoice', 'po', 'gst_return', etc.
-  relatedId: uuid("related_id"), // ID of related entity
-  notes: text("notes"),
-  priority: taskPriorityEnum("priority").notNull().default('medium'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// =====================
+// SUPPLIERS
+// =====================
+export const suppliers = pgTable("suppliers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  contactEmail: varchar("contact_email", { length: 100 }),
+  contactPhone: varchar("contact_phone", { length: 20 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  orders: many(orders),
-  tasks: many(tasks),
-  attendance: many(attendance),
-}));
-
-export const customersRelations = relations(customers, ({ many }) => ({
-  orders: many(orders),
-  outboundQuotations: many(outboundQuotations),
-  invoices: many(invoices),
-}));
-
-export const productsRelations = relations(products, ({ many }) => ({
-  orderItems: many(orderItems),
-}));
-
-export const ordersRelations = relations(orders, ({ one, many }) => ({
-  customer: one(customers, {
-    fields: [orders.customerId],
-    references: [customers.id],
-  }),
-  user: one(users, {
-    fields: [orders.userId],
-    references: [users.id],
-  }),
-  orderItems: many(orderItems),
-  shipments: many(shipments),
-}));
-
-export const orderItemsRelations = relations(orderItems, ({ one }) => ({
-  order: one(orders, {
-    fields: [orderItems.orderId],
-    references: [orders.id],
-  }),
-  product: one(products, {
-    fields: [orderItems.productId],
-    references: [products.id],
-  }),
-}));
-
-export const suppliersRelations = relations(suppliers, ({ many }) => ({
-  purchaseOrders: many(purchaseOrders),
-  inboundQuotations: many(inboundQuotations),
-}));
-
-export const purchaseOrdersRelations = relations(purchaseOrders, ({ one }) => ({
-  supplier: one(suppliers, {
-    fields: [purchaseOrders.supplierId],
-    references: [suppliers.id],
-  }),
-  user: one(users, {
-    fields: [purchaseOrders.userId],
-    references: [users.id],
-  }),
-}));
-
-export const shipmentsRelations = relations(shipments, ({ one }) => ({
-  order: one(orders, {
-    fields: [shipments.orderId],
-    references: [orders.id],
-  }),
-}));
-
-export const tasksRelations = relations(tasks, ({ one }) => ({
-  assignee: one(users, {
-    fields: [tasks.assignedTo],
-    references: [users.id],
-  }),
-  assigner: one(users, {
-    fields: [tasks.assignedBy],
-    references: [users.id],
-  }),
-}));
-
-export const attendanceRelations = relations(attendance, ({ one }) => ({
-  user: one(users, {
-    fields: [attendance.userId],
-    references: [users.id],
-  }),
-}));
-
-// New Sales Relations
-export const outboundQuotationsRelations = relations(outboundQuotations, ({ one, many }) => ({
-  customer: one(customers, {
-    fields: [outboundQuotations.customerId],
-    references: [customers.id],
-  }),
-  user: one(users, {
-    fields: [outboundQuotations.userId],
-    references: [users.id],
-  }),
-  quotationItems: many(quotationItems),
-  invoice: many(invoices),
-}));
-
-export const quotationItemsRelations = relations(quotationItems, ({ one }) => ({
-  quotation: one(outboundQuotations, {
-    fields: [quotationItems.quotationId],
-    references: [outboundQuotations.id],
-  }),
-  product: one(products, {
-    fields: [quotationItems.productId],
-    references: [products.id],
-  }),
-}));
-
-export const inboundQuotationsRelations = relations(inboundQuotations, ({ one, many }) => ({
-  sender: one(suppliers, {
-    fields: [inboundQuotations.senderId],
-    references: [suppliers.id],
-  }),
-  user: one(users, {
-    fields: [inboundQuotations.userId],
-    references: [users.id],
-  }),
-  reviewer: one(users, {
-    fields: [inboundQuotations.reviewedBy],
-    references: [users.id],
-  }),
-  quotationItems: many(inboundQuotationItems),
-}));
-
-export const inboundQuotationItemsRelations = relations(inboundQuotationItems, ({ one }) => ({
-  quotation: one(inboundQuotations, {
-    fields: [inboundQuotationItems.quotationId],
-    references: [inboundQuotations.id],
-  }),
-}));
-
-export const invoicesRelations = relations(invoices, ({ one, many }) => ({
-  customer: one(customers, {
-    fields: [invoices.customerId],
-    references: [customers.id],
-  }),
-  user: one(users, {
-    fields: [invoices.userId],
-    references: [users.id],
-  }),
-  quotation: one(outboundQuotations, {
-    fields: [invoices.quotationId],
-    references: [outboundQuotations.id],
-  }),
-  invoiceItems: many(invoiceItems),
-}));
-
-export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
-  invoice: one(invoices, {
-    fields: [invoiceItems.invoiceId],
-    references: [invoices.id],
-  }),
-  product: one(products, {
-    fields: [invoiceItems.productId],
-    references: [products.id],
-  }),
-}));
-
-// New Inventory Relations
-export const stockTransactionsRelations = relations(stockTransactions, ({ one }) => ({
-  product: one(products, {
-    fields: [stockTransactions.productId],
-    references: [products.id],
-  }),
-  batch: one(batches, {
-    fields: [stockTransactions.batchId],
-    references: [batches.id],
-  }),
-  user: one(users, {
-    fields: [stockTransactions.userId],
-    references: [users.id],
-  }),
-}));
-
-export const sparePartsRelations = relations(spareParts, ({ one, many }) => ({
-  supplier: one(suppliers, {
-    fields: [spareParts.supplierId],
-    references: [suppliers.id],
-  }),
-  batches: many(batches),
-  barcodes: many(barcodes),
-}));
-
-export const batchesRelations = relations(batches, ({ one, many }) => ({
-  product: one(products, {
-    fields: [batches.productId],
-    references: [products.id],
-  }),
-  sparePart: one(spareParts, {
-    fields: [batches.sparePartId],
-    references: [spareParts.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [batches.supplierId],
-    references: [suppliers.id],
-  }),
-  stockTransactions: many(stockTransactions),
-  barcodes: many(barcodes),
-}));
-
-export const barcodesRelations = relations(barcodes, ({ one }) => ({
-  generatedByUser: one(users, {
-    fields: [barcodes.generatedBy],
-    references: [users.id],
-  }),
-}));
-
-export const vendorCommunicationsRelations = relations(vendorCommunications, ({ one }) => ({
-  supplier: one(suppliers, {
-    fields: [vendorCommunications.supplierId],
-    references: [suppliers.id],
-  }),
-  user: one(users, {
-    fields: [vendorCommunications.userId],
-    references: [users.id],
-  }),
-}));
-
-export const reorderPointsRelations = relations(reorderPoints, ({ one }) => ({
-  product: one(products, {
-    fields: [reorderPoints.productId],
-    references: [products.id],
-  }),
-  sparePart: one(spareParts, {
-    fields: [reorderPoints.sparePartId],
-    references: [spareParts.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [reorderPoints.supplierId],
-    references: [suppliers.id],
-  }),
-}));
-
-// Accounts Relations
-export const accountsReceivablesRelations = relations(accountsReceivables, ({ one }) => ({
-  invoice: one(invoices, {
-    fields: [accountsReceivables.invoiceId],
-    references: [invoices.id],
-  }),
-  customer: one(customers, {
-    fields: [accountsReceivables.customerId],
-    references: [customers.id],
-  }),
-}));
-
-export const accountsPayablesRelations = relations(accountsPayables, ({ one }) => ({
-  purchaseOrder: one(purchaseOrders, {
-    fields: [accountsPayables.poId],
-    references: [purchaseOrders.id],
-  }),
-  inboundQuotation: one(inboundQuotations, {
-    fields: [accountsPayables.inboundQuotationId],
-    references: [inboundQuotations.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [accountsPayables.supplierId],
-    references: [suppliers.id],
-  }),
-}));
-
-export const paymentsRelations = relations(payments, ({ one }) => ({
-  bankAccount: one(bankAccounts, {
-    fields: [payments.bankAccountId],
-    references: [bankAccounts.id],
-  }),
-}));
-
-export const bankAccountsRelations = relations(bankAccounts, ({ many }) => ({
-  payments: many(payments),
-  bankTransactions: many(bankTransactions),
-}));
-
-export const bankTransactionsRelations = relations(bankTransactions, ({ one }) => ({
-  bankAccount: one(bankAccounts, {
-    fields: [bankTransactions.bankAccountId],
-    references: [bankAccounts.id],
-  }),
-  payment: one(payments, {
-    fields: [bankTransactions.paymentId],
-    references: [payments.id],
-  }),
-}));
-
-export const gstReturnsRelations = relations(gstReturns, ({ many }) => ({
-  reminders: many(accountReminders),
-}));
-
-export const accountRemindersRelations = relations(accountReminders, ({ one }) => ({
-  // Generic relation - targetType determines which table
-}));
-
-export const accountTasksRelations = relations(accountTasks, ({ one }) => ({
-  assignedToUser: one(users, {
-    fields: [accountTasks.assignedTo],
-    references: [users.id],
-  }),
-  assignedByUser: one(users, {
-    fields: [accountTasks.assignedBy],
-    references: [users.id],
-  }),
-}));
-
-export const accountReportsRelations = relations(accountReports, ({ one }) => ({
-  generatedByUser: one(users, {
-    fields: [accountReports.generatedBy],
-    references: [users.id],
-  }),
-}));
-
-// Insert Schemas
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// =====================
+// CUSTOMERS
+// =====================
+export const customers = pgTable("customers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 100 }),
+  phone: varchar("phone", { length: 20 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// =====================
+// VENDOR COMMUNICATIONS
+// =====================
+export const vendorCommunications = pgTable("vendor_communications", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").references(() => suppliers.id),
+  message: text("message"),
+  communicationDate: timestamp("communication_date").defaultNow(),
 });
 
-export const insertCustomerSchema = createInsertSchema(customers).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// =====================
+// LOGISTICS SHIPMENTS
+// =====================
+export const logisticsShipments = pgTable("logistics_shipments", {
+  id: serial("id").primaryKey(),
+  consignmentNumber: varchar("consignment_number", { length: 50 }),
+  source: varchar("source", { length: 100 }),
+  destination: varchar("destination", { length: 100 }),
+  currentStatus: varchar("current_status", { length: 50 }),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertOrderSchema = createInsertSchema(orders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertOutboundQuotationSchema = z.object({
+  customerId: z.string(),
+  productId: z.string(),
+  quantity: z.number(),
+  price: z.number(),
+  validUntil: z.string().optional(),
+});
+export const insertInboundQuotationSchema = z.object({
+  supplierId: z.string(),
+  productId: z.string(),
+  quantity: z.number(),
+  price: z.number(),
+  validUntil: z.string().optional(),
+});
+export const insertInvoiceSchema = z.object({
+  customerId: z.string(),
+  items: z.array(
+    z.object({
+      productId: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+    })
+  ),
+  totalAmount: z.number(),
+  issuedAt: z.string().optional(),
+});                             
+
+export const insertCustomerSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
 });
 
-export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
-  id: true,
+// Customer schema
+
+
+// Supplier schema
+export const insertSupplierSchema = z.object({
+  name: z.string(),
+  contactEmail: z.string().email(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+export const insertAccountsReceivableSchema = z.object({
+  date: z.string(),
+  amount: z.number(),
+  customerId: z.string(),
+});
+// Outbound Quotation schema
+export const insertAccountsPayableSchema = z.object({
+  date: z.string(),
+  amount: z.number(),
+  supplierId: z.string(),
+});
+export const insertGstReturnSchema = z.object({
+  returnPeriod: z.string(),
+  gstAmount: z.number(),
+  invoiceIds: z.array(z.string()),
+});
+export const insertBankAccountSchema = z.object({
+  accountName: z.string(),
+  accountNumber: z.string(),
+  bankName: z.string(),
+  ifscCode: z.string(),
+});
+export const insertBankTransactionSchema = z.object({
+  transactionDate: z.string(),
+  amount: z.number(),
+  transactionType: z.enum(["credit", "debit"]),
+  accountId: z.string(),
+  description: z.string().optional(),
+});
+export const insertAccountReminderSchema = z.object({
+  reminderDate: z.string(),
+  accountId: z.string(),
+  message: z.string(),
+  status: z.enum(["pending", "sent"]).default("pending"),
+});
+export const insertAccountTaskSchema = z.object({
+  taskId: z.string(),
+  accountId: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  dueDate: z.string(),
+  status: z.enum(["pending", "completed"]).default("pending"),
 });
 
-export const insertSupplierSchema = createInsertSchema(suppliers).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+import { z } from "zod";
 
-export const insertShipmentSchema = createInsertSchema(shipments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertAttendanceSchema = createInsertSchema(attendance).omit({
-  id: true,
-});
-
-// New Sales Insert Schemas
-export const insertOutboundQuotationSchema = createInsertSchema(outboundQuotations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  quotationDate: z.coerce.date(), // Accept ISO strings and coerce to Date
-  validUntil: z.coerce.date(), // Accept ISO strings and coerce to Date
-});
-
-export const insertQuotationItemSchema = createInsertSchema(quotationItems).omit({
-  id: true,
-});
-
-export const insertInboundQuotationSchema = createInsertSchema(inboundQuotations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertInboundQuotationItemSchema = createInsertSchema(inboundQuotationItems).omit({
-  id: true,
-});
-
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
-  id: true,
-});
-
-// New Inventory Insert Schemas
-export const insertStockTransactionSchema = createInsertSchema(stockTransactions).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertSparePartSchema = createInsertSchema(spareParts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertBatchSchema = createInsertSchema(batches).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertBarcodeSchema = createInsertSchema(barcodes).omit({
-  id: true,
-  generatedAt: true,
-});
-
-export const insertVendorCommunicationSchema = createInsertSchema(vendorCommunications).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertReorderPointSchema = createInsertSchema(reorderPoints).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertFabricationOrderSchema = createInsertSchema(fabricationOrders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertInventoryTaskSchema = createInsertSchema(inventoryTasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Marketing Insert Schemas
-export const insertLeadSchema = createInsertSchema(leads).omit({
-  id: true,
-  createdBy: true,
-  assignedBy: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Secure update schema that omits ownership fields
-export const updateLeadSchema = createInsertSchema(leads).omit({
-  id: true,
-  createdBy: true,
-  assignedBy: true,
-  createdAt: true,
-  updatedAt: true,
-}).partial();
-
-export const insertFieldVisitSchema = createInsertSchema(fieldVisits).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertMarketingTaskSchema = createInsertSchema(marketingTasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertMarketingAttendanceSchema = createInsertSchema(marketingAttendance).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Logistics Insert Schemas
-export const insertLogisticsShipmentSchema = createInsertSchema(logisticsShipments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertLogisticsStatusUpdateSchema = createInsertSchema(logisticsStatusUpdates).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertLogisticsCheckpointSchema = createInsertSchema(logisticsCheckpoints).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertLogisticsAttendanceSchema = createInsertSchema(logisticsAttendance).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const updateLogisticsAttendanceSchema = createInsertSchema(logisticsAttendance).partial().omit({
-  id: true,
-  createdAt: true,
-  userId: true, // Cannot change userId
-  date: true, // Cannot change date
-});
-
-export const insertLogisticsTaskSchema = createInsertSchema(logisticsTasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const updateLogisticsTaskSchema = createInsertSchema(logisticsTasks).partial().omit({
-  id: true,
-  createdAt: true,
-  assignedBy: true, // Cannot change who assigned the task
-});
-
-export const updateLogisticsTaskStatusSchema = z.object({
-  status: z.enum(['new', 'in_progress', 'completed', 'cancelled']),
-  completionNotes: z.string().optional(),
-  outcome: z.string().optional(),
-  actualHours: z.number().optional(),
-});
-
-export const logisticsTaskFilterSchema = z.object({
-  status: z.enum(['new', 'in_progress', 'completed', 'cancelled']).optional(),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  assignedTo: z.string().uuid().optional(),
-  assignedBy: z.string().uuid().optional(),
-  shipmentId: z.string().uuid().optional(),
-  dueDate: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-
-// Additional Logistics Schemas for API routes
-export const updateLogisticsShipmentSchema = createInsertSchema(logisticsShipments).partial().omit({
-  id: true,
-  createdAt: true,
-});
-
-export const logisticsShipmentFilterSchema = z.object({
-  status: z.string().optional(),
-  employeeId: z.string().uuid().optional(),
-  clientId: z.string().uuid().optional(),
-  vendorId: z.string().uuid().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-
-// Workflow Validation Schemas for Logistics Operations
-export const updateLogisticsShipmentStatusSchema = z.object({
-  status: z.enum(['created', 'packed', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'closed']),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-  podObjectKey: z.string().optional(),
-});
-
-export const logisticsCheckpointSchema = z.object({
-  location: z.string().min(1, "Location is required"),
-  notes: z.string().optional(),
-  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90").optional(),
-  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180").optional(),
-});
-
-export const closePodUploadSchema = z.object({
-  podObjectKey: z.string().min(1, "POD document is required"),
+export const insertAccountReportSchema = z.object({
+  reportId: z.string(),
+  accountId: z.string(),
+  title: z.string(),
+  generatedOn: z.string(),
+  status: z.enum(["draft", "final"]).default("draft"),
   notes: z.string().optional(),
 });
-
-// Workflow Validation Schemas for Marketing Operations
-// Status Update Schemas
-export const updateLeadStatusSchema = z.object({
-  status: z.enum(['new', 'contacted', 'in_progress', 'converted', 'dropped']),
-  notes: z.string().optional(),
+export const insertAttendanceSchema = z.object({
+  employeeId: z.string(),
+  date: z.string(),
+  status: z.enum(["present", "absent", "leave"]),
+  checkIn: z.string().optional(),
+  checkOut: z.string().optional(),
+  remarks: z.string().optional(),
 });
 
-export const updateFieldVisitStatusSchema = z.object({
-  status: z.enum(['scheduled', 'in_progress', 'completed', 'cancelled']),
-  notes: z.string().optional(),
-});
-
-export const updateMarketingTaskStatusSchema = z.object({
-  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
-  notes: z.string().optional(),
-});
-
-// GPS Check-in/Check-out Schemas
-export const fieldVisitCheckInSchema = z.object({
-  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
-  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
-  location: z.string().optional(),
-  photoPath: z.string().optional(),
-});
-
-export const fieldVisitCheckOutSchema = z.object({
-  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
-  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
-  location: z.string().optional(),
-  photoPath: z.string().optional(),
-  visitNotes: z.string().optional(),
-  outcome: z.string().optional(),
-  nextAction: z.string().optional(),
-});
-
-// Logistics GPS Check-in/Check-out Schemas
-export const logisticsCheckInSchema = z.object({
-  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
-  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
-  location: z.string().optional(),
-  photoPath: z.string().optional(),
-  workDescription: z.string().optional(),
-  accuracy: z.number().min(0).max(1000).optional(), // GPS accuracy in meters
-}).refine(data => {
-  // Accuracy validation: warn if accuracy > 50m, reject if > 200m
-  if (data.accuracy && data.accuracy > 200) {
-    return false;
-  }
-  return true;
-}, {
-  message: "GPS accuracy must be better than 200 meters for check-in"
-});
-
-export const logisticsCheckOutSchema = z.object({
-  latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90"),
-  longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180"),
-  location: z.string().optional(),
-  photoPath: z.string().optional(),
-  workDescription: z.string().optional(),
-  taskCount: z.number().int().min(0).optional(),
-  deliveriesCompleted: z.number().int().min(0).optional(),
-  accuracy: z.number().min(0).max(1000).optional(), // GPS accuracy in meters
-}).refine(data => {
-  // Accuracy validation: warn if accuracy > 50m, reject if > 200m
-  if (data.accuracy && data.accuracy > 200) {
-    return false;
-  }
-  return true;
-}, {
-  message: "GPS accuracy must be better than 200 meters for check-out"
-});
-
-// Photo upload validation schema
-export const attendancePhotoUploadSchema = z.object({
-  attendanceId: z.string().uuid("Invalid attendance ID"),
-  fileName: z.string().min(1, "File name is required"),
-  contentType: z.string().regex(/^image\/(jpeg|jpg|png|webp)$/, "Only JPEG, PNG, and WebP images are allowed"),
-  photoType: z.enum(['check-in', 'check-out'], {
-    required_error: "Photo type must be either 'check-in' or 'check-out'"
-  }),
-});
-
-// Lead Conversion Schema
-export const convertLeadSchema = z.object({
-  notes: z.string().optional(),
-  creditLimit: z.string().optional(),
-  paymentTerms: z.number().optional(),
-});
-
-// Combined Filtering Schemas
-export const leadFilterSchema = z.object({
-  status: z.enum(['new', 'contacted', 'in_progress', 'converted', 'dropped']).optional(),
-  source: z.enum(['website', 'referral', 'advertisement', 'social_media', 'trade_show', 'cold_call', 'email_campaign', 'other']).optional(),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  assignedTo: z.string().uuid().optional(),
-  search: z.string().optional(),
-});
-
-export const fieldVisitFilterSchema = z.object({
-  status: z.enum(['scheduled', 'in_progress', 'completed', 'cancelled']).optional(),
-  assignedTo: z.string().uuid().optional(),
-  leadId: z.string().uuid().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-
-export const marketingTaskFilterSchema = z.object({
-  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']).optional(),
-  type: z.enum(['visit_client', 'follow_up', 'demo', 'presentation', 'proposal', 'phone_call', 'email_campaign', 'market_research', 'other']).optional(),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  assignedTo: z.string().uuid().optional(),
-  leadId: z.string().uuid().optional(),
-});
-
-// Accounts Insert Schemas
-export const insertAccountsReceivableSchema = createInsertSchema(accountsReceivables).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertAccountsPayableSchema = createInsertSchema(accountsPayables).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertGstReturnSchema = createInsertSchema(gstReturns).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertAccountReminderSchema = createInsertSchema(accountReminders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertAccountTaskSchema = createInsertSchema(accountTasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertAccountReportSchema = createInsertSchema(accountReports).omit({
-  id: true,
-  generatedAt: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Types
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-
-export type Product = typeof products.$inferSelect;
-export type InsertProduct = z.infer<typeof insertProductSchema>;
-
-export type StockTransaction = typeof stockTransactions.$inferSelect;
-export type InsertStockTransaction = z.infer<typeof insertStockTransactionSchema>;
-
-export type SparePart = typeof spareParts.$inferSelect;
-export type InsertSparePart = z.infer<typeof insertSparePartSchema>;
-
-export type Batch = typeof batches.$inferSelect;
-export type InsertBatch = z.infer<typeof insertBatchSchema>;
-
-export type Barcode = typeof barcodes.$inferSelect;
-export type InsertBarcode = z.infer<typeof insertBarcodeSchema>;
-
-export type VendorCommunication = typeof vendorCommunications.$inferSelect;
-export type InsertVendorCommunication = z.infer<typeof insertVendorCommunicationSchema>;
-
-export type ReorderPoint = typeof reorderPoints.$inferSelect;
-export type InsertReorderPoint = z.infer<typeof insertReorderPointSchema>;
-
-export type Customer = typeof customers.$inferSelect;
-export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
-
-export type Order = typeof orders.$inferSelect;
-export type InsertOrder = z.infer<typeof insertOrderSchema>;
-
-export type OrderItem = typeof orderItems.$inferSelect;
-export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
-
-export type Supplier = typeof suppliers.$inferSelect;
-export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
-
-export type Shipment = typeof shipments.$inferSelect;
-export type InsertShipment = z.infer<typeof insertShipmentSchema>;
-
-export type Task = typeof tasks.$inferSelect;
-export type InsertTask = z.infer<typeof insertTaskSchema>;
-
-export type Attendance = typeof attendance.$inferSelect;
-export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
-
-export type ActivityLog = typeof activityLog.$inferSelect;
-
-// New Sales Types
-export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
-export type InsertOutboundQuotation = z.infer<typeof insertOutboundQuotationSchema>;
-
-export type QuotationItem = typeof quotationItems.$inferSelect;
-export type InsertQuotationItem = z.infer<typeof insertQuotationItemSchema>;
-
-export type InboundQuotation = typeof inboundQuotations.$inferSelect;
-export type InsertInboundQuotation = z.infer<typeof insertInboundQuotationSchema>;
-
-export type InboundQuotationItem = typeof inboundQuotationItems.$inferSelect;
-export type InsertInboundQuotationItem = z.infer<typeof insertInboundQuotationItemSchema>;
-
-export type Invoice = typeof invoices.$inferSelect;
-export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
-
-export type InvoiceItem = typeof invoiceItems.$inferSelect;
-export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
-
-export type FabricationOrder = typeof fabricationOrders.$inferSelect;
-export type InsertFabricationOrder = z.infer<typeof insertFabricationOrderSchema>;
-
-export type InventoryTask = typeof inventoryTasks.$inferSelect;
-export type InsertInventoryTask = z.infer<typeof insertInventoryTaskSchema>;
-
-// Marketing Types
-export type Lead = typeof leads.$inferSelect;
-export type InsertLead = z.infer<typeof insertLeadSchema>;
-
-export type FieldVisit = typeof fieldVisits.$inferSelect;
-export type InsertFieldVisit = z.infer<typeof insertFieldVisitSchema>;
-
-export type MarketingTask = typeof marketingTasks.$inferSelect;
-export type InsertMarketingTask = z.infer<typeof insertMarketingTaskSchema>;
-
-export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
-export type InsertMarketingAttendance = z.infer<typeof insertMarketingAttendanceSchema>;
-
-// Logistics Shared Constants and Types
 export const LOGISTICS_SHIPMENT_STATUSES = [
-  'created',
-  'packed', 
-  'dispatched',
-  'in_transit',
-  'out_for_delivery',
-  'delivered',
-  'closed'
-] as const;
+  "pending",
+  "in_transit",
+  "delivered",
+  "cancelled",
+  "returned",
+];
 
-export type LogisticsShipmentStatus = typeof LOGISTICS_SHIPMENT_STATUSES[number];
-
-// Helper function for status transitions
-export const getNextStatus = (currentStatus: LogisticsShipmentStatus): LogisticsShipmentStatus | null => {
-  const statusIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus);
-  if (statusIndex === -1 || statusIndex === LOGISTICS_SHIPMENT_STATUSES.length - 1) {
-    return null; // Invalid status or already at final status
+export function getNextStatus(currentStatus: string): string | null {
+  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus);
+  if (index === -1 || index === LOGISTICS_SHIPMENT_STATUSES.length - 1) {
+    return null; // no next status
   }
-  return LOGISTICS_SHIPMENT_STATUSES[statusIndex + 1];
-};
-
-export const isValidStatusTransition = (from: LogisticsShipmentStatus, to: LogisticsShipmentStatus): boolean => {
-  const fromIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(from);
-  const toIndex = LOGISTICS_SHIPMENT_STATUSES.indexOf(to);
-  
-  // Can only move forward one step or stay the same
-  return toIndex >= fromIndex && toIndex <= fromIndex + 1;
-};
-
-// Logistics Types
-export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
-export type InsertLogisticsShipment = z.infer<typeof insertLogisticsShipmentSchema>;
-
-export type LogisticsStatusUpdate = typeof logisticsStatusUpdates.$inferSelect;
-export type InsertLogisticsStatusUpdate = z.infer<typeof insertLogisticsStatusUpdateSchema>;
-
-export type LogisticsCheckpoint = typeof logisticsCheckpoints.$inferSelect;
-export type InsertLogisticsCheckpoint = z.infer<typeof insertLogisticsCheckpointSchema>;
-
-export type LogisticsAttendance = typeof logisticsAttendance.$inferSelect;
-export type InsertLogisticsAttendance = z.infer<typeof insertLogisticsAttendanceSchema>;
-
-export type LogisticsTask = typeof logisticsTasks.$inferSelect;
-export type InsertLogisticsTask = z.infer<typeof insertLogisticsTaskSchema>;
-
-// Accounts Types
-export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
-export type InsertAccountsReceivable = z.infer<typeof insertAccountsReceivableSchema>;
-
-export type AccountsPayable = typeof accountsPayables.$inferSelect;
-export type InsertAccountsPayable = z.infer<typeof insertAccountsPayableSchema>;
-
-export type Payment = typeof payments.$inferSelect;
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-
-export type BankAccount = typeof bankAccounts.$inferSelect;
-export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
-
-export type BankTransaction = typeof bankTransactions.$inferSelect;
-export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
-
-export type GstReturn = typeof gstReturns.$inferSelect;
-export type InsertGstReturn = z.infer<typeof insertGstReturnSchema>;
-
-export type AccountReminder = typeof accountReminders.$inferSelect;
-export type InsertAccountReminder = z.infer<typeof insertAccountReminderSchema>;
-
-export type AccountTask = typeof accountTasks.$inferSelect;
-export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
-
-export type AccountReport = typeof accountReports.$inferSelect;
-export type InsertAccountReport = z.infer<typeof insertAccountReportSchema>;
-
-
-// Logistics Operation Interfaces
-export interface LogisticsStatusData {
-  status: 'created' | 'packed' | 'dispatched' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'closed';
-  timestamp?: Date;
-  location?: string;
-  notes?: string;
+  return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
-
-export interface LogisticsPodData {
-  podObjectKey: string;
-  podUploadedAt: Date;
-  podUploadedBy: string;
-  deliveryConfirmation?: string;
-  recipientName?: string;
-  signatureObjectKey?: string;
-}
-
-// Logistics Analytics Interfaces
-export interface LogisticsShipmentTimeline {
-  id: string;
-  status: string;
-  timestamp: Date;
-  location?: string;
-  notes?: string;
-  updatedBy: string;
-  userName?: string;
-}
-
-export interface LogisticsDashboardMetrics {
-  totalShipments: number;
-  activeShipments: number;
-  deliveredToday: number;
-  overdueShipments: number;
-  averageDeliveryTime: number;
-  statusDistribution: Record<string, number>;
-  recentActivity: LogisticsShipmentTimeline[];
-}
-
-export interface LogisticsDeliveryMetrics {
-  onTimeDeliveries: number;
-  totalDeliveries: number;
-  onTimePercentage: number;
-  averageDeliveryDays: number;
-  delayedShipments: number;
-}
-
-export interface LogisticsVendorPerformance {
-  vendorId: string;
-  vendorName: string;
-  totalShipments: number;
-  onTimeDeliveries: number;
-  onTimePercentage: number;
-  averageDeliveryTime: number;
-}
-
-export interface LogisticsShipmentVolumeMetrics {
-  dailyShipments: { date: string; count: number }[];
-  monthlyTrend: { month: string; count: number }[];
-  totalVolume: number;
-  growthRate: number;
+export function isValidStatusTransition(currentStatus: string, nextStatus: string): boolean {
+  const next = getNextStatus(currentStatus);
+  return next === nextStatus;
 }

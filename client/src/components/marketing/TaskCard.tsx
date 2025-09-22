@@ -112,13 +112,13 @@ export default function TaskCard({
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ status }: { status: string }) => 
-      apiRequest(`api/marketing-tasks/${task.id}/status`, { 
+      apiRequest(`/marketing-tasks/${task.id}/status`, { 
         method: 'PUT', 
         body: JSON.stringify({ status }) 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
       toast({ title: "Task status updated successfully!" });
     },
     onError: (error: any) => {
@@ -133,8 +133,8 @@ export default function TaskCard({
   const completeTaskMutation = useMutation({
     mutationFn: () => apiRequest(`/${task.id}/complete`, { method: 'POST' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
       toast({ title: "Task completed successfully!" });
     },
     onError: (error: any) => {

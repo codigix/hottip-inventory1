@@ -22,7 +22,7 @@ export default function VendorManagement() {
   const { toast } = useToast();
   
   const { data: suppliers, isLoading } = useQuery({
-    queryKey: ["/api/suppliers"],
+    queryKey: ["/suppliers"],
   });
 
   const vendorFormSchema = insertSupplierSchema.extend({
@@ -57,9 +57,9 @@ export default function VendorManagement() {
 
   const createVendorMutation = useMutation({
     mutationFn: (data: InsertSupplier) => 
-      apiRequest('POST', '/api/suppliers', data),
+      apiRequest('POST', '/suppliers', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["/suppliers"] });
       toast({
         title: "Success",
         description: "Vendor created successfully.",

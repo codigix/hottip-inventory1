@@ -108,16 +108,16 @@ export default function MarketingAttendance() {
   // Auto-refresh interval (every 30 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
   }, [queryClient]);
 const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
-  queryKey: ['/api/marketing'],
+  queryKey: ['/marketing'],
   queryFn: async () => {
-    const res = await fetch(`${BASE_URL}/api/marketing`);
+    const res = await fetch(`${BASE_URL}/marketing`);
     if (!res.ok) throw new Error('Failed to fetch dashboard data');
     return res.json();
   },
@@ -125,9 +125,9 @@ const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardDat
 
 // Fetch today's attendance
 const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
-  queryKey: ['api/marketing-attendance/today'],
+  queryKey: ['/marketing-attendance/today'],
   queryFn: async () => {
-    const res = await apiRequest(`${BASE_URL}/api/marketing-attendance/today`);
+    const res = await apiRequest(`${BASE_URL}/marketing-attendance/today`);
     if (!res.ok) throw new Error('Failed to fetch today attendance');
     return res.json();
   },
@@ -135,19 +135,19 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
 
   // Fetch all attendance records for calendar view
   const { data: allAttendance = [] } = useQuery<AttendanceWithUser[]>({
-    queryKey: ['api/marketing-attendance'],
+    queryKey: ['/marketing-attendance'],
     meta: { errorMessage: "Failed to load attendance records" }
   });
 
   // Fetch attendance metrics
   const { data: metrics, isLoading: metricsLoading } = useQuery<AttendanceMetrics>({
-    queryKey: ['api/marketing-attendance/metrics'],
+    queryKey: ['/marketing-attendance/metrics'],
     meta: { errorMessage: "Failed to load attendance metrics" }
   });
 
   // Fetch users for team management
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['api/users'],
+    queryKey: ['/users'],
     meta: { errorMessage: "Failed to load users" }
   });
 
@@ -164,10 +164,10 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
   // Check-in mutation - FIXED: Remove automatic modal handling, let modals control flow
   const checkInMutation = useMutation({
     mutationFn: (data: { userId?: string; latitude: number; longitude: number; location?: string; photoPath?: string; workDescription?: string }) =>
-      apiRequest('api/marketing-attendance/check-in', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequest('/marketing-attendance/check-in', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
       toast({ title: "Successfully checked in!" });
       // Modal closing is now handled by the modal itself
     },
@@ -191,10 +191,10 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
       outcome?: string;
       nextAction?: string;
     }) =>
-      apiRequest('api/marketing-attendance/check-out', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequest('/marketing-attendance/check-out', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
       toast({ title: "Successfully checked out!" });
       // Modal closing is now handled by the modal itself
     },
@@ -207,10 +207,10 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
   // Leave request submission mutation
   const leaveRequestMutation = useMutation({
     mutationFn: (leaveRequest: LeaveRequest) =>
-      apiRequest('api/marketing-attendance/leave-request', { method: 'POST', body: JSON.stringify(leaveRequest) }),
+      apiRequest('/marketing-attendance/leave-request', { method: 'POST', body: JSON.stringify(leaveRequest) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['api/marketing-attendance/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
       toast({ title: "Leave request submitted successfully!" });
       setLeaveRequestModalOpen(false);
     },
@@ -374,8 +374,8 @@ const { data: todayAttendance = [], isLoading: attendanceLoading, error: attenda
           <Button
             variant="outline"
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/today'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/marketing-attendance/metrics'] });
+              queryClient.invalidateQueries({ queryKey: ['//marketing-attendance/today'] });
+              queryClient.invalidateQueries({ queryKey: ['//marketing-attendance/metrics'] });
             }}
             data-testid="button-refresh"
           >

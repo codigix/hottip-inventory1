@@ -8,7 +8,7 @@ import { Plus, Receipt, Eye, Download, Send } from "lucide-react";
 
 export default function InvoiceManagement() {
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/invoices"],
   });
 
   const columns = [

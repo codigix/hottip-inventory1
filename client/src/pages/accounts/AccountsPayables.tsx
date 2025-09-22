@@ -58,27 +58,27 @@ export default function AccountsPayables() {
 
   // Data fetching
   const { data: payables = [], isLoading: payablesLoading } = useQuery({
-    queryKey: ["/api/accounts-payables"],
+    queryKey: ["/accounts-payables"],
   }) as { data: AccountsPayable[], isLoading: boolean };
 
   const { data: overduePayables = [] } = useQuery({
-    queryKey: ["/api/accounts-payables/overdue"],
+    queryKey: ["/accounts-payables/overdue"],
   }) as { data: AccountsPayable[] };
 
   const { data: totalPayables } = useQuery({
-    queryKey: ["/api/accounts/payables-total"],
+    queryKey: ["/accounts/payables-total"],
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["/api/suppliers"],
+    queryKey: ["/suppliers"],
   });
 
   const { data: purchaseOrders = [] } = useQuery({
-    queryKey: ["/api/purchase-orders"],
+    queryKey: ["/purchase-orders"],
   });
 
   const { data: inboundQuotations = [] } = useQuery({
-    queryKey: ["/api/quotations/inbound"],
+    queryKey: ["/quotations/inbound"],
   });
 
   // Form setup
@@ -110,7 +110,7 @@ export default function AccountsPayables() {
   // Mutations
   const createPayableMutation = useMutation({
     mutationFn: (data: PayableFormData) =>
-      apiRequest("/api/accounts-payables", {
+      apiRequest("/accounts-payables", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -119,9 +119,9 @@ export default function AccountsPayables() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/payables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
@@ -133,7 +133,7 @@ export default function AccountsPayables() {
 
   const updatePayableMutation = useMutation({
     mutationFn: ({ id, ...data }: PayableFormData & { id: string }) =>
-      apiRequest(`/api/accounts-payables/${id}`, {
+      apiRequest(`/accounts-payables/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -142,9 +142,9 @@ export default function AccountsPayables() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/payables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable updated successfully" });
       setIsEditOpen(false);
       setSelectedPayable(null);
@@ -156,7 +156,7 @@ export default function AccountsPayables() {
 
   const recordPaymentMutation = useMutation({
     mutationFn: ({ id, ...data }: PaymentFormData & { id: string }) =>
-      apiRequest(`/api/accounts-payables/${id}/payment`, {
+      apiRequest(`/accounts-payables/${id}/payment`, {
         method: "POST",
         body: JSON.stringify({
           amount: parseFloat(data.amount),
@@ -165,9 +165,9 @@ export default function AccountsPayables() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/payables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payment recorded successfully" });
       setIsPaymentOpen(false);
       setSelectedPayable(null);
@@ -180,11 +180,11 @@ export default function AccountsPayables() {
 
   const deletePayableMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/accounts-payables/${id}`, { method: "DELETE" }),
+      apiRequest(`/accounts-payables/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts-payables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts/payables-total"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable deleted successfully" });
       setIsDeleteOpen(false);
       setSelectedPayable(null);

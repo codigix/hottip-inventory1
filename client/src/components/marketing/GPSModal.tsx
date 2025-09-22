@@ -297,7 +297,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                   </div>
                   <div>
                     <span className="text-muted-foreground">Purpose:</span>
-                    <p className="font-light capitalize">{visit.purpose.replace('_', ' ')}</p>
+                    <p className="font-light capitalize">{visit.purpose?.replace('_', ' ') || ""}</p>
                   </div>
                 </div>
                 <div>

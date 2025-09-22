@@ -54,11 +54,11 @@ export default function AccountsDashboard() {
   const { toast } = useToast();
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/invoices"],
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   const form = useForm<InvoiceForm>({
@@ -108,10 +108,10 @@ export default function AccountsDashboard() {
         paymentTerms: data.paymentTerms || '30 days',
         notes: data.notes,
       };
-      return await apiRequest("POST", "/api/invoices", invoiceData);
+      return await apiRequest("POST", "/invoices", invoiceData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/invoices"] });
       setIsInvoiceDialogOpen(false);
       form.reset();
       toast({

@@ -33,7 +33,7 @@ export default function StatusWorkflow() {
 
   // Fetch shipments data
  const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
-  queryKey: ["api/logistics/shipments"],
+  queryKey: ["/logistics/shipments"],
   queryFn: async () => {
     const res = await fetch("http://localhost:5000/api/logistics/shipments");
     if (!res.ok) throw new Error("Failed to fetch shipments");

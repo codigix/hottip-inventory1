@@ -126,14 +126,14 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: StatusUpdateForm }) => {
-      return await apiRequest(`api/logistics/shipments/${shipmentId}/status`, {
+      return await apiRequest(`/logistics/shipments/${shipmentId}/status`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
       setShowStatusUpdate(false);
       setSelectedShipment(null);
       form.reset();
@@ -154,14 +154,14 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
   // Close shipment mutation (for POD upload)
   const closeShipmentMutation = useMutation({
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: any }) => {
-      return await apiRequest(`api/logistics/shipments/${shipmentId}/close`, {
+      return await apiRequest(`/logistics/shipments/${shipmentId}/close`, {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
       setShowPodUpload(false);
       setSelectedShipment(null);
       toast({

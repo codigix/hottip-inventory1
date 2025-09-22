@@ -57,17 +57,17 @@ export default function LogisticsDashboard() {
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const { toast } = useToast();
   const [selectedClient, setSelectedClient] = useState("none");
-  
+
   const apiBaseUrl = import.meta.env.VITE_API_URL;
 
   const { data: shipments = [], isLoading: shipmentsLoading } = useQuery<any[]>({
-    queryKey: ["api/logistics/shipments"],
+    queryKey: ["/logistics/shipments"],
   });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["customers"],
     queryFn: async () => {
-      const res = await fetch(`${apiBaseUrl}/api/customers`);
+      const res = await fetch(`${apiBaseUrl}/customers`);
       if (!res.ok) throw new Error("Failed to fetch customers");
       const json = await res.json();
       return Array.isArray(json.customers) ? json.customers : [];
@@ -75,26 +75,26 @@ export default function LogisticsDashboard() {
   });
 
   const { data: suppliers = [], isLoading: suppliersLoading } = useQuery<any[]>({
-    queryKey: ["api/suppliers"],
+    queryKey: ["/suppliers"],
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
-    queryKey: ["api/users"],
+    queryKey: ["/users"],
   });
 
 
-const { data: customersData = [], isLoading: customersLoading } = useQuery({
-  queryKey: ["customers"],
-  queryFn: async () => {
-    const res = await fetch(`${apiBaseUrl}/api/customers`);
-    if (!res.ok) throw new Error("Failed to fetch customers");
-    const json = await res.json();
-    return Array.isArray(json.customers) ? json.customers : [];
-  },
-});
+  const { data: customersData = [], isLoading: customersLoading } = useQuery({
+    queryKey: ["/customers"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBaseUrl}//customers`);
+      if (!res.ok) throw new Error("Failed to fetch customers");
+      const json = await res.json();
+      return Array.isArray(json.customers) ? json.customers : [];
+    },
+  });
 
-// Normalize after fetching
-const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
+  // Normalize after fetching
+  const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
   const form = useForm<ShipmentForm>({
     resolver: zodResolver(shipmentFormSchema),
     defaultValues: {
@@ -118,13 +118,13 @@ const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentForm) => {
-      return await apiRequest("api/logistics/shipments", {
+      return await apiRequest("/logistics/shipments", {
         method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
       setIsShipmentDialogOpen(false);
       form.reset();
       toast({
@@ -143,13 +143,13 @@ const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
 
   const updateShipmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ShipmentForm> }) => {
-      return await apiRequest(`api/logistics/shipments/${id}`, {
+      return await apiRequest(`/logistics/shipments/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
       setEditingShipment(null);
       form.reset();
       toast({
@@ -415,11 +415,13 @@ const normalizedCustomers = Array.isArray(customersData) ? customersData : [];
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="">No vendor</SelectItem>
-                            {(suppliers || []).map((supplier: any) => (
-                              <SelectItem key={supplier.id} value={supplier.id}>
-                                {supplier.name}
-                              </SelectItem>
-                            ))}
+                            {Array.isArray(suppliers) && suppliers.length > 0 ? (
+                              suppliers.map((supplier: { id: string; name: string }) => (
+                                <SelectItem key={supplier.id} value={supplier.id}>
+                                  {supplier.name}
+                                </SelectItem>
+                              ))
+                            ) : null}
                           </SelectContent>
                         </Select>
                         <FormMessage />

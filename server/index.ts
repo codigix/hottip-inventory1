@@ -1,428 +1,3 @@
-// import express, { Request, Response } from "express";
-// import cors from "cors";
-// import bodyParser from "body-parser";
-// import { createServer } from "http";
-// import { WebSocketServer } from "ws";
-// import { db } from "./db";
-// import { users, leads, fieldVisits } from "@shared/schema";
-// const app = express();
-// const port = 5000;
-
-// // Middleware
-// app.use(cors({
-//   origin: 'http://localhost:5173', // <-- your React frontend URL
-//   credentials: true                // <-- allow cookies/auth headers
-// }));
-// app.use(bodyParser.json());
-// const shipments = [
-//   {
-//     id: "1",
-//     consignmentNumber: "CN001",
-//     source: "Warehouse A",
-//     destination: "Customer X",
-//     currentStatus: "in_transit",
-//     updatedAt: new Date().toISOString(),
-//   },
-//   {
-//     id: "2",
-//     consignmentNumber: "CN002",
-//     source: "Warehouse B",
-//     destination: "Customer Y",
-//     currentStatus: "delivered",
-//     updatedAt: new Date().toISOString(),
-//   },
-//   {
-//     id: "3",
-//     consignmentNumber: "CN003",
-//     source: "Warehouse C",
-//     destination: "Customer Z",
-//     currentStatus: "out_for_delivery",
-//     updatedAt: new Date().toISOString(),
-//   },
-// ];
-// // =====================
-// // In-memory Mock Data
-// // =====================
-// let users = [
-//   { id: "0", firstName: "Alice", lastName: "Smith" },
-//   { id: "1", firstName: "Bob", lastName: "Johnson" },
-//   { id: "2", firstName: "Carol", lastName: "Brown" },
-// ];
-
-// const dailyReports = [
-//   { date: "2025-09-19", shipped: 5, delivered: 3, revenue: 5000 },
-//   { date: "2025-09-18", shipped: 7, delivered: 6, revenue: 7000 },
-//   { date: "2025-09-17", shipped: 6, delivered: 4, revenue: 6000 },
-// ];
-
-// let visits = Array.from({ length: 10 }, (_, i) => ({
-//   id: (i + 1).toString(),
-//   employee: `Employee ${i + 1}`,
-//   location: `Location ${i + 1}`,
-//   status: ["scheduled", "completed", "cancelled"][i % 3],
-//   plannedDate: `2025-09-${15 + i}`,
-// }));
-// let tasks = [
-//   { id: "1", title: "Email Campaign", type: "email_campaign", status: "pending", priority: "high", assignedToUser: { firstName: "Alice", lastName: "Smith" }, dueDate: new Date().toISOString(), estimatedHours: 3, createdAt: new Date().toISOString() },
-//   { id: "2", title: "Client Meeting", type: "visit_client", status: "in_progress", priority: "medium", assignedToUser: { firstName: "Bob", lastName: "Brown" }, dueDate: new Date().toISOString(), estimatedHours: 2, createdAt: new Date().toISOString() },
-// ];
-
-// const metrics = {
-//   pending: tasks.filter(t => t.status === "pending").length,
-//   in_progress: tasks.filter(t => t.status === "in_progress").length,
-//   completed: tasks.filter(t => t.status === "completed").length,
-//   cancelled: tasks.filter(t => t.status === "cancelled").length,
-// };
-// const attendance = [
-//   { id: "1", name: "Alice", status: "present", date: new Date().toISOString() },
-//   { id: "2", name: "Bob", status: "absent", date: new Date().toISOString() },
-//   { id: "3", name: "Charlie", status: "present", date: new Date().toISOString() },
-// ];
-// const marketingTasks = [
-//   { id: "1", title: "Call Client", status: "pending", priority: "high", assignedToUserId: "1", createdAt: new Date().toISOString(), dueDate: new Date().toISOString() },
-//   { id: "2", title: "Email Campaign", status: "in_progress", priority: "medium", assignedToUserId: "2", createdAt: new Date().toISOString() },
-//   { id: "3", title: "Product Demo", status: "completed", priority: "low", assignedToUserId: "3", createdAt: new Date().toISOString() },
-// ];
-// const attendanceMetrics = {
-//   total: 3,
-//   present: 2,
-//   absent: 1,
-//   percentagePresent: 66.7,
-// };
-// const leads = [
-//   { id: "1", name: "Lead A", status: "open" },
-//   { id: "2", name: "Lead B", status: "contacted" },
-// ];
-
-// const fieldVisits = [
-//   { id: "1", client: "Client X", status: "completed" },
-//   { id: "2", client: "Client Y", status: "pending" },
-// ];
-
-
-// // =====================
-// // Users (CRUD)
-// // =====================
-// app.get("/api/users", (_req: Request, res: Response) => {
-//   res.json(users);
-// });
-
-// app.post("/api/users", (req: Request, res: Response) => {
-//   const newUser = { id: Date.now().toString(), ...req.body };
-//   users.push(newUser);
-//   res.status(201).json(newUser);
-// });
-
-// app.put("/api/users/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   users = users.map((u) => (u.id === id ? { ...u, ...req.body } : u));
-//   res.json({ message: "User updated" });
-// });
-
-// app.delete("/api/users/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   users = users.filter((u) => u.id !== id);
-//   res.json({ message: "User deleted" });
-// });
-
-// // =====================
-// // Leads (CRUD)
-// // =====================
-// app.get("/api/leads", (_req: Request, res: Response) => {
-//   res.json(leads);
-// });
-
-// app.post("/api/leads", (req: Request, res: Response) => {
-//   const newLead = { id: Date.now().toString(), ...req.body };
-//   leads.push(newLead);
-//   res.status(201).json(newLead);
-// });
-
-// app.put("/api/leads/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   leads = leads.map((l) => (l.id === id ? { ...l, ...req.body } : l));
-//   res.json({ message: "Lead updated" });
-// });
-
-// app.delete("/api/leads/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   leads = leads.filter((l) => l.id !== id);
-//   res.json({ message: "Lead deleted" });
-// });
-
-// // =====================
-// // Field Visits (CRUD)
-// // =====================
-// app.get("/api/field-visits", (_req: Request, res: Response) => {
-//   res.json(visits);
-// });
-
-// app.post("/api/field-visits", (req: Request, res: Response) => {
-//   const newVisit = { id: Date.now().toString(), ...req.body };
-//   visits.push(newVisit);
-//   res.status(201).json(newVisit);
-
-//   // Broadcast to WebSocket clients
-//   broadcast({ type: "NEW_VISIT", data: newVisit });
-// });
-
-// app.put("/api/field-visits/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   visits = visits.map((v) => (v.id === id ? { ...v, ...req.body } : v));
-//   res.json({ message: "Visit updated" });
-// });
-
-// app.delete("/api/field-visits/:id", (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   visits = visits.filter((v) => v.id !== id);
-//   res.json({ message: "Visit deleted" });
-// });
-// app.get("/api/marketing", (_req: Request, res: Response) => {
-//   res.json({
-//     leads: {
-//       total: 120,
-//       active: 45,
-//       converted: 30,
-//       conversionRate: 25.0,
-//       monthlyNew: 20,
-//       pendingFollowUps: 5,
-//     },
-//     visits: {
-//       total: 50,
-//       completed: 35,
-//       today: 5,
-//       successRate: 70.0,
-//       weeklyCompleted: 25,
-//     },
-//     tasks: {
-//       total: 40,
-//       completed: 28,
-//       overdue: 5,
-//       today: 3,
-//       completionRate: 70.0,
-//     },
-//     attendance: {
-//       totalEmployees: 50,
-//       presentToday: 35,
-//     },
-//   });
-// });
-// app.get("/api/marketing-tasks", (req, res) => res.json(tasks));
-
-// app.get("/api/marketing-tasks/metrics", (req, res) => res.json(metrics));
-
-// app.put("/api/marketing-tasks/:taskId/status", (req, res) => {
-//   const { taskId } = req.params;
-//   const { status } = req.body;
-//   const task = tasks.find(t => t.id === taskId);
-//   if (!task) return res.status(404).json({ error: "Task not found" });
-//   task.status = status;
-//   res.json(task);
-// });
-
-// app.post("/api/marketing-tasks/:taskId/complete", (req, res) => {
-//   const { taskId } = req.params;
-//   const task = tasks.find(t => t.id === taskId);
-//   if (!task) return res.status(404).json({ error: "Task not found" });
-//   task.status = "completed";
-//   res.json(task);
-// });
-
-// // Optional: leads endpoint
-// app.get("/api/marketing/leads", (req, res) => {
-//   res.json([
-//     { id: "1", name: "Alice", email: "alice@test.com" },
-//     { id: "2", name: "Bob", email: "bob@test.com" },
-//   ]);
-// });
-// app.get("/api/marketing-attendance", (req, res) => {
-//   res.json([
-//     { id: "1", userId: "1", status: "present", date: new Date() },
-//     { id: "2", userId: "2", status: "absent", date: new Date() }
-//   ]);
-// });
-// app.get("/api/marketing-attendance/today", (req, res) => {
-//   const today = new Date().toISOString().slice(0, 10);
-//   const todayAttendance = attendance.filter(a => a.date.slice(0, 10) === today);
-//   res.json(todayAttendance);
-// });
-
-// // Attendance metrics
-// app.get("/api/marketing-attendance/metrics", (req, res) => {
-//   res.json(attendanceMetrics);
-// });
-// app.get("/api/marketing/conversion-rates", (req, res) => {
-//   res.json({ conversionRate: 42 });
-// });
-
-// // Visit Success Rates
-// app.get("/api/marketing/visit-success-rates", (req, res) => {
-//   res.json({ successRate: 75 });
-// });
-// app.get("/api/marketing/team-performance", (req, res) => {
-//   const teamPerformance = users.map(u => ({
-//     user: u,
-//     tasksCompleted: marketingTasks.filter(t => t.assignedToUserId === u.id && t.status === "completed").length
-//   }));
-//   res.json(teamPerformance);
-// });
-// app.get("/api/logistics/shipments", (req, res) => {
-//   // return shipments data
-//   res.json({ shipments: [] });
-// });
-
-// app.get("/api/logistics/dashboard", (req, res) => {
-//   res.json({
-//     totalShipments: shipments.length,
-//     inTransit: shipments.filter(s => s.currentStatus === "in_transit").length,
-//     outForDelivery: shipments.filter(s => s.currentStatus === "out_for_delivery").length,
-//     delivered: shipments.filter(s => s.currentStatus === "delivered").length,
-//   });
-// });
-
-// // Shipments list
-// app.get("/api/logistics/shipments", (req, res) => {
-//   res.json({ shipments });
-// });
-
-// // Daily report
-// app.get("/api/logistics/reports/daily/:date", (req, res) => {
-//   const { date } = req.params;
-
-//   // Mock daily report object
-//   const dailyReport = {
-//     date,
-//     shipped: shipments.length,
-//     delivered: shipments.filter(
-//       s => new Date(s.updatedAt).toDateString() === new Date(date).toDateString()
-//     ).length,
-//     revenue: 5000, // example mock revenue
-//   };
-
-//   res.json([dailyReport]); // ✅ return as array
-// });
-// app.get("/api/customers", (req, res) => {
-//   res.json({
-//     customers: [
-//       { id: "1", name: "Alice Corp" },
-//       { id: "2", name: "Beta Ltd" },
-//       { id: "3", name: "Gamma Inc" },
-//     ],
-//   });
-// });
-
-// app.get("/api/suppliers", (req, res) => {
-//   res.json({
-//     suppliers: [
-//       { id: "1", name: "Supplier A" },
-//       { id: "2", name: "Supplier B" },
-//       { id: "3", name: "Supplier C" },
-//     ],
-//   });
-// });
-// // Vendor performance
-
-
-// // Volume report
-// app.get("/api/logistics/reports/volume/:param", (req, res) => {
-//   const { param } = req.params;
-
-//   const report = {
-//     period: param,              // rename param → period for consistency
-//     volume: 1500,               // totalVolume
-//     averagePerShipment: 250,    // average
-//   };
-
-//   res.json([report]); // ✅ return as array
-// });
-
-// // Performance report
-// app.get("/api/logistics/reports/performance/:param", (req, res) => {
-//   const { param } = req.params;
-
-//   const report = {
-//     period: param,
-//     avgDeliveryTimeHours: 48,
-//     onTimePercentage: 92,
-//   };
-
-//   res.json([report]); // ✅ always return an array
-// });
-
-// app.get("/api/logistics/tasks", (req, res) => {
-//   // Mock tasks data
-//   const tasks = [
-//     { id: 1, title: "Load truck #12", status: "pending", assignedTo: "John" },
-//     { id: 2, title: "Deliver consignment #45", status: "in_progress", assignedTo: "Alice" },
-//     { id: 3, title: "Return empty container", status: "completed", assignedTo: "Bob" },
-//   ];
-
-//   res.json(tasks);
-// });
-
-// app.get("/api/logistics/attendance", (req, res) => {
-//   res.json([
-//     { id: 1, employee: "Alice", status: "present" },
-//     { id: 2, employee: "Bob", status: "absent" }
-//   ]);
-// });
-
-// // Get today's attendance
-// app.get("/api/logistics/attendance/today", (req, res) => {
-//   res.json([
-//     { id: 1, employee: "Alice", status: "present" },
-//     { id: 2, employee: "Bob", status: "absent" }
-//   ]);
-// });
-
-// // Get attendance metrics
-// app.get("/api/logistics/attendance/metrics", (req, res) => {
-//   res.json({
-//     totalEmployees: 10,
-//     presentToday: 8,
-//     absentToday: 2,
-//   });
-// });
-// // =====================
-// // HTTP + WebSocket Setup
-// // =====================
-// const server = createServer(app);
-// const wss = new WebSocketServer({ server });
-
-// function broadcast(message: any) {
-//   const data = JSON.stringify(message);
-//   wss.clients.forEach((client) => {
-//     if (client.readyState === 1) {
-//       client.send(data);
-//     }
-//   });
-// }
-
-// wss.on("connection", (ws) => {
-//   console.log("🔌 WebSocket client connected");
-
-//   ws.on("message", (msg) => {
-//     console.log("Received:", msg.toString());
-//   });
-
-//   ws.on("close", () => {
-//     console.log("❌ WebSocket client disconnected");
-//   });
-// });
-
-// // =====================
-// // Start Server
-// // =====================
-// server.listen(port, () => {
-//   console.log(`🚀 Server running at http://localhost:${port}`);
-// });
-
-
-
-
-
-
-
 
 
 // server/index.ts
@@ -432,11 +7,31 @@ import bodyParser from "body-parser";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { v4 as uuidv4 } from "uuid";
-import { v4 as uuidv4 } from "uuid";
+import { eq, sql, lt } from "drizzle-orm";
 const app = express();
 const port = 5000;
-
-// =====================
+import {db} from "./db.ts";
+import { getLowStockProductsFromDB } from "./helpers/products";
+import { 
+  suppliers, 
+  products, 
+  vendorCommunications, 
+  deliveries, 
+  customers, 
+  invoices, 
+  outboundQuotations, 
+  inboundQuotations,
+  insertCustomerSchema,
+  insertAccountsReceivableSchema,
+  insertAccountsPayableSchema,
+  insertGstReturnSchema,
+  insertBankAccountSchema,
+  insertBankTransactionSchema,
+  insertAccountReminderSchema,
+  insertAccountTaskSchema,
+  insertAccountReportSchema,
+  insertAttendanceSchema
+} from "@shared/schema";// =====================
 // Middleware
 // =====================
 app.use(cors({
@@ -540,7 +135,132 @@ app.delete("/api/users/:id", (req: Request, res: Response) => {
   users = users.filter(u => u.id !== id);
   res.json({ message: "User deleted" });
 });
+app.get("/api/dashboard/metrics", (req, res) => {
+  res.json({
+    totalUsers: 120,
+    totalSales: 4500,
+    totalOrders: 320
+  });
+});
 
+app.get("/api/activities", (req, res) => {
+  res.json([
+    { id: 1, type: "login", user: "John", time: new Date() },
+    { id: 2, type: "order", user: "Mary", time: new Date() }
+  ]);
+});
+app.get('/api/products', async (req, res) => {
+  try {
+    const result = await db.select().from(products);
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// =========================
+// Outbound Quotations API
+// =========================
+app.get("/api/outbound-quotations", async (req: Request, res: Response) => {
+  try {
+    const quotations = await db.select().from(outboundQuotations);
+    res.json(quotations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch outbound quotations" });
+  }
+});
+
+app.get("/api/outbound-quotations/:id", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const quotation = await db.select().from(schema.outboundQuotations).where(schema.outboundQuotations.id.eq(id));
+    if (!quotation.length) return res.status(404).json({ error: "Quotation not found" });
+    res.json({ outboundQuotation: quotation[0] });
+  } catch (err) {
+    console.error("Failed to fetch outbound quotation:", err);
+    res.status(500).json({ error: "Failed to fetch outbound quotation" });
+  }
+});
+
+// =========================
+// Inbound Quotations API
+// =========================
+app.get("/api/inbound-quotations", async (req: Request, res: Response) => {
+  try {
+    const quotations = await db.select().from(inboundQuotations);
+    res.json(quotations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch inbound quotations" });
+  }
+});
+
+
+app.get("/api/inbound-quotations/:id", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const quotation = await db.select().from(schema.inboundQuotations).where(schema.inboundQuotations.id.eq(id));
+    if (!quotation.length) return res.status(404).json({ error: "Quotation not found" });
+    res.json({ inboundQuotation: quotation[0] });
+  } catch (err) {
+    console.error("Failed to fetch inbound quotation:", err);
+    res.status(500).json({ error: "Failed to fetch inbound quotation" });
+  }
+});
+
+// =========================
+// Invoices API
+// =========================
+app.get("/api/invoices", async (req: Request, res: Response) => {
+  try {
+    const invoices = await db.select().from(schema.invoices);
+    res.json({ invoices });
+  } catch (err) {
+    console.error("Failed to fetch invoices:", err);
+    res.status(500).json({ error: "Failed to fetch invoices" });
+  }
+});
+
+app.get("/api/invoices/:id", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const invoice = await db.select().from(schema.invoices).where(schema.invoices.id.eq(id));
+    if (!invoice.length) return res.status(404).json({ error: "Invoice not found" });
+    res.json({ invoice: invoice[0] });
+  } catch (err) {
+    console.error("Failed to fetch invoice:", err);
+    res.status(500).json({ error: "Failed to fetch invoice" });
+  }
+});
+app.get("/api/products/low-stock", async (req, res) => {
+  try {
+    const lowStock = await db
+      .select()
+      .from(products)
+      .where(lt(products.stock, 10)); // threshold = 10
+    res.json(lowStock);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch low stock products" });
+  }
+});
+app.get("/api/vendor-communications", async (req, res) => {
+  try {
+    const records = await db.select().from(vendorCommunications); // <-- your table
+    res.json(records);
+  } catch (err) {
+    console.error("Error fetching vendor communications:", err);
+    res.status(500).json({ error: "Failed to fetch vendor communications" });
+  }
+});
+app.get("/api/orders", (req, res) => {
+  res.json([
+    { id: 101, item: "Product A", amount: 250, status: "pending" },
+    { id: 102, item: "Product B", amount: 500, status: "completed" }
+  ]);
+});
 // =====================
 // Leads API
 // =====================
@@ -600,13 +320,13 @@ app.get("/api/marketing/leads/metrics", (req, res) => {
   });
 });
 app.get("/api/tasks", (req: Request, res: Response) => {
-    res.json({ message: "List of tasks", tasks: [] });
-  });
+  res.json({ message: "List of tasks", tasks: [] });
+});
 
-  app.post("/api/tasks", (req: Request, res: Response) => {
-    const task = req.body;
-    res.status(201).json({ message: "Task created", task });
-  });
+app.post("/api/tasks", (req: Request, res: Response) => {
+  const task = req.body;
+  res.status(201).json({ message: "Task created", task });
+});
 app.get('/api/marketing', (req, res) => {
   const mockDashboardData = {
     totalLeads: 120,
@@ -930,6 +650,107 @@ app.delete("/api/users/:id", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to delete user" });
   }
 });
+app.get("/api/logistics/reports/daily", async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const fromDate = new Date(from as string);
+    const toDate = new Date(to as string);
+
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return res.status(400).json({ error: "Invalid 'from' or 'to' date" });
+    }
+
+    const dailyReport = await db
+      .select()
+      .from(deliveries)
+      .where(deliveries.date.gte(fromDate))
+      .where(deliveries.date.lte(toDate));
+
+    res.json(dailyReport);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch daily report" });
+  }
+});
+
+
+// -----------------------
+// 2️⃣ Vendor Performance
+// -----------------------
+app.get("/api/logistics/reports/vendor-performance", async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    const performance = await db
+      .select({
+        vendorId: deliveries.vendorId,
+        vendorName: vendors.name,
+        totalDeliveries: sql<number>`COUNT(${deliveries.id})`,
+        totalVolume: sql<number>`SUM(${deliveries.volume})`
+      })
+      .from(deliveries)
+      .leftJoin(vendors, eq(deliveries.vendorId, vendors.id))
+      .where(gte(deliveries.date, new Date(from as string)))
+      .where(lte(deliveries.date, new Date(to as string)))
+      .groupBy(deliveries.vendorId, vendors.name);
+
+    res.json(performance);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch vendor performance report" });
+  }
+});
+
+
+// -----------------------
+// 3️⃣ Volume Report
+// -----------------------
+app.get("/api/logistics/reports/volume", async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    const volumeReport = await db
+      .select({
+        date: deliveries.date,
+        totalVolume: sql<number>`SUM(${deliveries.volume})`,
+      })
+      .from(deliveries)
+      .where(gte(deliveries.date, new Date(from as string)))
+      .where(lte(deliveries.date, new Date(to as string)))
+      .groupBy(deliveries.date)
+      .orderBy(deliveries.date);
+
+    res.json(volumeReport);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch volume report" });
+  }
+});
+
+// -----------------------
+// 4️⃣ Performance Report
+// -----------------------
+app.get("/api/logistics/reports/performance", async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    const performanceReport = await db
+      .select({
+        totalDeliveries: sql<number>`COUNT(${deliveries.id})`,
+        totalVolume: sql<number>`SUM(${deliveries.volume})`,
+        averageVolume: sql<number>`AVG(${deliveries.volume})`
+      })
+      .from(deliveries)
+      .where(gte(deliveries.date, new Date(from as string)))
+      .where(lte(deliveries.date, new Date(to as string)));
+
+    res.json(performanceReport[0]); // single aggregated row
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch overall performance report" });
+  }
+});
+
 
 // =====================
 // Leads (CRUD) → REAL DB
@@ -1111,9 +932,9 @@ app.put("/api/marketing-tasks/:taskId/status", async (req: Request, res: Respons
 
     const [updatedTask] = await db
       .update(marketingTasks)
-      .set({ 
-        status, 
-        completedDate: status === "completed" ? new Date() : undefined 
+      .set({
+        status,
+        completedDate: status === "completed" ? new Date() : undefined
       })
       .where(eq(marketingTasks.id, taskId))
       .returning();
@@ -1135,9 +956,9 @@ app.post("/api/marketing-tasks/:taskId/complete", async (req: Request, res: Resp
 
     const [updatedTask] = await db
       .update(marketingTasks)
-      .set({ 
-        status: "completed", 
-        completedDate: new Date() 
+      .set({
+        status: "completed",
+        completedDate: new Date()
       })
       .where(eq(marketingTasks.id, taskId))
       .returning();
@@ -1167,22 +988,21 @@ app.get("/api/marketing-attendance", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/marketing-attendance/today", async (req: Request, res: Response) => {
+// Get today's attendance
+app.get("/api/marketing-attendance/today", async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-
     const records = await db
       .select()
       .from(marketingAttendance)
-      .where(sql`DATE(${marketingAttendance.date}) = ${today}`);
-
+      .where(eq(marketingAttendance.date, sql`CURRENT_DATE`));
     res.json(records);
   } catch (err) {
-    console.error(err);
+    console.error("Attendance query failed:", err);
     res.status(500).json({ error: "Failed to fetch today's attendance" });
   }
 });
 
+// Get attendance metrics
 app.get("/api/marketing-attendance/metrics", async (req: Request, res: Response) => {
   try {
     const result = await db
@@ -1203,6 +1023,110 @@ app.get("/api/marketing-attendance/metrics", async (req: Request, res: Response)
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch attendance metrics" });
+  }
+});
+
+// ==========================
+// CHECK-IN
+// ==========================
+app.post("/api/marketing-attendance/check-in", async (req: Request, res: Response) => {
+  try {
+    const { userId, latitude, longitude, location, photoPath, workDescription } = req.body;
+
+    if (!userId || latitude == null || longitude == null) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const now = new Date();
+
+    const [newRecord] = await db
+      .insert(marketingAttendance)
+      .values({
+        userId,
+        date: now,
+        checkInTime: now,
+        latitude,
+        longitude,
+        location,
+        photoPath,
+        workDescription,
+        attendanceStatus: 'present'
+      })
+      .returning('*');
+
+    res.json(newRecord);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to check-in" });
+  }
+});
+
+// ==========================
+// CHECK-OUT
+// ==========================
+app.post("/api/marketing-attendance/check-out", async (req: Request, res: Response) => {
+  try {
+    const { userId, latitude, longitude, location, photoPath, workDescription, visitCount, tasksCompleted, outcome, nextAction } = req.body;
+
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+    const now = new Date();
+
+    const [updatedRecord] = await db
+      .update(marketingAttendance)
+      .set({
+        checkOutTime: now,
+        latitude,
+        longitude,
+        location,
+        photoPath,
+        workDescription,
+        visitCount,
+        tasksCompleted,
+        outcome,
+        nextAction
+      })
+      .where(sql`${marketingAttendance.userId} = ${userId} AND DATE(${marketingAttendance.date}) = ${now.toISOString().split('T')[0]}`)
+      .returning('*');
+
+    if (!updatedRecord) {
+      return res.status(404).json({ error: "Attendance record not found for today" });
+    }
+
+    res.json(updatedRecord);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to check-out" });
+  }
+});
+
+// ==========================
+// LEAVE REQUEST
+// ==========================
+app.post("/api/marketing-attendance/leave-request", async (req: Request, res: Response) => {
+  try {
+    const { userId, leaveType, startDate, endDate, reason } = req.body;
+
+    if (!userId || !leaveType || !startDate || !endDate || !reason) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const [newRequest] = await db
+      .insert(leaveRequests)
+      .values({
+        userId,
+        leaveType,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        reason,
+        status: 'pending'
+      })
+      .returning('*');
+
+    res.json(newRequest);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to submit leave request" });
   }
 });
 
@@ -1250,12 +1174,15 @@ app.get("/api/customers", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/suppliers", async (req: Request, res: Response) => {
+app.get("/api/suppliers", async (req, res) => {
   try {
-    const allSuppliers = await db.select({ id: suppliers.id, name: suppliers.name }).from(suppliers);
+    const allSuppliers = await db
+      .select({ id: suppliers.id, name: suppliers.name })
+      .from(suppliers);
+
     res.json({ suppliers: allSuppliers });
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching suppliers:", err);
     res.status(500).json({ error: "Failed to fetch suppliers" });
   }
 });
@@ -1322,7 +1249,9 @@ app.get("/api/marketing/leads/metrics", async (req: Request, res: Response) => {
 // =====================
 // Start Server
 // =====================
-
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Server is running 🚀");
+});
 server.listen(port, () => {
   console.log(`✅ Server running at http://localhost:${port}`);
 });
