@@ -22,6 +22,81 @@ export default function VendorManagement() {
   const [editingVendor, setEditingVendor] = useState<any>(null);
   const { toast } = useToast();
 
+  // Vendor form state
+  const [vendorName, setVendorName] = useState('');
+  const [vendorContactPerson, setVendorContactPerson] = useState('');
+  const [vendorEmail, setVendorEmail] = useState('');
+  const [vendorPhone, setVendorPhone] = useState('');
+  const [vendorGstNumber, setVendorGstNumber] = useState('');
+  const [vendorPanNumber, setVendorPanNumber] = useState('');
+  const [vendorAddress, setVendorAddress] = useState('');
+  const [vendorPaymentTerms, setVendorPaymentTerms] = useState('30');
+  const [vendorCreditLimit, setVendorCreditLimit] = useState('');
+  const [vendorNotes, setVendorNotes] = useState('');
+  const [vendorIsActive, setVendorIsActive] = useState(true);
+
+  const resetVendorForm = () => {
+    setVendorName('');
+    setVendorContactPerson('');
+    setVendorEmail('');
+    setVendorPhone('');
+    setVendorGstNumber('');
+    setVendorPanNumber('');
+    setVendorAddress('');
+    setVendorPaymentTerms('30');
+    setVendorCreditLimit('');
+    setVendorNotes('');
+    setVendorIsActive(true);
+    setEditingVendor(null);
+  };
+
+  // Vendor mutations (CRUD)
+  const createVendorMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest('POST', '/suppliers', data),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Vendor created' });
+      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
+      setIsVendorDialogOpen(false);
+      resetVendorForm();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to create vendor', variant: 'destructive' })
+  });
+  const updateVendorMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest('PUT', `/suppliers/${data.id}`, data.patch),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Vendor updated' });
+      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
+      setIsVendorDialogOpen(false);
+      resetVendorForm();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to update vendor', variant: 'destructive' })
+  });
+  const deleteVendorMutation = useMutation({
+    mutationFn: async (id: any) => apiRequest('DELETE', `/suppliers/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Vendor deleted' });
+      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to delete vendor', variant: 'destructive' })
+  });
+
+  const handleSaveVendor = () => {
+    if (!vendorName.trim()) {
+      toast({ title: 'Error', description: 'Vendor name is required', variant: 'destructive' });
+      return;
+    }
+    const payload = {
+      name: vendorName.trim(),
+      contactEmail: vendorEmail.trim() || null,
+      contactPhone: vendorPhone.trim() || null,
+    };
+    if (editingVendor) {
+      updateVendorMutation.mutate({ id: editingVendor.id, patch: payload });
+    } else {
+      createVendorMutation.mutate(payload);
+    }
+  };
+
   // Fetch vendors
   const { data: vendors, isLoading: vendorsLoading } = useQuery({
     queryKey: ["/suppliers"],
@@ -52,22 +127,26 @@ export default function VendorManagement() {
     {
       key: "email",
       header: "Contact",
-      cell: (vendor: any) => (
-        <div>
-          {vendor.email && (
-            <div className="flex items-center space-x-1 text-sm">
-              <Mail className="h-3 w-3" />
-              <span>{vendor.email}</span>
-            </div>
-          )}
-          {vendor.phone && (
-            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              <span>{vendor.phone}</span>
-            </div>
-          )}
-        </div>
-      ),
+      cell: (vendor: any) => {
+        const email = vendor.email || vendor.contactEmail;
+        const phone = vendor.phone || vendor.contactPhone;
+        return (
+          <div>
+            {email && (
+              <div className="flex items-center space-x-1 text-sm">
+                <Mail className="h-3 w-3" />
+                <span>{email}</span>
+              </div>
+            )}
+            {phone && (
+              <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                <Phone className="h-3 w-3" />
+                <span>{phone}</span>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "gstNumber",
@@ -76,16 +155,19 @@ export default function VendorManagement() {
     {
       key: "paymentTerms",
       header: "Payment Terms",
-      cell: (vendor: any) => `${vendor.paymentTerms} days`,
+      cell: (vendor: any) => (vendor.paymentTerms != null ? `${vendor.paymentTerms} days` : '-'),
     },
     {
       key: "isActive",
       header: "Status",
-      cell: (vendor: any) => (
-        <Badge variant={vendor.isActive ? "default" : "secondary"}>
-          {vendor.isActive ? "Active" : "Inactive"}
-        </Badge>
-      ),
+      cell: (vendor: any) => {
+        const isActive = vendor.isActive !== false; // default to active when undefined
+        return (
+          <Badge variant={isActive ? "default" : "secondary"}>
+            {isActive ? "Active" : "Inactive"}
+          </Badge>
+        );
+      },
     }
   ];
 
@@ -149,7 +231,8 @@ export default function VendorManagement() {
     );
   }
 
-  const activeVendors = (vendors?.suppliers || []).filter((v: any) => v.isActive).length;
+  const vendorsArray = Array.isArray(vendors) ? vendors : (vendors?.suppliers || []);
+  const activeVendors = (vendorsArray || []).filter((v: any) => v.isActive !== false).length;
   const totalCommunications = (communications || []).length;
   const pendingFollowUps = (communications || []).filter((c: any) => c.followUpRequired).length;
 
@@ -176,50 +259,50 @@ export default function VendorManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Vendor Name *</Label>
-                  <Input id="name" placeholder="Company name..." data-testid="input-vendor-name" />
+                  <Input id="name" placeholder="Company name..." data-testid="input-vendor-name" value={vendorName} onChange={(e) => setVendorName(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="contactPerson">Contact Person</Label>
-                  <Input id="contactPerson" placeholder="Contact person..." />
+                  <Input id="contactPerson" placeholder="Contact person..." value={vendorContactPerson} onChange={(e) => setVendorContactPerson(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="contact@vendor.com" />
+                  <Input id="email" type="email" placeholder="contact@vendor.com" value={vendorEmail} onChange={(e) => setVendorEmail(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="+91 98765 43210" />
+                  <Input id="phone" placeholder="+91 98765 43210" value={vendorPhone} onChange={(e) => setVendorPhone(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="gstNumber">GST Number</Label>
-                  <Input id="gstNumber" placeholder="GST registration number" />
+                  <Input id="gstNumber" placeholder="GST registration number" value={vendorGstNumber} onChange={(e) => setVendorGstNumber(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="panNumber">PAN Number</Label>
-                  <Input id="panNumber" placeholder="PAN number" />
+                  <Input id="panNumber" placeholder="PAN number" value={vendorPanNumber} onChange={(e) => setVendorPanNumber(e.target.value)} />
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="address">Address</Label>
-                  <Textarea id="address" placeholder="Full address..." />
+                  <Textarea id="address" placeholder="Full address..." value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="paymentTerms">Payment Terms (Days)</Label>
-                  <Input id="paymentTerms" type="number" defaultValue="30" />
+                  <Input id="paymentTerms" type="number" value={vendorPaymentTerms} onChange={(e) => setVendorPaymentTerms(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="creditLimit">Credit Limit</Label>
-                  <Input id="creditLimit" type="number" placeholder="0" />
+                  <Input id="creditLimit" type="number" placeholder="0" value={vendorCreditLimit} onChange={(e) => setVendorCreditLimit(e.target.value)} />
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" placeholder="Additional notes..." />
+                  <Textarea id="notes" placeholder="Additional notes..." value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} />
                 </div>
                 <div className="col-span-2 flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsVendorDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button data-testid="button-save-vendor">
-                    Add Vendor
+                  <Button data-testid="button-save-vendor" onClick={handleSaveVendor} disabled={createVendorMutation.isPending || updateVendorMutation.isPending}>
+                    {editingVendor ? (updateVendorMutation.isPending ? 'Saving...' : 'Save Changes') : (createVendorMutation.isPending ? 'Adding...' : 'Add Vendor')}
                   </Button>
                 </div>
               </div>
@@ -363,18 +446,32 @@ export default function VendorManagement() {
             </CardHeader>
             <CardContent>
               <DataTable
-                data={vendors || []}
+                data={vendorsArray}
                 columns={vendorColumns}
                 searchable={true}
                 searchKey="name"
                 onEdit={(vendor) => {
                   setEditingVendor(vendor);
+                  setVendorName(vendor.name || '');
+                  setVendorEmail(vendor.contactEmail || vendor.email || '');
+                  setVendorPhone(vendor.contactPhone || vendor.phone || '');
+                  setVendorContactPerson(vendor.contactPerson || '');
+                  setVendorGstNumber(vendor.gstNumber || '');
+                  setVendorPanNumber(vendor.panNumber || '');
+                  setVendorAddress(vendor.address || '');
+                  setVendorPaymentTerms(String(vendor.paymentTerms ?? '30'));
+                  setVendorCreditLimit(String(vendor.creditLimit ?? ''));
+                  setVendorNotes(vendor.notes || '');
+                  setVendorIsActive(vendor.isActive !== false);
                   setIsVendorDialogOpen(true);
                 }}
                 onView={(vendor) => {
                   setSelectedVendor(vendor);
                 }}
-                onDelete={() => { }}
+                onDelete={(vendor) => {
+                  if (!vendor?.id) return;
+                  deleteVendorMutation.mutate(vendor.id);
+                }}
               />
             </CardContent>
           </Card>

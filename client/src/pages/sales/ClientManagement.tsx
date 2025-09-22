@@ -15,44 +15,40 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Users, Eye, Edit, FileText, History } from "lucide-react";
 import { insertCustomerSchema, type InsertCustomer, type Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
 import { useToast } from "@/hooks/use-toast";
 
 export default function ClientManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editClient, setEditClient] = useState<Customer | null>(null);
+  const [deleteClient, setDeleteClient] = useState<Customer | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
-    queryKey: ["/customers"],
+    queryKey: ["/clients"],
   });
 
   const form = useForm<InsertCustomer>({
     resolver: zodResolver(insertCustomerSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      contactPerson: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: 'India',
-      gstNumber: '',
-      panNumber: '',
-      companyType: 'individual',
-      website: '',
-      creditLimit: '0.00',
-      paymentTerms: 30,
-      isActive: true,
-      notes: '',
+      name: '', // Client Name
+      phone: '', // Contact
+      gstNumber: '', // GST Number
+      address: '', // Location
+      creditLimit: '0.00', // Credit Limit
+      isActive: true, // Status
     },
   });
 
+  // Edit form for updating client (keep as is or update as needed)
+
   const createCustomerMutation = useMutation({
     mutationFn: (data: InsertCustomer) => 
-      apiRequest('POST', 'api/customers', data),
+      apiRequest('POST', '/clients', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/clients'] });
       toast({
         title: "Success",
         description: "Client created successfully",
@@ -62,21 +58,77 @@ export default function ClientManagement() {
     },
     onError: (error: any) => {
       console.error('Client creation error:', error);
-      
-      // Parse server validation errors and set field errors
+      // Try to parse server validation errors and set field errors
+      const issues = error?.data?.errors ?? error?.errors;
+      let fieldErrorShown = false;
+      if (Array.isArray(issues) && issues.length > 0) {
+        issues.forEach((e: { path?: string[]; message: string }) => {
+          const fieldName = e.path?.[0] as keyof InsertCustomer;
+          if (fieldName) {
+            form.setError(fieldName, { type: "server", message: e.message });
+            fieldErrorShown = true;
+          }
+        });
+      } else if (typeof error?.message === 'string') {
+        // If no field errors, show as a general error on the name field
+        form.setError('name', { type: 'server', message: error.message });
+        fieldErrorShown = true;
+      }
+      toast({
+        title: "Validation Error",
+        description: (fieldErrorShown ? "Please fix the highlighted fields and try again" : (error?.message || "Unknown error")),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update (PUT) mutation
+  const updateCustomerMutation = useMutation({
+    mutationFn: (data: { id: number; values: InsertCustomer }) =>
+      apiRequest('PUT', `/clients/${data.id}`, data.values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/clients'] });
+      toast({
+        title: "Success",
+        description: "Client updated successfully",
+      });
+      setIsEditDialogOpen(false);
+      setEditClient(null);
+    },
+    onError: (error: any) => {
       const issues = error?.data?.errors ?? error?.errors;
       if (Array.isArray(issues)) {
         issues.forEach((e: { path?: string[]; message: string }) => {
           const fieldName = e.path?.[0] as keyof InsertCustomer;
           if (fieldName) {
-            form.setError(fieldName, { type: "server", message: e.message });
+            editForm.setError(fieldName, { type: "server", message: e.message });
           }
         });
       }
-      
       toast({
         title: "Validation Error",
         description: error?.message || "Please fix the highlighted fields and try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete (DELETE) mutation
+  const deleteCustomerMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/clients/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/clients'] });
+      toast({
+        title: "Deleted",
+        description: "Client deleted successfully",
+      });
+      setIsDeleteDialogOpen(false);
+      setDeleteClient(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete client",
         variant: "destructive",
       });
     },
@@ -143,16 +195,36 @@ export default function ClientManagement() {
           <Button size="sm" variant="ghost" data-testid={`button-view-client-${customer.id}`}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" data-testid={`button-edit-client-${customer.id}`}>
+          <Button size="sm" variant="ghost" data-testid={`button-edit-client-${customer.id}`} onClick={() => handleEditClient(customer)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="ghost" data-testid={`button-history-client-${customer.id}`}>
             <History className="h-4 w-4" />
           </Button>
+          <Button size="sm" variant="destructive" data-testid={`button-delete-client-${customer.id}`} onClick={() => handleDeleteClient(customer)}>
+            Delete
+          </Button>
         </div>
       ),
     }
   ];
+  // Handlers for edit and delete actions
+  function handleEditClient(customer: Customer) {
+    setEditClient(customer);
+    // Pre-fill edit form
+    editForm.reset({
+      ...customer,
+      creditLimit: customer.creditLimit || '0.00',
+      paymentTerms: customer.paymentTerms || 30,
+      isActive: customer.isActive ?? true,
+    });
+    setIsEditDialogOpen(true);
+  }
+
+  function handleDeleteClient(customer: Customer) {
+    setDeleteClient(customer);
+    setIsDeleteDialogOpen(true);
+  }
 
   return (
     <div className="p-8">
@@ -168,330 +240,86 @@ export default function ClientManagement() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-new-client">
-              <Plus className="h-4 w-4 mr-2" />
-              New Client
+              <Plus className="h-4 w-4 mr-2" /> Add Client
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Client</DialogTitle>
               <DialogDescription>
-                Create a new client with complete GST and business details
+                Enter the client details below. All required fields must be filled.
               </DialogDescription>
             </DialogHeader>
-            
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createCustomerMutation.mutate(data))} className="space-y-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Client Name *</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="ABC Company Ltd" data-testid="input-client-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address *</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} type="email" placeholder="contact@abc.com" data-testid="input-email" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number *</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="+91 9876543210" data-testid="input-phone" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="contactPerson"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Person</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="John Doe" data-testid="input-contact-person" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Business Details */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">Business Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="companyType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-company-type">
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="individual">Individual</SelectItem>
-                              <SelectItem value="partnership">Partnership</SelectItem>
-                              <SelectItem value="company">Private Limited Company</SelectItem>
-                              <SelectItem value="public">Public Company</SelectItem>
-                              <SelectItem value="proprietorship">Sole Proprietorship</SelectItem>
-                              <SelectItem value="llp">Limited Liability Partnership</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="website"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Website</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="https://www.abc.com" data-testid="input-website" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* GST & Tax Details */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">GST & Tax Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="gstNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>GST Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="22AAAAA0000A1Z5" data-testid="input-gst-number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="panNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>PAN Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="AAAAA0000A" data-testid="input-pan-number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Address Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">Address Information</h3>
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Street Address</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} value={field.value ?? ''} placeholder="123 Business Street, Sector 1" data-testid="textarea-address" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>City</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="Mumbai" data-testid="input-city" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="state"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>State</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="Maharashtra" data-testid="input-state" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="zipCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>ZIP Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="400001" data-testid="input-zip-code" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Financial Details */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">Financial Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="creditLimit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Credit Limit (₹)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="100000.00" 
-                              value={field.value || ''}
-                              onChange={(e) => field.onChange(e.target.value)}
-                              data-testid="input-credit-limit" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="paymentTerms"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payment Terms (Days)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              placeholder="30" 
-                              value={field.value || ''}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 30)}
-                              data-testid="input-payment-terms" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-light">Additional Information</h3>
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} value={field.value ?? ''} placeholder="Additional notes about the client" data-testid="textarea-notes" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Active Client</FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            Enable this client for new transactions
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-is-active"
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsDialogOpen(false)}
-                    data-testid="button-cancel"
-                  >
+              <form onSubmit={form.handleSubmit((data) => createCustomerMutation.mutate(data))} className="space-y-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter client name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter contact number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="gstNumber" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GST Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter GST number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="address" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter location/address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="creditLimit" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Limit</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Enter credit limit" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="isActive" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={val => field.onChange(val === 'true')} value={field.value ? 'true' : 'false'}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Active</SelectItem>
+                          <SelectItem value="false">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createCustomerMutation.isPending}
-                    data-testid="button-submit"
-                  >
-                    {createCustomerMutation.isPending ? "Creating..." : "Create Client"}
+                  <Button type="submit" data-testid="button-submit-client" disabled={createCustomerMutation.isPending}>
+                    {createCustomerMutation.isPending ? 'Creating...' : 'Create Client'}
                   </Button>
                 </div>
               </form>
@@ -499,20 +327,10 @@ export default function ClientManagement() {
           </DialogContent>
         </Dialog>
       </div>
-
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
-            <span>All Clients</span>
-          </CardTitle>
-          <CardDescription>
-            Complete client database with GST details and transaction history
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <DataTable
-            data={(customers || [])}
+            data={customers || []}
             columns={columns}
             searchable={true}
             searchKey="name"

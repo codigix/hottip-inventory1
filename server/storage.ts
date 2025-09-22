@@ -1,3 +1,7 @@
+import { customers } from '@shared/schema';
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = typeof customers.$inferInsert;
+// ...existing code...
 import { db } from './db';
 import { and, desc, eq, gte, lt, lte, sql, count, avg, isNotNull } from 'drizzle-orm';
 import { users, products, marketingAttendance } from '@shared/schema';
@@ -10,7 +14,39 @@ export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 
+import { suppliers } from '@shared/schema';
+
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = typeof suppliers.$inferInsert;
+
 class Storage {
+  // Get all customers
+  async getCustomers(): Promise<Customer[]> {
+    return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  }
+  // Clients CRUD
+  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+    const [row] = await db.insert(customers).values(insertCustomer).returning();
+    return row;
+  }
+  // Suppliers CRUD
+  async getSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  }
+
+  async createSupplier(insertSupplier: InsertSupplier): Promise<Supplier> {
+    const [row] = await db.insert(suppliers).values(insertSupplier).returning();
+    return row;
+  }
+
+  async updateSupplier(id: string | number, update: Partial<InsertSupplier>): Promise<Supplier> {
+    const [row] = await db.update(suppliers).set(update).where(eq(suppliers.id, id)).returning();
+    return row;
+  }
+
+  async deleteSupplier(id: string | number): Promise<void> {
+    await db.delete(suppliers).where(eq(suppliers.id, id));
+  }
  // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
 

@@ -8,6 +8,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from @shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
+import { sql, eq, and, gte, lt } from "drizzle-orm";
 import {
   users as usersTable,
   leads,
@@ -281,6 +282,36 @@ const inMemoryInventoryTasks: any[] = [];
 const inMemoryLogisticsShipments: any[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get all clients
+  app.get("/api/clients", requireAuth, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      res.json(customers);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to fetch clients", details: error.message });
+    }
+  });
+  // Clients CRUD
+  app.post("/api/clients", requireAuth, async (req, res) => {
+    try {
+      // Use insertCustomerSchema for validation (from shared/schema)
+      const { insertCustomerSchema } = await import("@shared/schema");
+      const customerData = insertCustomerSchema.parse(req.body);
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error) {
+      if (error instanceof (await import("zod")).z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid client data", details: error.errors });
+      }
+      res
+        .status(500)
+        .json({ error: "Failed to create client", details: error.message });
+    }
+  });
   // Normalize accidental double /api prefix from client (e.g., /api/api/...)
   app.use((req, _res, next) => {
     let u = req.url;
@@ -627,13 +658,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Suppliers list
+  // Suppliers CRUD
   app.get("/api/suppliers", requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select().from(suppliers);
+      const rows = await storage.getSuppliers();
       res.json(rows);
     } catch (e) {
       res.json([]);
+    }
+  });
+
+  app.post("/api/suppliers", requireAuth, async (req, res) => {
+    try {
+      const supplierData = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(supplierData);
+      res.status(201).json(supplier);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Invalid supplier data",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const supplier = await storage.updateSupplier(id, updateData);
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to update supplier",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteSupplier(id);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to delete supplier",
+        details: error.errors || error.message,
+      });
     }
   });
 
@@ -1353,7 +1424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             consignmentNumber: data.consignmentNumber,
             source: data.source,
             destination: data.destination,
-            currentStatus: data.currentStatus || 'pending',
+            currentStatus: data.currentStatus || "pending",
             updatedAt: new Date(),
           })
           .returning();
@@ -1361,11 +1432,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (dbErr) {
         // Fallback to in-memory storage if DB insert fails (e.g., column mapping mismatch)
         const rec = {
-          id: 'mem-' + Date.now(),
+          id: "mem-" + Date.now(),
           consignmentNumber: data.consignmentNumber,
           source: data.source,
           destination: data.destination,
-          currentStatus: data.currentStatus || 'pending',
+          currentStatus: data.currentStatus || "pending",
           updatedAt: new Date().toISOString(),
           _fallback: true,
         } as any;
@@ -1374,10 +1445,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: 'Invalid shipment data', details: error.errors });
+        res
+          .status(400)
+          .json({ error: "Invalid shipment data", details: error.errors });
         return;
       }
-      res.status(500).json({ error: 'Failed to create shipment' });
+      res.status(500).json({ error: "Failed to create shipment" });
     }
   });
 
