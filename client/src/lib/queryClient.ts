@@ -1,6 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-// Backend base URL
+ // Backend base URL
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 // Helper function to get auth token (optional for dev)
@@ -23,11 +22,30 @@ async function throwIfResNotOk(res: Response) {
 }
 
 // Generic API request
+// Overloaded apiRequest supporting both (url, options) and (method, url, body)
 export async function apiRequest<T = any>(
-  url: string,
-  options?: { method?: string; body?: any; headers?: Record<string, string> }
+  arg1: string,
+  arg2?: string | { method?: string; body?: any; headers?: Record<string, string> },
+  arg3?: any
 ): Promise<T> {
-  const { method = "GET", body, headers = {} } = options || {};
+  let method = "GET";
+  let url: string;
+  let body: any;
+  let headers: Record<string, string> = {};
+
+  if (typeof arg2 === "string") {
+    // Legacy style: apiRequest("POST", "/path", data)
+    method = arg1.toUpperCase();
+    url = arg2;
+    body = arg3;
+  } else {
+    // Modern style: apiRequest("/path", { method, body, headers })
+    url = arg1;
+    const options = arg2 || {};
+    method = (options.method || "GET").toUpperCase();
+    body = options.body;
+    headers = options.headers || {};
+  }
 
   const res = await fetch(`${BASE_URL}${url}`, {
     method,
@@ -35,12 +53,12 @@ export async function apiRequest<T = any>(
       ...(body ? { "Content-Type": "application/json" } : {}),
       ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
     credentials: "include",
   });
 
   await throwIfResNotOk(res);
-  return res.json(); // <-- Always return parsed JSON
+  return res.json();
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -50,16 +68,31 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     let url = queryKey[0] as string;
-    const params = queryKey[1] as Record<string, any> | undefined;
+    const params = queryKey[1] as any;
 
     if (params) {
-      const queryString = new URLSearchParams(
-        Object.entries(params).reduce((acc, [k, v]) => {
-          if (v !== undefined && v !== null) acc[k] = String(v);
-          return acc;
-        }, {} as Record<string, string>)
-      ).toString();
-      url += `?${queryString}`;
+      if (typeof params === 'string') {
+        const s = params.trim();
+        // If the string looks like query params (contains '=' or starts with '?'), append as query string
+        if (s.startsWith('?') || s.includes('=')) {
+          if (s.startsWith('?')) {
+            url += s;
+          } else {
+            url += (url.includes('?') ? '&' : '?') + s;
+          }
+        } else {
+          // Otherwise treat as a path suffix segment
+          url += `/${s}`;
+        }
+      } else {
+        const queryString = new URLSearchParams(
+          Object.entries(params).reduce((acc, [k, v]) => {
+            if (v !== undefined && v !== null) acc[k] = String(v);
+            return acc;
+          }, {} as Record<string, string>)
+        ).toString();
+        if (queryString) url += `?${queryString}`;
+      }
     }
 
     const res = await fetch(`${BASE_URL}${url}`, { headers: {}, credentials: "include" });

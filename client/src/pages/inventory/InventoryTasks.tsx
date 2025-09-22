@@ -23,9 +23,33 @@ export default function InventoryTasks() {
   const [timeSpent, setTimeSpent] = useState('');
   const { toast } = useToast();
 
+  // Create Task form state
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('');
+  const [newTaskCategory, setNewTaskCategory] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+
   // Fetch inventory tasks
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ["/api/inventory-tasks"],
+  });
+
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('POST', '/api/inventory-tasks', data);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Task created successfully' });
+      setIsTaskDialogOpen(false);
+      resetCreateForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory-tasks"] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to create task', variant: 'destructive' });
+    }
   });
 
   // Task update mutation
@@ -50,6 +74,31 @@ export default function InventoryTasks() {
       });
     },
   });
+
+  const resetCreateForm = () => {
+    setNewTaskTitle('');
+    setNewTaskDescription('');
+    setNewTaskAssignedTo('');
+    setNewTaskPriority('');
+    setNewTaskCategory('');
+    setNewTaskDueDate('');
+  };
+
+  const handleCreateTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast({ title: 'Error', description: 'Task title is required', variant: 'destructive' });
+      return;
+    }
+    const payload = {
+      title: newTaskTitle.trim(),
+      description: newTaskDescription.trim(),
+      assignedTo: newTaskAssignedTo,
+      priority: newTaskPriority || 'medium',
+      category: newTaskCategory || 'stock_count',
+      dueDate: newTaskDueDate || new Date().toISOString(),
+    };
+    createTaskMutation.mutate(payload);
+  };
 
   const resetUpdateForm = () => {
     setSelectedTask(null);
@@ -190,29 +239,29 @@ export default function InventoryTasks() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="taskTitle">Task Title *</Label>
-                  <Input id="taskTitle" placeholder="Stock Count - Warehouse A" data-testid="input-task-title" />
+                  <Input id="taskTitle" placeholder="Stock Count - Warehouse A" data-testid="input-task-title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="taskDescription">Description</Label>
-                  <Textarea id="taskDescription" placeholder="Detailed task description..." />
+                  <Textarea id="taskDescription" placeholder="Detailed task description..." value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="assignedTo">Assign To</Label>
-                    <Select>
+                    <Select value={newTaskAssignedTo} onValueChange={setNewTaskAssignedTo}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select employee..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="john">John Smith</SelectItem>
-                        <SelectItem value="sarah">Sarah Johnson</SelectItem>
-                        <SelectItem value="mike">Mike Chen</SelectItem>
+                        <SelectItem value="John Smith">John Smith</SelectItem>
+                        <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
+                        <SelectItem value="Mike Chen">Mike Chen</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label htmlFor="priority">Priority</Label>
-                    <Select>
+                    <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select priority..." />
                       </SelectTrigger>
@@ -228,7 +277,7 @@ export default function InventoryTasks() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <Select>
+                    <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category..." />
                       </SelectTrigger>
@@ -243,15 +292,15 @@ export default function InventoryTasks() {
                   </div>
                   <div>
                     <Label htmlFor="dueDate">Due Date</Label>
-                    <Input id="dueDate" type="datetime-local" />
+                    <Input id="dueDate" type="datetime-local" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} />
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button data-testid="button-save-task">
-                    Create Task
+                  <Button data-testid="button-save-task" onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
+                    {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                   </Button>
                 </div>
               </div>
@@ -428,7 +477,7 @@ export default function InventoryTasks() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge>{task.priority.toUpperCase()}</Badge>
-                      <Button size="sm">
+                      <Button size="sm" onClick={() => openUpdateDialog(task)}>
                         Update Status
                       </Button>
                     </div>
