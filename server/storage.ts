@@ -11,6 +11,9 @@ export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 
 class Storage {
+ // In-memory fallbacks (used when DB is unavailable)
+  private inMemoryProducts: any[] = [];
+
   // Users
   async getUser(id: string): Promise<User | undefined> {
     const [u] = await db.select().from(users).where(eq(users.id, id));
@@ -42,7 +45,52 @@ class Storage {
 
   // Products
   async getProducts(): Promise<Product[]> {
-    return await db.select().from(products).orderBy(desc(products.createdAt));
+    try {
+      const rows = await db.select().from(products).orderBy(desc(products.createdAt));
+      // Merge DB rows with any in-memory products (avoid duplicates by id/sku)
+      if (this.inMemoryProducts.length === 0) return rows as any;
+      const bySku = new Map<string, any>();
+      for (const r of rows as any[]) {
+        if (r.sku) bySku.set(String(r.sku), r);
+      }
+      const merged = [...rows as any[]];
+      for (const p of this.inMemoryProducts) {
+        // If DB already has same SKU, skip in-memory entry
+        if (p.sku && bySku.has(String(p.sku))) continue;
+        merged.push(p);
+      }
+      return merged as any;
+    } catch (_e) {
+      // DB unavailable; serve in-memory list
+      return this.inMemoryProducts as any;
+    }
+  }
+
+  addProductFallback(p: any) {
+    // ensure it has id
+    const id = p.id || String(Date.now());
+    const record = { id, createdAt: new Date().toISOString(), ...p };
+    // replace if same id or same sku exists
+    const idx = this.inMemoryProducts.findIndex(x => x.id === record.id || (record.sku && x.sku === record.sku));
+    if (idx >= 0) this.inMemoryProducts[idx] = record; else this.inMemoryProducts.push(record);
+    return record;
+  }
+
+  updateProductFallback(id: string | number, patch: any) {
+    const idx = this.inMemoryProducts.findIndex(x => String(x.id) === String(id));
+    if (idx >= 0) {
+      this.inMemoryProducts[idx] = { ...this.inMemoryProducts[idx], ...patch };
+      return this.inMemoryProducts[idx];
+    }
+    // if not found, create
+    const created = { id: String(id), ...patch };
+    this.inMemoryProducts.push(created);
+    return created;
+  }
+
+  deleteProductFallback(id: string | number) {
+    const idx = this.inMemoryProducts.findIndex(x => String(x.id) === String(id));
+    if (idx >= 0) this.inMemoryProducts.splice(idx, 1);
   }
 
   // Activity log (no-op minimal stub)

@@ -71,11 +71,11 @@ export default function AccountsTasks() {
 
   // Data fetching - Only fetch what we actually use
   const { data: accountTasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: ["api/account-tasks"],
+    queryKey: ["/account-tasks"],
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["api/users"],
+    queryKey: ["/users"],
   });
 
   // Form setup
@@ -141,7 +141,7 @@ export default function AccountsTasks() {
   // Mutations
   const createTaskMutation = useMutation({
     mutationFn: (data: TaskFormData) =>
-      apiRequest("api/account-tasks", {
+      apiRequest("/account-tasks", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -149,7 +149,7 @@ export default function AccountsTasks() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/account-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
@@ -161,7 +161,7 @@ export default function AccountsTasks() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, ...data }: TaskFormData & { id: string }) =>
-      apiRequest(`api/account-tasks/${id}`, {
+      apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -169,7 +169,7 @@ export default function AccountsTasks() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/account-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task updated successfully" });
       setIsEditOpen(false);
       setSelectedTask(null);
@@ -181,7 +181,7 @@ export default function AccountsTasks() {
 
   const completeTaskMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      apiRequest(`api/account-tasks/${id}`, {
+      apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           status: "done",
@@ -190,7 +190,7 @@ export default function AccountsTasks() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/account-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task marked as completed" });
       setIsCompleteOpen(false);
       setSelectedTask(null);
@@ -203,14 +203,14 @@ export default function AccountsTasks() {
 
   const startTaskMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`api/account-tasks/${id}`, {
+      apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           status: "in_progress",
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/account-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task started successfully" });
     },
     onError: () => {
@@ -220,9 +220,9 @@ export default function AccountsTasks() {
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`api/account-tasks/${id}`, { method: "DELETE" }),
+      apiRequest(`/account-tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/account-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task deleted successfully" });
       setIsDeleteOpen(false);
       setTaskToDelete(null);

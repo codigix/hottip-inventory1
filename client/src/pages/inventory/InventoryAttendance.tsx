@@ -22,6 +22,10 @@ export default function InventoryAttendance() {
   const [location, setLocation] = useState('');
   const { toast } = useToast();
 
+  // Leave Request local state
+  const [leaveEmployee, setLeaveEmployee] = useState('');
+  const [leaveType, setLeaveType] = useState('');
+
   // Fetch attendance data
   const { data: attendance, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
     queryKey: ["/attendance"],
@@ -48,6 +52,22 @@ export default function InventoryAttendance() {
         variant: "destructive",
       });
     },
+  });
+
+  // Leave request submission
+  const leaveRequestMutation = useMutation({
+    mutationFn: async (data: { employeeName: string; leaveType: string; startDate: string; endDate: string; reason: string }) => {
+      return apiRequest('POST', '/inventory/leave-request', data);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Leave request submitted successfully' });
+      setIsLeaveDialogOpen(false);
+      setLeaveEmployee('');
+      setLeaveType('');
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error?.message || 'Failed to submit leave request', variant: 'destructive' });
+    }
   });
 
   const resetAttendanceForm = () => {
@@ -106,6 +126,26 @@ export default function InventoryAttendance() {
     toast({
       title: "Success",
       description: "Attendance report downloaded successfully",
+    });
+  };
+
+  // Leave Request handler
+  const handleSubmitLeave = () => {
+    const startDate = (document.getElementById('startDate') as HTMLInputElement)?.value;
+    const endDate = (document.getElementById('endDate') as HTMLInputElement)?.value;
+    const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+
+    if (!leaveEmployee || !leaveType || !startDate || !endDate || !reason.trim()) {
+      toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
+      return;
+    }
+
+    leaveRequestMutation.mutate({
+      employeeName: leaveEmployee,
+      leaveType,
+      startDate,
+      endDate,
+      reason: reason.trim(),
     });
   };
 
@@ -260,7 +300,7 @@ export default function InventoryAttendance() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="employee">Employee</Label>
-                  <Select>
+                  <Select value={leaveEmployee} onValueChange={setLeaveEmployee}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select employee..." />
                     </SelectTrigger>
@@ -273,7 +313,7 @@ export default function InventoryAttendance() {
                 </div>
                 <div>
                   <Label htmlFor="leaveType">Leave Type</Label>
-                  <Select>
+                  <Select value={leaveType} onValueChange={setLeaveType}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select leave type..." />
                     </SelectTrigger>
@@ -303,8 +343,8 @@ export default function InventoryAttendance() {
                   <Button variant="outline" onClick={() => setIsLeaveDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button data-testid="button-submit-leave">
-                    Submit Request
+                  <Button onClick={handleSubmitLeave} disabled={leaveRequestMutation.isPending} data-testid="button-submit-leave">
+                    {leaveRequestMutation.isPending ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 </div>
               </div>

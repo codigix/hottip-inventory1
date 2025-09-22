@@ -68,23 +68,23 @@ export default function BankManagement() {
 
   // Data fetching
   const { data: bankAccounts = [], isLoading: accountsLoading } = useQuery({
-    queryKey: ["/api/bank-accounts"],
+    queryKey: ["/bank-accounts"],
   });
 
   const { data: activeBankAccounts = [] } = useQuery({
-    queryKey: ["/api/bank-accounts/active"],
+    queryKey: ["/bank-accounts/active"],
   });
 
   const { data: defaultBankAccount } = useQuery({
-    queryKey: ["/api/bank-accounts/default"],
+    queryKey: ["/bank-accounts/default"],
   });
 
   const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery({
-    queryKey: ["/api/bank-transactions"],
+    queryKey: ["/bank-transactions"],
   });
 
   const { data: selectedAccountTransactions = [] } = useQuery({
-    queryKey: ["/api/bank-transactions/account", selectedAccountForTransactions],
+    queryKey: ["/bank-transactions/account", selectedAccountForTransactions],
     enabled: selectedAccountForTransactions !== "all",
   });
 
@@ -152,7 +152,7 @@ export default function BankManagement() {
   // Mutations for bank accounts
   const createAccountMutation = useMutation({
     mutationFn: (data: BankAccountFormData) =>
-      apiRequest("/api/bank-accounts", {
+      apiRequest("/bank-accounts", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -161,9 +161,9 @@ export default function BankManagement() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/active"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/default"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/default"] });
       toast({ title: "Success", description: "Bank account created successfully" });
       setIsCreateAccountOpen(false);
       createAccountForm.reset();
@@ -175,7 +175,7 @@ export default function BankManagement() {
 
   const updateAccountMutation = useMutation({
     mutationFn: ({ id, ...data }: BankAccountFormData & { id: string }) =>
-      apiRequest(`/api/bank-accounts/${id}`, {
+      apiRequest(`/bank-accounts/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -184,9 +184,9 @@ export default function BankManagement() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/active"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/default"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/default"] });
       toast({ title: "Success", description: "Bank account updated successfully" });
       setIsEditAccountOpen(false);
       setSelectedAccount(null);
@@ -198,11 +198,11 @@ export default function BankManagement() {
 
   const deleteAccountMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/bank-accounts/${id}`, { method: "DELETE" }),
+      apiRequest(`/bank-accounts/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/active"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts/default"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts/default"] });
       toast({ title: "Success", description: "Bank account deleted successfully" });
       setIsDeleteAccountOpen(false);
       setAccountToDelete(null);
@@ -215,7 +215,7 @@ export default function BankManagement() {
   // Mutations for transactions
   const createTransactionMutation = useMutation({
     mutationFn: (data: BankTransactionFormData) =>
-      apiRequest("/api/bank-transactions", {
+      apiRequest("/bank-transactions", {
         method: "POST",
         body: JSON.stringify({
           ...data,
@@ -225,9 +225,9 @@ export default function BankManagement() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions/account"] });
       toast({ title: "Success", description: "Bank transaction created successfully" });
       setIsCreateTransactionOpen(false);
       createTransactionForm.reset();
@@ -239,7 +239,7 @@ export default function BankManagement() {
 
   const updateTransactionMutation = useMutation({
     mutationFn: ({ id, ...data }: BankTransactionFormData & { id: string }) =>
-      apiRequest(`/api/bank-transactions/${id}`, {
+      apiRequest(`/bank-transactions/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...data,
@@ -249,9 +249,9 @@ export default function BankManagement() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions/account"] });
       toast({ title: "Success", description: "Bank transaction updated successfully" });
       setIsEditTransactionOpen(false);
       setSelectedTransaction(null);
@@ -263,11 +263,11 @@ export default function BankManagement() {
 
   const deleteTransactionMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/bank-transactions/${id}`, { method: "DELETE" }),
+      apiRequest(`/bank-transactions/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/bank-transactions/account"] });
       toast({ title: "Success", description: "Bank transaction deleted successfully" });
       setIsDeleteTransactionOpen(false);
       setTransactionToDelete(null);
