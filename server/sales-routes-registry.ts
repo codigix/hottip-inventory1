@@ -10,12 +10,44 @@ export function registerSalesRoutes(app: Express, middleware: { requireAuth: (re
   const { requireAuth } = middleware;
 
   // Sales dashboard minimal endpoints
+  // Customers CRUD
   app.get('/api/customers', requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select().from(customersTable);
+      const rows = await storage.getCustomers();
       res.json(rows);
     } catch (e) {
       res.json([]);
+    }
+  });
+
+  app.post('/api/customers', requireAuth, async (req, res) => {
+    try {
+      const customerData = req.body;
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid customer data', details: error.errors || error.message });
+    }
+  });
+
+  app.put('/api/customers/:id', requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const customer = await storage.updateCustomer(id, updateData);
+      res.json(customer);
+    } catch (error: any) {
+      res.status(400).json({ error: 'Failed to update customer', details: error.errors || error.message });
+    }
+  });
+
+  app.delete('/api/customers/:id', requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteCustomer(id);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(400).json({ error: 'Failed to delete customer', details: error.errors || error.message });
     }
   });
 
