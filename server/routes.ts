@@ -1667,6 +1667,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/logistics/tasks", requireAuth, async (_req, res) => {
     res.json([]);
   });
+  app.post("/api/logistics/tasks", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
 
   // Logistics reports
   app.get("/api/logistics/reports/daily", requireAuth, async (req, res) => {
