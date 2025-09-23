@@ -1,14 +1,5 @@
 // shared/schema.ts
-import {
-  pgTable,
-  serial,
-  varchar,
-  integer,
-  numeric,
-  timestamp,
-  boolean,
-  text,
-} from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, numeric, timestamp, boolean, text } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
@@ -20,11 +11,11 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 50 }).notNull(),
   email: varchar("email", { length: 100 }).notNull(),
   password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("firstName", { length: 50 }).notNull(),
-  lastName: varchar("lastName", { length: 50 }).notNull(),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
   role: varchar("role", { length: 20 }).default("employee"),
   department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("createdAt").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // =====================
@@ -69,7 +60,7 @@ export const marketingTasks = pgTable("marketing_tasks", {
 export const marketingAttendance = pgTable("marketingAttendance", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  date: timestamp("date").defaultNow(),
+  date: timestamp("date").defaultNow(), // timestamp column
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
   latitude: numeric("latitude"),
@@ -81,13 +72,11 @@ export const marketingAttendance = pgTable("marketingAttendance", {
   tasksCompleted: integer("tasks_completed"),
   outcome: text("outcome"),
   nextAction: text("next_action"),
-  attendanceStatus: varchar("attendance_status", { length: 20 }).default(
-    "present"
-  ),
+  attendanceStatus: varchar("attendance_status", { length: 20 }).default("present"),
 });
 
 // =====================
-// LEAVE REQUESTS (Marketing generic)
+// LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
   id: serial("id").primaryKey(),
@@ -219,62 +208,13 @@ export const logisticsShipments = pgTable("logistics_shipments", {
   currentStatus: varchar("current_status", { length: 50 }),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
-// =====================
-// LOGISTICS ATTENDANCE
-// =====================
-export const logisticsAttendance = pgTable("logistics_attendance", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  date: timestamp("date").defaultNow(),
-  checkInTime: timestamp("check_in_time"),
-  checkOutTime: timestamp("check_out_time"),
-  checkInLocation: varchar("check_in_location", { length: 255 }),
-  checkOutLocation: varchar("check_out_location", { length: 255 }),
-  checkInLatitude: numeric("check_in_latitude"),
-  checkInLongitude: numeric("check_in_longitude"),
-  checkOutLatitude: numeric("check_out_latitude"),
-  checkOutLongitude: numeric("check_out_longitude"),
-  checkInPhotoPath: varchar("check_in_photo_path", { length: 255 }),
-  checkOutPhotoPath: varchar("check_out_photo_path", { length: 255 }),
-  workDescription: text("work_description"),
-  taskCount: integer("task_count"),
-  deliveriesCompleted: integer("deliveries_completed"),
-  status: varchar("status", { length: 20 }).default("checked_in"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// =====================
-// LOGISTICS LEAVE REQUESTS
-// =====================
-export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  leaveType: varchar("leave_type", { length: 50 }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  reason: text("reason"),
-  status: varchar("status", { length: 20 }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// =====================
-// ZOD INSERT/VALIDATION SCHEMAS
-// =====================
-export const insertOutboundQuotationSchema = z.object({
+//
   customerId: z.string(),
   productId: z.string(),
   quantity: z.number(),
   price: z.number(),
   validUntil: z.string().optional(),
 });
-
 export const insertInboundQuotationSchema = z.object({
   supplierId: z.string(),
   productId: z.string(),
@@ -282,7 +222,6 @@ export const insertInboundQuotationSchema = z.object({
   price: z.number(),
   validUntil: z.string().optional(),
 });
-
 export const insertInvoiceSchema = z.object({
   customerId: z.string(),
   items: z.array(
@@ -294,7 +233,7 @@ export const insertInvoiceSchema = z.object({
   ),
   totalAmount: z.number(),
   issuedAt: z.string().optional(),
-});
+});                             
 
 export const insertCustomerSchema = z.object({
   name: z.string(),
@@ -303,38 +242,38 @@ export const insertCustomerSchema = z.object({
   address: z.string().optional(),
 });
 
+// Customer schema
+
+
+// Supplier schema
 export const insertSupplierSchema = z.object({
   name: z.string(),
   contactEmail: z.string().email(),
   phone: z.string().optional(),
   address: z.string().optional(),
 });
-
 export const insertAccountsReceivableSchema = z.object({
   date: z.string(),
   amount: z.number(),
   customerId: z.string(),
 });
-
+// Outbound Quotation schema
 export const insertAccountsPayableSchema = z.object({
   date: z.string(),
   amount: z.number(),
   supplierId: z.string(),
 });
-
 export const insertGstReturnSchema = z.object({
   returnPeriod: z.string(),
   gstAmount: z.number(),
   invoiceIds: z.array(z.string()),
 });
-
 export const insertBankAccountSchema = z.object({
   accountName: z.string(),
   accountNumber: z.string(),
   bankName: z.string(),
   ifscCode: z.string(),
 });
-
 export const insertBankTransactionSchema = z.object({
   transactionDate: z.string(),
   amount: z.number(),
@@ -342,14 +281,12 @@ export const insertBankTransactionSchema = z.object({
   accountId: z.string(),
   description: z.string().optional(),
 });
-
 export const insertAccountReminderSchema = z.object({
   reminderDate: z.string(),
   accountId: z.string(),
   message: z.string(),
   status: z.enum(["pending", "sent"]).default("pending"),
 });
-
 export const insertAccountTaskSchema = z.object({
   taskId: z.string(),
   accountId: z.string(),
@@ -359,6 +296,8 @@ export const insertAccountTaskSchema = z.object({
   status: z.enum(["pending", "completed"]).default("pending"),
 });
 
+import { z } from "zod";
+
 export const insertAccountReportSchema = z.object({
   reportId: z.string(),
   accountId: z.string(),
@@ -367,7 +306,6 @@ export const insertAccountReportSchema = z.object({
   status: z.enum(["draft", "final"]).default("draft"),
   notes: z.string().optional(),
 });
-
 export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
   date: z.string(),
@@ -377,45 +315,7 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
 });
 
-// Logistics Attendance validation
-export const logisticsCheckInSchema = z.object({
-  latitude: z.number(),
-  longitude: z.number(),
-  location: z.string().optional(),
-  workDescription: z.string().optional(),
-  accuracy: z.number().optional(),
-});
-
-export const logisticsCheckOutSchema = z.object({
-  latitude: z.number(),
-  longitude: z.number(),
-  location: z.string().optional(),
-  workDescription: z.string().optional(),
-  taskCount: z.number().optional(),
-  deliveriesCompleted: z.number().optional(),
-  accuracy: z.number().optional(),
-});
-
-export const attendancePhotoUploadSchema = z.object({
-  attendanceId: z.string(),
-  fileName: z.string(),
-  contentType: z.string(),
-  photoType: z.enum(["check-in", "check-out"]),
-});
-
-export const insertLogisticsLeaveRequestSchema = z.object({
-  userId: z.coerce.number(),
-  leaveType: z.string(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  reason: z.string().optional(),
-  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
-});
-
-// =====================
-// LOGISTICS STATUS UTILS
-// =====================
-export const LOGISTICS_SHIPMENT_STATUSES = [
+//
   "pending",
   "in_transit",
   "delivered",
@@ -430,10 +330,7 @@ export function getNextStatus(currentStatus: string): string | null {
   }
   return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
-export function isValidStatusTransition(
-  currentStatus: string,
-  nextStatus: string
-): boolean {
+export function isValidStatusTransition(currentStatus: string, nextStatus: string): boolean {
   const next = getNextStatus(currentStatus);
   return next === nextStatus;
 }
