@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "./db";
 import { customers as customersTable } from "@shared/schema";
+import { storage } from "./storage";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -12,14 +13,15 @@ export function registerSalesRoutes(app: Express, middleware: { requireAuth: (re
   // Sales dashboard minimal endpoints
   // Customers CRUD
   app.get('/api/customers', requireAuth, async (_req, res) => {
-    try {
-      const rows = await storage.getCustomers();
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
+  try {
+    const rows = await storage.getCustomers();
+    console.log("rows", rows);
+    res.json(rows);
+  } catch (e: any) {
+    console.error("❌ Error in /api/customers:", e);
+    res.status(500).json({ error: 'Failed to fetch customers', details: e.message });
+  }
+});
   app.post('/api/customers', requireAuth, async (req, res) => {
     try {
       const customerData = req.body;

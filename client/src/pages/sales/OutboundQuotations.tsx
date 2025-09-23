@@ -194,14 +194,15 @@ export default function OutboundQuotations() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(
                 (data) => createQuotationMutation.mutate(data),
-                (errors) => {
-                  console.error('Form validation errors:', errors);
-                  toast({
-                    title: "Validation Error",
-                    description: "Please fill in all required fields correctly",
-                    variant: "destructive",
-                  });
-                }
+                // (errors) => {
+                //   console.error('Form validation errors:', errors);
+                //   toast({
+                //     title: "Validation Error",
+                //     description: "Please fill in all required fields correctly",
+      
+                //     variant: "destructive",
+                //   });
+                // }
               )} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -224,7 +225,7 @@ export default function OutboundQuotations() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-customer">
                               <SelectValue placeholder="Select customer" />

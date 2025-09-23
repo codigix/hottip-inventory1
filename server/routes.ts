@@ -26,6 +26,7 @@ import {
   inboundQuotations,
   invoices,
   leaveRequests as leaveRequestsTable,
+  insertOutboundQuotationSchema
 } from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 
@@ -843,6 +844,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to get upload URL" });
     }
   });
+
+  app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+  try {
+    const { insertOutboundQuotationSchema } = await import("@shared/schema");
+    const data = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body); // ← allow optional customerId
+    const quotation = await storage.insertOutboundQuotationSchema(data);
+    res.status(201).json(quotation);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+    }
+    res.status(500).json({ error: "Failed to create quotation" });
+  }
+});
 
   // Quotations and invoices lists
   app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {

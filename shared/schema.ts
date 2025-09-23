@@ -16,18 +16,18 @@ import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
 // =====================
 // USERS
 // =====================
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 50 }).notNull(),
   email: varchar("email", { length: 100 }).notNull(),
   password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
+  firstName: varchar("firstName", { length: 50 }).notNull(), // match DB
+  lastName: varchar("lastName", { length: 50 }).notNull(),    // match DB
   role: varchar("role", { length: 20 }).default("employee"),
   department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(),             // match DB
 });
-
 // =====================
 // LEADS
 // =====================
@@ -196,7 +196,7 @@ export const customers = pgTable("customers", {
   name: varchar("name", { length: 100 }).notNull(),
   email: varchar("email", { length: 100 }),
   phone: varchar("phone", { length: 20 }),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 
 // =====================
@@ -285,14 +285,14 @@ export const insertOutboundQuotationSchema = z.object({
   productId: z.string(),
   quantity: z.number(),
   price: z.number(),
-  validUntil: z.string().optional(),
+  validUntil: z.date().optional(),
 });
 export const insertInboundQuotationSchema = z.object({
   supplierId: z.string(),
   productId: z.string(),
   quantity: z.number(),
   price: z.number(),
-  validUntil: z.string().optional(),
+  validUntil: z.date(),
 });
 export const insertInvoiceSchema = z.object({
   customerId: z.string(),
@@ -367,7 +367,6 @@ export const insertAccountTaskSchema = z.object({
   status: z.enum(["pending", "completed"]).default("pending"),
 });
 
-import { z } from "zod";
 
 export const insertAccountReportSchema = z.object({
   reportId: z.string(),
