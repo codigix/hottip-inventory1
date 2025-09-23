@@ -8,6 +8,7 @@ import {
   timestamp,
   boolean,
   text,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -212,39 +213,51 @@ export const vendorCommunications = pgTable("vendor_communications", {
 // LOGISTICS SHIPMENTS
 // =====================
 export const logisticsShipments = pgTable("logistics_shipments", {
-  id: serial("id").primaryKey(),
-  consignmentNumber: varchar("consignment_number", { length: 50 }),
-  source: varchar("source", { length: 100 }),
-  destination: varchar("destination", { length: 100 }),
-  currentStatus: varchar("current_status", { length: 50 }),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  consignmentNumber: text("consignmentNumber").notNull(),
+  source: text("source").notNull(),
+  destination: text("destination").notNull(),
+  clientId: uuid("clientId"),
+  vendorId: uuid("vendorId"),
+  dispatchDate: timestamp("dispatchDate"),
+  expectedDeliveryDate: timestamp("expectedDeliveryDate"),
+  deliveredAt: timestamp("deliveredAt"),
+  closedAt: timestamp("closedAt"),
+  currentStatus: text("currentStatus").notNull().default("created"),
+  notes: text("notes"),
+  weight: numeric("weight", { precision: 10, scale: 2 }),
+});
+
+// =====================
+// LOGISTICS TASKS
+// =====================
+export const logisticsTasks = pgTable("logistics_tasks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo").notNull(),
+  assignedBy: uuid("assignedBy").notNull(),
+  status: text("status").notNull().default("new"),
+  dueDate: timestamp("dueDate"),
+  startedDate: timestamp("startedDate"),
+  completedDate: timestamp("completedDate"),
+  shipmentId: uuid("shipmentId"),
+  estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
 });
 
 // =====================
 // LOGISTICS ATTENDANCE
 // =====================
 export const logisticsAttendance = pgTable("logistics_attendance", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  date: timestamp("date").defaultNow(),
-  checkInTime: timestamp("check_in_time"),
-  checkOutTime: timestamp("check_out_time"),
-  checkInLocation: varchar("check_in_location", { length: 255 }),
-  checkOutLocation: varchar("check_out_location", { length: 255 }),
-  checkInLatitude: numeric("check_in_latitude"),
-  checkInLongitude: numeric("check_in_longitude"),
-  checkOutLatitude: numeric("check_out_latitude"),
-  checkOutLongitude: numeric("check_out_longitude"),
-  checkInPhotoPath: varchar("check_in_photo_path", { length: 255 }),
-  checkOutPhotoPath: varchar("check_out_photo_path", { length: 255 }),
-  workDescription: text("work_description"),
-  taskCount: integer("task_count"),
-  deliveriesCompleted: integer("deliveries_completed"),
-  status: varchar("status", { length: 20 }).default("checked_in"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  date: timestamp("date").notNull(),
+  checkInTime: timestamp("checkInTime"),
+  checkOutTime: timestamp("checkOutTime"),
+  checkInLocation: text("checkInLocation"),
+  checkOutLocation: text("checkOutLocation"),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
 });
 
 // =====================
@@ -416,11 +429,13 @@ export const insertLogisticsLeaveRequestSchema = z.object({
 // LOGISTICS STATUS UTILS
 // =====================
 export const LOGISTICS_SHIPMENT_STATUSES = [
-  "pending",
+  "created",
+  "packed",
+  "dispatched",
   "in_transit",
+  "out_for_delivery",
   "delivered",
-  "cancelled",
-  "returned",
+  "closed",
 ];
 
 export function getNextStatus(currentStatus: string): string | null {

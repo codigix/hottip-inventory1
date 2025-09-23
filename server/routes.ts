@@ -16,6 +16,7 @@ import {
   fieldVisits,
   marketingAttendance,
   logisticsShipments,
+  logisticsTasks,
   deliveries,
   suppliers,
   logisticsAttendance,
@@ -280,8 +281,11 @@ const inMemoryMarketingLeaves: any[] = [];
 const inMemoryInventoryLeaves: any[] = [];
 const inMemoryInventoryTasks: any[] = [];
 const inMemoryLogisticsShipments: any[] = [];
+const inMemoryLogisticsTasks: any[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Disable ETag to avoid 304 Not Modified on frequently-updated APIs
+  app.set("etag", false);
   // Get all clients
   app.get("/api/clients", requireAuth, async (req, res) => {
     try {
@@ -1424,8 +1428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             consignmentNumber: data.consignmentNumber,
             source: data.source,
             destination: data.destination,
-            currentStatus: data.currentStatus || "pending",
-            updatedAt: new Date(),
+            currentStatus: data.currentStatus || "created",
           })
           .returning();
         res.status(201).json(row);
@@ -1436,8 +1439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           consignmentNumber: data.consignmentNumber,
           source: data.source,
           destination: data.destination,
-          currentStatus: data.currentStatus || "pending",
-          updatedAt: new Date().toISOString(),
+          currentStatus: data.currentStatus || "created",
           _fallback: true,
         } as any;
         inMemoryLogisticsShipments.push(rec);
@@ -1457,8 +1459,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Logistics attendance list
   app.get("/api/logistics/attendance", requireAuth, async (_req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       const rows = await db.select().from(logisticsAttendance);
-      res.json(rows);
+      const mapped = (rows as any[]).map((r) => ({
+        ...r,
+        checkIn: r.checkInTime,
+        checkOut: r.checkOutTime,
+        status: r.checkOutTime
+          ? "checked_out"
+          : r.checkInTime
+          ? "checked_in"
+          : "checked_out",
+      }));
+      res.json(mapped);
     } catch (e) {
       res.json([]);
     }
@@ -1467,6 +1482,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Logistics attendance today
   app.get("/api/logistics/attendance/today", requireAuth, async (_req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -1476,11 +1494,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(logisticsAttendance)
         .where(
           and(
-            gte(logisticsAttendance.date, today),
-            lt(logisticsAttendance.date, tomorrow)
+            gte(logisticsAttendance.date, today as any),
+            lt(logisticsAttendance.date, tomorrow as any)
           )
         );
-      res.json(rows);
+      const mapped = (rows as any[]).map((r) => ({
+        ...r,
+        checkIn: r.checkInTime,
+        checkOut: r.checkOutTime,
+        status: r.checkOutTime
+          ? "checked_out"
+          : r.checkInTime
+          ? "checked_in"
+          : "checked_out",
+      }));
+      res.json(mapped);
     } catch (e) {
       res.json([]);
     }
@@ -1492,26 +1520,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
     async (_req, res) => {
       try {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
         const all = await db.select().from(logisticsAttendance);
-        const checkedIn = all.filter((r) => r.status === "checked_in").length;
-        const checkedOut = all.filter((r) => r.status === "checked_out").length;
-        const totalPresent = all.length;
+        const mappedAll = (all as any[]).map((r) => ({
+          ...r,
+          status: (r as any).checkOutTime
+            ? "checked_out"
+            : (r as any).checkInTime
+            ? "checked_in"
+            : "checked_out",
+        }));
+        const checkedIn = mappedAll.filter(
+          (r) => r.status === "checked_in"
+        ).length;
+        const checkedOut = mappedAll.filter(
+          (r) => r.status === "checked_out"
+        ).length;
+        const totalPresent = mappedAll.length;
         // Average hours where both checkInTime and checkOutTime exist
-        const hrs = all
-          .filter((r) => r.checkInTime && r.checkOutTime)
+        const hrs = (mappedAll as any[])
+          .filter((r) => (r as any).checkInTime && (r as any).checkOutTime)
           .map(
             (r) =>
-              (new Date(r.checkOutTime!).getTime() -
-                new Date(r.checkInTime!).getTime()) /
+              (new Date((r as any).checkOutTime).getTime() -
+                new Date((r as any).checkInTime).getTime()) /
               (1000 * 60 * 60)
           );
         const averageWorkHours = hrs.length
           ? Math.round((hrs.reduce((a, b) => a + b, 0) / hrs.length) * 10) / 10
           : 0;
-        const totalDeliveries = all.reduce(
-          (sum, r) => sum + (r.deliveriesCompleted || 0),
-          0
-        );
+        // No deliveries columns in your DDL - set 0
+        const totalDeliveries = 0;
         res.json({
           totalPresent,
           checkedIn,
@@ -1539,28 +1580,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const { latitude, longitude, location, workDescription } =
-          req.body || {};
+        const body = req.body || {};
+        const { userId, latitude, longitude, location } = body;
         if (latitude == null || longitude == null) {
           res
             .status(400)
             .json({ error: "latitude and longitude are required" });
           return;
         }
+        const isUuid = (s: string) =>
+          typeof s === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            s
+          );
+        const userIdSafe = isUuid(userId)
+          ? userId
+          : isUuid(req.user?.id || "")
+          ? req.user!.id
+          : null;
+        if (!userIdSafe) {
+          res.status(400).json({ error: "Valid userId (UUID) is required" });
+          return;
+        }
         const [row] = await db
           .insert(logisticsAttendance)
           .values({
-            userId: Number(req.user!.id) || 0,
+            userId: userIdSafe as any,
             date: new Date(),
             checkInTime: new Date(),
-            checkInLatitude: latitude,
-            checkInLongitude: longitude,
+            checkInLatitude: latitude as any,
             checkInLocation: location,
-            workDescription,
-            status: "checked_in",
-          })
+          } as any)
           .returning();
-        res.status(201).json(row);
+        res.status(201).json({
+          ...row,
+          checkIn: (row as any).checkInTime,
+          checkOut: (row as any).checkOutTime,
+          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
+        });
       } catch (e) {
         res.status(500).json({ error: "Failed to check in" });
       }
@@ -1573,33 +1630,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const id = Number(req.params.id);
-        const {
-          latitude,
-          longitude,
-          location,
-          workDescription,
-          taskCount,
-          deliveriesCompleted,
-        } = req.body || {};
+        const id = String(req.params.id);
+        const { location } = req.body || {};
         const [row] = await db
           .update(logisticsAttendance)
           .set({
             checkOutTime: new Date(),
-            checkOutLatitude: latitude,
-            checkOutLongitude: longitude,
             checkOutLocation: location,
-            workDescription,
-            taskCount,
-            deliveriesCompleted,
-            status: "checked_out",
-            updatedAt: new Date(),
-          })
-          .where(eq(logisticsAttendance.id, id))
+          } as any)
+          .where(eq(logisticsAttendance.id as any, id as any))
           .returning();
         if (!row)
           return res.status(404).json({ error: "Attendance not found" });
-        res.json(row);
+        res.json({
+          ...row,
+          checkIn: (row as any).checkInTime,
+          checkOut: (row as any).checkOutTime,
+          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
+        });
       } catch (e) {
         res.status(500).json({ error: "Failed to check out" });
       }
@@ -1637,38 +1685,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const id = Number(req.params.id);
-        const { photoPath, photoType } = req.body || {};
-        if (!photoPath || !photoType) {
-          res
-            .status(400)
-            .json({ error: "photoPath and photoType are required" });
-          return;
-        }
-        const update: any =
-          photoType === "check-in"
-            ? { checkInPhotoPath: photoPath }
-            : { checkOutPhotoPath: photoPath };
-        const [row] = await db
-          .update(logisticsAttendance)
-          .set(update)
-          .where(eq(logisticsAttendance.id, id))
-          .returning();
-        if (!row)
-          return res.status(404).json({ error: "Attendance not found" });
-        res.json(row);
+        // No-op for DB schema without photo columns; return 204
+        res.status(204).end();
       } catch (e) {
         res.status(500).json({ error: "Failed to update photo" });
       }
     }
   );
 
-  // Logistics tasks stub
+  // Logistics tasks endpoints (DB-first with in-memory fallback)
   app.get("/api/logistics/tasks", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const rows = await db.select().from(logisticsTasks);
+      const all = Array.isArray(rows) ? rows : [];
+      if (inMemoryLogisticsTasks.length) {
+        res.json([...all, ...inMemoryLogisticsTasks]);
+      } else {
+        res.json(all);
+      }
+    } catch (e) {
+      res.json(inMemoryLogisticsTasks);
+    }
   });
-  app.post("/api/logistics/tasks", requireAuth, async (_req, res) => {
-    res.json([]);
+
+  app.post(
+    "/api/logistics/tasks",
+    requireAuth,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const body = req.body || {};
+        const title = typeof body.title === "string" ? body.title.trim() : "";
+        const assignedTo =
+          typeof body.assignedTo === "string" ? body.assignedTo.trim() : "";
+        if (!title || !assignedTo) {
+          res.status(400).json({ error: "title and assignedTo are required" });
+          return;
+        }
+        const description =
+          typeof body.description === "string"
+            ? body.description.trim()
+            : undefined;
+        const priority =
+          typeof body.priority === "string" ? body.priority : "medium";
+        const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+
+        try {
+          const isUuid = (s: string) =>
+            typeof s === "string" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              s
+            );
+          const assignedByCandidate =
+            typeof body.assignedBy === "string"
+              ? body.assignedBy
+              : req.user?.id;
+          const assignedBySafe = isUuid(assignedByCandidate || "")
+            ? assignedByCandidate!
+            : assignedTo;
+          const [row] = await db
+            .insert(logisticsTasks)
+            .values({
+              title,
+              description,
+              priority,
+              assignedTo,
+              assignedBy: assignedBySafe,
+              status: "new",
+              dueDate,
+            })
+            .returning();
+          res.status(201).json(row);
+        } catch (dbErr) {
+          const rec: any = {
+            id: "mem-" + Date.now(),
+            title,
+            description: description || null,
+            priority,
+            assignedTo,
+            assignedBy: String(req.user!.id),
+            status: "new",
+            dueDate: body.dueDate || null,
+            startedDate: null,
+            completedDate: null,
+            shipmentId: body.shipmentId || undefined,
+            estimatedHours: body.estimatedHours || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            _fallback: true,
+          };
+          inMemoryLogisticsTasks.push(rec);
+          res.status(201).json(rec);
+        }
+      } catch (e) {
+        res.status(500).json({ error: "Failed to create logistics task" });
+      }
+    }
+  );
+
+  app.put("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const id = String(req.params.id);
+      const body = req.body || {};
+
+      // Try DB update
+      try {
+        const patch: any = {};
+        if (typeof body.title === "string") patch.title = body.title.trim();
+        if (typeof body.description === "string")
+          patch.description = body.description.trim();
+        if (typeof body.status === "string") patch.status = body.status;
+        if (typeof body.priority === "string") patch.priority = body.priority;
+        if (body.dueDate !== undefined)
+          patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+        if (Object.keys(patch).length === 0) {
+          res.status(400).json({ error: "No valid fields to update" });
+          return;
+        }
+        const [row] = await db
+          .update(logisticsTasks)
+          .set(patch)
+          .where(eq(logisticsTasks.id, id as any))
+          .returning();
+        if (!row) {
+          res.status(404).json({ error: "Task not found" });
+          return;
+        }
+        res.json(row);
+        return;
+      } catch (dbErr) {
+        // Fallback to in-memory update
+      }
+
+      const idx = inMemoryLogisticsTasks.findIndex(
+        (t: any) => String(t.id) === id
+      );
+      if (idx === -1) {
+        res.status(404).json({ error: "Task not found" });
+        return;
+      }
+      const patch: any = {};
+      if (typeof body.title === "string") patch.title = body.title.trim();
+      if (typeof body.description === "string")
+        patch.description = body.description.trim();
+      if (typeof body.status === "string") patch.status = body.status;
+      if (typeof body.priority === "string") patch.priority = body.priority;
+      if (body.dueDate !== undefined) patch.dueDate = body.dueDate || null;
+      patch.updatedAt = new Date().toISOString();
+
+      inMemoryLogisticsTasks[idx] = {
+        ...inMemoryLogisticsTasks[idx],
+        ...patch,
+      };
+      res.json(inMemoryLogisticsTasks[idx]);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to update logistics task" });
+    }
+  });
+
+  app.delete("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const id = String(req.params.id);
+
+      // Try DB delete
+      try {
+        const [row] = await db
+          .delete(logisticsTasks)
+          .where(eq(logisticsTasks.id, id as any))
+          .returning();
+        if (!row) {
+          res.status(404).json({ error: "Task not found" });
+          return;
+        }
+        res.status(204).end();
+        return;
+      } catch (dbErr) {
+        // Fallback to in-memory delete
+      }
+
+      const idx = inMemoryLogisticsTasks.findIndex(
+        (t: any) => String(t.id) === id
+      );
+      if (idx === -1) {
+        res.status(404).json({ error: "Task not found" });
+        return;
+      }
+      inMemoryLogisticsTasks.splice(idx, 1);
+      res.status(204).end();
+    } catch (e) {
+      res.status(500).json({ error: "Failed to delete logistics task" });
+    }
   });
 
   // Logistics reports
