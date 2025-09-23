@@ -12,8 +12,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
+import { pgTable, integer, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { users } from "./users";
 import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
-// =====================
 // USERS
 // =====================
 export const users = pgTable("users", {
@@ -21,33 +22,39 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 50 }).notNull(),
   email: varchar("email", { length: 100 }).notNull(),
   password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
+  firstName: varchar("firstName", { length: 50 }).notNull(), // match DB
+  lastName: varchar("lastName", { length: 50 }).notNull(), // match DB
   role: varchar("role", { length: 20 }).default("employee"),
   department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(), // match DB
 });
 
 // =====================
 // LEADS
-// =====================
+
 export const leads = pgTable("leads", {
-  id: serial("id").primaryKey(),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
-  companyName: varchar("company_name", { length: 100 }),
-  email: varchar("email", { length: 100 }),
-  phone: varchar("phone", { length: 20 }),
-  status: varchar("status", { length: 20 }).default("new"),
-  priority: varchar("priority", { length: 20 }).default("medium"),
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  followUpDate: timestamp("follow_up_date"),
-  convertedAt: timestamp("converted_at"),
-  estimatedBudget: numeric("estimated_budget"),
-  requirementDescription: text("requirement_description"),
-  notes: text("notes"),
-  assignedTo: integer("assigned_to").references(() => users.id),
+  id: text("id").primaryKey(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  companyName: text("companyName"),
+  email: text("email"),
+  phone: text("phone"),
+  alternatePhone: text("alternatePhone"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zipCode"),
+  country: text("country").default("India"),
+  source: text("source").default("other"),
+  sourceDetails: text("sourceDetails"),
+  referredBy: text("referredBy"),
+  requirementDescription: text("requirementDescription"),
+  estimatedBudget: numeric("estimatedBudget"),
+  assignedTo: text("assignedTo").references(() => users.id),
+  status: text("status").default("new"),
+  priority: text("priority").default("medium"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  followUpDate: timestamp("followUpDate"), // matches your DB exactly
 });
 
 // =====================
@@ -449,7 +456,6 @@ export function isValidStatusTransition(
   return next === nextStatus;
 }
 
-// Enums for status & priority
 export const taskStatusEnum = pgEnum("task_status", [
   "new",
   "in_progress",
@@ -462,15 +468,15 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 ]);
 
 export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: serial("id").primaryKey(), // use serial for auto-increment
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: uuid("assignedTo")
+  assignedTo: integer("assignedTo")
     .notNull()
-    .references(() => users.id), // FK to users.id
-  assignedBy: uuid("assignedBy")
+    .references(() => users.id),
+  assignedBy: integer("assignedBy")
     .notNull()
-    .references(() => users.id), // FK to users.id
+    .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),
   priority: taskPriorityEnum("priority").notNull().default("medium"),
   dueDate: timestamp("dueDate", { withTimezone: false }),
