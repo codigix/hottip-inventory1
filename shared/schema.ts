@@ -12,8 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
-import { pgTable, uuid, text,  timestamp, pgEnum } from "drizzle-orm/pg-core";
-
+import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { users } from "./users";
 // =====================
 // USERS
 // =====================
@@ -29,29 +29,39 @@ export const users = pgTable("users", {
   lastName: text("lastName").notNull(),
   department: text("department"),
   isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updatedAt").default(sql`now()`).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
 });
 // =====================
 // LEADS
-// =====================
+
 export const leads = pgTable("leads", {
-  id: serial("id").primaryKey(),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
-  companyName: varchar("company_name", { length: 100 }),
-  email: varchar("email", { length: 100 }),
-  phone: varchar("phone", { length: 20 }),
-  status: varchar("status", { length: 20 }).default("new"),
-  priority: varchar("priority", { length: 20 }).default("medium"),
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  followUpDate: timestamp("follow_up_date"),
-  convertedAt: timestamp("converted_at"),
-  estimatedBudget: numeric("estimated_budget"),
-  requirementDescription: text("requirement_description"),
-  notes: text("notes"),
-  assignedTo: integer("assigned_to").references(() => users.id),
+  id: text("id").primaryKey(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  companyName: text("companyName"),
+  email: text("email"),
+  phone: text("phone"),
+  alternatePhone: text("alternatePhone"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zipCode"),
+  country: text("country").default("India"),
+  source: text("source").default("other"),
+  sourceDetails: text("sourceDetails"),
+  referredBy: text("referredBy"),
+  requirementDescription: text("requirementDescription"),
+  estimatedBudget: numeric("estimatedBudget"),
+  assignedTo: text("assignedTo").references(() => users.id),
+  status: text("status").default("new"),
+  priority: text("priority").default("medium"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  followUpDate: timestamp("followUpDate"), // matches your DB exactly
 });
 
 // =====================
@@ -371,7 +381,6 @@ export const insertAccountTaskSchema = z.object({
   status: z.enum(["pending", "completed"]).default("pending"),
 });
 
-
 export const insertAccountReportSchema = z.object({
   reportId: z.string(),
   accountId: z.string(),
@@ -572,7 +581,8 @@ export const insertLogisticsAttendanceSchema = z.object({
   status: z.string().optional(),
 });
 
-export const updateLogisticsAttendanceSchema = insertLogisticsAttendanceSchema.partial();
+export const updateLogisticsAttendanceSchema =
+  insertLogisticsAttendanceSchema.partial();
 
 export const insertLogisticsTaskSchema = z.object({
   title: z.string(),
@@ -688,118 +698,6 @@ export function isValidStatusTransition(
   return next === nextStatus;
 }
 
-
-// =====================
-// LOGISTICS SHIPMENT ZOD SCHEMAS
-// =====================
-export const insertLogisticsShipmentSchema = z.object({
-  consignmentNumber: z.string(),
-  source: z.string(),
-  destination: z.string(),
-  currentStatus: z.string().optional(),
-  assignedTo: z.number().optional(),
-  createdBy: z.number().optional(),
-  updatedAt: z.string().optional(),
-});
-
-export const updateLogisticsShipmentSchema = z.object({
-  source: z.string().optional(),
-  destination: z.string().optional(),
-  currentStatus: z.string().optional(),
-  assignedTo: z.number().optional(),
-  updatedAt: z.string().optional(),
-});
-
-export const logisticsShipmentFilterSchema = z.object({
-  status: z.string().optional(),
-  employeeId: z.number().optional(),
-  clientId: z.number().optional(),
-  vendorId: z.number().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-
-export const updateLogisticsShipmentStatusSchema = z.object({
-  status: z.string(),
-  remarks: z.string().optional(),
-});
-
-export const closePodUploadSchema = z.object({
-  podFilePath: z.string(),
-  remarks: z.string().optional(),
-});
-
-export const insertLogisticsStatusUpdateSchema = z.object({
-  shipmentId: z.number(),
-  status: z.string(),
-  remarks: z.string().optional(),
-  updatedBy: z.number().optional(),
-});
-
-export const insertLogisticsCheckpointSchema = z.object({
-  shipmentId: z.number(),
-  location: z.string(),
-  checkpointTime: z.string().optional(),
-  addedBy: z.number().optional(),
-});
-
-export const insertLogisticsAttendanceSchema = z.object({
-  userId: z.number(),
-  date: z.string().optional(),
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  checkInLocation: z.string().optional(),
-  checkOutLocation: z.string().optional(),
-  checkInLatitude: z.string().optional(),
-  checkInLongitude: z.string().optional(),
-  checkOutLatitude: z.string().optional(),
-  checkOutLongitude: z.string().optional(),
-  workDescription: z.string().optional(),
-  taskCount: z.number().optional(),
-  deliveriesCompleted: z.number().optional(),
-  status: z.string().optional(),
-});
-
-export const updateLogisticsAttendanceSchema = z.object({
-  checkOutTime: z.string().optional(),
-  checkOutLocation: z.string().optional(),
-  checkOutLatitude: z.string().optional(),
-  checkOutLongitude: z.string().optional(),
-  workDescription: z.string().optional(),
-  taskCount: z.number().optional(),
-  deliveriesCompleted: z.number().optional(),
-  status: z.string().optional(),
-});
-
-export const insertLogisticsTaskSchema = z.object({
-  title: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedTo: z.number().optional(),
-  assignedBy: z.number().optional(),
-  dueDate: z.string().optional(),
-});
-
-export const updateLogisticsTaskSchema = z.object({
-  title: z.string().optional(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedTo: z.number().optional(),
-  dueDate: z.string().optional(),
-});
-
-export const updateLogisticsTaskStatusSchema = z.object({
-  status: z.string(),
-  remarks: z.string().optional(),
-});
-
-export const logisticsTaskFilterSchema = z.object({
-  assignedTo: z.number().optional(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  dueDate: z.string().optional(),
-});
-// Enums for status & priority
 export const taskStatusEnum = pgEnum("task_status", [
   "new",
   "in_progress",
@@ -812,15 +710,15 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 ]);
 
 export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: serial("id").primaryKey(), // use serial for auto-increment
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: uuid("assignedTo")
+  assignedTo: integer("assignedTo")
     .notNull()
-    .references(() => users.id), // FK to users.id
-  assignedBy: uuid("assignedBy")
+    .references(() => users.id),
+  assignedBy: integer("assignedBy")
     .notNull()
-    .references(() => users.id), // FK to users.id
+    .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),
   priority: taskPriorityEnum("priority").notNull().default("medium"),
   dueDate: timestamp("dueDate", { withTimezone: false }),

@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Users, 
-  MapPin, 
-  TrendingUp, 
-  Target, 
+import {
+  Users,
+  MapPin,
+  TrendingUp,
+  Target,
   Calendar,
   PhoneCall,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
 } from "lucide-react";
 
 interface MarketingDashboardData {
@@ -43,39 +43,48 @@ interface MarketingDashboardData {
 
 export default function MarketingDashboard() {
   // Dashboard data query
-  const { data: dashboardData, isLoading, error } = useQuery<MarketingDashboardData>({
-    queryKey: ['/api/marketing'],
+  const {
+    data: dashboardData,
+    isLoading,
+    error,
+  } = useQuery<MarketingDashboardData>({
+    queryKey: ["/api/marketing"],
     queryFn: async () => {
-      const res = await fetch('/api/marketing');
-      if (!res.ok) throw new Error('Failed to fetch dashboard data');
+      const res = await fetch("/api/marketing");
+      if (!res.ok) throw new Error("Failed to fetch dashboard data");
       return res.json();
     },
   });
 
   // Recent leads
   const { data: recentLeads, isLoading: leadsLoading } = useQuery({
-    queryKey: ['/api/leads'],
+    queryKey: ["/api/leads"],
     queryFn: async () => {
-      const res = await fetch('/api/leads');
-      if (!res.ok) throw new Error('Failed to fetch leads');
+      const res = await fetch("/api/leads");
+      if (!res.ok) throw new Error("Failed to fetch leads");
       return res.json();
     },
-    select: (data: any[]) => data?.slice(0, 3) || []
+    select: (data: any[]) => data?.slice(0, 3) || [],
   });
 
   // Upcoming field visits
   const { data: upcomingVisits, isLoading: visitsLoading } = useQuery({
-    queryKey: ['/api/field-visits'],
+    queryKey: ["/api/field-visits"],
     queryFn: async () => {
-      const res = await fetch('/api/field-visits');
-      if (!res.ok) throw new Error('Failed to fetch visits');
+      const res = await fetch("/api/field-visits");
+      if (!res.ok) throw new Error("Failed to fetch visits");
       return res.json();
     },
     select: (data: any[]) => {
-      return data?.filter((visit: any) => 
-        visit.status === 'scheduled' || visit.status === 'confirmed'
-      ).slice(0, 3) || [];
-    }
+      return (
+        data
+          ?.filter(
+            (visit: any) =>
+              visit.status === "scheduled" || visit.status === "confirmed"
+          )
+          .slice(0, 3) || []
+      );
+    },
   });
 
   // Show loading skeleton while any query is loading
@@ -115,7 +124,9 @@ export default function MarketingDashboard() {
   return (
     <div className="p-8 space-y-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Marketing Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          Marketing Dashboard
+        </h1>
         <p className="text-muted-foreground">
           Overview of marketing activities, leads, and performance metrics
         </p>
@@ -151,11 +162,15 @@ export default function MarketingDashboard() {
 
         <Card>
           <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Conversion Rate
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{conversionRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">
+              {conversionRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-muted-foreground">
               {dashboardData?.leads?.converted || 0} leads converted
             </p>
@@ -164,7 +179,9 @@ export default function MarketingDashboard() {
 
         <Card>
           <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-light">Field Visits Today</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Field Visits Today
+            </CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -188,13 +205,25 @@ export default function MarketingDashboard() {
           <CardContent className="space-y-4">
             {recentLeads && recentLeads.length > 0 ? (
               recentLeads.map((lead: any, index: number) => (
-                <div key={lead.id || index} className="flex items-center justify-between">
+                <div
+                  key={lead.id || index}
+                  className="flex items-center justify-between"
+                >
                   <div>
-                    <p className="font-light">{lead.companyName || `${lead.firstName} ${lead.lastName}`}</p>
-                    <p className="text-sm text-muted-foreground">{lead.industry || lead.email || 'No info'}</p>
+                    <p className="font-light">
+                      {lead.companyName || `${lead.firstName} ${lead.lastName}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {lead.email || lead.phone || "No info"}
+                    </p>
                   </div>
                   <div className="flex items-center space-x-1">
-                    {lead.status === 'qualified' ? <CheckCircle2 className="h-4 w-4 text-green-500"/> : <PhoneCall className="h-4 w-4 text-blue-500"/>}
+                    {lead.status === "new" && (
+                      <PhoneCall className="h-4 w-4 text-blue-500" />
+                    )}
+                    {lead.status === "converted" && (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    )}
                     <span className="text-sm">{lead.status}</span>
                   </div>
                 </div>
@@ -219,13 +248,26 @@ export default function MarketingDashboard() {
           <CardContent className="space-y-4">
             {upcomingVisits && upcomingVisits.length > 0 ? (
               upcomingVisits.map((visit: any, index: number) => (
-                <div key={visit.id || index} className="flex items-center justify-between">
+                <div
+                  key={visit.id || index}
+                  className="flex items-center justify-between"
+                >
                   <div>
-                    <p className="font-light">{visit.purpose || `Visit ${visit.visitNumber}`}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(visit.plannedDate).toLocaleString()}</p>
+                    <p className="font-light">
+                      {visit.purpose || `Visit ${visit.visitNumber}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(visit.plannedDate).toLocaleString()}
+                    </p>
                   </div>
-                  <span className={`text-sm ${visit.status === 'confirmed' ? 'text-green-600' : 'text-blue-600'}`}>
-                    {visit.status || 'Pending'}
+                  <span
+                    className={`text-sm ${
+                      visit.status === "confirmed"
+                        ? "text-green-600"
+                        : "text-blue-600"
+                    }`}
+                  >
+                    {visit.status || "Pending"}
                   </span>
                 </div>
               ))

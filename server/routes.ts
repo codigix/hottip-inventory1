@@ -9,6 +9,13 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
+import { validate as isUuid } from "uuid";
+import { users } from "../shared/schema";
+import { tasks } from "../shared/schema"; // adjust path if needed
+import { validate as isUuid } from "uuid";
+
+// make sure users table is also imported
+
 import {
   users as usersTable,
   leads,
@@ -1385,15 +1392,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Aliases expected by some pages
-  app.get("/api/marketing/leads", requireAuth, async (_req, res) => {
+  app.get("/api/marketing/leads", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(leads);
+      const { status, source, priority, assignedTo, search } = req.query;
+
+      // Start query
+      let query = db.select().from(leads);
+
+      // Optional filters
+      if (status) query = query.where({ status });
+      if (source) query = query.where({ source });
+      if (priority) query = query.where({ priority });
+      if (assignedTo) query = query.where({ assignedTo });
+      if (search) {
+        query = query.where(
+          sql`firstName ILIKE ${"%" + search + "%"} OR lastName ILIKE ${
+            "%" + search + "%"
+          }`
+        );
+      }
+
+      const rows = await query;
       res.json(rows);
-    } catch {
-      res.json([]);
+    } catch (err) {
+      console.error("Error fetching leads:", err);
+      res.status(500).json({ error: "Failed to fetch leads" });
     }
   });
+
+  app.post("/api/marketing/leads", async (req, res) => {
+    try {
+      const {
+        firstName,
+        lastName,
+        companyName,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        source,
+        sourceDetails,
+        referredBy,
+        requirementDescription,
+        estimatedBudget,
+      } = req.body;
+
+      const validSources = [
+        "other",
+        "referral",
+        "website",
+        "email",
+        "social_media",
+      ];
+      const leadSource = validSources.includes(source) ? source : "other";
+
+      const [newLead] = await db
+        .insert(leads)
+        .values({
+          firstName,
+          lastName,
+          companyName: companyName || null,
+          email,
+          phone,
+          alternatePhone: alternatePhone || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
+          country: country || "India",
+          source: leadSource,
+          sourceDetails: sourceDetails || null,
+          referredBy: referredBy || null,
+          requirementDescription: requirementDescription || null,
+          estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+        })
+        .returning();
+
+      res.status(201).json({ message: "Lead created", lead: newLead });
+    } catch (err) {
+      console.error("Error creating lead:", err);
+      res.status(500).json({ error: "Failed to create lead" });
+    }
+  });
+
   app.get("/api/marketing-tasks/metrics", requireAuth, async (_req, res) => {
     try {
       const [row] = await db
@@ -1416,10 +1501,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Lists to avoid 404s where UI expects data
   app.get("/api/leads", requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select().from(leads);
+      const rows = await db
+        .select({
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+          email: leads.email,
+          phone: leads.phone,
+          alternatePhone: leads.alternatePhone,
+          address: leads.address,
+          city: leads.city,
+          state: leads.state,
+          zipCode: leads.zipCode,
+          country: leads.country,
+          source: leads.source,
+          sourceDetails: leads.sourceDetails,
+          referredBy: leads.referredBy,
+          requirementDescription: leads.requirementDescription,
+          estimatedBudget: leads.estimatedBudget,
+          assignedTo: leads.assignedTo,
+          status: leads.status,
+          priority: leads.priority,
+          createdAt: leads.createdAt,
+          followUpDate: leads.followUpDate,
+        })
+        .from(leads);
+
       res.json(rows);
     } catch (e) {
-      res.json([]);
+      console.error("Error fetching leads:", e);
+      res.status(500).json({ error: "Failed to fetch leads" });
     }
   });
 
@@ -2048,6 +2160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   const task = req.body;
   //   res.status(201).json({ message: "Task created", task });
   // });
+
+  // GET /api/tasks -> fetch all tasks
   app.get("/api/tasks", async (_req: Request, res: Response) => {
     try {
       const rows = await db
@@ -2060,11 +2174,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dueDate: tasks.dueDate,
           createdAt: tasks.createdAt,
           updatedAt: tasks.updatedAt,
-          assignedTo: users.firstName,
-          assignedBy: users.lastName,
+          assignedTo: users.username, // show username instead of id
+          assignedBy: users.username, // show username instead of id
         })
         .from(tasks)
-        .leftJoin(users, eq(tasks.assignedTo, users.id));
+        .leftJoin(users, eq(tasks.assignedTo, users.id)); // join with assignedTo user
       res.json(rows);
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -2072,18 +2186,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/tasks -> create a task
   app.post("/api/tasks", async (req: Request, res: Response) => {
     try {
-      const {
-        title,
-        description,
-        assignedTo,
-        assignedBy,
-        status,
-        priority,
-        dueDate,
-      } = req.body;
+      const { title, description, assignedTo, priority, dueDate } = req.body;
+
+      // Hardcode assignedBy to the logged-in user or a fixed UUID
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+      // Validate assignedTo UUID
+      if (!isUuid(assignedTo)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo must be a valid user ID" });
+      }
+
+      const validPriority = ["low", "medium", "high"];
+      const status = "new"; // automatically set for new tasks
+
+      if (!validPriority.includes(priority)) {
+        return res.status(400).json({ error: "Invalid priority" });
+      }
 
       const [newTask] = await db
         .insert(tasks)
@@ -2094,9 +2216,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assignedBy,
           status,
           priority,
-          dueDate,
+          dueDate: dueDate ? new Date(dueDate) : null,
         })
-        .returning();
+        .returning({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          priority: tasks.priority,
+          assignedTo: tasks.assignedTo,
+          assignedBy: tasks.assignedBy,
+          dueDate: tasks.dueDate,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
+        });
 
       res.status(201).json({ message: "Task created", task: newTask });
     } catch (err) {
@@ -2106,17 +2238,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/tasks/:id
-  app.get("/api/tasks/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Task ${id} details` });
-  });
+  // app.get("/api/tasks/:id", (req: Request, res: Response) => {
+  //   const { id } = req.params;
+  //   res.json({ message: `Task ${id} details` });
+  // });
 
-  // PUT /api/tasks/:id
-  app.put("/api/tasks/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    const updates = req.body;
-    res.json({ message: `Task ${id} updated`, updates });
-  });
+  // // PUT /api/tasks/:id
+  // app.put("/api/tasks/:id", (req: Request, res: Response) => {
+  //   const { id } = req.params;
+  //   const updates = req.body;
+  //   res.json({ message: `Task ${id} updated`, updates });
+  // });
 
   // DELETE /api/tasks/:id
   app.delete("/api/tasks/:id", (req: Request, res: Response) => {
