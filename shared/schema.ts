@@ -1,5 +1,14 @@
 // shared/schema.ts
-import { pgTable, serial, varchar, integer, numeric, timestamp, boolean, text } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  varchar,
+  integer,
+  numeric,
+  timestamp,
+  boolean,
+  text,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
@@ -11,11 +20,11 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 50 }).notNull(),
   email: varchar("email", { length: 100 }).notNull(),
   password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
+  firstName: varchar("firstName", { length: 50 }).notNull(),
+  lastName: varchar("lastName", { length: 50 }).notNull(),
   role: varchar("role", { length: 20 }).default("employee"),
   department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 
 // =====================
@@ -72,7 +81,9 @@ export const marketingAttendance = pgTable("marketingAttendance", {
   tasksCompleted: integer("tasks_completed"),
   outcome: text("outcome"),
   nextAction: text("next_action"),
-  attendanceStatus: varchar("attendance_status", { length: 20 }).default("present"),
+  attendanceStatus: varchar("attendance_status", { length: 20 }).default(
+    "present"
+  ),
 });
 
 // =====================
@@ -214,7 +225,9 @@ export const logisticsShipments = pgTable("logistics_shipments", {
 // =====================
 export const logisticsAttendance = pgTable("logistics_attendance", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
   date: timestamp("date").defaultNow(),
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
@@ -239,7 +252,9 @@ export const logisticsAttendance = pgTable("logistics_attendance", {
 // =====================
 export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
   leaveType: varchar("leave_type", { length: 50 }).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
@@ -415,7 +430,10 @@ export function getNextStatus(currentStatus: string): string | null {
   }
   return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
-export function isValidStatusTransition(currentStatus: string, nextStatus: string): boolean {
+export function isValidStatusTransition(
+  currentStatus: string,
+  nextStatus: string
+): boolean {
   const next = getNextStatus(currentStatus);
   return next === nextStatus;
 }

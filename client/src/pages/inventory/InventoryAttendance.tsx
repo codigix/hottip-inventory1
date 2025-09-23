@@ -26,9 +26,10 @@ export default function InventoryAttendance() {
   const [leaveEmployee, setLeaveEmployee] = useState('');
   const [leaveType, setLeaveType] = useState('');
 
-  // Fetch attendance data
+  // Fetch attendance data (with leave info)
   const { data: attendance, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
-    queryKey: ["/attendance"],
+    queryKey: ["/inventory/attendance-with-leave"],
+    queryFn: async () => apiRequest('GET', '/inventory/attendance-with-leave'),
   });
 
   // Check-in/check-out mutation
