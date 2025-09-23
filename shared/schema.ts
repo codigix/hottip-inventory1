@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
-
+import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
 // =====================
 // USERS
 // =====================
@@ -452,3 +452,36 @@ export function isValidStatusTransition(
   const next = getNextStatus(currentStatus);
   return next === nextStatus;
 }
+
+// Enums for status & priority
+export const taskStatusEnum = pgEnum("task_status", [
+  "new",
+  "in_progress",
+  "completed",
+]);
+export const taskPriorityEnum = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const tasks = pgTable("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id), // FK to users.id
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id), // FK to users.id
+  status: taskStatusEnum("status").notNull().default("new"),
+  priority: taskPriorityEnum("priority").notNull().default("medium"),
+  dueDate: timestamp("dueDate", { withTimezone: false }),
+  createdAt: timestamp("createdAt", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
+});
