@@ -21,11 +21,11 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 50 }).notNull(),
   email: varchar("email", { length: 100 }).notNull(),
   password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("firstName", { length: 50 }).notNull(),
-  lastName: varchar("lastName", { length: 50 }).notNull(),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
   role: varchar("role", { length: 20 }).default("employee"),
   department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("createdAt").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // =====================
@@ -70,7 +70,7 @@ export const marketingTasks = pgTable("marketing_tasks", {
 export const marketingAttendance = pgTable("marketingAttendance", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  date: timestamp("date").defaultNow(),
+  date: timestamp("date").defaultNow(), // timestamp column
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
   latitude: numeric("latitude"),
@@ -88,7 +88,7 @@ export const marketingAttendance = pgTable("marketingAttendance", {
 });
 
 // =====================
-// LEAVE REQUESTS (Marketing generic)
+// LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
   id: serial("id").primaryKey(),
@@ -287,7 +287,6 @@ export const insertOutboundQuotationSchema = z.object({
   price: z.number(),
   validUntil: z.string().optional(),
 });
-
 export const insertInboundQuotationSchema = z.object({
   supplierId: z.string(),
   productId: z.string(),
@@ -295,7 +294,6 @@ export const insertInboundQuotationSchema = z.object({
   price: z.number(),
   validUntil: z.string().optional(),
 });
-
 export const insertInvoiceSchema = z.object({
   customerId: z.string(),
   items: z.array(
@@ -316,38 +314,37 @@ export const insertCustomerSchema = z.object({
   address: z.string().optional(),
 });
 
+// Customer schema
+
+// Supplier schema
 export const insertSupplierSchema = z.object({
   name: z.string(),
   contactEmail: z.string().email(),
   phone: z.string().optional(),
   address: z.string().optional(),
 });
-
 export const insertAccountsReceivableSchema = z.object({
   date: z.string(),
   amount: z.number(),
   customerId: z.string(),
 });
-
+// Outbound Quotation schema
 export const insertAccountsPayableSchema = z.object({
   date: z.string(),
   amount: z.number(),
   supplierId: z.string(),
 });
-
 export const insertGstReturnSchema = z.object({
   returnPeriod: z.string(),
   gstAmount: z.number(),
   invoiceIds: z.array(z.string()),
 });
-
 export const insertBankAccountSchema = z.object({
   accountName: z.string(),
   accountNumber: z.string(),
   bankName: z.string(),
   ifscCode: z.string(),
 });
-
 export const insertBankTransactionSchema = z.object({
   transactionDate: z.string(),
   amount: z.number(),
@@ -355,14 +352,12 @@ export const insertBankTransactionSchema = z.object({
   accountId: z.string(),
   description: z.string().optional(),
 });
-
 export const insertAccountReminderSchema = z.object({
   reminderDate: z.string(),
   accountId: z.string(),
   message: z.string(),
   status: z.enum(["pending", "sent"]).default("pending"),
 });
-
 export const insertAccountTaskSchema = z.object({
   taskId: z.string(),
   accountId: z.string(),
@@ -372,6 +367,8 @@ export const insertAccountTaskSchema = z.object({
   status: z.enum(["pending", "completed"]).default("pending"),
 });
 
+import { z } from "zod";
+
 export const insertAccountReportSchema = z.object({
   reportId: z.string(),
   accountId: z.string(),
@@ -380,7 +377,6 @@ export const insertAccountReportSchema = z.object({
   status: z.enum(["draft", "final"]).default("draft"),
   notes: z.string().optional(),
 });
-
 export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
   date: z.string(),
