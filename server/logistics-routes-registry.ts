@@ -13,7 +13,7 @@ import {
   closePodUploadSchema, insertLogisticsAttendanceSchema, updateLogisticsAttendanceSchema,
   logisticsCheckInSchema, logisticsCheckOutSchema, attendancePhotoUploadSchema,
   insertLogisticsTaskSchema, updateLogisticsTaskSchema, updateLogisticsTaskStatusSchema,
-  logisticsTaskFilterSchema
+  logisticsTaskFilterSchema,
 } from "@shared/schema";
 import { validateGPSCoordinates, validateGPSMovement } from "./gpsValidation";
 

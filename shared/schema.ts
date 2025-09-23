@@ -419,3 +419,115 @@ export function isValidStatusTransition(currentStatus: string, nextStatus: strin
   const next = getNextStatus(currentStatus);
   return next === nextStatus;
 }
+
+
+// =====================
+// LOGISTICS SHIPMENT ZOD SCHEMAS
+// =====================
+export const insertLogisticsShipmentSchema = z.object({
+  consignmentNumber: z.string(),
+  source: z.string(),
+  destination: z.string(),
+  currentStatus: z.string().optional(),
+  assignedTo: z.number().optional(),
+  createdBy: z.number().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export const updateLogisticsShipmentSchema = z.object({
+  source: z.string().optional(),
+  destination: z.string().optional(),
+  currentStatus: z.string().optional(),
+  assignedTo: z.number().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export const logisticsShipmentFilterSchema = z.object({
+  status: z.string().optional(),
+  employeeId: z.number().optional(),
+  clientId: z.number().optional(),
+  vendorId: z.number().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const updateLogisticsShipmentStatusSchema = z.object({
+  status: z.string(),
+  remarks: z.string().optional(),
+});
+
+export const closePodUploadSchema = z.object({
+  podFilePath: z.string(),
+  remarks: z.string().optional(),
+});
+
+export const insertLogisticsStatusUpdateSchema = z.object({
+  shipmentId: z.number(),
+  status: z.string(),
+  remarks: z.string().optional(),
+  updatedBy: z.number().optional(),
+});
+
+export const insertLogisticsCheckpointSchema = z.object({
+  shipmentId: z.number(),
+  location: z.string(),
+  checkpointTime: z.string().optional(),
+  addedBy: z.number().optional(),
+});
+
+export const insertLogisticsAttendanceSchema = z.object({
+  userId: z.number(),
+  date: z.string().optional(),
+  checkInTime: z.string().optional(),
+  checkOutTime: z.string().optional(),
+  checkInLocation: z.string().optional(),
+  checkOutLocation: z.string().optional(),
+  checkInLatitude: z.string().optional(),
+  checkInLongitude: z.string().optional(),
+  checkOutLatitude: z.string().optional(),
+  checkOutLongitude: z.string().optional(),
+  workDescription: z.string().optional(),
+  taskCount: z.number().optional(),
+  deliveriesCompleted: z.number().optional(),
+  status: z.string().optional(),
+});
+
+export const updateLogisticsAttendanceSchema = z.object({
+  checkOutTime: z.string().optional(),
+  checkOutLocation: z.string().optional(),
+  checkOutLatitude: z.string().optional(),
+  checkOutLongitude: z.string().optional(),
+  workDescription: z.string().optional(),
+  taskCount: z.number().optional(),
+  deliveriesCompleted: z.number().optional(),
+  status: z.string().optional(),
+});
+
+export const insertLogisticsTaskSchema = z.object({
+  title: z.string(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.number().optional(),
+  assignedBy: z.number().optional(),
+  dueDate: z.string().optional(),
+});
+
+export const updateLogisticsTaskSchema = z.object({
+  title: z.string().optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.number().optional(),
+  dueDate: z.string().optional(),
+});
+
+export const updateLogisticsTaskStatusSchema = z.object({
+  status: z.string(),
+  remarks: z.string().optional(),
+});
+
+export const logisticsTaskFilterSchema = z.object({
+  assignedTo: z.number().optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  dueDate: z.string().optional(),
+});
