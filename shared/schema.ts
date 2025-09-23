@@ -1,5 +1,15 @@
 // shared/schema.ts
-import { pgTable, serial, varchar, integer, numeric, timestamp, boolean, text } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  varchar,
+  integer,
+  numeric,
+  timestamp,
+  boolean,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
@@ -201,14 +211,74 @@ export const vendorCommunications = pgTable("vendor_communications", {
 // LOGISTICS SHIPMENTS
 // =====================
 export const logisticsShipments = pgTable("logistics_shipments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  consignmentNumber: text("consignmentNumber").notNull(),
+  source: text("source").notNull(),
+  destination: text("destination").notNull(),
+  clientId: uuid("clientId"),
+  vendorId: uuid("vendorId"),
+  dispatchDate: timestamp("dispatchDate"),
+  expectedDeliveryDate: timestamp("expectedDeliveryDate"),
+  deliveredAt: timestamp("deliveredAt"),
+  closedAt: timestamp("closedAt"),
+  currentStatus: text("currentStatus").notNull().default("created"),
+  notes: text("notes"),
+  weight: numeric("weight", { precision: 10, scale: 2 }),
+});
+
+// =====================
+// LOGISTICS TASKS
+// =====================
+export const logisticsTasks = pgTable("logistics_tasks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo").notNull(),
+  assignedBy: uuid("assignedBy").notNull(),
+  status: text("status").notNull().default("new"),
+  dueDate: timestamp("dueDate"),
+  startedDate: timestamp("startedDate"),
+  completedDate: timestamp("completedDate"),
+  shipmentId: uuid("shipmentId"),
+  estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
+});
+
+// =====================
+// LOGISTICS ATTENDANCE
+// =====================
+export const logisticsAttendance = pgTable("logistics_attendance", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  date: timestamp("date").notNull(),
+  checkInTime: timestamp("checkInTime"),
+  checkOutTime: timestamp("checkOutTime"),
+  checkInLocation: text("checkInLocation"),
+  checkOutLocation: text("checkOutLocation"),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+});
+
+// =====================
+// LOGISTICS LEAVE REQUESTS
+// =====================
+export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
   id: serial("id").primaryKey(),
-  consignmentNumber: varchar("consignment_number", { length: 50 }),
-  source: varchar("source", { length: 100 }),
-  destination: varchar("destination", { length: 100 }),
-  currentStatus: varchar("current_status", { length: 50 }),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  leaveType: varchar("leave_type", { length: 50 }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: text("reason"),
+  status: varchar("status", { length: 20 }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-//
+
+// =====================
+// ZOD INSERT/VALIDATION SCHEMAS
+// =====================
+export const insertOutboundQuotationSchema = z.object({
   customerId: z.string(),
   productId: z.string(),
   quantity: z.number(),
@@ -315,12 +385,52 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
 });
 
-//
-  "pending",
+// Logistics Attendance validation
+export const logisticsCheckInSchema = z.object({
+  latitude: z.number(),
+  longitude: z.number(),
+  location: z.string().optional(),
+  workDescription: z.string().optional(),
+  accuracy: z.number().optional(),
+});
+
+export const logisticsCheckOutSchema = z.object({
+  latitude: z.number(),
+  longitude: z.number(),
+  location: z.string().optional(),
+  workDescription: z.string().optional(),
+  taskCount: z.number().optional(),
+  deliveriesCompleted: z.number().optional(),
+  accuracy: z.number().optional(),
+});
+
+export const attendancePhotoUploadSchema = z.object({
+  attendanceId: z.string(),
+  fileName: z.string(),
+  contentType: z.string(),
+  photoType: z.enum(["check-in", "check-out"]),
+});
+
+export const insertLogisticsLeaveRequestSchema = z.object({
+  userId: z.coerce.number(),
+  leaveType: z.string(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  reason: z.string().optional(),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+});
+
+// =====================
+// LOGISTICS STATUS UTILS
+// =====================
+export const LOGISTICS_SHIPMENT_STATUSES = [
+  "created",
+  "packed",
+  "dispatched",
   "in_transit",
+  "out_for_delivery",
   "delivered",
-  "cancelled",
-  "returned",
+  "closed",
 ];
 
 export function getNextStatus(currentStatus: string): string | null {
