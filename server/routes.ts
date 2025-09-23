@@ -1982,14 +1982,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", (req, res) => {
     res.json({ status: "OK", timestamp: new Date().toISOString() });
   });
-  app.get("/api/tasks", (req: Request, res: Response) => {
-    res.json({ message: "List of tasks", tasks: [] });
+  // app.get("/api/tasks", (req: Request, res: Response) => {
+  //   res.json({ message: "List of tasks", tasks: [] });
+  // });
+
+  // // POST /api/tasks -> create a task
+  // app.post("/api/tasks", (req: Request, res: Response) => {
+  //   const task = req.body;
+  //   res.status(201).json({ message: "Task created", task });
+  // });
+  app.get("/api/tasks", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          description: tasks.description,
+          status: tasks.status,
+          priority: tasks.priority,
+          dueDate: tasks.dueDate,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
+          assignedTo: users.firstName,
+          assignedBy: users.lastName,
+        })
+        .from(tasks)
+        .leftJoin(users, eq(tasks.assignedTo, users.id));
+      res.json(rows);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      res.status(500).json({ error: "Failed to fetch tasks" });
+    }
   });
 
   // POST /api/tasks -> create a task
-  app.post("/api/tasks", (req: Request, res: Response) => {
-    const task = req.body;
-    res.status(201).json({ message: "Task created", task });
+  app.post("/api/tasks", async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        assignedTo,
+        assignedBy,
+        status,
+        priority,
+        dueDate,
+      } = req.body;
+
+      const [newTask] = await db
+        .insert(tasks)
+        .values({
+          title,
+          description,
+          assignedTo,
+          assignedBy,
+          status,
+          priority,
+          dueDate,
+        })
+        .returning();
+
+      res.status(201).json({ message: "Task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating task:", err);
+      res.status(500).json({ error: "Failed to create task" });
+    }
   });
 
   // GET /api/tasks/:id

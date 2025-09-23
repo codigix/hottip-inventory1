@@ -1,8 +1,8 @@
-import 'dotenv/config'; // loads environment variables from .env
-import pg from 'pg';
+import "dotenv/config"; // loads environment variables from .env
+import pg from "pg";
 const { Pool } = pg;
-import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from '@shared/schema'; // adjust the path to your schema
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "@shared/schema"; // adjust the path to your schema
 
 // Ensure DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
@@ -14,7 +14,9 @@ if (!process.env.DATABASE_URL) {
 // Create a PostgreSQL connection pool
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Optional: you can set max connections, idle timeout, etc.
+  ssl: {
+    rejectUnauthorized: false, // AWS RDS requires SSL but allows skipping strict CA check
+  },
   max: 10,
   idleTimeoutMillis: 30000,
 });
@@ -26,9 +28,9 @@ export const db = drizzle(pool, { schema });
 (async () => {
   try {
     const client = await pool.connect();
-    console.log('✅ Successfully connected to PostgreSQL');
+    console.log("✅ Successfully connected to PostgreSQL");
     client.release();
   } catch (err) {
-    console.error('❌ Failed to connect to PostgreSQL', err);
+    console.error("❌ Failed to connect to PostgreSQL", err);
   }
 })();

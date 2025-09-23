@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
-
+import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
 // =====================
 // USERS
 // =====================
@@ -82,7 +82,9 @@ export const marketingAttendance = pgTable("marketingAttendance", {
   tasksCompleted: integer("tasks_completed"),
   outcome: text("outcome"),
   nextAction: text("next_action"),
-  attendanceStatus: varchar("attendance_status", { length: 20 }).default("present"),
+  attendanceStatus: varchar("attendance_status", { length: 20 }).default(
+    "present"
+  ),
 });
 
 // =====================
@@ -303,7 +305,7 @@ export const insertInvoiceSchema = z.object({
   ),
   totalAmount: z.number(),
   issuedAt: z.string().optional(),
-});                             
+});
 
 export const insertCustomerSchema = z.object({
   name: z.string(),
@@ -313,7 +315,6 @@ export const insertCustomerSchema = z.object({
 });
 
 // Customer schema
-
 
 // Supplier schema
 export const insertSupplierSchema = z.object({
@@ -440,7 +441,10 @@ export function getNextStatus(currentStatus: string): string | null {
   }
   return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
-export function isValidStatusTransition(currentStatus: string, nextStatus: string): boolean {
+export function isValidStatusTransition(
+  currentStatus: string,
+  nextStatus: string
+): boolean {
   const next = getNextStatus(currentStatus);
   return next === nextStatus;
 }
@@ -555,4 +559,36 @@ export const logisticsTaskFilterSchema = z.object({
   status: z.string().optional(),
   priority: z.string().optional(),
   dueDate: z.string().optional(),
+});
+// Enums for status & priority
+export const taskStatusEnum = pgEnum("task_status", [
+  "new",
+  "in_progress",
+  "completed",
+]);
+export const taskPriorityEnum = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const tasks = pgTable("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id), // FK to users.id
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id), // FK to users.id
+  status: taskStatusEnum("status").notNull().default("new"),
+  priority: taskPriorityEnum("priority").notNull().default("medium"),
+  dueDate: timestamp("dueDate", { withTimezone: false }),
+  createdAt: timestamp("createdAt", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
 });
