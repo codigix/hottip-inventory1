@@ -10,23 +10,31 @@ import {
   text,
   uuid,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
-import { pgTable, integer, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
-import { users } from "./users";
 import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { users } from "./users";
+// =====================
 // USERS
 // =====================
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: varchar("username", { length: 50 }).notNull(),
-  email: varchar("email", { length: 100 }).notNull(),
-  password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("firstName", { length: 50 }).notNull(), // match DB
-  lastName: varchar("lastName", { length: 50 }).notNull(), // match DB
-  role: varchar("role", { length: 20 }).default("employee"),
-  department: varchar("department", { length: 50 }).default("General"),
-  createdAt: timestamp("createdAt").defaultNow(), // match DB
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
 });
 
 // =====================
@@ -400,6 +408,243 @@ export const logisticsCheckInSchema = z.object({
   location: z.string().optional(),
   workDescription: z.string().optional(),
   accuracy: z.number().optional(),
+});
+
+// Placeholder for marketing-routes-registry.ts
+export const convertLeadSchema = z.object({
+  leadId: z.number(),
+  convertedAt: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// Placeholder for field visit check-in schema
+export const fieldVisitCheckInSchema = z.object({
+  visitId: z.number(),
+  checkInTime: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  notes: z.string().optional(),
+});
+
+// Placeholder for field visit check-out schema
+export const fieldVisitCheckOutSchema = z.object({
+  visitId: z.number(),
+  checkOutTime: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  notes: z.string().optional(),
+});
+
+// Insert missing schemas for registry imports
+export const insertLeadSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  companyName: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.any().optional(),
+  createdBy: z.any().optional(),
+  assignedBy: z.any().optional(),
+});
+
+export const updateLeadSchema = insertLeadSchema.partial();
+
+export const insertFieldVisitSchema = z.object({
+  visitNumber: z.string(),
+  leadId: z.any(),
+  plannedDate: z.string().optional(),
+  actualDate: z.string().optional(),
+  assignedTo: z.any().optional(),
+  assignedBy: z.any().optional(),
+  createdBy: z.any().optional(),
+  visitAddress: z.string().optional(),
+  status: z.string().optional(),
+});
+
+export const insertMarketingTaskSchema = z.object({
+  title: z.string(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assignedToUserId: z.any().optional(),
+  createdAt: z.string().optional(),
+  dueDate: z.string().optional(),
+  completedDate: z.string().optional(),
+  leadId: z.any().optional(),
+  fieldVisitId: z.any().optional(),
+  assignedBy: z.any().optional(),
+});
+
+export const insertMarketingAttendanceSchema = z.object({
+  userId: z.any(),
+  date: z.string().optional(),
+  checkInTime: z.string().optional(),
+  checkOutTime: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
+  workDescription: z.string().optional(),
+  visitCount: z.number().optional(),
+  tasksCompleted: z.number().optional(),
+  outcome: z.string().optional(),
+  nextAction: z.string().optional(),
+  attendanceStatus: z.string().optional(),
+});
+
+export const updateLeadStatusSchema = z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+});
+
+export const updateFieldVisitStatusSchema = z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+});
+
+export const updateMarketingTaskStatusSchema = z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+});
+
+export const leadFilterSchema = z.object({
+  status: z.string().optional(),
+  source: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.string().optional(),
+  search: z.string().optional(),
+});
+
+export const fieldVisitFilterSchema = z.object({
+  status: z.string().optional(),
+  assignedTo: z.string().optional(),
+  leadId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const marketingTaskFilterSchema = z.object({
+  status: z.string().optional(),
+  type: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.string().optional(),
+  leadId: z.string().optional(),
+});
+
+// Logistics registry schemas
+export const insertLogisticsStatusUpdateSchema = z.object({
+  shipmentId: z.string(),
+  status: z.string(),
+  updatedBy: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const updateLogisticsShipmentSchema = z.object({
+  consignmentNumber: z.string().optional(),
+  source: z.string().optional(),
+  destination: z.string().optional(),
+  clientId: z.string().optional(),
+  vendorId: z.string().optional(),
+  dispatchDate: z.string().optional(),
+  expectedDeliveryDate: z.string().optional(),
+  deliveredAt: z.string().optional(),
+  closedAt: z.string().optional(),
+  currentStatus: z.string().optional(),
+  notes: z.string().optional(),
+  weight: z.number().optional(),
+});
+
+export const logisticsShipmentFilterSchema = z.object({
+  status: z.string().optional(),
+  employeeId: z.string().optional(),
+  clientId: z.string().optional(),
+  vendorId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const updateLogisticsShipmentStatusSchema = z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+});
+
+export const insertLogisticsAttendanceSchema = z.object({
+  userId: z.string(),
+  date: z.string().optional(),
+  checkInTime: z.string().optional(),
+  checkOutTime: z.string().optional(),
+  checkInLocation: z.string().optional(),
+  checkOutLocation: z.string().optional(),
+  checkInLatitude: z.string().optional(),
+  checkInLongitude: z.string().optional(),
+  checkOutLatitude: z.string().optional(),
+  checkOutLongitude: z.string().optional(),
+  workDescription: z.string().optional(),
+  status: z.string().optional(),
+});
+
+export const updateLogisticsAttendanceSchema =
+  insertLogisticsAttendanceSchema.partial();
+
+export const insertLogisticsTaskSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.string(),
+  assignedBy: z.string(),
+  status: z.string().optional(),
+  dueDate: z.string().optional(),
+  startedDate: z.string().optional(),
+  completedDate: z.string().optional(),
+  shipmentId: z.string().optional(),
+  estimatedHours: z.number().optional(),
+});
+
+export const updateLogisticsTaskSchema = insertLogisticsTaskSchema.partial();
+
+export const updateLogisticsTaskStatusSchema = z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+});
+
+export const logisticsTaskFilterSchema = z.object({
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.string().optional(),
+  shipmentId: z.string().optional(),
+});
+
+// Placeholder for logistics shipment insert schema
+export const insertLogisticsShipmentSchema = z.object({
+  consignmentNumber: z.string(),
+  source: z.string(),
+  destination: z.string(),
+  clientId: z.string().optional(),
+  vendorId: z.string().optional(),
+  dispatchDate: z.string().optional(),
+  expectedDeliveryDate: z.string().optional(),
+  deliveredAt: z.string().optional(),
+  closedAt: z.string().optional(),
+  currentStatus: z.string().optional(),
+  notes: z.string().optional(),
+  weight: z.number().optional(),
+});
+
+// Placeholder for logistics checkpoint insert schema
+export const insertLogisticsCheckpointSchema = z.object({
+  shipmentId: z.string(),
+  checkpoint: z.string(),
+  timestamp: z.string().optional(),
+  status: z.string().optional(),
+});
+
+// Placeholder for logistics-routes-registry.ts
+export const closePodUploadSchema = z.object({
+  shipmentId: z.string(),
+  fileName: z.string(),
+  contentType: z.string(),
+  uploadedAt: z.string().optional(),
 });
 
 export const logisticsCheckOutSchema = z.object({

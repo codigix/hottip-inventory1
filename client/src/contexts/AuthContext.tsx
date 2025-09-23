@@ -5,13 +5,14 @@ interface User {
   id: string;
   username: string;
   role: string;
+  department?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -50,14 +51,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: identifier, email: identifier, password }),
       });
 
       if (!response.ok) {
