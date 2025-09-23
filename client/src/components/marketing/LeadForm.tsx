@@ -150,7 +150,7 @@ export default function LeadForm({
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/marketing/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["api/leads "] });
       toast({ title: "Lead created successfully!" });
       onOpenChange(false);
       form.reset();
