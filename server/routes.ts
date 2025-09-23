@@ -51,6 +51,9 @@ const userCreateSchema = userInsertSchema.extend({
   password: z.string().min(6),
 });
 
+// Register schema for /api/register endpoint (fixes missing schema error)
+const registerSchema = userCreateSchema;
+
 // Logistics shipment creation schema
 const logisticsShipmentInsertSchema = z.object({
   consignmentNumber: z.string().min(1),
@@ -211,6 +214,7 @@ const requireAuth = async (
         id: user.id,
         role: user.role,
         username: user.username,
+        department: user.department,
       };
       next();
       return;
@@ -284,6 +288,40 @@ const inMemoryLogisticsShipments: any[] = [];
 const inMemoryLogisticsTasks: any[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // User registration endpoint
+  app.post("/api/register", async (req, res) => {
+    try {
+      const data = registerSchema.parse(req.body);
+
+      const existing = await storage.findUserByUsernameOrEmail(data.username, data.email);
+      if (existing) return res.status(400).json({ error: "Username or email already exists" });
+
+      const hashedPassword = await bcrypt.hash(data.password, 12);
+
+      const user = await storage.createUser({
+        username: data.username,
+        email: data.email,
+        password: hashedPassword,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        department: data.department,
+      });
+
+      res.status(201).json({ message: "Account created", user: { id: user.id, username: user.username, email: user.email }});
+    } catch (err: any) {
+      // Enhanced error logging for debugging
+      console.error("/api/register error:", err);
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid input", details: err.errors });
+      }
+      // If it's a database error, try to include more info
+      if (err?.code && err?.detail) {
+        return res.status(500).json({ error: "Registration failed", code: err.code, detail: err.detail, message: err.message });
+      }
+      res.status(500).json({ error: "Registration failed", details: err.message || String(err) });
+    }
+  });
+
   // Disable ETag to avoid 304 Not Modified on frequently-updated APIs
   app.set("etag", false);
   // Get all clients
@@ -335,10 +373,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("🔐 Login attempt received for username:", req.body.username);
 
-      const { username, password } = loginSchema.parse(req.body);
-      console.log("✅ Login data parsed successfully:", { username });
+      const { username, email, password } = req.body;
+      if (!username && !email) {
+        return res.status(400).json({ error: "Username or email is required" });
+      }
+      console.log("✅ Login data parsed successfully:", { username, email });
 
-      const user = await storage.getUserByUsername(username);
+      const user = await storage.findUserByUsernameOrEmail(username || "", email || "");
       console.log(
         "👤 User lookup result:",
         user ? `Found user: ${user.username} (${user.role})` : "No user found"
@@ -394,6 +435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: user.id,
           username: user.username,
           role: user.role,
+          department: user.department, // Ensure department is included
         },
       });
     } catch (error) {
@@ -1470,8 +1512,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: r.checkOutTime
           ? "checked_out"
           : r.checkInTime
-          ? "checked_in"
-          : "checked_out",
+            ? "checked_in"
+            : "checked_out",
       }));
       res.json(mapped);
     } catch (e) {
@@ -1505,8 +1547,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: r.checkOutTime
           ? "checked_out"
           : r.checkInTime
-          ? "checked_in"
-          : "checked_out",
+            ? "checked_in"
+            : "checked_out",
       }));
       res.json(mapped);
     } catch (e) {
@@ -1529,8 +1571,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: (r as any).checkOutTime
             ? "checked_out"
             : (r as any).checkInTime
-            ? "checked_in"
-            : "checked_out",
+              ? "checked_in"
+              : "checked_out",
         }));
         const checkedIn = mappedAll.filter(
           (r) => r.status === "checked_in"
@@ -1596,8 +1638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userIdSafe = isUuid(userId)
           ? userId
           : isUuid(req.user?.id || "")
-          ? req.user!.id
-          : null;
+            ? req.user!.id
+            : null;
         if (!userIdSafe) {
           res.status(400).json({ error: "Valid userId (UUID) is required" });
           return;
