@@ -1,17 +1,3 @@
-export const userRole = pgEnum("user_role", ["employee", "admin"]);
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull(),
-  email: text("email").notNull(),
-  password: text("password").notNull(),
-  role: userRole("role").default("employee").notNull(),
-  firstName: text("firstName").notNull(),
-  lastName: text("lastName").notNull(),
-  department: text("department"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updatedAt").default(sql`now()`).notNull(),
-});
 // shared/schema.ts
 import {
   pgTable,
@@ -23,7 +9,7 @@ import {
   boolean,
   text,
   uuid,
-  pgEnum
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -31,6 +17,24 @@ import { z } from "zod";
 // USERS table definition (inline, since ./users is missing)
 // =====================
 // USERS
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
+});
 // =====================
 // (Removed duplicate userRole and users exports)
 // =====================
@@ -80,7 +84,9 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 export const marketingAttendance = pgTable("marketingAttendance", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
   checkInTime: timestamp("checkInTime"),
   checkOutTime: timestamp("checkOutTime"),
@@ -107,16 +113,26 @@ export const leaveRequests = pgTable("leave_requests", {
 // FIELD VISITS
 // =====================
 export const fieldVisits = pgTable("field_visits", {
-  id: serial("id").primaryKey(),
-  visitNumber: varchar("visit_number", { length: 50 }).notNull(),
-  leadId: integer("lead_id").references(() => leads.id),
-  plannedDate: timestamp("planned_date"),
-  actualDate: timestamp("actual_date"),
-  assignedTo: integer("assigned_to").references(() => users.id),
-  assignedBy: integer("assigned_by").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id),
-  visitAddress: varchar("visit_address", { length: 255 }),
-  status: varchar("status", { length: 20 }).default("scheduled"),
+  id: uuid("id").defaultRandom().primaryKey(),
+  visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
+  leadId: uuid("leadId") // match exact DB column
+    .references(() => leads.id)
+    .notNull(),
+  plannedDate: timestamp("plannedDate").notNull(),
+  plannedStartTime: timestamp("plannedStartTime"),
+  plannedEndTime: timestamp("plannedEndTime"),
+  assignedTo: uuid("assignedTo")
+    .references(() => users.id)
+    .notNull(),
+  visitAddress: varchar("visitAddress", { length: 255 }).notNull(),
+  visitCity: varchar("visitCity", { length: 100 }),
+  visitState: varchar("visitState", { length: 100 }),
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  preVisitNotes: text("preVisitNotes"),
+  purpose: varchar("purpose", { length: 100 }),
+  travelExpense: numeric("travelExpense", { precision: 12, scale: 2 }),
+  status: varchar("status", { length: 20 }).default("Scheduled"),
 });
 
 // =====================

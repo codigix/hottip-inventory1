@@ -37,10 +37,25 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +86,12 @@ interface TaskWithDetails extends MarketingTask {
 
 type ViewMode = "table" | "board" | "cards";
 type DateFilter = "all" | "today" | "week" | "month" | "overdue" | "custom";
-type StatusFilter = "all" | "pending" | "in_progress" | "completed" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
 
 interface TaskFilters {
@@ -99,7 +119,8 @@ export default function MarketingTasks() {
   const [showFilters, setShowFilters] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithDetails | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<TaskWithDetails | null>(null);
+  const [selectedTaskDetails, setSelectedTaskDetails] =
+    useState<TaskWithDetails | null>(null);
 
   // Filter state
   const [filters, setFilters] = useState<TaskFilters>(DEFAULT_FILTERS);
@@ -108,8 +129,18 @@ export default function MarketingTasks() {
   const queryClient = useQueryClient();
 
   // Data fetching
-  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery<TaskWithDetails[]>({
+  const {
+    data: tasks = [],
+    isLoading: tasksLoading,
+    error: tasksError,
+  } = useQuery<TaskWithDetails[]>({
     queryKey: ["/marketing-tasks"],
+    queryFn: async () => {
+      // Call your API
+      const response = await fetch("/api/marketing-tasks"); // replace with your real API endpoint
+      if (!response.ok) throw new Error("Failed to fetch marketing tasks");
+      return response.json();
+    },
   });
 
   const { data: users = [] } = useQuery<User[]>({
@@ -122,7 +153,8 @@ export default function MarketingTasks() {
 
   // Mutations
   const deleteTaskMutation = useMutation({
-    mutationFn: (taskId: string) => apiRequest(`/marketing-tasks/${taskId}`, { method: "DELETE" }),
+    mutationFn: (taskId: string) =>
+      apiRequest(`/marketing-tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/marketing-tasks/metrics"] });
@@ -156,10 +188,12 @@ export default function MarketingTasks() {
     }
 
     // Status filter
-    if (filters.status !== "all") filtered = filtered.filter((t) => t.status === filters.status);
+    if (filters.status !== "all")
+      filtered = filtered.filter((t) => t.status === filters.status);
 
     // Priority filter
-    if (filters.priority !== "all") filtered = filtered.filter((t) => t.priority === filters.priority);
+    if (filters.priority !== "all")
+      filtered = filtered.filter((t) => t.priority === filters.priority);
 
     // Assignee filter
     if (filters.assignee !== "all") {
@@ -172,7 +206,9 @@ export default function MarketingTasks() {
     // Date filter
     switch (filters.dateFilter) {
       case "today":
-        filtered = filtered.filter((t) => t.dueDate && isToday(new Date(t.dueDate)));
+        filtered = filtered.filter(
+          (t) => t.dueDate && isToday(new Date(t.dueDate))
+        );
         break;
       case "week": {
         const weekStart = startOfWeek(now);
@@ -180,7 +216,10 @@ export default function MarketingTasks() {
         filtered = filtered.filter(
           (t) =>
             t.dueDate &&
-            isWithinInterval(new Date(t.dueDate), { start: weekStart, end: weekEnd })
+            isWithinInterval(new Date(t.dueDate), {
+              start: weekStart,
+              end: weekEnd,
+            })
         );
         break;
       }
@@ -190,19 +229,28 @@ export default function MarketingTasks() {
         filtered = filtered.filter(
           (t) =>
             t.dueDate &&
-            isWithinInterval(new Date(t.dueDate), { start: monthStart, end: monthEnd })
+            isWithinInterval(new Date(t.dueDate), {
+              start: monthStart,
+              end: monthEnd,
+            })
         );
         break;
       }
       case "overdue":
-        filtered = filtered.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "completed");
+        filtered = filtered.filter(
+          (t) =>
+            t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "completed"
+        );
         break;
       case "custom":
         if (filters.dateFrom && filters.dateTo) {
           filtered = filtered.filter(
             (t) =>
               t.dueDate &&
-              isWithinInterval(new Date(t.dueDate), { start: filters.dateFrom!, end: filters.dateTo! })
+              isWithinInterval(new Date(t.dueDate), {
+                start: filters.dateFrom!,
+                end: filters.dateTo!,
+              })
           );
         }
         break;
@@ -216,10 +264,17 @@ export default function MarketingTasks() {
     return {
       total: filteredTasks.length,
       pending: filteredTasks.filter((t) => t.status === "pending").length,
-      inProgress: filteredTasks.filter((t) => t.status === "in_progress").length,
+      inProgress: filteredTasks.filter((t) => t.status === "in_progress")
+        .length,
       completed: filteredTasks.filter((t) => t.status === "completed").length,
-      overdue: filteredTasks.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "completed").length,
-      dueToday: filteredTasks.filter((t) => t.dueDate && isToday(new Date(t.dueDate)) && t.status !== "completed").length,
+      overdue: filteredTasks.filter(
+        (t) =>
+          t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "completed"
+      ).length,
+      dueToday: filteredTasks.filter(
+        (t) =>
+          t.dueDate && isToday(new Date(t.dueDate)) && t.status !== "completed"
+      ).length,
     };
   }, [filteredTasks]);
 
@@ -230,17 +285,19 @@ export default function MarketingTasks() {
   };
 
   const handleDeleteTask = (taskId: string) => setTaskToDelete(taskId);
-  const handleViewTaskDetails = (task: TaskWithDetails) => setSelectedTaskDetails(task);
+  const handleViewTaskDetails = (task: TaskWithDetails) =>
+    setSelectedTaskDetails(task);
   const handleCreateTaskWithStatus = () => {
     setEditingTask(null);
     setShowTaskForm(true);
   };
 
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
-  const getActiveFiltersCount = () => Object.entries(filters).reduce((count, [key, value]) => {
-    if ((key === "search" && value) || value !== "all") count++;
-    return count;
-  }, 0);
+  const getActiveFiltersCount = () =>
+    Object.entries(filters).reduce((count, [key, value]) => {
+      if ((key === "search" && value) || value !== "all") count++;
+      return count;
+    }, 0);
 
   if (tasksError) {
     return (
@@ -248,12 +305,19 @@ export default function MarketingTasks() {
         <Card className="border-red-200">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2 text-red-700">Failed to Load Tasks</h2>
+            <h2 className="text-lg font-semibold mb-2 text-red-700">
+              Failed to Load Tasks
+            </h2>
             <p className="text-muted-foreground mb-4">
-              There was an error loading the marketing tasks. Please check your authentication and try again.
+              There was an error loading the marketing tasks. Please check your
+              authentication and try again.
             </p>
             <Button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })}
+              onClick={() =>
+                queryClient.invalidateQueries({
+                  queryKey: ["/marketing-tasks"],
+                })
+              }
               className="flex items-center space-x-2"
             >
               <RefreshCw className="h-4 w-4" />
@@ -271,19 +335,28 @@ export default function MarketingTasks() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Marketing Tasks</h1>
-          <p className="text-muted-foreground">Manage and track marketing team tasks and assignments</p>
+          <p className="text-muted-foreground">
+            Manage and track marketing team tasks and assignments
+          </p>
         </div>
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })}
+            onClick={() =>
+              queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })
+            }
             disabled={tasksLoading}
           >
-            <RefreshCw className={`h-4 w-4 ${tasksLoading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${tasksLoading ? "animate-spin" : ""}`}
+            />
             <span className="ml-2">Refresh</span>
           </Button>
-          <Button onClick={handleCreateTaskWithStatus} className="flex items-center space-x-2">
+          <Button
+            onClick={handleCreateTaskWithStatus}
+            className="flex items-center space-x-2"
+          >
             <Plus className="h-4 w-4" />
             <span>Create Task</span>
           </Button>
@@ -295,39 +368,69 @@ export default function MarketingTasks() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, status: "all", dateFilter: "all" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() =>
+            setFilters((f) => ({ ...f, status: "all", dateFilter: "all" }))
+          }
+        >
           <CardContent className="pt-4 text-center">
             <div className="text-2xl font-bold">{stats.total}</div>
             <div className="text-sm text-muted-foreground">Total Tasks</div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, status: "pending" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() => setFilters((f) => ({ ...f, status: "pending" }))}
+        >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {stats.pending}
+            </div>
             <div className="text-sm text-muted-foreground">Pending</div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, status: "in_progress" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() => setFilters((f) => ({ ...f, status: "in_progress" }))}
+        >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.inProgress}
+            </div>
             <div className="text-sm text-muted-foreground">In Progress</div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, status: "completed" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() => setFilters((f) => ({ ...f, status: "completed" }))}
+        >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.completed}
+            </div>
             <div className="text-sm text-muted-foreground">Completed</div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, dateFilter: "overdue" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() => setFilters((f) => ({ ...f, dateFilter: "overdue" }))}
+        >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.overdue}
+            </div>
             <div className="text-sm text-muted-foreground">Overdue</div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setFilters(f => ({ ...f, dateFilter: "today" }))}>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() => setFilters((f) => ({ ...f, dateFilter: "today" }))}
+        >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.dueToday}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.dueToday}
+            </div>
             <div className="text-sm text-muted-foreground">Due Today</div>
           </CardContent>
         </Card>
@@ -343,7 +446,9 @@ export default function MarketingTasks() {
                 <Input
                   placeholder="Search tasks..."
                   value={filters.search}
-                  onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, search: e.target.value }))
+                  }
                   className="pl-9"
                 />
               </div>
@@ -356,7 +461,9 @@ export default function MarketingTasks() {
               >
                 <Filter className="h-4 w-4" />
                 <span>Filters</span>
-                {getActiveFiltersCount() > 0 && <Badge variant="secondary">{getActiveFiltersCount()}</Badge>}
+                {getActiveFiltersCount() > 0 && (
+                  <Badge variant="secondary">{getActiveFiltersCount()}</Badge>
+                )}
               </Button>
 
               {getActiveFiltersCount() > 0 && (
@@ -369,13 +476,25 @@ export default function MarketingTasks() {
 
             {/* View Mode Toggle */}
             <div className="flex items-center space-x-2 border rounded-lg p-1">
-              <Button variant={viewMode === "table" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("table")}>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+              >
                 <TableIcon className="h-4 w-4" />
               </Button>
-              <Button variant={viewMode === "board" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("board")}>
+              <Button
+                variant={viewMode === "board" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("board")}
+              >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
-              <Button variant={viewMode === "cards" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("cards")}>
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("cards")}
+              >
                 <Calendar className="h-4 w-4" />
               </Button>
             </div>
@@ -395,10 +514,23 @@ export default function MarketingTasks() {
 
       {/* Task Views */}
       <div className="space-y-6">
-        {viewMode === "table" && <TaskTable tasks={filteredTasks} onEdit={handleEditTask} onDelete={handleDeleteTask} loading={tasksLoading} />}
+        {viewMode === "table" && (
+          <TaskTable
+            tasks={filteredTasks}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            loading={tasksLoading}
+          />
+        )}
         {viewMode === "board" && (
           <Suspense fallback={<div>Loading board...</div>}>
-            <TaskBoard tasks={filteredTasks} onEdit={handleEditTask} onDelete={handleDeleteTask} onCreateTask={handleCreateTaskWithStatus} loading={tasksLoading} />
+            <TaskBoard
+              tasks={filteredTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onCreateTask={handleCreateTaskWithStatus}
+              loading={tasksLoading}
+            />
           </Suspense>
         )}
         {viewMode === "cards" && (
@@ -409,36 +541,65 @@ export default function MarketingTasks() {
       </div>
 
       {/* Task Form Dialog */}
-      <TaskForm open={showTaskForm} onOpenChange={(open) => { setShowTaskForm(open); if (!open) setEditingTask(null); }} taskId={editingTask?.id} defaultValues={editingTask ? {
-        title: editingTask.title,
-        description: editingTask.description || "",
-        type: editingTask.type,
-        assignedTo: editingTask.assignedTo,
-        priority: editingTask.priority,
-        dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
-        estimatedHours: editingTask.estimatedHours?.toString() || "",
-        leadId: editingTask.leadId,
-        fieldVisitId: editingTask.fieldVisitId,
-        recurring: editingTask.recurring,
-        recurringFrequency: editingTask.recurringFrequency,
-      } : undefined} />
+      <TaskForm
+        open={showTaskForm}
+        onOpenChange={(open) => {
+          setShowTaskForm(open);
+          if (!open) setEditingTask(null);
+        }}
+        taskId={editingTask?.id}
+        defaultValues={
+          editingTask
+            ? {
+                title: editingTask.title,
+                description: editingTask.description || "",
+                type: editingTask.type,
+                assignedTo: editingTask.assignedTo,
+                priority: editingTask.priority,
+                dueDate: editingTask.dueDate
+                  ? new Date(editingTask.dueDate)
+                  : undefined,
+                estimatedHours: editingTask.estimatedHours?.toString() || "",
+                leadId: editingTask.leadId,
+                fieldVisitId: editingTask.fieldVisitId,
+                recurring: editingTask.recurring,
+                recurringFrequency: editingTask.recurringFrequency,
+              }
+            : undefined
+        }
+      />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+      <AlertDialog
+        open={!!taskToDelete}
+        onOpenChange={() => setTaskToDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete this task? This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Are you sure you want to delete this task? This action cannot be
+              undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => taskToDelete && deleteTaskMutation.mutate(taskToDelete)}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() =>
+                taskToDelete && deleteTaskMutation.mutate(taskToDelete)
+              }
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Task Details Dialog */}
-      <Dialog open={!!selectedTaskDetails} onOpenChange={() => setSelectedTaskDetails(null)}>
+      <Dialog
+        open={!!selectedTaskDetails}
+        onOpenChange={() => setSelectedTaskDetails(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Task Details</DialogTitle>
