@@ -1,3 +1,17 @@
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updatedAt").default(sql`now()`).notNull(),
+});
 // shared/schema.ts
 import {
   pgTable,
@@ -9,33 +23,16 @@ import {
   boolean,
   text,
   uuid,
+  pgEnum
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
-import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
-import { users } from "./users";
+
+// USERS table definition (inline, since ./users is missing)
 // =====================
 // USERS
 // =====================
-export const userRole = pgEnum("user_role", ["employee", "admin"]);
-
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull(),
-  email: text("email").notNull(),
-  password: text("password").notNull(),
-  role: userRole("role").default("employee").notNull(),
-  firstName: text("firstName").notNull(),
-  lastName: text("lastName").notNull(),
-  department: text("department"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt")
-    .default(sql`now()`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt")
-    .default(sql`now()`)
-    .notNull(),
-});
+// (Removed duplicate userRole and users exports)
 // =====================
 // LEADS
 
@@ -79,26 +76,17 @@ export const marketingTasks = pgTable("marketing_tasks", {
 });
 
 // =====================
-// MARKETING ATTENDANCE
+// MARKETING ATTENDANCE (camelCase, matches actual DB)
 // =====================
 export const marketingAttendance = pgTable("marketingAttendance", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  date: timestamp("date").defaultNow(), // timestamp column
-  checkInTime: timestamp("check_in_time"),
-  checkOutTime: timestamp("check_out_time"),
-  latitude: numeric("latitude"),
-  longitude: numeric("longitude"),
-  location: varchar("location", { length: 255 }),
-  photoPath: varchar("photo_path", { length: 255 }),
-  workDescription: text("work_description"),
-  visitCount: integer("visit_count"),
-  tasksCompleted: integer("tasks_completed"),
-  outcome: text("outcome"),
-  nextAction: text("next_action"),
-  attendanceStatus: varchar("attendance_status", { length: 20 }).default(
-    "present"
-  ),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  checkInTime: timestamp("checkInTime"),
+  checkOutTime: timestamp("checkOutTime"),
+  checkInLocation: text("checkInLocation"),
+  checkOutLocation: text("checkOutLocation"),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
 });
 
 // =====================

@@ -2375,23 +2375,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const records = await storage.getMarketingAttendances();
         res.json(records);
       } catch (e) {
-        res.json([]);
+        console.error("Error in /api/marketing-attendance:", e);
+        res.status(500).json({ error: "Failed to fetch marketing attendance", details: e instanceof Error ? e.message : e });
       }
     });
 
     // Today's attendance
     app.get(
-      "/api/marketing-attendance/today",
-      requireAuth,
-      async (req, res) => {
-        try {
-          const records = await storage.getTodayMarketingAttendance();
-          res.json(records);
-        } catch (e) {
-          res.json([]);
-        }
-      }
-    );
+  "/api/marketing-attendance/today",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const records = await getTodayMarketingAttendance();
+      res.json(records);
+    } catch (e) {
+      console.error("Error in /api/marketing-attendance/today:", e);
+      res.status(500).json({
+        error: "Failed to fetch today's marketing attendance",
+        details: e instanceof Error ? e.message : e,
+      });
+    }
+  }
+);
 
     // Attendance metrics
     app.get(
@@ -2403,19 +2408,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const metrics = await storage.getMarketingAttendanceMetrics();
           res.json(metrics);
         } catch (e) {
-          res.json({
-            totalEmployees: 0,
-            presentToday: 0,
-            absentToday: 0,
-            lateToday: 0,
-            onLeaveToday: 0,
-            attendanceRate: 0,
-            monthlyStats: {
-              totalDays: 0,
-              presentDays: 0,
-              absentDays: 0,
-              leaveDays: 0,
-            },
+          console.error("Error in /api/marketing-attendance/metrics:", e);
+          res.status(500).json({
+            error: "Failed to fetch marketing attendance metrics",
+            details: e instanceof Error ? e.message : e
           });
         }
       }
