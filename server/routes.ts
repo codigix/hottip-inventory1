@@ -11,10 +11,13 @@ import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { users } from "../shared/schema";
-import { tasks } from "../shared/schema"; // adjust path if needed
+import { tasks } from "../shared/schema";
+import { stockTransactions } from "@shared/schema"; // adjust path if needed
 import { validate as isUuid } from "uuid";
-
+import { requireAuth } from "@/middleware/auth";
+import { marketingAttendance } from "@shared/schema";
 // make sure users table is also imported
+import { products } from "@shared/schema"; // adjust path
 
 import {
   users as usersTable,
@@ -728,12 +731,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Products Routes
-  app.get("/api/products", async (req, res) => {
+  app.get("/api/products", async (_req: Request, res: Response) => {
     try {
-      const products = await storage.getProducts();
-      res.json(products);
+      const rows = await db.select().from(products);
+      res.json(rows); // send DB rows as JSON
     } catch (error) {
-      res.json([]);
+      console.error("Error fetching products:", error);
+      res.status(500).json([]);
     }
   });
 
@@ -1589,10 +1593,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to create lead" });
     }
   });
-  // app.get("/api/marketing-tasks", async (req, res) => {
-  //   const tasks = await db.getMarketingTasks(); // fetch tasks from DB
-  //   res.json(tasks);
-  // });
 
   app.get("/api/marketing-tasks/metrics", requireAuth, async (_req, res) => {
     try {
@@ -2492,135 +2492,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorage = new ObjectStorageService();
 
     // List all attendance (basic, no filtering)
-    app.get("/api/marketing-attendance", requireAuth, async (req, res) => {
+
+    // Today's attendance
+
+    // Attendance metrics
+
+    // Check-in
+    app.get("/api/marketing-attendance", requireAuth, async (_req, res) => {
       try {
-        const records = await storage.getMarketingAttendances();
-        res.json(records);
+        const rows = await db.select().from(marketingAttendance);
+        res.json(rows);
       } catch (e) {
-        console.error("Error in /api/marketing-attendance:", e);
-        res.status(500).json({
-          error: "Failed to fetch marketing attendance",
-          details: e instanceof Error ? e.message : e,
-        });
+        console.error("Error fetching attendance:", e);
+        res.status(500).json({ error: "Failed to fetch attendance record" });
       }
     });
 
-    // Today's attendance
+    // 📌 INSERT attendance record (Check-in)
+    app.post(
+      "/api/marketing-attendance",
+      requireAuth,
+      async (req: Request, res: Response) => {
+        try {
+          const { userId, checkInLocation, checkInLatitude } = req.body;
+
+          const [row] = await db
+            .insert(marketingAttendance)
+            .values({
+              userId,
+              date: new Date(),
+              checkInTime: new Date(),
+              checkInLocation,
+              checkInLatitude,
+            })
+            .returning();
+
+          res.status(201).json(row);
+        } catch (e) {
+          console.error("Error inserting attendance:", e);
+          res.status(500).json({ error: "Failed to insert attendance record" });
+        }
+      }
+    );
     app.get(
       "/api/marketing-attendance/today",
       requireAuth,
       async (req, res) => {
         try {
-          const records = await getTodayMarketingAttendance();
-          res.json(records);
+          const userId = req.user.id; // 👈 from auth middleware
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+
+          const rows = await db
+            .select()
+            .from(marketingAttendance)
+            .where("userId", "=", userId)
+            .andWhere("date", ">=", today)
+            .andWhere("date", "<", tomorrow);
+
+          res.json(rows);
         } catch (e) {
-          console.error("Error in /api/marketing-attendance/today:", e);
-          res.status(500).json({
-            error: "Failed to fetch today's marketing attendance",
-            details: e instanceof Error ? e.message : e,
-          });
+          console.error("Error fetching today's attendance:", e);
+          res.status(500).json({ error: "Failed to fetch today's attendance" });
         }
       }
     );
 
-    // Attendance metrics
+    // 📌 UPDATE attendance record (Check-out)
+    app.put(
+      "/api/marketing-attendance/:id/checkout",
+      requireAuth,
+      async (req: Request, res: Response) => {
+        try {
+          const { id } = req.params;
+          const { checkOutLocation } = req.body;
+
+          const [row] = await db
+            .update(marketingAttendance)
+            .set({
+              checkOutTime: new Date(),
+              checkOutLocation,
+            })
+            .where(sql`${marketingAttendance.id} = ${id}`)
+            .returning();
+
+          res.json(row);
+        } catch (e) {
+          console.error("Error updating attendance:", e);
+          res.status(500).json({ error: "Failed to update attendance record" });
+        }
+      }
+    );
+
+    // 📌 METRICS (total, checked-in, checked-out)
     app.get(
       "/api/marketing-attendance/metrics",
       requireAuth,
-      requireMarketingAccess,
-      async (req, res) => {
+      async (_req, res) => {
         try {
-          const metrics = await storage.getMarketingAttendanceMetrics();
-          res.json(metrics);
-        } catch (e) {
-          console.error("Error in /api/marketing-attendance/metrics:", e);
-          res.status(500).json({
-            error: "Failed to fetch marketing attendance metrics",
-            details: e instanceof Error ? e.message : e,
+          const [row] = await db
+            .select({
+              total: sql`COUNT(*)::integer`,
+              checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+              checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+            })
+            .from(marketingAttendance);
+
+          res.json({
+            total: Number((row as any)?.total || 0),
+            checkedIn: Number((row as any)?.checkedIn || 0),
+            checkedOut: Number((row as any)?.checkedOut || 0),
           });
-        }
-      }
-    );
-
-    // Check-in
-    app.post(
-      "/api/marketing-attendance/check-in",
-      requireAuth,
-      async (req: AuthenticatedRequest, res) => {
-        try {
-          const { latitude, longitude, location, photoPath, workDescription } =
-            req.body || {};
-          if (latitude == null || longitude == null) {
-            res
-              .status(400)
-              .json({ error: "latitude and longitude are required" });
-            return;
-          }
-          const attendance = await storage.checkInMarketingAttendance(
-            req.user!.id,
-            {
-              date: new Date(),
-              checkInTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
-              attendanceStatus: "present",
-            }
-          );
-          res.status(201).json(attendance);
         } catch (e) {
-          res.status(500).json({ error: "Failed to check in" });
+          console.error("Error fetching attendance metrics:", e);
+          res.status(500).json({ error: "Failed to fetch attendance metrics" });
         }
       }
     );
-
-    // Check-out
-    app.post(
-      "/api/marketing-attendance/check-out",
-      requireAuth,
-      async (req: AuthenticatedRequest, res) => {
-        try {
-          const {
-            latitude,
-            longitude,
-            location,
-            photoPath,
-            workDescription,
-            visitCount,
-            tasksCompleted,
-            outcome,
-            nextAction,
-          } = req.body || {};
-          if (latitude == null || longitude == null) {
-            res
-              .status(400)
-              .json({ error: "latitude and longitude are required" });
-            return;
-          }
-          const attendance = await storage.checkOutMarketingAttendance(
-            req.user!.id,
-            {
-              checkOutTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
-              visitCount,
-              tasksCompleted,
-              outcome,
-              nextAction,
-            }
-          );
-          res.json(attendance);
-        } catch (e) {
-          res.status(500).json({ error: "Failed to check out" });
-        }
-      }
-    );
-
     // Photo upload URL generation
     app.post(
       "/api/marketing-attendance/photo/upload-url",
