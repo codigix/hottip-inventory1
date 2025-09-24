@@ -35,6 +35,8 @@ import {
   invoices,
   leaveRequests as leaveRequestsTable,
   insertOutboundQuotationSchema,
+  insertOutboundQuotationSchema,
+  insertInboundQuotationSchema,
 } from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 
@@ -941,26 +943,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = await db.select().from(outboundQuotations);
       res.json(rows);
     } catch (e) {
-      res.json([]);
+      res.status(500).json({ error: "Failed to fetch outbound quotations" });
     }
   });
 
-  app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db.select().from(inboundQuotations);
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
+  // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
 
   // Alias: /api/quotations/inbound → inbound quotations
-  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
+  // Inbound Quotations Routes
+  app.get("/api/inbound-quotations", async (req, res) => {
     try {
-      const rows = await db.select().from(inboundQuotations);
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+    }
+  });
+
+  app.get("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotation = await storage.getInboundQuotation(req.params.id);
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotation" });
+    }
+  });
+
+  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
+    try {
+      const { insertInboundQuotationSchema } = await import("@shared/schema");
+      const parsedData = insertInboundQuotationSchema.parse(req.body);
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        // ✅ Convert dates from string to Date object
+        quotationDate: new Date(parsedData.quotationDate),
+        validUntil: parsedData.validUntil
+          ? new Date(parsedData.validUntil)
+          : null,
+        // ✅ Convert amount from string to number
+        totalAmount: parseFloat(parsedData.totalAmount),
+        // ✅ Use a valid user ID
+        userId: req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      const quotation = await storage.createInboundQuotation(data);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "CREATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Created inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.status(201).json(quotation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid quotation data", details: error.errors });
+      }
+      console.error("Failed to create inbound quotation:", error);
+      res.status(500).json({ error: "Failed to create inbound quotation" });
+    }
+  });
+
+  app.put("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotationData = insertInboundQuotationSchema
+        .partial()
+        .parse(req.body);
+      const quotation = await storage.updateInboundQuotation(
+        req.params.id,
+        quotationData
+      );
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "UPDATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Updated inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update inbound quotation" });
     }
   });
 
@@ -2413,7 +2497,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const records = await storage.getMarketingAttendances();
         res.json(records);
       } catch (e) {
-        res.json([]);
+        console.error("Error in /api/marketing-attendance:", e);
+        res.status(500).json({
+          error: "Failed to fetch marketing attendance",
+          details: e instanceof Error ? e.message : e,
+        });
       }
     });
 
@@ -2423,10 +2511,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       requireAuth,
       async (req, res) => {
         try {
-          const records = await storage.getTodayMarketingAttendance();
+          const records = await getTodayMarketingAttendance();
           res.json(records);
         } catch (e) {
-          res.json([]);
+          console.error("Error in /api/marketing-attendance/today:", e);
+          res.status(500).json({
+            error: "Failed to fetch today's marketing attendance",
+            details: e instanceof Error ? e.message : e,
+          });
         }
       }
     );
@@ -2441,19 +2533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const metrics = await storage.getMarketingAttendanceMetrics();
           res.json(metrics);
         } catch (e) {
-          res.json({
-            totalEmployees: 0,
-            presentToday: 0,
-            absentToday: 0,
-            lateToday: 0,
-            onLeaveToday: 0,
-            attendanceRate: 0,
-            monthlyStats: {
-              totalDays: 0,
-              presentDays: 0,
-              absentDays: 0,
-              leaveDays: 0,
-            },
+          console.error("Error in /api/marketing-attendance/metrics:", e);
+          res.status(500).json({
+            error: "Failed to fetch marketing attendance metrics",
+            details: e instanceof Error ? e.message : e,
           });
         }
       }
