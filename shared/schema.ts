@@ -145,13 +145,43 @@ export const deliveries = pgTable("deliveries", {
 // =====================
 // OUTBOUND QUOTATIONS
 // =====================
-export const outboundQuotations = pgTable("outbound_quotations", {
-  id: serial("id").primaryKey(),
-  customerId: integer("customer_id").references(() => customers.id),
-  quotationNumber: varchar("quotation_number", { length: 50 }),
-  totalAmount: numeric("total_amount"),
-  status: varchar("status", { length: 20 }),
-  createdAt: timestamp("created_at").defaultNow(),
+// export const outboundQuotations = pgTable("outbound_quotations", {
+//   id: serial("id").primaryKey(),
+//   customerId: integer("customer_id").references(() => customers.id),
+//   quotationNumber: varchar("quotation_number", { length: 50 }),
+//   totalAmount: numeric("total_amount"),
+//   status: varchar("status", { length: 20 }),
+//   createdAt: timestamp("created_at").defaultNow(),
+// });
+// export const outboundQuotations = pgTable('outbound_quotations', {
+//   id: serial('id').primaryKey(),
+//   quotationNumber: text('quotationNumber').notNull(), // matches DB column
+//   customerId: integer('customerId') // ✅ This is the FIX: explicitly use 'customerId' to match your DB
+//     .references(() => customers.id)
+//     .notNull(),
+//   userId: uuid('userId').notNull(), // matches DB column
+//   quotationDate: timestamp('quotationDate').notNull(), // matches DB column
+//   validUntil: timestamp('validUntil'), // matches DB column
+//   subtotalAmount: numeric('subtotalAmount').notNull(), // matches DB column
+//   status: text('status'),
+//   partNumber: text('partNumber'),
+//   jobCardNumber: text('jobCardNumber'),
+// });
+
+export const outboundQuotations = pgTable('outbound_quotations', {
+  id: serial('id').primaryKey(),
+  quotationNumber: text('quotationNumber').notNull(),
+  customerId: integer('customerId').references(() => customers.id),
+  userId: uuid('userId').notNull(), // This should be uuid, not integer
+  quotationDate: timestamp('quotationDate').notNull(),
+  validUntil: timestamp('validUntil'),
+  subtotalAmount: numeric('subtotalAmount').notNull(),
+  taxAmount: numeric('taxAmount'),
+  discountAmount: numeric('discountAmount'),
+  totalAmount: numeric('totalAmount').notNull(),
+  status: text('status'),
+  partNumber: text('partNumber'),
+  jobCardNumber: text('jobCardNumber'),
 });
 
 // =====================
@@ -294,12 +324,34 @@ export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
 // =====================
 // ZOD INSERT/VALIDATION SCHEMAS
 // =====================
+// export const insertOutboundQuotationSchema = z.object({
+//   customerId: z.string(),
+//   productId: z.string(),
+//   quantity: z.number(),
+//   price: z.number(),
+//   validUntil: z.date().optional(),
+// });
 export const insertOutboundQuotationSchema = z.object({
-  customerId: z.string(),
-  productId: z.string(),
-  quantity: z.number(),
-  price: z.number(),
-  validUntil: z.date().optional(),
+  quotationNumber: z.string().min(1, "Quotation number is required"),
+  customerId: z.string().uuid().optional(), // Optional if not required
+  userId: z.string().uuid(),
+  quotationDate: z.string().or(z.date()),
+  validUntil: z.string().or(z.date()).optional(),
+  subtotalAmount: z.string().min(1, "Subtotal amount is required"),
+  taxAmount: z.string().optional(),
+  discountAmount: z.string().optional(),
+  totalAmount: z.string().min(1, "Total amount is required"),
+  status: z.enum(["draft", "sent", "pending", "approved", "rejected"]).optional().default("draft"),
+  deliveryTerms: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  warrantyTerms: z.string().optional(),
+  specialTerms: z.string().optional(),
+  notes: z.string().optional(),
+  jobCardNumber: z.string().optional(),
+  partNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  ifscCode: z.string().optional(),
 });
 export const insertInboundQuotationSchema = z.object({
   supplierId: z.string(),

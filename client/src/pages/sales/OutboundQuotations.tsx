@@ -70,7 +70,7 @@ export default function OutboundQuotations() {
         userId: '19b9aff1-55d8-42f8-bf1f-51f03c4361f3' // Real user ID from database
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/outbound-quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
       toast({
         title: "Success",
         description: "Quotation created successfully",

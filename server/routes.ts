@@ -33,7 +33,8 @@ import {
   inboundQuotations,
   invoices,
   leaveRequests as leaveRequestsTable,
-  insertOutboundQuotationSchema
+  insertOutboundQuotationSchema,
+  insertInboundQuotationSchema,
 } from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 
@@ -301,8 +302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = registerSchema.parse(req.body);
 
-      const existing = await storage.findUserByUsernameOrEmail(data.username, data.email);
-      if (existing) return res.status(400).json({ error: "Username or email already exists" });
+      const existing = await storage.findUserByUsernameOrEmail(
+        data.username,
+        data.email
+      );
+      if (existing)
+        return res
+          .status(400)
+          .json({ error: "Username or email already exists" });
 
       const hashedPassword = await bcrypt.hash(data.password, 12);
 
@@ -315,18 +322,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         department: data.department,
       });
 
-      res.status(201).json({ message: "Account created", user: { id: user.id, username: user.username, email: user.email }});
+      res.status(201).json({
+        message: "Account created",
+        user: { id: user.id, username: user.username, email: user.email },
+      });
     } catch (err: any) {
       // Enhanced error logging for debugging
       console.error("/api/register error:", err);
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid input", details: err.errors });
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: err.errors });
       }
       // If it's a database error, try to include more info
       if (err?.code && err?.detail) {
-        return res.status(500).json({ error: "Registration failed", code: err.code, detail: err.detail, message: err.message });
+        return res.status(500).json({
+          error: "Registration failed",
+          code: err.code,
+          detail: err.detail,
+          message: err.message,
+        });
       }
-      res.status(500).json({ error: "Registration failed", details: err.message || String(err) });
+      res.status(500).json({
+        error: "Registration failed",
+        details: err.message || String(err),
+      });
     }
   });
 
@@ -387,7 +407,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("✅ Login data parsed successfully:", { username, email });
 
-      const user = await storage.findUserByUsernameOrEmail(username || "", email || "");
+      const user = await storage.findUserByUsernameOrEmail(
+        username || "",
+        email || ""
+      );
       console.log(
         "👤 User lookup result:",
         user ? `Found user: ${user.username} (${user.role})` : "No user found"
@@ -894,17 +917,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  //   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
+  //     const data = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body);
+  //     const quotation = await storage.createOutboundQuotation(data); // <-- FIXED: Call the correct storage method
+  //     res.status(201).json(quotation);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     res.status(500).json({ error: "Failed to create quotation" });
+  //   }
+  // });
+
+  // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
+  //     const parsedData = insertOutboundQuotationSchema.parse(req.body);
+
+  //     // Convert types for database
+  //     const data = {
+  //       ...parsedData,
+  //       customerId: parsedData.customerId
+  //         ? Number(parsedData.customerId)
+  //         : null,
+  //       quotationDate: new Date(parsedData.quotationDate),
+  //       validUntil: parsedData.validUntil
+  //         ? new Date(parsedData.validUntil)
+  //         : null,
+  //       // Convert string amounts to numbers if needed (optional)
+  //       subtotalAmount: parseFloat(parsedData.subtotalAmount),
+  //       taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
+  //       discountAmount: parsedData.discountAmount
+  //         ? parseFloat(parsedData.discountAmount)
+  //         : 0,
+  //       totalAmount: parseFloat(parsedData.totalAmount),
+  //     };
+
+  //     const quotation = await storage.createOutboundQuotation(data);
+  //     res.status(201).json(quotation);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     res.status(500).json({ error: "Failed to create quotation" , detail: error.message});
+  //   }
+  // });
+
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   try {
     const { insertOutboundQuotationSchema } = await import("@shared/schema");
-    const data = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body); // ← allow optional customerId
-    const quotation = await storage.insertOutboundQuotationSchema(data);
+    const parsedData = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body);
+
+    // Convert types for database
+    const data = {
+      ...parsedData,
+      // Convert customerId to number (your DB expects integer)
+      customerId: parsedData.customerId ? Number(parsedData.customerId) : null,
+      // Ensure userId is a valid UUID string (don't convert to number!)
+      userId: parsedData.userId || req.user?.id || '19b9aff1-55d8-42f8-bf1f-51f03c4361f3',
+      // Convert date strings to Date objects
+      quotationDate: new Date(parsedData.quotationDate),
+      validUntil: parsedData.validUntil ? new Date(parsedData.validUntil) : null,
+      // Convert string amounts to numbers if needed
+      subtotalAmount: typeof parsedData.subtotalAmount === 'string' ? parseFloat(parsedData.subtotalAmount) : parsedData.subtotalAmount,
+      taxAmount: parsedData.taxAmount ? (typeof parsedData.taxAmount === 'string' ? parseFloat(parsedData.taxAmount) : parsedData.taxAmount) : 0,
+      discountAmount: parsedData.discountAmount ? (typeof parsedData.discountAmount === 'string' ? parseFloat(parsedData.discountAmount) : parsedData.discountAmount) : 0,
+      totalAmount: typeof parsedData.totalAmount === 'string' ? parseFloat(parsedData.totalAmount) : parsedData.totalAmount,
+    };
+
+    // ✅ FIXED: Call the correct method on storage
+    const quotation = await storage.createOutboundQuotation(data);
     res.status(201).json(quotation);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
     }
-    res.status(500).json({ error: "Failed to create quotation" });
+    console.error("Failed to create quotation:", error);
+    res.status(500).json({ error: "Failed to create quotation", detail: error.message });
   }
 });
 
@@ -1639,8 +1732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: r.checkOutTime
           ? "checked_out"
           : r.checkInTime
-            ? "checked_in"
-            : "checked_out",
+          ? "checked_in"
+          : "checked_out",
       }));
       res.json(mapped);
     } catch (e) {
@@ -1674,8 +1767,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: r.checkOutTime
           ? "checked_out"
           : r.checkInTime
-            ? "checked_in"
-            : "checked_out",
+          ? "checked_in"
+          : "checked_out",
       }));
       res.json(mapped);
     } catch (e) {
@@ -1698,8 +1791,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: (r as any).checkOutTime
             ? "checked_out"
             : (r as any).checkInTime
-              ? "checked_in"
-              : "checked_out",
+            ? "checked_in"
+            : "checked_out",
         }));
         const checkedIn = mappedAll.filter(
           (r) => r.status === "checked_in"
@@ -1765,8 +1858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userIdSafe = isUuid(userId)
           ? userId
           : isUuid(req.user?.id || "")
-            ? req.user!.id
-            : null;
+          ? req.user!.id
+          : null;
         if (!userIdSafe) {
           res.status(400).json({ error: "Valid userId (UUID) is required" });
           return;

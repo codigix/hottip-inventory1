@@ -14,10 +14,12 @@ export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 
-import { suppliers } from '@shared/schema';
+import { suppliers,outboundQuotations } from '@shared/schema';
 
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
+export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
+export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -54,6 +56,16 @@ class Storage {
 
   async deleteSupplier(id: string | number): Promise < void> {
   await db.delete(suppliers).where(eq(suppliers.id, id));
+}
+
+// async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
+//     const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
+//     return row;
+//   }
+
+async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
+  const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
+  return row;
 }
  // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
@@ -377,6 +389,8 @@ return row;
       leaveDays: 2,
     }
   };
+
+
 }
 }
 
