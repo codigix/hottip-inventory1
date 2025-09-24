@@ -240,27 +240,31 @@ deleteProductFallback(id: string | number) {
   }));
 }
 
-  async getTodayMarketingAttendance(): Promise < any[] > {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  async getTodayMarketingAttendance(): Promise<any[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
 
-  const rows = await db
-    .select()
-    .from(marketingAttendance)
-    .leftJoin(users, eq(marketingAttendance.userId, users.id))
-    .where(and(
-      gte(marketingAttendance.date, today),
-      lt(marketingAttendance.date, tomorrow)
-    ))
-    .orderBy(desc(marketingAttendance.date));
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
 
-  return rows.map(r => ({
-    ...r.marketingAttendance,
-    user: r.users,
-  }));
-}
+    const rows = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(
+        and(
+          gte(marketingAttendance.date, today),
+          lt(marketingAttendance.date, tomorrow)
+        )
+      )
+      .orderBy(desc(marketingAttendance.date));
+
+    // Map results: include user details nested under `user`
+    return rows.map(r => ({
+      ...r.marketingAttendance,
+      user: r.users,
+    }));
+  }
 
   async checkInMarketingAttendance(userId: string, data: any): Promise < MarketingAttendance > {
   const today = new Date();
@@ -352,32 +356,66 @@ const [row] = await db
 return row;
   }
 
-  async getMarketingAttendanceMetrics(): Promise < any > {
-  const result = await db
-    .select({
-      total: sql`COUNT(*)::integer`,
-      present: sql`COUNT(CASE WHEN ${marketingAttendance.attendanceStatus} = 'present' THEN 1 END)::integer`,
-      absent: sql`COUNT(CASE WHEN ${marketingAttendance.attendanceStatus} = 'absent' THEN 1 END)::integer`,
-      late: sql`COUNT(CASE WHEN ${marketingAttendance.attendanceStatus} = 'late' THEN 1 END)::integer`,
-    })
-    .from(marketingAttendance);
+  async getMarketingAttendanceMetrics() {
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
 
-  const data = result[0] || { total: 0, present: 0, absent: 0, late: 0 } as any;
-  return {
-    totalEmployees: Number(data.total) || 0,
-    presentToday: Number(data.present) || 0,
-    absentToday: Number(data.absent) || 0,
-    lateToday: Number(data.late) || 0,
-    onLeaveToday: 0,
-    attendanceRate: data.total > 0 ? (Number(data.present) / Number(data.total)) * 100 : 0,
-    monthlyStats: {
-      totalDays: 22,
-      presentDays: 18,
-      absentDays: 2,
-      leaveDays: 2,
-    }
-  };
-}
+    // total attendance records
+    const [{ total }] = await db
+      .select({ total: sql<number>`COUNT(*)` })
+      .from(marketingAttendance);
+
+    // present today (unique users who checked in today)
+    const [{ presentToday }] = await db
+      .select({ presentToday: sql<number>`COUNT(DISTINCT "userId")` })
+      .from(marketingAttendance)
+      .where(
+        gte(marketingAttendance.date, todayStart) &&
+        lte(marketingAttendance.date, todayEnd)
+      );
+
+    const totalEmployees = total ?? 0;
+    const present = presentToday ?? 0;
+    const absent = totalEmployees - present;
+
+    // late arrivals (checked in after 10 AM)
+    const [{ lateToday }] = await db.execute(sql`
+      SELECT COUNT(*)::int AS "lateToday"
+      FROM "marketingAttendance"
+      WHERE "checkInTime"::time > '10:00:00'
+        AND "date" BETWEEN ${todayStart} AND ${todayEnd}
+    `);
+
+    // placeholder for leave tracking
+    const onLeaveToday = 0;
+
+    // monthly stats
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+
+    const [{ presentDays }] = await db.execute(sql`
+      SELECT COUNT(DISTINCT "date"::date)::int AS "presentDays"
+      FROM "marketingAttendance"
+      WHERE "date" BETWEEN ${monthStart} AND ${monthEnd}
+    `);
+
+    const leaveDays = 0;
+
+    return {
+      totalEmployees,
+      presentToday: present,
+      absentToday: absent,
+      lateToday: lateToday?.lateToday ?? 0,
+      onLeaveToday,
+      attendanceRate: totalEmployees > 0 ? (present / totalEmployees) * 100 : 0,
+      monthlyStats: {
+        totalDays: new Date().getDate(),
+        presentDays: presentDays?.presentDays ?? 0,
+        absentDays: new Date().getDate() - (presentDays?.presentDays ?? 0),
+        leaveDays,
+      },
+    };
+  }
 }
 
 export const storage = new Storage();
