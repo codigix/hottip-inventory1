@@ -917,57 +917,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  //   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
-  //   try {
-  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
-  //     const data = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body);
-  //     const quotation = await storage.createOutboundQuotation(data); // <-- FIXED: Call the correct storage method
-  //     res.status(201).json(quotation);
-  //   } catch (error) {
-  //     if (error instanceof z.ZodError) {
-  //       return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
-  //     }
-  //     res.status(500).json({ error: "Failed to create quotation" });
-  //   }
-  // });
-
-  // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
-  //   try {
-  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
-  //     const parsedData = insertOutboundQuotationSchema.parse(req.body);
-
-  //     // Convert types for database
-  //     const data = {
-  //       ...parsedData,
-  //       customerId: parsedData.customerId
-  //         ? Number(parsedData.customerId)
-  //         : null,
-  //       quotationDate: new Date(parsedData.quotationDate),
-  //       validUntil: parsedData.validUntil
-  //         ? new Date(parsedData.validUntil)
-  //         : null,
-  //       // Convert string amounts to numbers if needed (optional)
-  //       subtotalAmount: parseFloat(parsedData.subtotalAmount),
-  //       taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
-  //       discountAmount: parsedData.discountAmount
-  //         ? parseFloat(parsedData.discountAmount)
-  //         : 0,
-  //       totalAmount: parseFloat(parsedData.totalAmount),
-  //     };
-
-  //     const quotation = await storage.createOutboundQuotation(data);
-  //     res.status(201).json(quotation);
-  //   } catch (error) {
-  //     if (error instanceof z.ZodError) {
-  //       return res
-  //         .status(400)
-  //         .json({ error: "Invalid quotation data", details: error.errors });
-  //     }
-  //     res.status(500).json({ error: "Failed to create quotation" , detail: error.message});
-  //   }
-  // });
-
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      const { insertOutboundQuotationSchema } = await import("@shared/schema");
+      const parsedData = insertOutboundQuotationSchema
+        .partial({ customerId: true })
+        .parse(req.body);
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        // Pass customerId as UUID string (don't convert to number)
+        customerId: parsedData.customerId || null,
+        // Ensure userId is a valid UUID string
+        userId:
+          parsedData.userId ||
+          req.user?.id ||
+          "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+        quotationDate: new Date(parsedData.quotationDate),
+        validUntil: parsedData.validUntil
+          ? new Date(parsedData.validUntil)
+          : null,
+        subtotalAmount: parseFloat(parsedData.subtotalAmount),
+        taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
+        discountAmount: parsedData.discountAmount
+          ? parseFloat(parsedData.discountAmount)
+          : 0,
+        totalAmount: parseFloat(parsedData.totalAmount),
+      };
+
+      // ✅ FIXED: Call the correct method on storage
+      const quotation = await storage.createOutboundQuotation(data);
+      res.status(201).json(quotation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid quotation data", details: error.errors });
+      }
+      console.error("Failed to create quotation:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to create quotation", detail: error.message });
+    }
+  });
+
+app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
   try {
     const { insertOutboundQuotationSchema } = await import("@shared/schema");
     const parsedData = insertOutboundQuotationSchema.partial({ customerId: true }).parse(req.body);
@@ -975,29 +970,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Convert types for database
     const data = {
       ...parsedData,
-      // Convert customerId to number (your DB expects integer)
-      customerId: parsedData.customerId ? Number(parsedData.customerId) : null,
-      // Ensure userId is a valid UUID string (don't convert to number!)
-      userId: parsedData.userId || req.user?.id || '19b9aff1-55d8-42f8-bf1f-51f03c4361f3',
-      // Convert date strings to Date objects
+      customerId: parsedData.customerId || null,
+      // ✅ Use a valid UUID for userId in development
+      userId: process.env.NODE_ENV === "development" 
+        ? '79c36f2b-237a-4ba6-a4b3-a12fc8a18446' // ← Your valid user ID
+        : req.user?.id || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
       quotationDate: new Date(parsedData.quotationDate),
       validUntil: parsedData.validUntil ? new Date(parsedData.validUntil) : null,
-      // Convert string amounts to numbers if needed
-      subtotalAmount: typeof parsedData.subtotalAmount === 'string' ? parseFloat(parsedData.subtotalAmount) : parsedData.subtotalAmount,
-      taxAmount: parsedData.taxAmount ? (typeof parsedData.taxAmount === 'string' ? parseFloat(parsedData.taxAmount) : parsedData.taxAmount) : 0,
-      discountAmount: parsedData.discountAmount ? (typeof parsedData.discountAmount === 'string' ? parseFloat(parsedData.discountAmount) : parsedData.discountAmount) : 0,
-      totalAmount: typeof parsedData.totalAmount === 'string' ? parseFloat(parsedData.totalAmount) : parsedData.totalAmount,
+      subtotalAmount: parseFloat(parsedData.subtotalAmount),
+      taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
+      discountAmount: parsedData.discountAmount ? parseFloat(parsedData.discountAmount) : 0,
+      totalAmount: parseFloat(parsedData.totalAmount),
     };
 
-    // ✅ FIXED: Call the correct method on storage
-    const quotation = await storage.createOutboundQuotation(data);
-    res.status(201).json(quotation);
+    // Update the quotation
+    const [quotation] = await db
+      .update(outboundQuotations)
+      .set(data)
+      .where(eq(outboundQuotations.id, req.params.id))
+      .returning();
+
+    res.json(quotation);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
     }
-    console.error("Failed to create quotation:", error);
-    res.status(500).json({ error: "Failed to create quotation", detail: error.message });
+    console.error("Failed to update quotation:", error);
+    res.status(500).json({ error: "Failed to update quotation", detail: error.message });
   }
 });
 
@@ -1007,26 +1006,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = await db.select().from(outboundQuotations);
       res.json(rows);
     } catch (e) {
-      res.json([]);
+      res.status(500).json({ error: "Failed to fetch outbound quotations" });
     }
   });
 
-  app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db.select().from(inboundQuotations);
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
+  // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
 
   // Alias: /api/quotations/inbound → inbound quotations
-  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
+    // Inbound Quotations Routes
+  app.get("/api/inbound-quotations", async (req, res) => {
     try {
-      const rows = await db.select().from(inboundQuotations);
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+    }
+  });
+
+  app.get("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotation = await storage.getInboundQuotation(req.params.id);
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch inbound quotation" });
+    }
+  });
+
+ app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
+  try {
+    const { insertInboundQuotationSchema } = await import("@shared/schema");
+    const parsedData = insertInboundQuotationSchema.parse(req.body);
+
+    // Convert types for database
+    const data = {
+      ...parsedData,
+      // ✅ Convert dates from string to Date object
+      quotationDate: new Date(parsedData.quotationDate),
+      validUntil: parsedData.validUntil ? new Date(parsedData.validUntil) : null,
+      // ✅ Convert amount from string to number
+      totalAmount: parseFloat(parsedData.totalAmount),
+      // ✅ Use a valid user ID
+      userId: req.user?.id || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
+    };
+
+    const quotation = await storage.createInboundQuotation(data);
+    await storage.createActivity({
+      userId: quotation.userId,
+      action: "CREATE_INBOUND_QUOTATION",
+      entityType: "inbound_quotation",
+      entityId: quotation.id,
+      details: `Created inbound quotation: ${quotation.quotationNumber}`,
+    });
+    res.status(201).json(quotation);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+    }
+    console.error("Failed to create inbound quotation:", error);
+    res.status(500).json({ error: "Failed to create inbound quotation" });
+  }
+});
+
+  app.put("/api/inbound-quotations/:id", async (req, res) => {
+    try {
+      const quotationData = insertInboundQuotationSchema.partial().parse(req.body);
+      const quotation = await storage.updateInboundQuotation(req.params.id, quotationData);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "UPDATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Updated inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.json(quotation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update inbound quotation" });
     }
   });
 
@@ -2376,27 +2448,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(records);
       } catch (e) {
         console.error("Error in /api/marketing-attendance:", e);
-        res.status(500).json({ error: "Failed to fetch marketing attendance", details: e instanceof Error ? e.message : e });
+        res.status(500).json({
+          error: "Failed to fetch marketing attendance",
+          details: e instanceof Error ? e.message : e,
+        });
       }
     });
 
     // Today's attendance
     app.get(
-  "/api/marketing-attendance/today",
-  requireAuth,
-  async (req, res) => {
-    try {
-      const records = await getTodayMarketingAttendance();
-      res.json(records);
-    } catch (e) {
-      console.error("Error in /api/marketing-attendance/today:", e);
-      res.status(500).json({
-        error: "Failed to fetch today's marketing attendance",
-        details: e instanceof Error ? e.message : e,
-      });
-    }
-  }
-);
+      "/api/marketing-attendance/today",
+      requireAuth,
+      async (req, res) => {
+        try {
+          const records = await getTodayMarketingAttendance();
+          res.json(records);
+        } catch (e) {
+          console.error("Error in /api/marketing-attendance/today:", e);
+          res.status(500).json({
+            error: "Failed to fetch today's marketing attendance",
+            details: e instanceof Error ? e.message : e,
+          });
+        }
+      }
+    );
 
     // Attendance metrics
     app.get(
@@ -2411,7 +2486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Error in /api/marketing-attendance/metrics:", e);
           res.status(500).json({
             error: "Failed to fetch marketing attendance metrics",
-            details: e instanceof Error ? e.message : e
+            details: e instanceof Error ? e.message : e,
           });
         }
       }
