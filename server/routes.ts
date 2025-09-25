@@ -844,6 +844,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save vendor communication
+  app.post("/api/vendor-communications", requireAuth, async (req, res) => {
+    try {
+      // Basic validation (expand as needed)
+      const { vendorId, message, communicationDate } = req.body;
+      if (!vendorId || !message) {
+        return res.status(400).json({ error: "vendorId and message are required" });
+      }
+      const [saved] = await db.insert(vendorCommunications).values({
+        vendorId: Number(vendorId),
+        message,
+        communicationDate: communicationDate ? new Date(communicationDate) : new Date(),
+      }).returning();
+      res.status(201).json(saved);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to save communication", details: e.message });
+    }
+  });
+
   // Stock transactions (stubbed)
   app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
     try {
