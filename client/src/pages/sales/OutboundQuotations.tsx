@@ -941,7 +941,7 @@ export default function OutboundQuotations() {
                   <strong>Quotation Number:</strong> {selectedQuotation.quotationNumber}
                 </div>
                 <div>
-                  <strong>Customer:</strong> {selectedQuotation.customer?.name || 'N/A'}
+                  <strong>Customer:</strong> {selectedQuotation.customer?.name }
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
