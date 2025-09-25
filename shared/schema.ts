@@ -286,6 +286,11 @@ export const products = pgTable("products", {
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }).default(0),
   lowStockThreshold: integer("low_stock_threshold").default(0),
   unit: text("unit"),
+  // Spare part specific fields
+  type: text("type"),
+  status: text("status"),
+  fabricationTime: integer("fabrication_time"),
+  location: text("location"),
 });
 
 // =====================

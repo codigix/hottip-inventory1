@@ -752,6 +752,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add product (spare part)
+  app.post("/api/products", async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      // Required fields
+      if (!body.sku || !body.name || !body.category) {
+        return res.status(400).json({ error: "sku, name, and category are required" });
+      }
+      // Insert with new fields
+      const [product] = await db.insert(products).values({
+        id: uuidv4(),
+        sku: body.sku,
+        name: body.name,
+        category: body.category,
+        price: body.price ?? 0,
+        stock: body.stock ?? 0,
+        costPrice: body.costPrice ?? 0,
+        lowStockThreshold: body.lowStockThreshold ?? 0,
+        unit: body.unit ?? "pcs",
+        description: body.description ?? "",
+        // New fields for spare parts
+        type: body.type ?? null,
+        status: body.status ?? null,
+        fabricationTime: body.fabricationTime ?? null,
+        location: body.location ?? null,
+      }).returning();
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ error: "Failed to create product", details: error.message });
+    }
+  });
+
   // Suppliers CRUD
   // Suppliers Routes
   app.get(
