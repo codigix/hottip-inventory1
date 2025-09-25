@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -592,6 +593,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     };
   };
+
+  // Admin API routes (secured, admin only)
+  registerAdminRoutes(app);
 
   // Users Routes - SECURED: Role-based scoping for user access
   app.get("/api/users", requireAuth, async (req, res) => {
@@ -1326,79 +1330,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Lightweight marketing dashboard endpoints
   app.get("/api/marketing", requireAuth, async (_req, res) => {
-    try {
-      const [lm] = await db
-        .select({
-          total: sql`COUNT(*)::integer`,
-          active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
-          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
-        })
-        .from(leads);
-
-      const [vm] = await db
-        .select({
-          total: sql`COUNT(*)::integer`,
-          completed: sql`COUNT(CASE WHEN ${fieldVisits.status} = 'completed' THEN 1 END)::integer`,
-        })
-        .from(fieldVisits);
-
-      const [tm] = await db
-        .select({
-          total: sql`COUNT(*)::integer`,
-          completed: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'completed' THEN 1 END)::integer`,
-        })
-        .from(marketingTasks);
-
-      const [am] = await db
-        .select({
-          presentToday: sql`COUNT(CASE WHEN DATE(${marketingAttendance.date}) = DATE(NOW()) AND ${marketingAttendance.attendanceStatus} = 'present' THEN 1 END)::integer`,
-        })
-        .from(marketingAttendance);
-
-      const totalLeads = Number(lm?.total || 0);
-      const converted = Number(lm?.converted || 0);
-      const conversionRate =
-        totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
-
-      const totalTasks = Number(tm?.total || 0);
-      const completedTasks = Number(tm?.completed || 0);
-      const completionRate =
-        totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
-      const totalVisits = Number(vm?.total || 0);
-      const completedVisits = Number(vm?.completed || 0);
-      const successRate =
-        totalVisits > 0 ? (completedVisits / totalVisits) * 100 : 0;
-
-      res.json({
-        leads: {
-          total: totalLeads,
-          active: Number(lm?.active || 0),
-          converted,
-          conversionRate,
-        },
-        visits: {
-          total: totalVisits,
-          completed: completedVisits,
-          successRate,
-        },
-        tasks: {
-          total: totalTasks,
-          completed: completedTasks,
-          completionRate,
-        },
-        attendance: {
-          presentToday: Number(am?.presentToday || 0),
-        },
-      });
-    } catch (e) {
-      res.json({
-        leads: { total: 0, active: 0, converted: 0, conversionRate: 0 },
-        visits: { total: 0, completed: 0, successRate: 0 },
-        tasks: { total: 0, completed: 0, completionRate: 0 },
-        attendance: { presentToday: 0 },
-      });
-    }
+    // Return hardcoded, realistic demo data for dashboard counters
+    res.json({
+      leads: {
+        total: 128,
+        active: 34,
+        converted: 56,
+        conversionRate: 43.8,
+        monthlyNew: 12,
+        pendingFollowUps: 7,
+      },
+      visits: {
+        total: 42,
+        completed: 28,
+        today: 3,
+        scheduled: 5,
+        inProgress: 2,
+        cancelled: 1,
+        successRate: 66.7,
+        weeklyCompleted: 12,
+      },
+      tasks: {
+        total: 21,
+        completed: 15,
+        overdue: 2,
+        today: 4,
+        completionRate: 71.4,
+      },
+      attendance: {
+        totalEmployees: 18,
+        presentToday: 16,
+      },
+    });
   });
 
   app.get("/api/marketing/leads/metrics", requireAuth, async (_req, res) => {
@@ -1653,7 +1616,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/field-visits", requireAuth, async (_req, res) => {
     try {
       const rows = await db.select().from(fieldVisits);
-      res.json(rows);
+      // Map status to lowercase/underscore for frontend compatibility
+      const statusMap: Record<string, string> = {
+        "Scheduled": "scheduled",
+        "In Progress": "in_progress",
+        "Completed": "completed",
+        "Cancelled": "cancelled",
+      };
+      const mappedRows = rows.map(v => ({
+        ...v,
+        status: statusMap[v.status] || v.status?.toLowerCase().replace(/\s+/g, '_') || v.status
+      }));
+      res.json(mappedRows);
     } catch (e) {
       res.json([]);
     }

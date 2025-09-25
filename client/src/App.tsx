@@ -41,6 +41,7 @@ function AppRouter() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/*" component={AdminDashboard} />
         <Route path="/inventory" component={InventoryLayout} />
         <Route path="/inventory/*" component={InventoryLayout} />
         <Route path="/sales" component={SalesLayout} />

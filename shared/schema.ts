@@ -1,3 +1,38 @@
+// =====================
+// ADMIN SETTINGS
+// =====================
+export const adminSettings = pgTable("admin_settings", {
+  id: serial("id").primaryKey(),
+  gstNumber: varchar("gst_number", { length: 32 }),
+  taxRate: integer("tax_rate"),
+  bankAccount: varchar("bank_account", { length: 128 }),
+  paymentTerms: varchar("payment_terms", { length: 64 }),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAdminSettingsSchema = z.object({
+  gstNumber: z.string().optional(),
+  taxRate: z.coerce.number().optional(),
+  bankAccount: z.string().optional(),
+  paymentTerms: z.string().optional(),
+});
+
+// =====================
+// ADMIN BACKUPS
+// =====================
+export const adminBackups = pgTable("admin_backups", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 64 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  size: integer("size"),
+  filePath: varchar("file_path", { length: 256 }),
+});
+
+export const insertAdminBackupSchema = z.object({
+  name: z.string(),
+  size: z.coerce.number().optional(),
+  filePath: z.string().optional(),
+});
 // shared/schema.ts
 import {
   pgTable,
