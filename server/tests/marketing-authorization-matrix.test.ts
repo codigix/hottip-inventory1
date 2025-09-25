@@ -1,10 +1,10 @@
 /**
  * MARKETING AUTHORIZATION TEST MATRIX
- * 
+ *
  * This test suite verifies the marketing routes registry implementation
  * and ensures complete authorization coverage for all 41 marketing endpoints
  * as specified by the debug architect.
- * 
+ *
  * TEMPORARILY DISABLED: Missing dependencies and registry file
  * TODO: Implement marketing-routes-registry.ts and install test dependencies
  */
