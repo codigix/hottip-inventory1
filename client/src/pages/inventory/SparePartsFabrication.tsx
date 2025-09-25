@@ -1,5 +1,7 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,31 +19,63 @@ import { Wrench, Package, Clock, CheckCircle, AlertCircle, Settings, Plus, FileT
 export default function SparePartsFabrication() {
   const [isSparePartDialogOpen, setIsSparePartDialogOpen] = useState(false);
   
-  // Mock data for spare parts (will be replaced with real API calls)
-  const spareParts = [
-    {
-      id: "1",
-      partNumber: "SP-001",
-      name: "Bearing Assembly",
-      type: "component",
-      status: "available",
-      stock: 15,
-      minStock: 5,
-      fabricationTime: 4,
-      location: "A-01-05"
-    },
-    {
-      id: "2", 
-      partNumber: "SP-002",
-      name: "Custom Valve",
-      type: "finished_part",
-      status: "in_fabrication",
-      stock: 2,
-      minStock: 3,
-      fabricationTime: 8,
-      location: "B-02-12"
+  const { toast } = useToast();
+  // Fetch spare parts (products with category 'spare_part')
+  const { data: sparePartsRaw = [], isLoading: partsLoading } = useQuery({
+    queryKey: ["/products", "spare_parts"],
+    queryFn: async () => {
+      const all = await apiRequest("GET", "/products");
+      return (all || []).filter((p: any) => p.category === "spare_part");
     }
-  ];
+  });
+  // Map backend fields to expected table fields (now direct from DB)
+  const spareParts = (sparePartsRaw || []).map((p: any) => ({
+    id: p.id,
+    partNumber: p.sku || '',
+    name: p.name || '',
+    type: p.type || '',
+    status: p.status || '',
+    stock: typeof p.stock === 'number' ? p.stock : 0,
+    minStock: typeof p.lowStockThreshold === 'number' ? p.lowStockThreshold : 0,
+    fabricationTime: typeof p.fabricationTime === 'number' ? p.fabricationTime : '',
+    location: p.location || '',
+  }));
+
+  // Add spare part mutation
+  const addSparePartMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Validate required fields
+      if (!data.partNumber || !data.name) throw new Error("Part Number and Name are required");
+      // Map to products table fields (all fields now supported)
+      const payload = {
+        sku: data.partNumber,
+        name: data.name,
+        category: "spare_part",
+        stock: Number(data.stock) || 0,
+        lowStockThreshold: Number(data.minStock) || 0,
+        unit: data.unit || "pcs",
+        price: Number(data.unitCost) || 0,
+        description: data.specifications || "",
+        location: data.location || "",
+        fabricationTime: data.fabricationTime ? Number(data.fabricationTime) : null,
+        type: data.type || null,
+        status: data.status || null,
+      };
+      return apiRequest("POST", "/products", payload);
+    },
+    onSuccess: () => {
+      toast({ title: "Spare part added", description: "Spare part added successfully" });
+      setIsSparePartDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/products", "spare_parts"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to add spare part", variant: "destructive" });
+    }
+  });
+
+  // Form state for modal
+  const [form, setForm] = useState<any>({});
+  React.useEffect(() => { if (!isSparePartDialogOpen) setForm({}); }, [isSparePartDialogOpen]);
 
   const sparePartColumns = [
     {
@@ -64,7 +98,7 @@ export default function SparePartsFabrication() {
       header: "Type",
       cell: (part: any) => (
         <Badge variant="outline" className="capitalize">
-          {part.type.replace('_', ' ')}
+          {(part.type || '').replace('_', ' ')}
         </Badge>
       ),
     },
@@ -79,13 +113,13 @@ export default function SparePartsFabrication() {
           ready: { color: "default", icon: CheckCircle },
           damaged: { color: "destructive", icon: AlertCircle }
         };
-        const config = statusConfig[part.status as keyof typeof statusConfig];
+        const status = part.status || '';
+        const config = statusConfig[status as keyof typeof statusConfig] || { color: "outline", icon: FileText };
         const Icon = config.icon;
-        
         return (
           <Badge variant={config.color as any} className="flex items-center space-x-1">
             <Icon className="h-3 w-3" />
-            <span className="capitalize">{part.status.replace('_', ' ')}</span>
+            <span className="capitalize">{status.replace('_', ' ')}</span>
           </Badge>
         );
       },
@@ -131,54 +165,56 @@ export default function SparePartsFabrication() {
               <DialogHeader>
                 <DialogTitle>Add New Spare Part</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="partNumber">Part Number *</Label>
-                  <Input id="partNumber" placeholder="SP-001" data-testid="input-part-number" />
+              <form onSubmit={e => { e.preventDefault(); addSparePartMutation.mutate(form); }}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="partNumber">Part Number *</Label>
+                    <Input id="partNumber" placeholder="SP-001" data-testid="input-part-number" value={form.partNumber || ''} onChange={e => setForm(f => ({ ...f, partNumber: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="partName">Part Name *</Label>
+                    <Input id="partName" placeholder="Bearing Assembly" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="partType">Type</Label>
+                    <Select value={form.type || ''} onValueChange={val => setForm(f => ({ ...f, type: val }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="raw_material">Raw Material</SelectItem>
+                        <SelectItem value="component">Component</SelectItem>
+                        <SelectItem value="finished_part">Finished Part</SelectItem>
+                        <SelectItem value="tool">Tool</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="location">Storage Location</Label>
+                    <Input id="location" placeholder="A-01-05" value={form.location || ''} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="fabricationTime">Fabrication Time (hours)</Label>
+                    <Input id="fabricationTime" type="number" placeholder="4" value={form.fabricationTime || ''} onChange={e => setForm(f => ({ ...f, fabricationTime: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="unitCost">Unit Cost</Label>
+                    <Input id="unitCost" type="number" placeholder="0" value={form.unitCost || ''} onChange={e => setForm(f => ({ ...f, unitCost: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="specifications">Specifications</Label>
+                    <Textarea id="specifications" placeholder="Technical specifications..." value={form.specifications || ''} onChange={e => setForm(f => ({ ...f, specifications: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2 flex justify-end space-x-2">
+                    <Button variant="outline" type="button" onClick={() => setIsSparePartDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button data-testid="button-save-spare-part" type="submit" disabled={addSparePartMutation.isPending}>
+                      {addSparePartMutation.isPending ? 'Adding...' : 'Add Spare Part'}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="partName">Part Name *</Label>
-                  <Input id="partName" placeholder="Bearing Assembly" />
-                </div>
-                <div>
-                  <Label htmlFor="partType">Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="raw_material">Raw Material</SelectItem>
-                      <SelectItem value="component">Component</SelectItem>
-                      <SelectItem value="finished_part">Finished Part</SelectItem>
-                      <SelectItem value="tool">Tool</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="location">Storage Location</Label>
-                  <Input id="location" placeholder="A-01-05" />
-                </div>
-                <div>
-                  <Label htmlFor="fabricationTime">Fabrication Time (hours)</Label>
-                  <Input id="fabricationTime" type="number" placeholder="4" />
-                </div>
-                <div>
-                  <Label htmlFor="unitCost">Unit Cost</Label>
-                  <Input id="unitCost" type="number" placeholder="0" />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="specifications">Specifications</Label>
-                  <Textarea id="specifications" placeholder="Technical specifications..." />
-                </div>
-                <div className="col-span-2 flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsSparePartDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button data-testid="button-save-spare-part">
-                    Add Spare Part
-                  </Button>
-                </div>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
           <Button variant="outline" data-testid="button-fabrication-order">
@@ -263,6 +299,7 @@ export default function SparePartsFabrication() {
                 searchKey="partNumber"
                 onEdit={() => {}}
                 onView={() => {}}
+                isLoading={partsLoading}
               />
             </CardContent>
           </Card>
