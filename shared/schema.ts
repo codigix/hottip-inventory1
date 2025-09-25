@@ -133,14 +133,13 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  leaveType: varchar("leave_type", { length: 50 }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  reason: text("reason").notNull(),
-  status: varchar("status", { length: 20 }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  leave_type: text("leave_type").notNull(),
+  start_date: timestamp("start_date").notNull(),
+  end_date: timestamp("end_date").notNull(),
+  reason: text("reason"),
+  status: text("status").default("pending"),
 });
 
 // =====================

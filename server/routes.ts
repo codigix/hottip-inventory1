@@ -14,6 +14,7 @@ import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
 import { users } from "../shared/schema";
 import { tasks } from "../shared/schema";
+import { leaveRequests } from "../shared/schema";
 import { inventoryAttendance } from "@shared/schema";
 import { stockTransactions, suppliers } from "@shared/schema";
 // adjust path as needed
@@ -1267,60 +1268,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
   // Inventory leave request - DB first, fallback to memory
-  app.post(
-    "/api/inventory/leave-request",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { employeeName, leaveType, startDate, endDate, reason } =
-          req.body || {};
-        if (!employeeName || !leaveType || !startDate || !endDate || !reason) {
-          res.status(400).json({ error: "Missing required fields" });
-          return;
-        }
-        // Attempt DB insert into shared leaveRequests table
-        try {
-          const userIdVal = Number(req.user!.id);
-          const [row] = await db
-            .insert(leaveRequestsTable)
-            .values({
-              userId: Number.isFinite(userIdVal) ? userIdVal : null,
-              leaveType,
-              startDate: new Date(startDate),
-              endDate: new Date(endDate),
-              reason,
-              status: "pending",
-            })
-            .returning();
-          res.status(201).json(row);
-          return;
-        } catch (dbErr) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Inventory leave request DB insert failed, using in-memory fallback:",
-            dbErr
-          );
-        }
 
-        const rec = {
-          id: "mem-" + Date.now(),
-          employeeName,
-          userId: req.user!.id,
-          leaveType,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
-          reason,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          _fallback: true,
-        };
-        inMemoryInventoryLeaves.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to submit leave request" });
+  app.post("/api/inventory/leave-request", async (req, res) => {
+    try {
+      const { userId, leaveType, startDate, endDate, reason, status } =
+        req.body;
+
+      // Validate required fields
+      if (!userId || !leaveType || !startDate || !endDate) {
+        return res
+          .status(400)
+          .json({
+            error: "userId, leaveType, startDate, and endDate are required",
+          });
       }
+
+      // Insert into DB using exact column names
+      const [record] = await db
+        .insert(leaveRequests)
+        .values({
+          id: uuidv4(),
+          userId: userId,
+          leave_type: leaveType, // matches DB column
+          start_date: startDate, // matches DB column
+          end_date: endDate, // matches DB column
+          reason: reason || null,
+          status: status || "pending",
+        })
+        .returning();
+
+      return res.status(201).json(record);
+    } catch (error: any) {
+      console.error("Error creating leave request:", error);
+      return res.status(500).json({ error: error.message });
     }
-  );
+  });
 
   app.get("/api/activities", (_req, res) => {
     res.json([]);
@@ -1471,6 +1453,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ error: "Failed to delete attendance", details: error.message });
+    }
+  });
+  // GET /api/inventory/attendance-with-leave
+  app.get("/api/inventory/attendance-with-leave", async (req, res) => {
+    try {
+      const data = await db
+        .select({
+          attendanceId: attendance.id,
+          userId: attendance.userId,
+          date: attendance.date,
+          checkIn: attendance.checkIn,
+          checkOut: attendance.checkOut,
+          location: attendance.location,
+          status: attendance.status,
+          leaveType: leaveRequests.leaveType,
+          leaveStart: leaveRequests.startDate,
+          leaveEnd: leaveRequests.endDate,
+          leaveStatus: leaveRequests.status,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(attendance)
+        .leftJoin(leaveRequests, eq(attendance.userId, leaveRequests.userId))
+        .leftJoin(users, eq(attendance.userId, users.id));
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching attendance with leave:", error);
+      res.status(500).json({
+        error: "Failed to fetch attendance with leave",
+        details: error.message,
+      });
     }
   });
 
