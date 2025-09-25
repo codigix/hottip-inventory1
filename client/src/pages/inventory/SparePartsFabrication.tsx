@@ -20,53 +20,39 @@ export default function SparePartsFabrication() {
   const [isSparePartDialogOpen, setIsSparePartDialogOpen] = useState(false);
   
   const { toast } = useToast();
-  // Fetch spare parts (products with category 'spare_part')
-  const { data: sparePartsRaw = [], isLoading: partsLoading } = useQuery({
-    queryKey: ["/products", "spare_parts"],
+  // Fetch spare parts from /api/spare-parts
+  const { data: spareParts = [], isLoading: partsLoading } = useQuery({
+    queryKey: ["/spare-parts"],
     queryFn: async () => {
-      const all = await apiRequest("GET", "/products");
-      return (all || []).filter((p: any) => p.category === "spare_part");
+      return await apiRequest("GET", "/spare-parts");
     }
   });
-  // Map backend fields to expected table fields (now direct from DB)
-  const spareParts = (sparePartsRaw || []).map((p: any) => ({
-    id: p.id,
-    partNumber: p.sku || '',
-    name: p.name || '',
-    type: p.type || '',
-    status: p.status || '',
-    stock: typeof p.stock === 'number' ? p.stock : 0,
-    minStock: typeof p.lowStockThreshold === 'number' ? p.lowStockThreshold : 0,
-    fabricationTime: typeof p.fabricationTime === 'number' ? p.fabricationTime : '',
-    location: p.location || '',
-  }));
 
-  // Add spare part mutation
+  // Add spare part mutation (POST to /api/spare-parts)
   const addSparePartMutation = useMutation({
     mutationFn: async (data: any) => {
       // Validate required fields
       if (!data.partNumber || !data.name) throw new Error("Part Number and Name are required");
-      // Map to products table fields (all fields now supported)
+      // Map to spareParts table fields
       const payload = {
-        sku: data.partNumber,
+        partNumber: data.partNumber,
         name: data.name,
-        category: "spare_part",
-        stock: Number(data.stock) || 0,
-        lowStockThreshold: Number(data.minStock) || 0,
-        unit: data.unit || "pcs",
-        price: Number(data.unitCost) || 0,
-        description: data.specifications || "",
-        location: data.location || "",
-        fabricationTime: data.fabricationTime ? Number(data.fabricationTime) : null,
         type: data.type || null,
         status: data.status || null,
+        stock: Number(data.stock) || 0,
+        minStock: Number(data.minStock) || 0,
+        fabricationTime: data.fabricationTime ? Number(data.fabricationTime) : null,
+        location: data.location || null,
+        unit: data.unit || "pcs",
+        unitCost: data.unitCost ? Number(data.unitCost) : 0,
+        specifications: data.specifications || "",
       };
-      return apiRequest("POST", "/products", payload);
+      return apiRequest("POST", "/spare-parts", payload);
     },
     onSuccess: () => {
       toast({ title: "Spare part added", description: "Spare part added successfully" });
       setIsSparePartDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/products", "spare_parts"] });
+      queryClient.invalidateQueries({ queryKey: ["/spare-parts"] });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to add spare part", variant: "destructive" });
