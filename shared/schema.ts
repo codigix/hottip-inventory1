@@ -133,14 +133,13 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  leaveType: varchar("leave_type", { length: 50 }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  reason: text("reason").notNull(),
-  status: varchar("status", { length: 20 }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  leave_type: text("leave_type").notNull(),
+  start_date: timestamp("start_date").notNull(),
+  end_date: timestamp("end_date").notNull(),
+  reason: text("reason"),
+  status: text("status").default("pending"),
 });
 
 // =====================
@@ -329,12 +328,40 @@ export const customers = pgTable("customers", {
 
 // =====================
 // VENDOR COMMUNICATIONS
+export const communicationType = pgEnum("communication_type", [
+  "general",
+  "phone",
+  "complaint",
+  "follow_up",
+]);
+export const communicationStatus = pgEnum("communication_status", [
+  "completed",
+  "pending",
+]);
 // =====================
 export const vendorCommunications = pgTable("vendor_communications", {
-  id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").references(() => suppliers.id),
-  message: text("message"),
-  communicationDate: timestamp("communication_date").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id),
+  type: communicationType("type").notNull(),
+  status: communicationStatus("status").notNull().default("completed"),
+  subject: text("subject").notNull(),
+  notes: text("notes"),
+  contactPerson: text("contactPerson"),
+  scheduledDate: timestamp("scheduledDate").default(sql`now()`),
+  completedDate: timestamp("completedDate"),
+  followUpRequired: boolean("followUpRequired").default(false),
+  followUpDate: timestamp("followUpDate"),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
 });
 
 // =====================
