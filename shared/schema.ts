@@ -1,4 +1,35 @@
 // =====================
+// FABRICATION ORDERS
+// =====================
+export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled"
+]);
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  partId: uuid("part_id").notNull().references(() => spareParts.id),
+  quantity: integer("quantity").notNull().default(1),
+  status: fabricationOrderStatusEnum("status").notNull().default("pending"),
+  startDate: timestamp("start_date"),
+  dueDate: timestamp("due_date"),
+  assignedTo: uuid("assigned_to").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFabricationOrderSchema = z.object({
+  partId: z.string().uuid(),
+  quantity: z.coerce.number().min(1),
+  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  startDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  assignedTo: z.string().uuid().optional(),
+  notes: z.string().optional(),
+});
+// =====================
 // ADMIN SETTINGS
 // =====================
 export const adminSettings = pgTable("admin_settings", {

@@ -1,3 +1,34 @@
+  // Fabrication Orders API
+  app.get("/api/fabrication-orders", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(fabricationOrders);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching fabrication orders:", error);
+      res.status(500).json([]);
+    }
+  });
+
+  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
+    try {
+      const { insertFabricationOrderSchema } = await import("@shared/schema");
+      const data = insertFabricationOrderSchema.parse(req.body);
+      const [order] = await db.insert(fabricationOrders).values({
+        id: uuidv4(),
+        partId: data.partId,
+        quantity: data.quantity,
+        status: data.status || "pending",
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        assignedTo: data.assignedTo || null,
+        notes: data.notes || null,
+      }).returning();
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Error creating fabrication order:", error);
+      res.status(500).json({ error: "Failed to create fabrication order", details: error.message });
+    }
+  });
 import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
