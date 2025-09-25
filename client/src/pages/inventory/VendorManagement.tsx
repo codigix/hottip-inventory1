@@ -16,6 +16,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Phone, Mail, MessageSquare, Calendar, Plus, Eye, Edit } from "lucide-react";
 
 export default function VendorManagement() {
+  // Communication form state
+  const [commVendorId, setCommVendorId] = useState("");
+  const [commType, setCommType] = useState("");
+  const [commSubject, setCommSubject] = useState("");
+  const [commNotes, setCommNotes] = useState("");
+  const [commDate, setCommDate] = useState("");
+  const [commFollowUp, setCommFollowUp] = useState(false);
+  const [isSavingComm, setIsSavingComm] = useState(false);
+
+  // Save communication handler
+  const handleSaveCommunication = async () => {
+    // Validate required fields
+    if (!commVendorId) {
+      toast({ title: "Error", description: "Vendor is required", variant: "destructive" });
+      return;
+    }
+    if (!commType) {
+      toast({ title: "Error", description: "Communication type is required", variant: "destructive" });
+      return;
+    }
+    if (!commSubject.trim()) {
+      toast({ title: "Error", description: "Subject is required", variant: "destructive" });
+      return;
+    }
+    if (!commNotes.trim()) {
+      toast({ title: "Error", description: "Notes are required", variant: "destructive" });
+      return;
+    }
+    if (!commDate) {
+      toast({ title: "Error", description: "Date is required", variant: "destructive" });
+      return;
+    }
+    setIsSavingComm(true);
+    try {
+      await apiRequest("POST", "/vendor-communications", {
+        vendorId: commVendorId,
+        message: `${commType}: ${commSubject}\n${commNotes}`,
+        communicationDate: commDate,
+        followUpRequired: commFollowUp,
+      });
+      setIsCommunicationDialogOpen(false);
+      setCommVendorId(""); setCommType(""); setCommSubject(""); setCommNotes(""); setCommDate(""); setCommFollowUp(false);
+      toast({ title: "Success", description: "Communication saved" });
+      queryClient.invalidateQueries({ queryKey: ["/vendor-communications"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save communication", variant: "destructive" });
+    } finally {
+      setIsSavingComm(false);
+    }
+  };
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
@@ -323,13 +373,13 @@ export default function VendorManagement() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="vendor">Vendor</Label>
-                  <Select>
+                  <Select value={commVendorId} onValueChange={setCommVendorId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select vendor..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(vendors?.suppliers || []).map((vendor: any) => (
-                        <SelectItem key={vendor.id} value={vendor.id}>
+                      {(Array.isArray(vendors) ? vendors : vendors?.suppliers || []).map((vendor: any) => (
+                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
                           {vendor.name}
                         </SelectItem>
                       ))}
@@ -338,7 +388,7 @@ export default function VendorManagement() {
                 </div>
                 <div>
                   <Label htmlFor="communicationType">Communication Type</Label>
-                  <Select>
+                  <Select value={commType} onValueChange={setCommType}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select type..." />
                     </SelectTrigger>
@@ -355,26 +405,26 @@ export default function VendorManagement() {
                 </div>
                 <div>
                   <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="Communication subject..." />
+                  <Input id="subject" placeholder="Communication subject..." value={commSubject} onChange={e => setCommSubject(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="commNotes">Notes</Label>
-                  <Textarea id="commNotes" placeholder="Communication details..." />
+                  <Textarea id="commNotes" placeholder="Communication details..." value={commNotes} onChange={e => setCommNotes(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="scheduledDate">Date</Label>
-                  <Input id="scheduledDate" type="datetime-local" />
+                  <Input id="scheduledDate" type="datetime-local" value={commDate} onChange={e => setCommDate(e.target.value)} />
                 </div>
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="followUpRequired" />
+                  <input type="checkbox" id="followUpRequired" checked={commFollowUp} onChange={e => setCommFollowUp(e.target.checked)} />
                   <Label htmlFor="followUpRequired">Follow-up required</Label>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsCommunicationDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button data-testid="button-save-communication">
-                    Save Communication
+                  <Button data-testid="button-save-communication" onClick={handleSaveCommunication} disabled={isSavingComm || !commVendorId || !commType || !commSubject || !commNotes || !commDate}>
+                    {isSavingComm ? "Saving..." : "Save Communication"}
                   </Button>
                 </div>
               </div>
