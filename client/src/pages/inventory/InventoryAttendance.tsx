@@ -3,44 +3,82 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, User, Plus, CheckCircle, XCircle, CalendarDays } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  User,
+  Plus,
+  CheckCircle,
+  XCircle,
+  CalendarDays,
+} from "lucide-react";
 
 export default function InventoryAttendance() {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [attendanceAction, setAttendanceAction] = useState<'check_in' | 'check_out'>('check_in');
-  const [location, setLocation] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [attendanceAction, setAttendanceAction] = useState<
+    "check_in" | "check_out"
+  >("check_in");
+  const [location, setLocation] = useState("");
   const { toast } = useToast();
 
   // Leave Request local state
-  const [leaveEmployee, setLeaveEmployee] = useState('');
-  const [leaveType, setLeaveType] = useState('');
+  const [leaveEmployee, setLeaveEmployee] = useState("");
+  const [leaveType, setLeaveType] = useState("");
 
   // Fetch attendance data (with leave info)
-  const { data: attendance, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
+  const {
+    data: attendance,
+    isLoading: attendanceLoading,
+    refetch: refetchAttendance,
+  } = useQuery({
     queryKey: ["/inventory/attendance-with-leave"],
-    queryFn: async () => apiRequest('GET', '/inventory/attendance-with-leave'),
+    queryFn: async () => apiRequest("GET", "/inventory/attendance-with-leave"),
   });
 
+  const [employees, setEmployees] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/users")
+      .then((res) => res.json())
+      .then((data) => setEmployees(data))
+      .catch((err) => console.error(err));
+  }, []);
   // Check-in/check-out mutation
   const attendanceMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('POST', '/attendance', data);
+      return apiRequest("POST", "/attendance", data);
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: `${attendanceAction === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
+        description: `${
+          attendanceAction === "check_in" ? "Check-in" : "Check-out"
+        } recorded successfully`,
       });
       setIsCheckInDialogOpen(false);
       resetAttendanceForm();
@@ -57,23 +95,36 @@ export default function InventoryAttendance() {
 
   // Leave request submission
   const leaveRequestMutation = useMutation({
-    mutationFn: async (data: { employeeName: string; leaveType: string; startDate: string; endDate: string; reason: string }) => {
-      return apiRequest('POST', '/inventory/leave-request', data);
+    mutationFn: async (data: {
+      employeeName: string;
+      leaveType: string;
+      startDate: string;
+      endDate: string;
+      reason: string;
+    }) => {
+      return apiRequest("POST", "/inventory/leave-request", data);
     },
     onSuccess: () => {
-      toast({ title: 'Success', description: 'Leave request submitted successfully' });
+      toast({
+        title: "Success",
+        description: "Leave request submitted successfully",
+      });
       setIsLeaveDialogOpen(false);
-      setLeaveEmployee('');
-      setLeaveType('');
+      setLeaveEmployee("");
+      setLeaveType("");
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error?.message || 'Failed to submit leave request', variant: 'destructive' });
-    }
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to submit leave request",
+        variant: "destructive",
+      });
+    },
   });
 
   const resetAttendanceForm = () => {
-    setSelectedEmployee('');
-    setLocation('');
+    setSelectedEmployee("");
+    setLocation("");
   };
 
   const handleAttendanceAction = () => {
@@ -86,13 +137,28 @@ export default function InventoryAttendance() {
       return;
     }
 
+    // Ensure we only send the UUID string, not an object
+    const employeeId =
+      typeof selectedEmployee === "string"
+        ? selectedEmployee
+        : selectedEmployee?.id;
+
+    if (!employeeId) {
+      toast({
+        title: "Error",
+        description: "Invalid employee selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const attendanceData = {
-      userId: selectedEmployee,
+      userId: employeeId, // Send UUID string
       action: attendanceAction,
       location,
-      date: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+      date: new Date().toISOString().split("T")[0], // YYYY-MM-DD
       timestamp: new Date().toISOString(),
-      department: 'Inventory',
+      department: "Inventory",
     };
 
     attendanceMutation.mutate(attendanceData);
@@ -102,23 +168,35 @@ export default function InventoryAttendance() {
     // Generate CSV report
     const reportData = attendance || [];
     const csvContent = [
-      ['Employee', 'Date', 'Check In', 'Check Out', 'Location', 'Hours Worked', 'Status'],
+      [
+        "Employee",
+        "Date",
+        "Check In",
+        "Check Out",
+        "Location",
+        "Hours Worked",
+        "Status",
+      ],
       ...reportData.map((record: any) => [
         record.name || record.employee,
         new Date(record.date).toLocaleDateString(),
-        record.checkIn || '-',
-        record.checkOut || '-',
-        record.location || '-',
-        record.hoursWorked || '-',
-        record.status
-      ])
-    ].map(row => row.join(',')).join('\n');
+        record.checkIn || "-",
+        record.checkOut || "-",
+        record.location || "-",
+        record.hoursWorked || "-",
+        record.status,
+      ]),
+    ]
+      .map((row) => row.join(","))
+      .join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `attendance-report-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -132,12 +210,25 @@ export default function InventoryAttendance() {
 
   // Leave Request handler
   const handleSubmitLeave = () => {
-    const startDate = (document.getElementById('startDate') as HTMLInputElement)?.value;
-    const endDate = (document.getElementById('endDate') as HTMLInputElement)?.value;
-    const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+    const startDate = (document.getElementById("startDate") as HTMLInputElement)
+      ?.value;
+    const endDate = (document.getElementById("endDate") as HTMLInputElement)
+      ?.value;
+    const reason =
+      (document.getElementById("reason") as HTMLTextAreaElement)?.value || "";
 
-    if (!leaveEmployee || !leaveType || !startDate || !endDate || !reason.trim()) {
-      toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
+    if (
+      !leaveEmployee ||
+      !leaveType ||
+      !startDate ||
+      !endDate ||
+      !reason.trim()
+    ) {
+      toast({
+        title: "Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -162,18 +253,18 @@ export default function InventoryAttendance() {
       endDate: "2024-01-26",
       days: 2,
       status: "approved",
-      reason: "Medical appointment"
+      reason: "Medical appointment",
     },
     {
       id: "2",
-      employee: "Sarah Johnson", 
+      employee: "Sarah Johnson",
       leaveType: "Annual Leave",
       startDate: "2024-01-30",
       endDate: "2024-02-02",
       days: 4,
       status: "pending",
-      reason: "Family vacation"
-    }
+      reason: "Family vacation",
+    },
   ];
 
   const attendanceColumns = [
@@ -187,7 +278,9 @@ export default function InventoryAttendance() {
           </div>
           <div>
             <p className="font-light">{employee.name}</p>
-            <p className="text-sm text-muted-foreground">{employee.department}</p>
+            <p className="text-sm text-muted-foreground">
+              {employee.department}
+            </p>
           </div>
         </div>
       ),
@@ -200,13 +293,17 @@ export default function InventoryAttendance() {
           present: { color: "default", icon: CheckCircle, text: "Present" },
           absent: { color: "destructive", icon: XCircle, text: "Absent" },
           leave: { color: "outline", icon: Calendar, text: "On Leave" },
-          late: { color: "outline", icon: Clock, text: "Late" }
+          late: { color: "outline", icon: Clock, text: "Late" },
         };
-        const config = statusConfig[employee.status as keyof typeof statusConfig];
+        const config =
+          statusConfig[employee.status as keyof typeof statusConfig];
         const Icon = config.icon;
-        
+
         return (
-          <Badge variant={config.color as any} className="flex items-center space-x-1 w-fit">
+          <Badge
+            variant={config.color as any}
+            className="flex items-center space-x-1 w-fit"
+          >
             <Icon className="h-3 w-3" />
             <span>{config.text}</span>
           </Badge>
@@ -219,7 +316,7 @@ export default function InventoryAttendance() {
       cell: (employee: any) => employee.checkIn || "-",
     },
     {
-      key: "checkOut", 
+      key: "checkOut",
       header: "Check Out",
       cell: (employee: any) => employee.checkOut || "-",
     },
@@ -231,7 +328,7 @@ export default function InventoryAttendance() {
       key: "date",
       header: "Date",
       cell: (employee: any) => new Date(employee.date).toLocaleDateString(),
-    }
+    },
   ];
 
   const leaveColumns = [
@@ -242,9 +339,7 @@ export default function InventoryAttendance() {
     {
       key: "leaveType",
       header: "Leave Type",
-      cell: (leave: any) => (
-        <Badge variant="outline">{leave.leaveType}</Badge>
-      ),
+      cell: (leave: any) => <Badge variant="outline">{leave.leaveType}</Badge>,
     },
     {
       key: "startDate",
@@ -252,7 +347,7 @@ export default function InventoryAttendance() {
       cell: (leave: any) => new Date(leave.startDate).toLocaleDateString(),
     },
     {
-      key: "endDate", 
+      key: "endDate",
       header: "To",
       cell: (leave: any) => new Date(leave.endDate).toLocaleDateString(),
     },
@@ -266,16 +361,18 @@ export default function InventoryAttendance() {
       cell: (leave: any) => {
         const statusColors = {
           pending: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800", 
-          rejected: "bg-red-100 text-red-800"
+          approved: "bg-green-100 text-green-800",
+          rejected: "bg-red-100 text-red-800",
         };
         return (
-          <Badge className={statusColors[leave.status as keyof typeof statusColors]}>
+          <Badge
+            className={statusColors[leave.status as keyof typeof statusColors]}
+          >
             {leave.status.toUpperCase()}
           </Badge>
         );
       },
-    }
+    },
   ];
 
   return (
@@ -283,8 +380,12 @@ export default function InventoryAttendance() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Inventory Staff Attendance</h1>
-          <p className="text-muted-foreground">Employee attendance and leave management for inventory staff</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Inventory Staff Attendance
+          </h1>
+          <p className="text-muted-foreground">
+            Employee attendance and leave management for inventory staff
+          </p>
         </div>
         <div className="flex items-center space-x-4">
           <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
@@ -301,17 +402,26 @@ export default function InventoryAttendance() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="employee">Employee</Label>
-                  <Select value={leaveEmployee} onValueChange={setLeaveEmployee}>
+                  <Select
+                    value={selectedEmployee}
+                    onValueChange={setSelectedEmployee}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select employee..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john">John Smith</SelectItem>
-                      <SelectItem value="sarah">Sarah Johnson</SelectItem>
-                      <SelectItem value="mike">Mike Chen</SelectItem>
+                      {employees
+                        .filter((emp) => emp.role === "employee") // optional: only employees
+                        .map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.firstName} {emp.lastName}{" "}
+                            {/* combine firstName + lastName */}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div>
                   <Label htmlFor="leaveType">Leave Type</Label>
                   <Select value={leaveType} onValueChange={setLeaveType}>
@@ -329,29 +439,53 @@ export default function InventoryAttendance() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="startDate">Start Date</Label>
-                    <Input id="startDate" type="date" data-testid="input-start-date" />
+                    <Input
+                      id="startDate"
+                      type="date"
+                      data-testid="input-start-date"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="endDate">End Date</Label>
-                    <Input id="endDate" type="date" data-testid="input-end-date" />
+                    <Input
+                      id="endDate"
+                      type="date"
+                      data-testid="input-end-date"
+                    />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="reason">Reason</Label>
-                  <Textarea id="reason" placeholder="Reason for leave..." data-testid="textarea-reason" />
+                  <Textarea
+                    id="reason"
+                    placeholder="Reason for leave..."
+                    data-testid="textarea-reason"
+                  />
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsLeaveDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsLeaveDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleSubmitLeave} disabled={leaveRequestMutation.isPending} data-testid="button-submit-leave">
-                    {leaveRequestMutation.isPending ? 'Submitting...' : 'Submit Request'}
+                  <Button
+                    onClick={handleSubmitLeave}
+                    disabled={leaveRequestMutation.isPending}
+                    data-testid="button-submit-leave"
+                  >
+                    {leaveRequestMutation.isPending
+                      ? "Submitting..."
+                      : "Submit Request"}
                   </Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-          <Dialog open={isCheckInDialogOpen} onOpenChange={setIsCheckInDialogOpen}>
+          <Dialog
+            open={isCheckInDialogOpen}
+            onOpenChange={setIsCheckInDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button data-testid="button-check-in">
                 <Clock className="h-4 w-4 mr-2" />
@@ -365,7 +499,10 @@ export default function InventoryAttendance() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="action">Action</Label>
-                  <Select value={attendanceAction} onValueChange={setAttendanceAction as any}>
+                  <Select
+                    value={attendanceAction}
+                    onValueChange={setAttendanceAction as any}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -377,18 +514,28 @@ export default function InventoryAttendance() {
                 </div>
                 <div>
                   <Label htmlFor="employee">Employee</Label>
-                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <Select
+                    value={leaveEmployee}
+                    onValueChange={setLeaveEmployee}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select employee..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="emp1">John Smith</SelectItem>
-                      <SelectItem value="emp2">Sarah Johnson</SelectItem>
-                      <SelectItem value="emp3">Mike Chen</SelectItem>
-                      <SelectItem value="emp4">Lisa Wang</SelectItem>
+                      {employees
+                        .filter((emp) => emp.role === "employee") // optional: only employees
+                        .map((emp) => (
+                          <SelectItem
+                            key={emp.id}
+                            value={`${emp.firstName} ${emp.lastName}`} // combine firstName + lastName
+                          >
+                            {emp.firstName} {emp.lastName}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div>
                   <Label htmlFor="location">Location</Label>
                   <Select value={location} onValueChange={setLocation}>
@@ -399,31 +546,44 @@ export default function InventoryAttendance() {
                       <SelectItem value="warehouse-a">Warehouse A</SelectItem>
                       <SelectItem value="warehouse-b">Warehouse B</SelectItem>
                       <SelectItem value="office">Office</SelectItem>
-                      <SelectItem value="fabrication">Fabrication Unit</SelectItem>
+                      <SelectItem value="fabrication">
+                        Fabrication Unit
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="bg-muted/30 p-3 rounded-lg">
-                  <p className="text-sm font-light">Current Time: {new Date().toLocaleString()}</p>
+                  <p className="text-sm font-light">
+                    Current Time: {new Date().toLocaleString()}
+                  </p>
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsCheckInDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCheckInDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleAttendanceAction}
                     disabled={attendanceMutation.isPending}
                     data-testid="button-record-attendance"
                   >
-                    {attendanceMutation.isPending ? "Recording..." : `Record ${attendanceAction === 'check_in' ? 'Check In' : 'Check Out'}`}
+                    {attendanceMutation.isPending
+                      ? "Recording..."
+                      : `Record ${
+                          attendanceAction === "check_in"
+                            ? "Check In"
+                            : "Check Out"
+                        }`}
                   </Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={generateAttendanceReport}
             data-testid="button-attendance-report"
           >
@@ -439,7 +599,9 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Staff</p>
+                <p className="text-sm font-light text-muted-foreground">
+                  Total Staff
+                </p>
                 <p className="text-2xl font-bold text-foreground">12</p>
               </div>
               <User className="h-8 w-8 text-blue-600" />
@@ -451,7 +613,9 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Present Today</p>
+                <p className="text-sm font-light text-muted-foreground">
+                  Present Today
+                </p>
                 <p className="text-2xl font-bold text-foreground">10</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -463,7 +627,9 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">On Leave</p>
+                <p className="text-sm font-light text-muted-foreground">
+                  On Leave
+                </p>
                 <p className="text-2xl font-bold text-foreground">1</p>
               </div>
               <Calendar className="h-8 w-8 text-orange-600" />
@@ -475,7 +641,9 @@ export default function InventoryAttendance() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Absent</p>
+                <p className="text-sm font-light text-muted-foreground">
+                  Absent
+                </p>
                 <p className="text-2xl font-bold text-foreground">1</p>
               </div>
               <XCircle className="h-8 w-8 text-red-600" />
@@ -499,7 +667,9 @@ export default function InventoryAttendance() {
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Clock className="h-5 w-5" />
-                  <span>Today's Attendance - {new Date().toLocaleDateString()}</span>
+                  <span>
+                    Today's Attendance - {new Date().toLocaleDateString()}
+                  </span>
                 </div>
                 <Button size="sm" variant="outline">
                   Refresh
@@ -547,27 +717,33 @@ export default function InventoryAttendance() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {leaveRequests.filter(req => req.status === 'pending').map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
-                      <div>
-                        <p className="font-light">{request.employee}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.leaveType} - {request.days} days
-                        </p>
-                        <p className="text-xs text-muted-foreground">{request.reason}</p>
+                  {leaveRequests
+                    .filter((req) => req.status === "pending")
+                    .map((request) => (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50"
+                      >
+                        <div>
+                          <p className="font-light">{request.employee}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.leaveType} - {request.days} days
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {request.reason}
+                          </p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="destructive">
+                            Reject
+                          </Button>
+                          <Button size="sm">Approve</Button>
+                        </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="destructive">
-                          Reject
-                        </Button>
-                        <Button size="sm">
-                          Approve
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {leaveRequests.filter(req => req.status === 'pending').length === 0 && (
+                    ))}
+
+                  {leaveRequests.filter((req) => req.status === "pending")
+                    .length === 0 && (
                     <div className="text-center text-muted-foreground py-8">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No pending leave requests</p>
@@ -613,25 +789,21 @@ export default function InventoryAttendance() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { name: "John Smith", annual: 12, sick: 8, personal: 3 },
-                    { name: "Sarah Johnson", annual: 15, sick: 10, personal: 5 },
-                    { name: "Mike Chen", annual: 8, sick: 6, personal: 2 }
-                  ].map((employee, index) => (
+                  {employees.map((employee, index) => (
                     <div key={index} className="border rounded-lg p-3">
                       <p className="font-light mb-2">{employee.name}</p>
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="text-center">
                           <p className="text-muted-foreground">Annual</p>
-                          <p className="font-light">{employee.annual}</p>
+                          <p className="font-light">{employee.annual || 0}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-muted-foreground">Sick</p>
-                          <p className="font-light">{employee.sick}</p>
+                          <p className="font-light">{employee.sick || 0}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-muted-foreground">Personal</p>
-                          <p className="font-light">{employee.personal}</p>
+                          <p className="font-light">{employee.personal || 0}</p>
                         </div>
                       </div>
                     </div>
@@ -651,7 +823,9 @@ export default function InventoryAttendance() {
               <div className="text-center text-muted-foreground py-12">
                 <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Work schedules and shift management</p>
-                <p className="text-sm">Coming soon - Schedule management features</p>
+                <p className="text-sm">
+                  Coming soon - Schedule management features
+                </p>
               </div>
             </CardContent>
           </Card>

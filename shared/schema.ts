@@ -241,19 +241,23 @@ const quotationStatus = pgEnum("quotation_status", [
   "received",
   "under_review",
   "approved",
-  "rejected"
+  "rejected",
 ]);
 export const inboundQuotations = pgTable("inbound_quotations", {
   id: uuid("id").defaultRandom().primaryKey(), // ✅ Matches DB: uuid, default gen_random_uuid()
   quotationNumber: text("quotationNumber").notNull(), // ✅ Matches DB: text
-  quotationRef: text("quotationRef"),                 // ✅ Matches DB: text
-  senderId: uuid("senderId").notNull().references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
+  quotationRef: text("quotationRef"), // ✅ Matches DB: text
+  senderId: uuid("senderId")
+    .notNull()
+    .references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
   senderType: text("senderType").notNull().default("supplier"), // ✅ Matches DB: text
-  userId: uuid("userId").notNull().references(() => users.id), // ✅ Matches DB: uuid, references users
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id), // ✅ Matches DB: uuid, references users
   status: quotationStatus("status").notNull().default("received"), // ✅ Matches DB: enum type
   quotationDate: timestamp("quotationDate").notNull(), // ✅ Matches DB: timestamp without time zone
-  validUntil: timestamp("validUntil"),                 // ✅ Matches DB: timestamp without time zone
-  subject: text("subject"),                           // ✅ Matches DB: text
+  validUntil: timestamp("validUntil"), // ✅ Matches DB: timestamp without time zone
+  subject: text("subject"), // ✅ Matches DB: text
   totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }), // ✅ Matches DB: numeric(10,2)
 });
 
@@ -290,19 +294,19 @@ export const products = pgTable("products", {
 // =====================
 export const suppliers = pgTable("suppliers", {
   id: uuid("id").defaultRandom().primaryKey(), // ✅ Changed to uuid, matches DB
-  name: text("name").notNull(),               
-  email: text("email"),                       
-  phone: text("phone"),                       
-  address: text("address"),                  
-  city: text("city"),                        
-  state: text("state"),                      
-  zipCode: text("zipCode"),                  
-  country: text("country").default("India"), 
-  gstNumber: text("gstNumber"),              
-  panNumber: text("panNumber"),              
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zipCode"),
+  country: text("country").default("India"),
+  gstNumber: text("gstNumber"),
+  panNumber: text("panNumber"),
   companyType: text("companyType").default("company"),
-  contactPerson: text("contactPerson"),      
-  website: text("website"),                  
+  contactPerson: text("contactPerson"),
+  website: text("website"),
   creditLimit: numeric("creditLimit", { precision: 10, scale: 2 }),
   // createdAt is not a column in your DB table, so it's omitted
 });
@@ -877,13 +881,25 @@ export const stockTransactionReason = [
   "sale",
   "adjustment",
 ] as const;
-
 export const stockTransactions = pgTable("stock_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id", { notNull: true }),
-  batchId: uuid("batch_id", { notNull: false }), // nullable now uses option
-  type: text("type", { notNull: true }),
-  reason: text("reason", { notNull: true }),
-  quantity: integer("quantity", { notNull: true }),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2, notNull: false }),
+  productId: uuid("productId"), // 👈 camelCase with quotes
+  batchId: uuid("batchId"),
+  type: text("type"),
+  reason: text("reason"),
+  quantity: integer("quantity"),
+  unitCost: numeric("unitCost"),
+  userId: uuid("userId"),
+  referenceNumber: text("referenceNumber"),
+  notes: text("notes"),
+});
+export const attendance = pgTable("attendance", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  date: timestamp("date").notNull(),
+  checkIn: timestamp("checkIn"),
+  checkOut: timestamp("checkOut"),
+  location: text("location"),
+  status: text("status").notNull().default("present"),
+  notes: text("notes"),
 });

@@ -11,9 +11,14 @@ import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { users } from "../shared/schema";
 import { tasks } from "../shared/schema";
-import { stockTransactions } from "@shared/schema"; // adjust path if needed
+import { inventoryAttendance } from "@shared/schema";
+import { stockTransactions, suppliers } from "@shared/schema";
+// adjust path as needed
+import { desc } from "drizzle-orm";
+import { attendance } from "@shared/schema";
 import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
 import { marketingAttendance } from "@shared/schema";
@@ -748,35 +753,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Suppliers CRUD
   // Suppliers Routes
-  app.get("/api/suppliers",requireAuth, async (req, res) => {
-    try {
-      const suppliers = await storage.getSuppliers();
-      res.json(suppliers);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch suppliers",details: error.message });
-    }
-  });
-
-  app.post("/api/suppliers", async (req, res) => {
-    try {
-      const supplierData = insertSupplierSchema.parse(req.body);
-      const supplier = await storage.createSupplier(supplierData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_SUPPLIER",
-        entityType: "supplier",
-        entityId: supplier.id,
-        details: `Created supplier: ${supplier.name}`,
-      });
-      res.status(201).json(supplier);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid supplier data", details: error.errors });
+  app.get(
+    "/api/suppliers",
+    requireAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const allSuppliers = await db.select().from(suppliers);
+        res.status(200).json(allSuppliers);
+      } catch (error: any) {
+        console.error("Error fetching suppliers:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to fetch suppliers", details: error.message });
       }
-      res.status(500).json({ error: "Failed to create supplier" });
+    }
+  );
+
+  app.post("/api/suppliers", async (req: Request, res: Response) => {
+    try {
+      const body = req.body;
+
+      const supplierData = {
+        name: body.name,
+        email: body.contactEmail, // map frontend key to DB column
+        phone: body.contactPhone, // map frontend key to DB column
+        address: body.address || null,
+        city: body.city || null,
+        state: body.state || null,
+        zipCode: body.zipCode || null,
+        country: body.country || "India",
+        gstNumber: body.gstNumber || null,
+        panNumber: body.panNumber || null,
+        companyType: body.companyType || "company",
+        contactPerson: body.contactPerson || null,
+        website: body.website || null,
+        creditLimit: body.creditLimit || null,
+      };
+
+      const [supplier] = await db
+        .insert(suppliers)
+        .values({
+          id: uuidv4(),
+          ...supplierData,
+        })
+        .returning();
+
+      res.status(201).json(supplier);
+    } catch (error: any) {
+      console.error("Error creating supplier:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to create supplier", details: error.message });
     }
   });
-
 
   app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
@@ -817,8 +846,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stock transactions (stubbed)
   app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
-    // TODO: implement when stockTransactions table is added
-    res.json([]);
+    try {
+      const rows = await db
+        .select()
+        .from(stockTransactions)
+        .orderBy(desc(stockTransactions.id)); // order by id, or createdAt if you have
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching stock transactions:", error);
+      res.status(500).json({ error: "Failed to fetch stock transactions" });
+    }
   });
 
   // Reorder points (stubbed)
@@ -937,30 +974,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
   // File uploads (generic upload URL) - Mocked for local development
-app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-  // --- START: Mocking Object Storage for Local Development ---
-  if (process.env.NODE_ENV === "development") {
-    // Return a dummy URL that the frontend can handle gracefully
-    // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
-    res.json({ 
-      uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
-      message: "File upload is mocked in development mode. No actual upload occurs." 
-    });
-    return; // Exit early, don't proceed to ObjectStorageService
-  }
-  // --- END: Mocking ---
+  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+    // --- START: Mocking Object Storage for Local Development ---
+    if (process.env.NODE_ENV === "development") {
+      // Return a dummy URL that the frontend can handle gracefully
+      // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+      res.json({
+        uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+        message:
+          "File upload is mocked in development mode. No actual upload occurs.",
+      });
+      return; // Exit early, don't proceed to ObjectStorageService
+    }
+    // --- END: Mocking ---
 
-  try {
-    const objectStorage = new ObjectStorageService();
-    const uploadURL = await objectStorage.getObjectEntityUploadURL();
-    res.json({ uploadURL });
-  } catch (e) {
-    // This will now only catch errors when NOT in development mode
-    // or if the development check fails unexpectedly
-    console.error("Object storage error:", e); 
-    res.status(500).json({ error: "Failed to get upload URL", details: e.message });
-  }
-});
+    try {
+      const objectStorage = new ObjectStorageService();
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (e) {
+      // This will now only catch errors when NOT in development mode
+      // or if the development check fails unexpectedly
+      console.error("Object storage error:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to get upload URL", details: e.message });
+    }
+  });
 
   // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
@@ -1160,7 +1200,10 @@ app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
       const quotations = await storage.getInboundQuotations();
       res.json(quotations);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inbound quotations", details: error.message });
+      res.status(500).json({
+        error: "Failed to fetch inbound quotations",
+        details: error.message,
+      });
     }
   });
 
@@ -1176,92 +1219,106 @@ app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     }
   });
 
-app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
-  try {
-    const { insertInboundQuotationSchema } = await import("@shared/schema");
+  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
+    try {
+      const { insertInboundQuotationSchema } = await import("@shared/schema");
 
-    // Pre-process req.body to remove null values for optional fields
-    // This ensures Zod validation passes if fields are explicitly sent as null
-    const requestBody = { ...req.body };
-    if (requestBody.attachmentPath === null) {
+      // Pre-process req.body to remove null values for optional fields
+      // This ensures Zod validation passes if fields are explicitly sent as null
+      const requestBody = { ...req.body };
+      if (requestBody.attachmentPath === null) {
         delete requestBody.attachmentPath; // Remove the key if value is null
-    }
-    if (requestBody.attachmentName === null) {
+      }
+      if (requestBody.attachmentName === null) {
         delete requestBody.attachmentName; // Remove the key if value is null
+      }
+
+      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        // ✅ Convert dates from string to Date object
+        quotationDate: new Date(parsedData.quotationDate),
+        validUntil: parsedData.validUntil
+          ? new Date(parsedData.validUntil)
+          : null,
+        // ✅ Convert amount from string to number
+        totalAmount: parseFloat(parsedData.totalAmount),
+        // ✅ Use a valid UUID for userId in development mode
+        userId:
+          process.env.NODE_ENV === "development"
+            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ← Your valid user ID
+            : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      const quotation = await storage.createInboundQuotation(data);
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "CREATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Created inbound quotation: ${quotation.quotationNumber}`,
+      });
+      res.status(201).json(quotation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid quotation data", details: error.errors });
+      }
+      console.error("Failed to create inbound quotation:", error);
+      res.status(500).json({
+        error: "Failed to create inbound quotation",
+        details: error.message,
+      }); // Include details
     }
+  });
 
-    const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+  app.put(
+    "/api/inbound-quotations/:id/attachment",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { attachmentPath, attachmentName } = req.body; // These come from the frontend after direct upload
 
-    // Convert types for database
-    const data = {
-      ...parsedData,
-      // ✅ Convert dates from string to Date object
-      quotationDate: new Date(parsedData.quotationDate),
-      validUntil: parsedData.validUntil
-        ? new Date(parsedData.validUntil)
-        : null,
-      // ✅ Convert amount from string to number
-      totalAmount: parseFloat(parsedData.totalAmount),
-      // ✅ Use a valid UUID for userId in development mode
-      userId: process.env.NODE_ENV === "development" 
-        ? '79c36f2b-237a-4ba6-a4b3-a12fc8a18446' // ← Your valid user ID
-        : req.user?.id || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
-    };
+        if (!attachmentPath) {
+          return res.status(400).json({ error: "attachmentPath is required" });
+        }
 
-    const quotation = await storage.createInboundQuotation(data);
-    await storage.createActivity({
-      userId: quotation.userId,
-      action: "CREATE_INBOUND_QUOTATION",
-      entityType: "inbound_quotation",
-      entityId: quotation.id,
-      details: `Created inbound quotation: ${quotation.quotationNumber}`,
-    });
-    res.status(201).json(quotation);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({ error: "Invalid quotation data", details: error.errors });
+        // Validate the ID format if necessary (e.g., if it's expected to be an integer)
+        // const quotationId = parseInt(id, 10);
+        // if (isNaN(quotationId)) {
+        //   return res.status(400).json({ error: "Invalid quotation ID format" });
+        // }
+
+        // Update the quotation record with the attachment path
+        // You'll need an `updateInboundQuotation` method in your storage class
+        const updatedQuotation = await storage.updateInboundQuotation(id, {
+          attachmentPath: attachmentPath,
+          attachmentName: attachmentName, // Optional
+        });
+
+        if (!updatedQuotation) {
+          return res.status(404).json({ error: "Inbound quotation not found" });
+        }
+
+        res.json(updatedQuotation);
+      } catch (error) {
+        console.error(
+          "Failed to update inbound quotation with attachment:",
+          error
+        );
+        res.status(500).json({
+          error: "Failed to update inbound quotation with attachment",
+          details: error.message,
+        });
+      }
     }
-    console.error("Failed to create inbound quotation:", error);
-    res.status(500).json({ error: "Failed to create inbound quotation", details: error.message }); // Include details
-  }
-});
+  );
 
-app.put("/api/inbound-quotations/:id/attachment", requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { attachmentPath, attachmentName } = req.body; // These come from the frontend after direct upload
-
-    if (!attachmentPath) {
-      return res.status(400).json({ error: "attachmentPath is required" });
-    }
-
-    // Validate the ID format if necessary (e.g., if it's expected to be an integer)
-    // const quotationId = parseInt(id, 10);
-    // if (isNaN(quotationId)) {
-    //   return res.status(400).json({ error: "Invalid quotation ID format" });
-    // }
-
-    // Update the quotation record with the attachment path
-    // You'll need an `updateInboundQuotation` method in your storage class
-    const updatedQuotation = await storage.updateInboundQuotation(id, {
-      attachmentPath: attachmentPath,
-      attachmentName: attachmentName, // Optional
-    });
-
-    if (!updatedQuotation) {
-        return res.status(404).json({ error: "Inbound quotation not found" });
-    }
-
-    res.json(updatedQuotation);
-  } catch (error) {
-    console.error("Failed to update inbound quotation with attachment:", error);
-    res.status(500).json({ error: "Failed to update inbound quotation with attachment", details: error.message });
-  }
-});
-
-app.put("/api/inbound-quotations/:id", async (req, res) => {
+  app.put("/api/inbound-quotations/:id", async (req, res) => {
     try {
       const quotationData = insertInboundQuotationSchema
         .partial()
@@ -1478,57 +1535,173 @@ app.put("/api/inbound-quotations/:id", async (req, res) => {
   });
 
   // Generic attendance for InventoryAttendance page (in-memory demo)
-  app.get("/api/attendance", (_req, res) => {
-    res.json(inventoryAttendance);
+  // GET all attendance records
+  const insertAttendanceSchema = z.object({
+    userId: z.string().uuid(),
+    action: z.enum(["check_in", "check_out"]),
+    location: z.string(),
+    timestamp: z.string().optional(),
+    notes: z.string().optional(),
+    department: z.string().optional(),
   });
-  app.post("/api/attendance", (req, res) => {
+
+  // GET attendance by userId
+  app.get("/api/attendance/:userId", async (req, res) => {
     try {
-      const { userId, action, location, date, timestamp, department } =
-        req.body || {};
-      if (!userId || !action || !location || !date) {
-        res
-          .status(400)
-          .json({ error: "userId, action, location, date are required" });
-        return;
-      }
-      const name = String(userId);
-      const existing = inventoryAttendance
-        .reverse()
-        .find((r) => r.userId === userId && r.date === date);
-      if (action === "check_in") {
-        const rec = {
-          id: String(Date.now()),
-          userId,
-          name,
-          department: department || "Inventory",
-          status: "present",
-          checkIn: new Date(timestamp || Date.now()).toLocaleTimeString(),
-          checkOut: null,
-          date,
-          location,
-          hoursWorked: null,
-        };
-        inventoryAttendance.push(rec);
-        res.status(201).json(rec);
-        return;
-      }
-      if (action === "check_out") {
-        if (!existing) {
-          res.status(404).json({ error: "No check-in record found for today" });
-          return;
-        }
-        existing.checkOut = new Date(
-          timestamp || Date.now()
-        ).toLocaleTimeString();
-        res.json(existing);
-        return;
-      }
-      res.status(400).json({ error: "Unknown action" });
-    } catch (e) {
-      res.status(500).json({ error: "Failed to record attendance" });
+      const records = await db
+        .select()
+        .from(attendance)
+        .where({ userId: req.params.userId });
+      res.status(200).json(records);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ error: "Failed to fetch attendance", details: error.message });
     }
   });
 
+  // POST attendance (check-in / check-out)
+  app.post("/api/attendance", async (req, res) => {
+    try {
+      const { userId, username, action, location, notes } = req.body;
+
+      // Must have either userId or username, plus action and location
+      if ((!userId && !username) || !action || !location) {
+        return res
+          .status(400)
+          .json({ error: "userId or username, action, location are required" });
+      }
+
+      // 1️⃣ Get user from database if userId not provided
+      let user = null;
+      if (userId) {
+        [user] = await db.select().from(users).where({ id: userId });
+      } else {
+        [user] = await db.select().from(users).where({ username });
+      }
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const resolvedUserId = user.id; // Always use ID internally
+
+      // 2️⃣ Determine timestamps
+      const timestamp = new Date();
+
+      if (action === "check_in") {
+        const [record] = await db
+          .insert(attendance)
+          .values({
+            id: uuidv4(),
+            userId: resolvedUserId,
+            date: timestamp,
+            checkIn: timestamp,
+            location,
+            status: "present",
+            notes: notes || null,
+          })
+          .returning();
+        return res.status(201).json(record);
+      }
+
+      if (action === "check_out") {
+        const [existing] = await db
+          .select()
+          .from(attendance)
+          .where({ userId: resolvedUserId })
+          .orderBy("date", "desc")
+          .limit(1);
+
+        if (!existing || existing.checkOut) {
+          return res.status(400).json({ error: "No active check-in found" });
+        }
+
+        const [updated] = await db
+          .update(attendance)
+          .set({ checkOut: timestamp })
+          .where({ id: existing.id })
+          .returning();
+
+        return res.json(updated);
+      }
+
+      res.status(400).json({ error: "Unknown action" });
+    } catch (error: any) {
+      console.error("Error recording attendance:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to record attendance", details: error.message });
+    }
+  });
+
+  // PUT update attendance by ID
+  app.put("/api/attendance/:id", async (req, res) => {
+    try {
+      const data = insertAttendanceSchema.partial().parse(req.body);
+      const timestamp = data.timestamp ? new Date(data.timestamp) : undefined;
+
+      const [updated] = await db
+        .update(attendance)
+        .set({
+          location: data.location,
+          notes: data.notes,
+          checkIn: data.action === "check_in" ? timestamp : undefined,
+          checkOut: data.action === "check_out" ? timestamp : undefined,
+        })
+        .where({ id: req.params.id })
+        .returning();
+
+      if (!updated)
+        return res.status(404).json({ error: "Attendance record not found" });
+      res.status(200).json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid attendance data", details: error.errors });
+      }
+      res
+        .status(500)
+        .json({ error: "Failed to update attendance", details: error.message });
+    }
+  });
+
+  // DELETE attendance by ID
+  app.delete("/api/attendance/:id", async (req, res) => {
+    try {
+      await db.delete(attendance).where({ id: req.params.id });
+      res.status(204).send();
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ error: "Failed to delete attendance", details: error.message });
+    }
+  });
+
+  // Account-specific Attendance with filters (requires auth)
+  app.get("/api/account-attendance", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate, department } = req.query;
+
+      let query = db.select().from(attendance);
+
+      if (startDate)
+        query = query.where("date", ">=", new Date(startDate as string));
+      if (endDate)
+        query = query.where("date", "<=", new Date(endDate as string));
+      if (department)
+        query = query.where("department", "=", department as string);
+
+      const records = await query;
+      res.status(200).json(records);
+    } catch (error: any) {
+      res.status(500).json({
+        error: "Failed to fetch account attendance records",
+        details: error.message,
+      });
+    }
+  });
   // Accounts metrics and lists (stubs to satisfy UI)
   app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
     res.json({
@@ -1903,14 +2076,17 @@ app.put("/api/inbound-quotations/:id", async (req, res) => {
       const rows = await db.select().from(fieldVisits);
       // Map status to lowercase/underscore for frontend compatibility
       const statusMap: Record<string, string> = {
-        "Scheduled": "scheduled",
+        Scheduled: "scheduled",
         "In Progress": "in_progress",
-        "Completed": "completed",
-        "Cancelled": "cancelled",
+        Completed: "completed",
+        Cancelled: "cancelled",
       };
-      const mappedRows = rows.map(v => ({
+      const mappedRows = rows.map((v) => ({
         ...v,
-        status: statusMap[v.status] || v.status?.toLowerCase().replace(/\s+/g, '_') || v.status
+        status:
+          statusMap[v.status] ||
+          v.status?.toLowerCase().replace(/\s+/g, "_") ||
+          v.status,
       }));
       res.json(mappedRows);
     } catch (e) {

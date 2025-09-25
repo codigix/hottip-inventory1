@@ -5,7 +5,10 @@ import { db } from "./db";
 // If using Drizzle ORM schema
 import { products } from "@shared/schema"; // make sure this path is correct
 // make sure this path is correct
+import { stockTransactions } from "@shared/schema";
+import { users } from "@shared/schema"; // adjust the path
 
+import { v4 as uuidv4 } from "uuid";
 import { sql, eq, lte } from "drizzle-orm";
 
 interface AuthenticatedRequest extends Request {
@@ -191,45 +194,55 @@ export function registerInventoryRoutes(
       }
     }
   );
-  app.post(
-    "/api/stock-transactions",
-    async (req: AuthenticatedRequest, res: Response) => {
-      try {
-        const body = req.body || {};
+  // POST - create stock transaction
+  app.post("/api/stock-transactions", async (req: Request, res: Response) => {
+    try {
+      const {
+        userId,
+        productId,
+        type,
+        reason,
+        quantity,
+        unitCost,
+        notes,
+        referenceNumber,
+      } = req.body;
 
-        const productId: string = body.productId;
-        const batchId: string | undefined = body.batchId;
-        const type: "in" | "out" = body.type; // match your enum `stock_transaction_type`
-        const reason: string = body.reason; // match your enum `stock_transaction_reason`
-        const quantity: number = Number(body.quantity);
-        const unitCost: number = Number(body.unitCost || 0);
-
-        // Basic validation
-        if (!productId || !type || !reason || !quantity || quantity <= 0) {
-          return res
-            .status(400)
-            .json({ error: "Invalid stock transaction data" });
-        }
-
-        const [row] = await db
-          .insert(stockTransactions)
-          .values({
-            productId,
-            batchId,
-            type,
-            reason,
-            quantity,
-            unitCost,
-          })
-          .returning();
-
-        res.status(201).json(row);
-      } catch (error) {
-        console.error("Error creating stock transaction:", error);
-        res.status(500).json({ error: "Failed to create stock transaction" });
+      if (!productId || !type || !reason || !quantity) {
+        return res.status(400).json({ error: "Missing required fields" });
       }
+
+      // ✅ Replace "current-user" with a valid UUID from your users table
+      let realUserId = userId;
+
+      if (userId === "current-user") {
+        // Use an existing UUID from your users table
+        // Replace this with any UUID you have in users table
+        realUserId = "b34e3723-ba42-402d-b454-88cf96340573";
+      }
+
+      const [row] = await db
+        .insert(stockTransactions)
+        .values({
+          userId: realUserId,
+          productId,
+          batchId: null,
+          type,
+          reason,
+          quantity: Number(quantity),
+          unitCost: Number(unitCost || 0),
+          notes,
+          referenceNumber,
+        })
+        .returning();
+
+      res.status(201).json(row);
+    } catch (error) {
+      console.error("Error creating stock transaction:", error);
+      res.status(500).json({ error: String(error) });
     }
-  );
+  });
+  // GET - all stock transactions
   app.get(
     "/api/stock-transactions",
     requireAuth,
@@ -244,7 +257,7 @@ export function registerInventoryRoutes(
     }
   );
 
-  // Optional: GET stock transactions by product
+  // GET - stock transactions by productId
   app.get(
     "/api/stock-transactions/product/:productId",
     requireAuth,
@@ -254,7 +267,7 @@ export function registerInventoryRoutes(
         const rows = await db
           .select()
           .from(stockTransactions)
-          .where({ productId });
+          .where(eq(stockTransactions.productId, productId)); // ✅ fixed
         res.status(200).json(rows);
       } catch (error) {
         console.error("Error fetching stock transactions by product:", error);
