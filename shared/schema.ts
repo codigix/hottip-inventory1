@@ -286,11 +286,25 @@ export const products = pgTable("products", {
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }).default(0),
   lowStockThreshold: integer("low_stock_threshold").default(0),
   unit: text("unit"),
-  // Spare part specific fields
+});
+
+// =====================
+// SPARE PARTS
+// =====================
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partNumber: text("part_number").notNull().unique(),
+  name: text("name").notNull(),
   type: text("type"),
   status: text("status"),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("min_stock").default(0),
   fabricationTime: integer("fabrication_time"),
   location: text("location"),
+  unit: text("unit"),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).default(0),
+  specifications: text("specifications"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // =====================

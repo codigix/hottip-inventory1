@@ -24,7 +24,7 @@ import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
 import { marketingAttendance } from "@shared/schema";
 // make sure users table is also imported
-import { products } from "@shared/schema"; // adjust path
+import { products, spareParts } from "@shared/schema"; // adjust path
 import { vendorCommunications } from "@shared/schema";
 import {
   users as usersTable,
@@ -752,15 +752,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add product (spare part)
+  // Add product (original, no spare part fields)
   app.post("/api/products", async (req: Request, res: Response) => {
     try {
       const body = req.body || {};
-      // Required fields
       if (!body.sku || !body.name || !body.category) {
         return res.status(400).json({ error: "sku, name, and category are required" });
       }
-      // Insert with new fields
       const [product] = await db.insert(products).values({
         id: uuidv4(),
         sku: body.sku,
@@ -772,16 +770,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lowStockThreshold: body.lowStockThreshold ?? 0,
         unit: body.unit ?? "pcs",
         description: body.description ?? "",
-        // New fields for spare parts
-        type: body.type ?? null,
-        status: body.status ?? null,
-        fabricationTime: body.fabricationTime ?? null,
-        location: body.location ?? null,
       }).returning();
       res.status(201).json(product);
     } catch (error) {
       console.error("Error creating product:", error);
       res.status(500).json({ error: "Failed to create product", details: error.message });
+    }
+  });
+
+  // Spare Parts API
+
+  // Get all spare parts
+  app.get("/api/spare-parts", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(spareParts);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching spare parts:", error);
+      res.status(500).json([]);
+    }
+  });
+
+  // Add spare part
+  app.post("/api/spare-parts", async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      if (!body.partNumber || !body.name) {
+        return res.status(400).json({ error: "partNumber and name are required" });
+      }
+      const [sparePart] = await db.insert(spareParts).values({
+        id: uuidv4(),
+        partNumber: body.partNumber,
+        name: body.name,
+        type: body.type ?? null,
+        status: body.status ?? null,
+        stock: body.stock ?? 0,
+        minStock: body.minStock ?? 0,
+        fabricationTime: body.fabricationTime ?? null,
+        location: body.location ?? null,
+        unit: body.unit ?? "pcs",
+        unitCost: body.unitCost ?? 0,
+        specifications: body.specifications ?? "",
+      }).returning();
+      res.status(201).json(sparePart);
+    } catch (error) {
+      console.error("Error creating spare part:", error);
+      res.status(500).json({ error: "Failed to create spare part", details: error.message });
     }
   });
 
