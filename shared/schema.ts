@@ -46,6 +46,7 @@ import {
   uuid,
   pgEnum,
 } from "drizzle-orm/pg-core";
+import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -117,11 +118,9 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 // MARKETING ATTENDANCE (camelCase, matches actual DB)
 // =====================
-export const marketingAttendance = pgTable("marketingAttendance", {
+export const marketingAttendance = pgTable("marketing_attendance", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("userId").notNull(),
   date: timestamp("date").notNull(),
   checkInTime: timestamp("checkInTime"),
   checkOutTime: timestamp("checkOutTime"),
@@ -207,23 +206,23 @@ export const deliveries = pgTable("deliveries", {
 //   jobCardNumber: text('jobCardNumber'),
 // });
 
-export const outboundQuotations = pgTable('outbound_quotations', {
-  id: serial('id').primaryKey(),
-  quotationNumber: text('quotationNumber').notNull(),
-  customerId: integer('customerId').references(() => customers.id),
-  userId: uuid('userId').notNull(),
-  status: text('status'),
-  quotationDate: timestamp('quotationDate').notNull(),
-  validUntil: timestamp('validUntil'),
-  jobCardNumber: text('jobCardNumber'),
-  partNumber: text('partNumber'),
-  subtotalAmount: numeric('subtotalAmount').notNull(),
-  taxAmount: numeric('taxamount'), // ✅ Fixed: 'taxamount' matches DB column name
-  discountAmount: numeric('discountamount'), // ✅ Fixed: 'discountamount' matches DB column name
-  totalAmount: numeric('totalamount').notNull(), // ✅ Fixed: 'totalamount' matches DB column name
-  paymentTerms: text('paymentterms'), // ✅ Fixed: 'paymentterms' matches DB column name
-  deliveryTerms: text('deliveryterms'), // ✅ Fixed: 'deliveryterms' matches DB column name
-  notes: text('notes'), // ✅ OK — matches DB column name
+export const outboundQuotations = pgTable("outbound_quotations", {
+  id: serial("id").primaryKey(),
+  quotationNumber: text("quotationNumber").notNull(),
+  customerId: integer("customerId").references(() => customers.id),
+  userId: uuid("userId").notNull(),
+  status: text("status"),
+  quotationDate: timestamp("quotationDate").notNull(),
+  validUntil: timestamp("validUntil"),
+  jobCardNumber: text("jobCardNumber"),
+  partNumber: text("partNumber"),
+  subtotalAmount: numeric("subtotalAmount").notNull(),
+  taxAmount: numeric("taxamount"), // ✅ Fixed: 'taxamount' matches DB column name
+  discountAmount: numeric("discountamount"), // ✅ Fixed: 'discountamount' matches DB column name
+  totalAmount: numeric("totalamount").notNull(), // ✅ Fixed: 'totalamount' matches DB column name
+  paymentTerms: text("paymentterms"), // ✅ Fixed: 'paymentterms' matches DB column name
+  deliveryTerms: text("deliveryterms"), // ✅ Fixed: 'deliveryterms' matches DB column name
+  notes: text("notes"), // ✅ OK — matches DB column name
 });
 
 // =====================
@@ -237,23 +236,24 @@ export const outboundQuotations = pgTable('outbound_quotations', {
 //   status: varchar("status", { length: 20 }),
 //   createdAt: timestamp("created_at").defaultNow(),
 // });
+const quotationStatus = pgEnum("quotation_status", [
+  "received",
+  "under_review",
+  "approved",
+  "rejected"
+]);
 export const inboundQuotations = pgTable("inbound_quotations", {
-  id: serial("id").primaryKey(),
-  // ✅ Change this to match your frontend form (UUID)
-  senderId: uuid("sender_id").references(() => users.id), // ← Use uuid, not integer
-  // ✅ Add missing fields
-  quotationNumber: varchar("quotation_number", { length: 50 }).notNull(),
-  quotationDate: timestamp("quotation_date").notNull(),
-  validUntil: timestamp("valid_until"),
-  subject: text("subject"),
-  totalAmount: numeric("total_amount").notNull(),
-  status: varchar("status", { length: 20 }).default("received").notNull(),
-  notes: text("notes"),
-  // ✅ Add attachment fields
-  attachmentPath: text("attachment_path"),
-  attachmentName: text("attachment_name"),
-  senderType: varchar("sender_type", { length: 20 }).default("vendor").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ Matches DB: uuid, default gen_random_uuid()
+  quotationNumber: text("quotationNumber").notNull(), // ✅ Matches DB: text
+  quotationRef: text("quotationRef"),                 // ✅ Matches DB: text
+  senderId: uuid("senderId").notNull().references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
+  senderType: text("senderType").notNull().default("supplier"), // ✅ Matches DB: text
+  userId: uuid("userId").notNull().references(() => users.id), // ✅ Matches DB: uuid, references users
+  status: quotationStatus("status").notNull().default("received"), // ✅ Matches DB: enum type
+  quotationDate: timestamp("quotationDate").notNull(), // ✅ Matches DB: timestamp without time zone
+  validUntil: timestamp("validUntil"),                 // ✅ Matches DB: timestamp without time zone
+  subject: text("subject"),                           // ✅ Matches DB: text
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }), // ✅ Matches DB: numeric(10,2)
 });
 
 // =====================
@@ -272,24 +272,38 @@ export const invoices = pgTable("invoices", {
 // PRODUCTS
 // =====================
 export const products = pgTable("products", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  sku: varchar("sku", { length: 50 }),
-  stock: integer("stock").default(0),
-  price: numeric("price"),
-  supplierId: integer("supplier_id").references(() => suppliers.id),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  sku: text("sku").notNull().unique(),
+  category: text("category").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull().default(0),
+  stock: integer("stock").notNull().default(0),
+  costPrice: decimal("cost_price", { precision: 10, scale: 2 }).default(0),
+  lowStockThreshold: integer("low_stock_threshold").default(0),
+  unit: text("unit"),
 });
 
 // =====================
 // SUPPLIERS
 // =====================
 export const suppliers = pgTable("suppliers", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  contactEmail: varchar("contact_email", { length: 100 }),
-  contactPhone: varchar("contact_phone", { length: 20 }),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ Changed to uuid, matches DB
+  name: text("name").notNull(),               
+  email: text("email"),                       
+  phone: text("phone"),                       
+  address: text("address"),                  
+  city: text("city"),                        
+  state: text("state"),                      
+  zipCode: text("zipCode"),                  
+  country: text("country").default("India"), 
+  gstNumber: text("gstNumber"),              
+  panNumber: text("panNumber"),              
+  companyType: text("companyType").default("company"),
+  contactPerson: text("contactPerson"),      
+  website: text("website"),                  
+  creditLimit: numeric("creditLimit", { precision: 10, scale: 2 }),
+  // createdAt is not a column in your DB table, so it's omitted
 });
 
 // =====================
@@ -401,7 +415,10 @@ export const insertOutboundQuotationSchema = z.object({
   taxAmount: z.string().optional(),
   discountAmount: z.string().optional(),
   totalAmount: z.string().min(1, "Total amount is required"),
-  status: z.enum(["draft", "sent", "pending", "approved", "rejected"]).optional().default("draft"),
+  status: z
+    .enum(["draft", "sent", "pending", "approved", "rejected"])
+    .optional()
+    .default("draft"),
   deliveryTerms: z.string().optional(),
   paymentTerms: z.string().optional(),
   warrantyTerms: z.string().optional(),
@@ -422,9 +439,11 @@ export const insertInboundQuotationSchema = z.object({
   validUntil: z.string().or(z.date()).optional(), // Accept string or Date
   subject: z.string().optional(),
   totalAmount: z.string().min(1, "Total amount is required"),
-  status: z.enum(['received', 'under_review', 'approved', 'rejected']).default('received'),
+  status: z
+    .enum(["received", "under_review", "approved", "rejected"])
+    .default("received"),
   notes: z.string().optional(),
-  senderType: z.enum(['client', 'vendor', 'supplier']).default('vendor'),
+  senderType: z.enum(["client", "vendor", "supplier"]).default("vendor"),
   // ✅ Add attachment fields
   attachmentPath: z.string().optional(),
   attachmentName: z.string().optional(),
@@ -849,4 +868,21 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updatedAt", { withTimezone: false })
     .defaultNow()
     .notNull(),
+});
+
+export const stockTransactionType = ["in", "out"] as const;
+export const stockTransactionReason = [
+  "purchase",
+  "sale",
+  "adjustment",
+] as const;
+
+export const stockTransactions = pgTable("stock_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id", { notNull: true }),
+  batchId: uuid("batch_id", { notNull: false }), // nullable now uses option
+  type: text("type", { notNull: true }),
+  reason: text("reason", { notNull: true }),
+  quantity: integer("quantity", { notNull: true }),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2, notNull: false }),
 });

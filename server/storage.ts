@@ -14,12 +14,14 @@ export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 
-import { suppliers,outboundQuotations } from '@shared/schema';
+import { suppliers,outboundQuotations,inboundQuotations } from '@shared/schema';
 
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
 export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
+export type InboundQuotation = typeof inboundQuotations.$inferSelect;
+export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -41,7 +43,7 @@ class Storage {
 }
   // Suppliers CRUD
   async getSuppliers(): Promise < Supplier[] > {
-  return await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  return await db.select().from(suppliers); 
 }
 
   async createSupplier(insertSupplier: InsertSupplier): Promise < Supplier > {
@@ -69,6 +71,38 @@ async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise
 }
  // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
+
+// Inbound Quotations CRUD////////////////////////////////////////////////////
+async createInboundQuotation(insertQuotation: InsertInboundQuotation): Promise<InboundQuotation> {
+  const [row] = await db.insert(inboundQuotations).values(insertQuotation).returning();
+  return row;
+}
+
+// Add other CRUD methods if needed
+async getInboundQuotations(): Promise<InboundQuotation[]> {
+  return await db.select().from(inboundQuotations); // ✅ Remove orderBy clause
+}
+
+async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
+  const [row] = await db.select().from(inboundQuotations).where(eq(inboundQuotations.id, id));
+  return row;
+}
+
+// async updateInboundQuotation(id: string, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
+//   const [row] = await db.update(inboundQuotations).set(update).where(eq(inboundQuotations.id, id)).returning();
+//   return row;
+// }
+async updateInboundQuotation(id: string | number, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
+  const [row] = await db
+    .update(inboundQuotations)
+    .set(update)
+    .where(eq(inboundQuotations.id, id)) // Use the correct ID column name if it's not 'id'
+    .returning();
+  if (!row) {
+    throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
+  }
+  return row;
+}
 
   // Users
   async getUser(id: string): Promise < User | undefined > {

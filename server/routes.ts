@@ -12,10 +12,13 @@ import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { users } from "../shared/schema";
-import { tasks } from "../shared/schema"; // adjust path if needed
+import { tasks } from "../shared/schema";
+import { stockTransactions } from "@shared/schema"; // adjust path if needed
 import { validate as isUuid } from "uuid";
-
+import { requireAuth } from "@/middleware/auth";
+import { marketingAttendance } from "@shared/schema";
 // make sure users table is also imported
+import { products } from "@shared/schema"; // adjust path
 
 import {
   users as usersTable,
@@ -732,37 +735,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Products Routes
-  app.get("/api/products", async (req, res) => {
+  app.get("/api/products", async (_req: Request, res: Response) => {
     try {
-      const products = await storage.getProducts();
-      res.json(products);
+      const rows = await db.select().from(products);
+      res.json(rows); // send DB rows as JSON
     } catch (error) {
-      res.json([]);
+      console.error("Error fetching products:", error);
+      res.status(500).json([]);
     }
   });
 
   // Suppliers CRUD
-  app.get("/api/suppliers", requireAuth, async (_req, res) => {
+  // Suppliers Routes
+  app.get("/api/suppliers",requireAuth, async (req, res) => {
     try {
-      const rows = await storage.getSuppliers();
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
+      const suppliers = await storage.getSuppliers();
+      res.json(suppliers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch suppliers",details: error.message });
     }
   });
 
-  app.post("/api/suppliers", requireAuth, async (req, res) => {
+  app.post("/api/suppliers", async (req, res) => {
     try {
       const supplierData = insertSupplierSchema.parse(req.body);
       const supplier = await storage.createSupplier(supplierData);
-      res.status(201).json(supplier);
-    } catch (error: any) {
-      res.status(400).json({
-        error: "Invalid supplier data",
-        details: error.errors || error.message,
+      await storage.createActivity({
+        userId: null,
+        action: "CREATE_SUPPLIER",
+        entityType: "supplier",
+        entityId: supplier.id,
+        details: `Created supplier: ${supplier.name}`,
       });
+      res.status(201).json(supplier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid supplier data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create supplier" });
     }
   });
+
 
   app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
@@ -913,15 +926,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // File uploads (generic upload URL)
-  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-    try {
-      const objectStorage = new ObjectStorageService();
-      const uploadURL = await objectStorage.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (e) {
-      res.status(500).json({ error: "Failed to get upload URL" });
-    }
-  });
+  // app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  //   try {
+  //     const objectStorage = new ObjectStorageService();
+  //     const uploadURL = await objectStorage.getObjectEntityUploadURL();
+  //     res.json({ uploadURL });
+  //   } catch (e) {
+  //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
+  //   }
+  // });
+  // File uploads (generic upload URL) - Mocked for local development
+app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  // --- START: Mocking Object Storage for Local Development ---
+  if (process.env.NODE_ENV === "development") {
+    // Return a dummy URL that the frontend can handle gracefully
+    // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+    res.json({ 
+      uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+      message: "File upload is mocked in development mode. No actual upload occurs." 
+    });
+    return; // Exit early, don't proceed to ObjectStorageService
+  }
+  // --- END: Mocking ---
+
+  try {
+    const objectStorage = new ObjectStorageService();
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    res.json({ uploadURL });
+  } catch (e) {
+    // This will now only catch errors when NOT in development mode
+    // or if the development check fails unexpectedly
+    console.error("Object storage error:", e); 
+    res.status(500).json({ error: "Failed to get upload URL", details: e.message });
+  }
+});
 
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
@@ -975,7 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quotations = await storage.getInboundQuotations();
       res.json(quotations);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+      res.status(500).json({ error: "Failed to fetch inbound quotations", details: error.message });
     }
   });
 
@@ -991,46 +1029,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
-    try {
-      const { insertInboundQuotationSchema } = await import("@shared/schema");
-      const parsedData = insertInboundQuotationSchema.parse(req.body);
+app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
+  try {
+    const { insertInboundQuotationSchema } = await import("@shared/schema");
 
-      // Convert types for database
-      const data = {
-        ...parsedData,
-        // ✅ Convert dates from string to Date object
-        quotationDate: new Date(parsedData.quotationDate),
-        validUntil: parsedData.validUntil
-          ? new Date(parsedData.validUntil)
-          : null,
-        // ✅ Convert amount from string to number
-        totalAmount: parseFloat(parsedData.totalAmount),
-        // ✅ Use a valid user ID
-        userId: req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
-      };
-
-      const quotation = await storage.createInboundQuotation(data);
-      await storage.createActivity({
-        userId: quotation.userId,
-        action: "CREATE_INBOUND_QUOTATION",
-        entityType: "inbound_quotation",
-        entityId: quotation.id,
-        details: `Created inbound quotation: ${quotation.quotationNumber}`,
-      });
-      res.status(201).json(quotation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid quotation data", details: error.errors });
-      }
-      console.error("Failed to create inbound quotation:", error);
-      res.status(500).json({ error: "Failed to create inbound quotation" });
+    // Pre-process req.body to remove null values for optional fields
+    // This ensures Zod validation passes if fields are explicitly sent as null
+    const requestBody = { ...req.body };
+    if (requestBody.attachmentPath === null) {
+        delete requestBody.attachmentPath; // Remove the key if value is null
     }
-  });
+    if (requestBody.attachmentName === null) {
+        delete requestBody.attachmentName; // Remove the key if value is null
+    }
 
-  app.put("/api/inbound-quotations/:id", async (req, res) => {
+    const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+
+    // Convert types for database
+    const data = {
+      ...parsedData,
+      // ✅ Convert dates from string to Date object
+      quotationDate: new Date(parsedData.quotationDate),
+      validUntil: parsedData.validUntil
+        ? new Date(parsedData.validUntil)
+        : null,
+      // ✅ Convert amount from string to number
+      totalAmount: parseFloat(parsedData.totalAmount),
+      // ✅ Use a valid UUID for userId in development mode
+      userId: process.env.NODE_ENV === "development" 
+        ? '79c36f2b-237a-4ba6-a4b3-a12fc8a18446' // ← Your valid user ID
+        : req.user?.id || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
+    };
+
+    const quotation = await storage.createInboundQuotation(data);
+    await storage.createActivity({
+      userId: quotation.userId,
+      action: "CREATE_INBOUND_QUOTATION",
+      entityType: "inbound_quotation",
+      entityId: quotation.id,
+      details: `Created inbound quotation: ${quotation.quotationNumber}`,
+    });
+    res.status(201).json(quotation);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ error: "Invalid quotation data", details: error.errors });
+    }
+    console.error("Failed to create inbound quotation:", error);
+    res.status(500).json({ error: "Failed to create inbound quotation", details: error.message }); // Include details
+  }
+});
+
+app.put("/api/inbound-quotations/:id/attachment", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attachmentPath, attachmentName } = req.body; // These come from the frontend after direct upload
+
+    if (!attachmentPath) {
+      return res.status(400).json({ error: "attachmentPath is required" });
+    }
+
+    // Validate the ID format if necessary (e.g., if it's expected to be an integer)
+    // const quotationId = parseInt(id, 10);
+    // if (isNaN(quotationId)) {
+    //   return res.status(400).json({ error: "Invalid quotation ID format" });
+    // }
+
+    // Update the quotation record with the attachment path
+    // You'll need an `updateInboundQuotation` method in your storage class
+    const updatedQuotation = await storage.updateInboundQuotation(id, {
+      attachmentPath: attachmentPath,
+      attachmentName: attachmentName, // Optional
+    });
+
+    if (!updatedQuotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+    }
+
+    res.json(updatedQuotation);
+  } catch (error) {
+    console.error("Failed to update inbound quotation with attachment:", error);
+    res.status(500).json({ error: "Failed to update inbound quotation with attachment", details: error.message });
+  }
+});
+
+app.put("/api/inbound-quotations/:id", async (req, res) => {
     try {
       const quotationData = insertInboundQuotationSchema
         .partial()
@@ -1552,10 +1636,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to create lead" });
     }
   });
-  // app.get("/api/marketing-tasks", async (req, res) => {
-  //   const tasks = await db.getMarketingTasks(); // fetch tasks from DB
-  //   res.json(tasks);
-  // });
 
   app.get("/api/marketing-tasks/metrics", requireAuth, async (_req, res) => {
     try {
@@ -2466,135 +2546,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorage = new ObjectStorageService();
 
     // List all attendance (basic, no filtering)
-    app.get("/api/marketing-attendance", requireAuth, async (req, res) => {
+
+    // Today's attendance
+
+    // Attendance metrics
+
+    // Check-in
+    app.get("/api/marketing-attendance", requireAuth, async (_req, res) => {
       try {
-        const records = await storage.getMarketingAttendances();
-        res.json(records);
+        const rows = await db.select().from(marketingAttendance);
+        res.json(rows);
       } catch (e) {
-        console.error("Error in /api/marketing-attendance:", e);
-        res.status(500).json({
-          error: "Failed to fetch marketing attendance",
-          details: e instanceof Error ? e.message : e,
-        });
+        console.error("Error fetching attendance:", e);
+        res.status(500).json({ error: "Failed to fetch attendance record" });
       }
     });
 
-    // Today's attendance
+    // 📌 INSERT attendance record (Check-in)
+    app.post(
+      "/api/marketing-attendance",
+      requireAuth,
+      async (req: Request, res: Response) => {
+        try {
+          const { userId, checkInLocation, checkInLatitude } = req.body;
+
+          const [row] = await db
+            .insert(marketingAttendance)
+            .values({
+              userId,
+              date: new Date(),
+              checkInTime: new Date(),
+              checkInLocation,
+              checkInLatitude,
+            })
+            .returning();
+
+          res.status(201).json(row);
+        } catch (e) {
+          console.error("Error inserting attendance:", e);
+          res.status(500).json({ error: "Failed to insert attendance record" });
+        }
+      }
+    );
     app.get(
       "/api/marketing-attendance/today",
       requireAuth,
       async (req, res) => {
         try {
-          const records = await getTodayMarketingAttendance();
-          res.json(records);
+          const userId = req.user.id; // 👈 from auth middleware
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+
+          const rows = await db
+            .select()
+            .from(marketingAttendance)
+            .where("userId", "=", userId)
+            .andWhere("date", ">=", today)
+            .andWhere("date", "<", tomorrow);
+
+          res.json(rows);
         } catch (e) {
-          console.error("Error in /api/marketing-attendance/today:", e);
-          res.status(500).json({
-            error: "Failed to fetch today's marketing attendance",
-            details: e instanceof Error ? e.message : e,
-          });
+          console.error("Error fetching today's attendance:", e);
+          res.status(500).json({ error: "Failed to fetch today's attendance" });
         }
       }
     );
 
-    // Attendance metrics
+    // 📌 UPDATE attendance record (Check-out)
+    app.put(
+      "/api/marketing-attendance/:id/checkout",
+      requireAuth,
+      async (req: Request, res: Response) => {
+        try {
+          const { id } = req.params;
+          const { checkOutLocation } = req.body;
+
+          const [row] = await db
+            .update(marketingAttendance)
+            .set({
+              checkOutTime: new Date(),
+              checkOutLocation,
+            })
+            .where(sql`${marketingAttendance.id} = ${id}`)
+            .returning();
+
+          res.json(row);
+        } catch (e) {
+          console.error("Error updating attendance:", e);
+          res.status(500).json({ error: "Failed to update attendance record" });
+        }
+      }
+    );
+
+    // 📌 METRICS (total, checked-in, checked-out)
     app.get(
       "/api/marketing-attendance/metrics",
       requireAuth,
-      requireMarketingAccess,
-      async (req, res) => {
+      async (_req, res) => {
         try {
-          const metrics = await storage.getMarketingAttendanceMetrics();
-          res.json(metrics);
-        } catch (e) {
-          console.error("Error in /api/marketing-attendance/metrics:", e);
-          res.status(500).json({
-            error: "Failed to fetch marketing attendance metrics",
-            details: e instanceof Error ? e.message : e,
+          const [row] = await db
+            .select({
+              total: sql`COUNT(*)::integer`,
+              checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+              checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+            })
+            .from(marketingAttendance);
+
+          res.json({
+            total: Number((row as any)?.total || 0),
+            checkedIn: Number((row as any)?.checkedIn || 0),
+            checkedOut: Number((row as any)?.checkedOut || 0),
           });
-        }
-      }
-    );
-
-    // Check-in
-    app.post(
-      "/api/marketing-attendance/check-in",
-      requireAuth,
-      async (req: AuthenticatedRequest, res) => {
-        try {
-          const { latitude, longitude, location, photoPath, workDescription } =
-            req.body || {};
-          if (latitude == null || longitude == null) {
-            res
-              .status(400)
-              .json({ error: "latitude and longitude are required" });
-            return;
-          }
-          const attendance = await storage.checkInMarketingAttendance(
-            req.user!.id,
-            {
-              date: new Date(),
-              checkInTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
-              attendanceStatus: "present",
-            }
-          );
-          res.status(201).json(attendance);
         } catch (e) {
-          res.status(500).json({ error: "Failed to check in" });
+          console.error("Error fetching attendance metrics:", e);
+          res.status(500).json({ error: "Failed to fetch attendance metrics" });
         }
       }
     );
-
-    // Check-out
-    app.post(
-      "/api/marketing-attendance/check-out",
-      requireAuth,
-      async (req: AuthenticatedRequest, res) => {
-        try {
-          const {
-            latitude,
-            longitude,
-            location,
-            photoPath,
-            workDescription,
-            visitCount,
-            tasksCompleted,
-            outcome,
-            nextAction,
-          } = req.body || {};
-          if (latitude == null || longitude == null) {
-            res
-              .status(400)
-              .json({ error: "latitude and longitude are required" });
-            return;
-          }
-          const attendance = await storage.checkOutMarketingAttendance(
-            req.user!.id,
-            {
-              checkOutTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
-              visitCount,
-              tasksCompleted,
-              outcome,
-              nextAction,
-            }
-          );
-          res.json(attendance);
-        } catch (e) {
-          res.status(500).json({ error: "Failed to check out" });
-        }
-      }
-    );
-
     // Photo upload URL generation
     app.post(
       "/api/marketing-attendance/photo/upload-url",
