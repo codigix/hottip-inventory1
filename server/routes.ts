@@ -1,34 +1,3 @@
-  // Fabrication Orders API
-  app.get("/api/fabrication-orders", async (_req: Request, res: Response) => {
-    try {
-      const rows = await db.select().from(fabricationOrders);
-      res.json(rows);
-    } catch (error) {
-      console.error("Error fetching fabrication orders:", error);
-      res.status(500).json([]);
-    }
-  });
-
-  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
-    try {
-      const { insertFabricationOrderSchema } = await import("@shared/schema");
-      const data = insertFabricationOrderSchema.parse(req.body);
-      const [order] = await db.insert(fabricationOrders).values({
-        id: uuidv4(),
-        partId: data.partId,
-        quantity: data.quantity,
-        status: data.status || "pending",
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-        assignedTo: data.assignedTo || null,
-        notes: data.notes || null,
-      }).returning();
-      res.status(201).json(order);
-    } catch (error) {
-      console.error("Error creating fabrication order:", error);
-      res.status(500).json({ error: "Failed to create fabrication order", details: error.message });
-    }
-  });
 import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
@@ -57,6 +26,7 @@ import { marketingAttendance } from "@shared/schema";
 // make sure users table is also imported
 import { products, spareParts } from "@shared/schema"; // adjust path
 import { vendorCommunications } from "@shared/schema";
+import { spareParts } from "@shared/schema";
 import {
   users as usersTable,
   leads,
@@ -81,6 +51,7 @@ import {
   customers,
 } from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
+// Fabrication Orders API
 
 // Login schema
 const loginSchema = z.object({
@@ -788,65 +759,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = req.body || {};
       if (!body.sku || !body.name || !body.category) {
-        return res.status(400).json({ error: "sku, name, and category are required" });
+        return res
+          .status(400)
+          .json({ error: "sku, name, and category are required" });
       }
-      const [product] = await db.insert(products).values({
-        id: uuidv4(),
-        sku: body.sku,
-        name: body.name,
-        category: body.category,
-        price: body.price ?? 0,
-        stock: body.stock ?? 0,
-        costPrice: body.costPrice ?? 0,
-        lowStockThreshold: body.lowStockThreshold ?? 0,
-        unit: body.unit ?? "pcs",
-        description: body.description ?? "",
-      }).returning();
+      const [product] = await db
+        .insert(products)
+        .values({
+          id: uuidv4(),
+          sku: body.sku,
+          name: body.name,
+          category: body.category,
+          price: body.price ?? 0,
+          stock: body.stock ?? 0,
+          costPrice: body.costPrice ?? 0,
+          lowStockThreshold: body.lowStockThreshold ?? 0,
+          unit: body.unit ?? "pcs",
+          description: body.description ?? "",
+        })
+        .returning();
       res.status(201).json(product);
     } catch (error) {
       console.error("Error creating product:", error);
-      res.status(500).json({ error: "Failed to create product", details: error.message });
+      res
+        .status(500)
+        .json({ error: "Failed to create product", details: error.message });
     }
   });
 
   // Spare Parts API
 
-  // Get all spare parts
+  // GET all spare parts
   app.get("/api/spare-parts", async (_req: Request, res: Response) => {
     try {
-      const rows = await db.select().from(spareParts);
-      res.json(rows);
-    } catch (error) {
-      console.error("Error fetching spare parts:", error);
-      res.status(500).json([]);
+      const parts = await db.select().from(spareParts);
+      res.json(parts);
+    } catch (err: any) {
+      console.error("Error fetching spare parts:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 
-  // Add spare part
+  // POST new spare part
   app.post("/api/spare-parts", async (req: Request, res: Response) => {
     try {
-      const body = req.body || {};
-      if (!body.partNumber || !body.name) {
-        return res.status(400).json({ error: "partNumber and name are required" });
-      }
-      const [sparePart] = await db.insert(spareParts).values({
-        id: uuidv4(),
-        partNumber: body.partNumber,
-        name: body.name,
-        type: body.type ?? null,
-        status: body.status ?? null,
-        stock: body.stock ?? 0,
-        minStock: body.minStock ?? 0,
-        fabricationTime: body.fabricationTime ?? null,
-        location: body.location ?? null,
-        unit: body.unit ?? "pcs",
-        unitCost: body.unitCost ?? 0,
-        specifications: body.specifications ?? "",
-      }).returning();
-      res.status(201).json(sparePart);
-    } catch (error) {
-      console.error("Error creating spare part:", error);
-      res.status(500).json({ error: "Failed to create spare part", details: error.message });
+      const {
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status,
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        fabricationTime, // from payload (camelCase)
+        location,
+        unit,
+      } = req.body;
+
+      // Map camelCase payload to actual DB column names
+      const result = await db.insert(spareParts).values({
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status,
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        location,
+        unit,
+        fabricationtime: fabricationTime, // maps to DB's lowercase column
+      });
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating spare part:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 
@@ -3035,6 +3028,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   const task = req.body;
   //   res.status(201).json({ message: "Task created", task });
   // });
+  // Create Inventory Task
+  app.post("/api/inventory-tasks", async (req, res) => {
+    try {
+      const data = req.body;
+
+      // Basic validation
+      if (!data.title || !data.assignedTo || !data.assignedBy) {
+        return res.status(400).json({
+          error: "title, assignedTo, and assignedBy are required",
+        });
+      }
+
+      // Insert into DB
+      const [task] = await db
+        .insert(inventoryTasks)
+        .values({
+          title: data.title,
+          description: data.description || null,
+          type: data.type || "Fabrication",
+          status: data.status || "pending",
+          priority: data.priority || "medium",
+          assignedTo: data.assignedTo,
+          assignedBy: data.assignedBy,
+          productId: data.productId || null,
+          sparePartId: data.sparePartId || null,
+          batchId: data.batchId || null,
+          fabricationOrderId: data.fabricationOrderId || null,
+          expectedQuantity: data.expectedQuantity || null,
+          actualQuantity: data.actualQuantity || null,
+          fromLocation: data.fromLocation || null,
+          toLocation: data.toLocation || null,
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          completedDate: null,
+          notes: data.notes || null,
+          attachmentPath: data.attachmentPath || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      return res.status(201).json(task);
+    } catch (error: any) {
+      console.error("Error creating inventory task:", error);
+      return res.status(500).json({
+        error: "Failed to create inventory task",
+        details: error.message,
+      });
+    }
+  });
 
   // GET /api/tasks -> fetch all tasks
   app.get("/api/tasks", async (_req: Request, res: Response) => {

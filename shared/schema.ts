@@ -1,3 +1,41 @@
+import {
+  pgTable,
+  serial,
+  varchar,
+  integer,
+  numeric,
+  timestamp,
+  boolean,
+  text,
+  uuid,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { decimal } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { z } from "zod";
+
+// USERS table definition (inline, since ./users is missing)
+// =====================
+// USERS
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
+});
+
 // =====================
 // FABRICATION ORDERS
 // =====================
@@ -5,11 +43,13 @@ export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
   "pending",
   "in_progress",
   "completed",
-  "cancelled"
+  "cancelled",
 ]);
 export const fabricationOrders = pgTable("fabrication_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
-  partId: uuid("part_id").notNull().references(() => spareParts.id),
+  partId: uuid("part_id")
+    .notNull()
+    .references(() => spareParts.id),
   quantity: integer("quantity").notNull().default(1),
   status: fabricationOrderStatusEnum("status").notNull().default("pending"),
   startDate: timestamp("start_date"),
@@ -23,7 +63,9 @@ export const fabricationOrders = pgTable("fabrication_orders", {
 export const insertFabricationOrderSchema = z.object({
   partId: z.string().uuid(),
   quantity: z.coerce.number().min(1),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
@@ -65,43 +107,6 @@ export const insertAdminBackupSchema = z.object({
   filePath: z.string().optional(),
 });
 // shared/schema.ts
-import {
-  pgTable,
-  serial,
-  varchar,
-  integer,
-  numeric,
-  timestamp,
-  boolean,
-  text,
-  uuid,
-  pgEnum,
-} from "drizzle-orm/pg-core";
-import { decimal } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
-import { z } from "zod";
-
-// USERS table definition (inline, since ./users is missing)
-// =====================
-// USERS
-export const userRole = pgEnum("user_role", ["employee", "admin"]);
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull(),
-  email: text("email").notNull(),
-  password: text("password").notNull(),
-  role: userRole("role").default("employee").notNull(),
-  firstName: text("firstName").notNull(),
-  lastName: text("lastName").notNull(),
-  department: text("department"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt")
-    .default(sql`now()`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt")
-    .default(sql`now()`)
-    .notNull(),
-});
 // =====================
 // (Removed duplicate userRole and users exports)
 // =====================
@@ -322,21 +327,6 @@ export const products = pgTable("products", {
 // =====================
 // SPARE PARTS
 // =====================
-export const spareParts = pgTable("spare_parts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  partNumber: text("part_number").notNull().unique(),
-  name: text("name").notNull(),
-  type: text("type"),
-  status: text("status"),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").default(0),
-  fabricationTime: integer("fabrication_time"),
-  location: text("location"),
-  unit: text("unit"),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).default(0),
-  specifications: text("specifications"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // =====================
 // SUPPLIERS
@@ -360,6 +350,48 @@ export const suppliers = pgTable("suppliers", {
   // createdAt is not a column in your DB table, so it's omitted
 });
 
+export const inventory_task_type = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Inspection",
+  "Maintenance",
+]);
+export const inventory_task_status = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
+
+export const inventoryTasks = pgTable("inventory_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: inventory_task_type("type").notNull().default("Fabrication"),
+  status: inventory_task_status("status").notNull().default("pending"),
+  priority: task_priority("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id),
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id),
+  productId: uuid("productId").references(() => products.id),
+  sparePartId: uuid("sparePartId").references(() => spareParts.id),
+  batchId: uuid("batchId").references(() => batches.id),
+  fabricationOrderId: uuid("fabricationOrderId").references(
+    () => fabricationOrders.id
+  ),
+  expectedQuantity: integer("expectedQuantity"),
+  actualQuantity: integer("actualQuantity"),
+  fromLocation: text("fromLocation"),
+  toLocation: text("toLocation"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
 // =====================
 // CUSTOMERS
 // =====================
