@@ -208,7 +208,8 @@ export const deliveries = pgTable("deliveries", {
 export const outboundQuotations = pgTable("outbound_quotations", {
   id: serial("id").primaryKey(),
   quotationNumber: text("quotationNumber").notNull(),
-  customerId: integer("customerId").references(() => customers.id),
+  // Change this line:
+  customerId: uuid("customerId").references(() => customers.id), // Use uuid, not integer
   userId: uuid("userId").notNull(),
   status: text("status"),
   quotationDate: timestamp("quotationDate").notNull(),
@@ -216,12 +217,12 @@ export const outboundQuotations = pgTable("outbound_quotations", {
   jobCardNumber: text("jobCardNumber"),
   partNumber: text("partNumber"),
   subtotalAmount: numeric("subtotalAmount").notNull(),
-  taxAmount: numeric("taxamount"), // ✅ Fixed: 'taxamount' matches DB column name
-  discountAmount: numeric("discountamount"), // ✅ Fixed: 'discountamount' matches DB column name
-  totalAmount: numeric("totalamount").notNull(), // ✅ Fixed: 'totalamount' matches DB column name
-  paymentTerms: text("paymentterms"), // ✅ Fixed: 'paymentterms' matches DB column name
-  deliveryTerms: text("deliveryterms"), // ✅ Fixed: 'deliveryterms' matches DB column name
-  notes: text("notes"), // ✅ OK — matches DB column name
+  taxAmount: numeric("taxamount"),
+  discountAmount: numeric("discountamount"),
+  totalAmount: numeric("totalamount").notNull(),
+  paymentTerms: text("paymentterms"),
+  deliveryTerms: text("deliveryterms"),
+  notes: text("notes"),
 });
 
 // =====================
