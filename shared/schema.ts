@@ -323,12 +323,40 @@ export const customers = pgTable("customers", {
 
 // =====================
 // VENDOR COMMUNICATIONS
+export const communicationType = pgEnum("communication_type", [
+  "general",
+  "phone",
+  "complaint",
+  "follow_up",
+]);
+export const communicationStatus = pgEnum("communication_status", [
+  "completed",
+  "pending",
+]);
 // =====================
 export const vendorCommunications = pgTable("vendor_communications", {
-  id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").references(() => suppliers.id),
-  message: text("message"),
-  communicationDate: timestamp("communication_date").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id),
+  type: communicationType("type").notNull(),
+  status: communicationStatus("status").notNull().default("completed"),
+  subject: text("subject").notNull(),
+  notes: text("notes"),
+  contactPerson: text("contactPerson"),
+  scheduledDate: timestamp("scheduledDate").default(sql`now()`),
+  completedDate: timestamp("completedDate"),
+  followUpRequired: boolean("followUpRequired").default(false),
+  followUpDate: timestamp("followUpDate"),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
 });
 
 // =====================
