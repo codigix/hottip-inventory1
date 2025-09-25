@@ -413,15 +413,15 @@ export default function InboundQuotations() {
   });
 
   const createQuotationMutation = useMutation({
-    mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
+     mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
       // Convert date strings to Date objects for the API call
       const formattedData = {
         ...data,
         quotationDate: new Date(data.quotationDate),
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         userId: '79c36f2b-237a-4ba6-a4b3-a12fc8a18446', // Use a valid user ID
-        attachmentPath: uploadedFile ? '/objects/' + uploadedFile.uploadURL.split('/uploads/')[1] : null,
-        attachmentName: uploadedFile ? uploadedFile.fileName : null,
+        attachmentPath: uploadedFile ? '/objects/' + uploadedFile.uploadURL.split('/uploads/')[1] : null, // ❌ This can be null
+        attachmentName: uploadedFile ? uploadedFile.fileName : null, // ❌ This can be null
       };
 
       return apiRequest('POST', '/inbound-quotations', formattedData);

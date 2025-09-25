@@ -738,27 +738,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers CRUD
-  app.get("/api/suppliers", requireAuth, async (_req, res) => {
+  // Suppliers Routes
+  app.get("/api/suppliers",requireAuth, async (req, res) => {
     try {
-      const rows = await storage.getSuppliers();
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
+      const suppliers = await storage.getSuppliers();
+      res.json(suppliers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch suppliers",details: error.message });
     }
   });
 
-  app.post("/api/suppliers", requireAuth, async (req, res) => {
+  app.post("/api/suppliers", async (req, res) => {
     try {
       const supplierData = insertSupplierSchema.parse(req.body);
       const supplier = await storage.createSupplier(supplierData);
-      res.status(201).json(supplier);
-    } catch (error: any) {
-      res.status(400).json({
-        error: "Invalid supplier data",
-        details: error.errors || error.message,
+      await storage.createActivity({
+        userId: null,
+        action: "CREATE_SUPPLIER",
+        entityType: "supplier",
+        entityId: supplier.id,
+        details: `Created supplier: ${supplier.name}`,
       });
+      res.status(201).json(supplier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid supplier data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create supplier" });
     }
   });
+
 
   app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
@@ -909,15 +918,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // File uploads (generic upload URL)
-  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-    try {
-      const objectStorage = new ObjectStorageService();
-      const uploadURL = await objectStorage.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (e) {
-      res.status(500).json({ error: "Failed to get upload URL" });
-    }
-  });
+  // app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  //   try {
+  //     const objectStorage = new ObjectStorageService();
+  //     const uploadURL = await objectStorage.getObjectEntityUploadURL();
+  //     res.json({ uploadURL });
+  //   } catch (e) {
+  //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
+  //   }
+  // });
+  // File uploads (generic upload URL) - Mocked for local development
+app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  // --- START: Mocking Object Storage for Local Development ---
+  if (process.env.NODE_ENV === "development") {
+    // Return a dummy URL that the frontend can handle gracefully
+    // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+    res.json({ 
+      uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+      message: "File upload is mocked in development mode. No actual upload occurs." 
+    });
+    return; // Exit early, don't proceed to ObjectStorageService
+  }
+  // --- END: Mocking ---
+
+  try {
+    const objectStorage = new ObjectStorageService();
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    res.json({ uploadURL });
+  } catch (e) {
+    // This will now only catch errors when NOT in development mode
+    // or if the development check fails unexpectedly
+    console.error("Object storage error:", e); 
+    res.status(500).json({ error: "Failed to get upload URL", details: e.message });
+  }
+});
 
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
@@ -971,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quotations = await storage.getInboundQuotations();
       res.json(quotations);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+      res.status(500).json({ error: "Failed to fetch inbound quotations", details: error.message });
     }
   });
 
@@ -987,46 +1021,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
-    try {
-      const { insertInboundQuotationSchema } = await import("@shared/schema");
-      const parsedData = insertInboundQuotationSchema.parse(req.body);
+app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
+  try {
+    const { insertInboundQuotationSchema } = await import("@shared/schema");
 
-      // Convert types for database
-      const data = {
-        ...parsedData,
-        // ✅ Convert dates from string to Date object
-        quotationDate: new Date(parsedData.quotationDate),
-        validUntil: parsedData.validUntil
-          ? new Date(parsedData.validUntil)
-          : null,
-        // ✅ Convert amount from string to number
-        totalAmount: parseFloat(parsedData.totalAmount),
-        // ✅ Use a valid user ID
-        userId: req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
-      };
-
-      const quotation = await storage.createInboundQuotation(data);
-      await storage.createActivity({
-        userId: quotation.userId,
-        action: "CREATE_INBOUND_QUOTATION",
-        entityType: "inbound_quotation",
-        entityId: quotation.id,
-        details: `Created inbound quotation: ${quotation.quotationNumber}`,
-      });
-      res.status(201).json(quotation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid quotation data", details: error.errors });
-      }
-      console.error("Failed to create inbound quotation:", error);
-      res.status(500).json({ error: "Failed to create inbound quotation" });
+    // Pre-process req.body to remove null values for optional fields
+    // This ensures Zod validation passes if fields are explicitly sent as null
+    const requestBody = { ...req.body };
+    if (requestBody.attachmentPath === null) {
+        delete requestBody.attachmentPath; // Remove the key if value is null
     }
-  });
+    if (requestBody.attachmentName === null) {
+        delete requestBody.attachmentName; // Remove the key if value is null
+    }
 
-  app.put("/api/inbound-quotations/:id", async (req, res) => {
+    const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+
+    // Convert types for database
+    const data = {
+      ...parsedData,
+      // ✅ Convert dates from string to Date object
+      quotationDate: new Date(parsedData.quotationDate),
+      validUntil: parsedData.validUntil
+        ? new Date(parsedData.validUntil)
+        : null,
+      // ✅ Convert amount from string to number
+      totalAmount: parseFloat(parsedData.totalAmount),
+      // ✅ Use a valid UUID for userId in development mode
+      userId: process.env.NODE_ENV === "development" 
+        ? '79c36f2b-237a-4ba6-a4b3-a12fc8a18446' // ← Your valid user ID
+        : req.user?.id || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
+    };
+
+    const quotation = await storage.createInboundQuotation(data);
+    await storage.createActivity({
+      userId: quotation.userId,
+      action: "CREATE_INBOUND_QUOTATION",
+      entityType: "inbound_quotation",
+      entityId: quotation.id,
+      details: `Created inbound quotation: ${quotation.quotationNumber}`,
+    });
+    res.status(201).json(quotation);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ error: "Invalid quotation data", details: error.errors });
+    }
+    console.error("Failed to create inbound quotation:", error);
+    res.status(500).json({ error: "Failed to create inbound quotation", details: error.message }); // Include details
+  }
+});
+
+app.put("/api/inbound-quotations/:id/attachment", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attachmentPath, attachmentName } = req.body; // These come from the frontend after direct upload
+
+    if (!attachmentPath) {
+      return res.status(400).json({ error: "attachmentPath is required" });
+    }
+
+    // Validate the ID format if necessary (e.g., if it's expected to be an integer)
+    // const quotationId = parseInt(id, 10);
+    // if (isNaN(quotationId)) {
+    //   return res.status(400).json({ error: "Invalid quotation ID format" });
+    // }
+
+    // Update the quotation record with the attachment path
+    // You'll need an `updateInboundQuotation` method in your storage class
+    const updatedQuotation = await storage.updateInboundQuotation(id, {
+      attachmentPath: attachmentPath,
+      attachmentName: attachmentName, // Optional
+    });
+
+    if (!updatedQuotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+    }
+
+    res.json(updatedQuotation);
+  } catch (error) {
+    console.error("Failed to update inbound quotation with attachment:", error);
+    res.status(500).json({ error: "Failed to update inbound quotation with attachment", details: error.message });
+  }
+});
+
+app.put("/api/inbound-quotations/:id", async (req, res) => {
     try {
       const quotationData = insertInboundQuotationSchema
         .partial()

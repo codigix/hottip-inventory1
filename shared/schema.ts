@@ -202,23 +202,24 @@ export const outboundQuotations = pgTable('outbound_quotations', {
 //   status: varchar("status", { length: 20 }),
 //   createdAt: timestamp("created_at").defaultNow(),
 // });
+const quotationStatus = pgEnum("quotation_status", [
+  "received",
+  "under_review",
+  "approved",
+  "rejected"
+]);
 export const inboundQuotations = pgTable("inbound_quotations", {
-  id: serial("id").primaryKey(),
-  // ✅ Change this to match your frontend form (UUID)
-  senderId: uuid("sender_id").references(() => users.id), // ← Use uuid, not integer
-  // ✅ Add missing fields
-  quotationNumber: varchar("quotation_number", { length: 50 }).notNull(),
-  quotationDate: timestamp("quotation_date").notNull(),
-  validUntil: timestamp("valid_until"),
-  subject: text("subject"),
-  totalAmount: numeric("total_amount").notNull(),
-  status: varchar("status", { length: 20 }).default("received").notNull(),
-  notes: text("notes"),
-  // ✅ Add attachment fields
-  attachmentPath: text("attachment_path"),
-  attachmentName: text("attachment_name"),
-  senderType: varchar("sender_type", { length: 20 }).default("vendor").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ Matches DB: uuid, default gen_random_uuid()
+  quotationNumber: text("quotationNumber").notNull(), // ✅ Matches DB: text
+  quotationRef: text("quotationRef"),                 // ✅ Matches DB: text
+  senderId: uuid("senderId").notNull().references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
+  senderType: text("senderType").notNull().default("supplier"), // ✅ Matches DB: text
+  userId: uuid("userId").notNull().references(() => users.id), // ✅ Matches DB: uuid, references users
+  status: quotationStatus("status").notNull().default("received"), // ✅ Matches DB: enum type
+  quotationDate: timestamp("quotationDate").notNull(), // ✅ Matches DB: timestamp without time zone
+  validUntil: timestamp("validUntil"),                 // ✅ Matches DB: timestamp without time zone
+  subject: text("subject"),                           // ✅ Matches DB: text
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }), // ✅ Matches DB: numeric(10,2)
 });
 
 // =====================
@@ -250,11 +251,22 @@ export const products = pgTable("products", {
 // SUPPLIERS
 // =====================
 export const suppliers = pgTable("suppliers", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  contactEmail: varchar("contact_email", { length: 100 }),
-  contactPhone: varchar("contact_phone", { length: 20 }),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ Changed to uuid, matches DB
+  name: text("name").notNull(),               
+  email: text("email"),                       
+  phone: text("phone"),                       
+  address: text("address"),                  
+  city: text("city"),                        
+  state: text("state"),                      
+  zipCode: text("zipCode"),                  
+  country: text("country").default("India"), 
+  gstNumber: text("gstNumber"),              
+  panNumber: text("panNumber"),              
+  companyType: text("companyType").default("company"),
+  contactPerson: text("contactPerson"),      
+  website: text("website"),                  
+  creditLimit: numeric("creditLimit", { precision: 10, scale: 2 }),
+  // createdAt is not a column in your DB table, so it's omitted
 });
 
 // =====================
