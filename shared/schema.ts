@@ -16,6 +16,8 @@ export const fabricationOrders = pgTable("fabrication_orders", {
   dueDate: timestamp("due_date"),
   assignedTo: uuid("assigned_to").references(() => users.id),
   notes: text("notes"),
+  qcStatus: text("qc_status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  qcNotes: text("qc_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -28,6 +30,8 @@ export const insertFabricationOrderSchema = z.object({
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
   notes: z.string().optional(),
+  qcStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+  qcNotes: z.string().optional(),
 });
 // =====================
 // ADMIN SETTINGS

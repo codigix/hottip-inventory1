@@ -16,6 +16,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 // Named export to avoid import issues
+
 export function registerInventoryRoutes(
   app: Express,
   middleware: {
@@ -27,6 +28,47 @@ export function registerInventoryRoutes(
   }
 ) {
   const { requireAuth } = middleware;
+
+  // Inventory Reports Download Endpoints
+  app.get("/api/reports/inventory/stock-balance", requireAuth, async (_req, res) => {
+    try {
+      // Example: fetch all products and output as CSV
+      const rows = await db.select().from(products);
+      const csv = [
+        'Product Name,SKU,Category,Stock,Unit,Price',
+        ...rows.map(r => [r.name, r.sku, r.category, r.stock, r.unit, r.price].join(','))
+      ].join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="stock-balance.csv"');
+      res.send(csv);
+    } catch (e) {
+      res.status(500).send('Failed to generate stock balance report');
+    }
+  });
+
+  app.get("/api/inventory/reports/vendor-history", requireAuth, async (_req, res) => {
+    try {
+      // TODO: Replace with real vendor history data
+      const csv = 'Vendor,Total Orders,Last Order Date\nVendor A,12,2024-09-01\nVendor B,8,2024-08-15';
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="vendor-history.csv"');
+      res.send(csv);
+    } catch (e) {
+      res.status(500).send('Failed to generate vendor history report');
+    }
+  });
+
+  app.get("/api/reports/inventory/reorder-forecast", requireAuth, async (_req, res) => {
+    try {
+      // TODO: Replace with real reorder forecast data
+      const csv = 'Product,Current Stock,Forecasted Need\nWidget,10,25\nGadget,5,20';
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="reorder-forecast.csv"');
+      res.send(csv);
+    } catch (e) {
+      res.status(500).send('Failed to generate reorder forecast report');
+    }
+  });
 
   // Inventory dashboard metrics
   app.get("/api/inventory/dashboard", requireAuth, async (_req, res) => {

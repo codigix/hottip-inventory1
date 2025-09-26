@@ -24,6 +24,23 @@ export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 
 class Storage {
+  // --- INVOICES STUBS ---
+  async getInvoices() {
+    // TODO: Replace with real DB logic
+    return [];
+  }
+  async getInvoice(id: string) {
+    // TODO: Replace with real DB logic
+    return null;
+  }
+  async createInvoice(invoiceData: any) {
+    // TODO: Replace with real DB logic
+    return { ...invoiceData, id: 'mock-id', userId: 'mock-user', invoiceNumber: 'INV-0001' };
+  }
+  async updateInvoice(id: string, invoiceData: any) {
+    // TODO: Replace with real DB logic
+    return { ...invoiceData, id, userId: 'mock-user', invoiceNumber: 'INV-0001' };
+  }
   // Find user by username or email
   async findUserByUsernameOrEmail(username: string, email: string) {
     const [user] = await db

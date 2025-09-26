@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +15,95 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Wrench, Package, Clock, CheckCircle, AlertCircle, Settings, Plus, FileText } from "lucide-react";
+
+// Quality Control Queue Component
+function QualityControlQueue() {
+  const { data: fabricationOrders = [], isLoading } = useQuery({
+    queryKey: ["/fabrication-orders"],
+    queryFn: async () => apiRequest("GET", "/fabrication-orders"),
+  });
+  const { data: spareParts = [] } = useQuery({
+    queryKey: ["/spare-parts"],
+    queryFn: async () => apiRequest("GET", "/spare-parts"),
+  });
+  const { toast } = useToast();
+  const qcMutation = useMutation({
+    mutationFn: async ({ id, qcStatus, qcNotes }: any) => {
+      return apiRequest("PATCH", `/fabrication-orders/${id}/qc`, { qcStatus, qcNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "QC status updated", description: "Quality control status saved." });
+      queryClient.invalidateQueries({ queryKey: ["/fabrication-orders"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update QC status", variant: "destructive" });
+    }
+  });
+  const [inspectId, setInspectId] = useState<string|null>(null);
+  const [qcNotes, setQcNotes] = useState("");
+
+  // Show only orders with qcStatus 'pending'
+  const pendingOrders = (fabricationOrders || []).filter((o: any) => o.qcStatus === "pending");
+
+  if (isLoading) return <div>Loading...</div>;
+  if (pendingOrders.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground py-8">
+        <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <p>No items in quality control queue</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {pendingOrders.map((order: any) => {
+        const part = spareParts.find((p: any) => p.id === order.partId);
+        const isInspecting = inspectId === order.id;
+        return (
+          <div key={order.id} className="flex flex-col border rounded-lg p-4 bg-yellow-50 mb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="font-light">{part ? `${part.name} - ${part.partNumber}` : order.partId}</p>
+                  <p className="text-sm text-muted-foreground">Awaiting inspection</p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button size="sm" variant="outline" onClick={() => { setInspectId(order.id); setQcNotes(order.qcNotes || ""); }}>Inspect</Button>
+                <Button size="sm" onClick={() => qcMutation.mutate({ id: order.id, qcStatus: "approved", qcNotes: order.qcNotes })}>Approve</Button>
+                <Button size="sm" variant="destructive" onClick={() => { setInspectId(order.id); setQcNotes(order.qcNotes || ""); }}>Reject</Button>
+              </div>
+            </div>
+            {isInspecting && (
+              <div className="border rounded-lg p-6 bg-white shadow-md mt-4">
+                <div className="mb-4">
+                  <h3 className="font-bold text-lg mb-2">Inspect Product</h3>
+                  <p><b>Part Number:</b> {part ? part.partNumber : order.partId}</p>
+                  <p><b>Name:</b> {part ? part.name : "-"}</p>
+                  <p><b>Quantity:</b> {order.quantity}</p>
+                  <p><b>Notes:</b> {order.notes}</p>
+                </div>
+                <div className="mb-4">
+                  <Label htmlFor="qc-notes">Inspection Notes</Label>
+                  <Textarea id="qc-notes" value={qcNotes} onChange={e => setQcNotes(e.target.value)} placeholder="Describe any issues or confirm good condition..." />
+                </div>
+                <div className="flex space-x-2 justify-end">
+                  <Button size="sm" onClick={() => { qcMutation.mutate({ id: order.id, qcStatus: "approved", qcNotes }); setInspectId(null); }}>Approve</Button>
+                  <Button size="sm" variant="destructive" onClick={() => { qcMutation.mutate({ id: order.id, qcStatus: "rejected", qcNotes }); setInspectId(null); }}>Reject</Button>
+                  <Button size="sm" variant="outline" onClick={() => setInspectId(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function SparePartsFabrication() {
     // Fabrication Orders state and API
@@ -390,46 +478,87 @@ export default function SparePartsFabrication() {
         </TabsContent>
 
         <TabsContent value="fabrication">
-          <Card>
-            <CardHeader>
-              <CardTitle>Fabrication Orders</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="px-3 py-2 text-left">Part</th>
-                      <th className="px-3 py-2 text-left">Quantity</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                      <th className="px-3 py-2 text-left">Start Date</th>
-                      <th className="px-3 py-2 text-left">Due Date</th>
-                      <th className="px-3 py-2 text-left">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fabOrdersLoading ? (
-                      <tr><td colSpan={6}><Skeleton className="h-8 w-full" /></td></tr>
-                    ) : fabricationOrders.length === 0 ? (
-                      <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No fabrication orders</td></tr>
-                    ) : fabricationOrders.map((order: any) => {
-                      const part = spareParts.find((p: any) => p.id === order.partId);
-                      return (
-                        <tr key={order.id} className="border-b">
-                          <td className="px-3 py-2">{part ? `${part.partNumber} - ${part.name}` : order.partId}</td>
-                          <td className="px-3 py-2">{order.quantity}</td>
-                          <td className="px-3 py-2 capitalize">{order.status.replace('_', ' ')}</td>
-                          <td className="px-3 py-2">{order.startDate ? order.startDate.slice(0, 10) : ''}</td>
-                          <td className="px-3 py-2">{order.dueDate ? order.dueDate.slice(0, 10) : ''}</td>
-                          <td className="px-3 py-2">{order.notes}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Fabrication Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <Clock className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="font-light">Custom Valve - SP-002</p>
+                        <p className="text-sm text-muted-foreground">Started: 2 days ago</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Progress value={65} className="w-32" />
+                      <p className="text-sm text-muted-foreground mt-1">65% Complete</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Settings className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-light">Motor Mount - SP-015</p>
+                        <p className="text-sm text-muted-foreground">Started: 5 hours ago</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Progress value={20} className="w-32" />
+                      <p className="text-sm text-muted-foreground mt-1">20% Complete</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Fabrication Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="px-3 py-2 text-left">Part</th>
+                        <th className="px-3 py-2 text-left">Quantity</th>
+                        <th className="px-3 py-2 text-left">Status</th>
+                        <th className="px-3 py-2 text-left">Start Date</th>
+                        <th className="px-3 py-2 text-left">Due Date</th>
+                        <th className="px-3 py-2 text-left">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fabOrdersLoading ? (
+                        <tr><td colSpan={6}><Skeleton className="h-8 w-full" /></td></tr>
+                      ) : fabricationOrders.length === 0 ? (
+                        <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No fabrication orders</td></tr>
+                      ) : fabricationOrders.map((order: any) => {
+                        const part = spareParts.find((p: any) => p.id === order.partId);
+                        return (
+                          <tr key={order.id} className="border-b">
+                            <td className="px-3 py-2">{part ? `${part.partNumber} - ${part.name}` : order.partId}</td>
+                            <td className="px-3 py-2">{order.quantity}</td>
+                            <td className="px-3 py-2 capitalize">{order.status.replace('_', ' ')}</td>
+                            <td className="px-3 py-2">{order.startDate ? order.startDate.slice(0, 10) : ''}</td>
+                            <td className="px-3 py-2">{order.dueDate ? order.dueDate.slice(0, 10) : ''}</td>
+                            <td className="px-3 py-2">{order.notes}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="quality">
@@ -438,35 +567,11 @@ export default function SparePartsFabrication() {
               <CardTitle>Quality Control Queue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-yellow-600" />
-                    </div>
-                    <div>
-                      <p className="font-light">Precision Gear - SP-087</p>
-                      <p className="text-sm text-muted-foreground">Awaiting inspection</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
-                      Inspect
-                    </Button>
-                    <Button size="sm">
-                      Approve
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="text-center text-muted-foreground py-8">
-                  <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No other items in quality control queue</p>
-                </div>
-              </div>
+              <QualityControlQueue />
             </CardContent>
           </Card>
         </TabsContent>
+
       </Tabs>
     </main>
   );

@@ -1,4 +1,21 @@
 import { useState } from "react";
+// Helper to download a file from a URL
+function downloadFile(url: string, filename: string) {
+  fetch(url, { credentials: 'include' })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to download');
+      return res.blob();
+    })
+    .then(blob => {
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    })
+    .catch(() => alert('Download failed.'));
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,7 +66,7 @@ export default function InventoryReports() {
               </div>
               <Package className="h-8 w-8 text-blue-600" />
             </div>
-            <Button  size="sm" className="w-full mt-4">
+            <Button size="sm" className="w-full mt-4" onClick={() => downloadFile('/api/reports/inventory/stock-balance', 'stock-balance.csv')}>
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -65,7 +82,7 @@ export default function InventoryReports() {
               </div>
               <Building2 className="h-8 w-8 text-green-600" />
             </div>
-            <Button  size="sm" className="w-full mt-4">
+            <Button size="sm" className="w-full mt-4" onClick={() => downloadFile('/api/inventory/reports/vendor-history', 'vendor-history.csv')}>
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -81,7 +98,7 @@ export default function InventoryReports() {
               </div>
               <TrendingUp className="h-8 w-8 text-orange-600" />
             </div>
-            <Button  size="sm" className="w-full mt-4">
+            <Button size="sm" className="w-full mt-4" onClick={() => downloadFile('/api/reports/inventory/reorder-forecast', 'reorder-forecast.csv')}>
               <Download className="h-3 w-3 mr-1" />
               Export
             </Button>
@@ -122,7 +139,7 @@ export default function InventoryReports() {
                   <Package className="h-5 w-5" />
                   <span>Current Stock Balance Report</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => downloadFile('/api/reports/inventory/stock-balance', 'stock-balance.csv')}>
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </Button>
@@ -182,9 +199,9 @@ export default function InventoryReports() {
                   <Building2 className="h-5 w-5" />
                   <span>Vendor Performance Analysis</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => downloadFile('/api/inventory/reports/vendor-history', 'vendor-history.csv')}>
                   <Download className="h-4 w-4 mr-2" />
-                  Export PDF
+                  Export CSV
                 </Button>
               </CardTitle>
             </CardHeader>
@@ -236,9 +253,9 @@ export default function InventoryReports() {
                   <TrendingUp className="h-5 w-5" />
                   <span>Reorder Forecast & Planning</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => downloadFile('/api/reports/inventory/reorder-forecast', 'reorder-forecast.csv')}>
                   <Download className="h-4 w-4 mr-2" />
-                  Export Excel
+                  Export CSV
                 </Button>
               </CardTitle>
             </CardHeader>
