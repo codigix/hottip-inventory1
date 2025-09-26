@@ -814,26 +814,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         minStock,
         maxStock,
         unitCost,
-        fabricationTime, // from payload (camelCase)
+        fabricationTime,
         location,
         unit,
       } = req.body;
 
-      // Map camelCase payload to actual DB column names
       const result = await db.insert(spareParts).values({
         partNumber,
         name,
         description,
         specifications,
         type,
-        status,
+        status: status || "available", // default if null
         stock,
         minStock,
         maxStock,
         unitCost,
         location,
         unit,
-        fabricationtime: fabricationTime, // maps to DB's lowercase column
+        fabricationtime: fabricationTime, // map camelCase -> lowercase DB column
       });
 
       res.status(201).json(result);

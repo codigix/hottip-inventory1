@@ -71,6 +71,33 @@ export const insertFabricationOrderSchema = z.object({
   assignedTo: z.string().uuid().optional(),
   notes: z.string().optional(),
 });
+
+export const spare_part_type = pgEnum("spare_part_type", [
+  "component",
+  "assembly",
+]);
+export const spare_part_status = pgEnum("spare_part_status", [
+  "available",
+  "unavailable",
+]);
+
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partNumber: text("partNumber").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  specifications: text("specifications"),
+  type: spare_part_type("type").notNull().default("component"),
+  status: spare_part_status("status").notNull().default("available"),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("minStock").notNull().default(0),
+  maxStock: integer("maxStock").notNull().default(100),
+  unitCost: numeric("unitCost", 10, 2),
+  location: text("location"),
+  unit: text("unit"),
+  fabricationtime: integer("fabricationtime"), // integer type now
+});
+
 // =====================
 // ADMIN SETTINGS
 // =====================
