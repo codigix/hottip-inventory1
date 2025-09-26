@@ -10,6 +10,7 @@ import {
   uuid,
   pgEnum,
 } from "drizzle-orm/pg-core";
+
 import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -39,26 +40,6 @@ export const users = pgTable("users", {
 // =====================
 // FABRICATION ORDERS
 // =====================
-export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
-  "pending",
-  "in_progress",
-  "completed",
-  "cancelled",
-]);
-export const fabricationOrders = pgTable("fabrication_orders", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  partId: uuid("part_id")
-    .notNull()
-    .references(() => spareParts.id),
-  quantity: integer("quantity").notNull().default(1),
-  status: fabricationOrderStatusEnum("status").notNull().default("pending"),
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertFabricationOrderSchema = z.object({
   partId: z.string().uuid(),
@@ -96,6 +77,78 @@ export const spareParts = pgTable("spare_parts", {
   location: text("location"),
   unit: text("unit"),
   fabricationtime: integer("fabricationtime"), // integer type now
+});
+
+// Enums
+export const inventoryTaskStatus = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+export const taskPriority = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+export const inventoryTaskType = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Maintenance",
+  "Inspection",
+]);
+
+export const inventoryTasks = pgTable("inventory_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: inventoryTaskType("type").notNull(),
+  status: inventoryTaskStatus("status").notNull().default("pending"),
+  priority: taskPriority("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo").notNull(),
+  assignedBy: uuid("assignedBy").notNull(),
+  productId: uuid("productId"),
+  sparePartId: uuid("sparePartId"),
+  batchId: uuid("batchId"),
+  fabricationOrderId: uuid("fabricationOrderId"),
+  expectedQuantity: integer("expectedQuantity"),
+  actualQuantity: integer("actualQuantity"),
+  fromLocation: text("fromLocation"),
+  toLocation: text("toLocation"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Enums
+export const fabricationOrderStatus = pgEnum("fabrication_order_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+
+export const fabricationOrderPriority = pgEnum("fabrication_order_priority", [
+  "low",
+  "normal",
+  "high",
+]);
+
+// Table definition
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderNumber: text("orderNumber").notNull(),
+  sparePartId: uuid("sparePartId").notNull(),
+  quantity: integer("quantity").notNull(),
+  status: fabricationOrderStatus("status").notNull().default("pending"),
+  priority: fabricationOrderPriority("priority").notNull().default("normal"),
+  startDate: timestamp("startDate"),
+  dueDate: timestamp("dueDate"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 // =====================
@@ -389,36 +442,6 @@ export const inventory_task_status = pgEnum("inventory_task_status", [
 ]);
 export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
 
-export const inventoryTasks = pgTable("inventory_tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull(),
-  description: text("description"),
-  type: inventory_task_type("type").notNull().default("Fabrication"),
-  status: inventory_task_status("status").notNull().default("pending"),
-  priority: task_priority("priority").notNull().default("medium"),
-  assignedTo: uuid("assignedTo")
-    .notNull()
-    .references(() => users.id),
-  assignedBy: uuid("assignedBy")
-    .notNull()
-    .references(() => users.id),
-  productId: uuid("productId").references(() => products.id),
-  sparePartId: uuid("sparePartId").references(() => spareParts.id),
-  batchId: uuid("batchId").references(() => batches.id),
-  fabricationOrderId: uuid("fabricationOrderId").references(
-    () => fabricationOrders.id
-  ),
-  expectedQuantity: integer("expectedQuantity"),
-  actualQuantity: integer("actualQuantity"),
-  fromLocation: text("fromLocation"),
-  toLocation: text("toLocation"),
-  dueDate: timestamp("dueDate"),
-  completedDate: timestamp("completedDate"),
-  notes: text("notes"),
-  attachmentPath: text("attachmentPath"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
-});
 // =====================
 // CUSTOMERS
 // =====================

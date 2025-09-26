@@ -27,6 +27,9 @@ import { marketingAttendance } from "@shared/schema";
 import { products, spareParts } from "@shared/schema"; // adjust path
 import { vendorCommunications } from "@shared/schema";
 import { spareParts } from "@shared/schema";
+import { inventoryTasks } from "@shared/schema";
+import { fabricationOrders } from "../shared/schema"; // adjust path if needed
+
 import {
   users as usersTable,
   leads,
@@ -788,6 +791,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Spare Parts API
+  app.get("/api/fabrication-orders", async (req, res) => {
+    try {
+      const orders = await storage.getFabricationOrders();
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fabrication orders" });
+    }
+  });
+
+  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
+    try {
+      const { partId, quantity, status, priority, startDate, dueDate, notes } =
+        req.body;
+
+      const orderNumber = `FO-${Date.now()}`; // auto-generate order number
+
+      const result = await db
+        .insert(fabricationOrders)
+        .values({
+          orderNumber,
+          sparePartId: partId,
+          quantity,
+          status: status || "pending",
+          priority: priority || "normal",
+          startDate: startDate ? new Date(startDate) : null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+        })
+        .returning();
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating fabrication order:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // GET all spare parts
   app.get("/api/spare-parts", async (_req: Request, res: Response) => {
@@ -1019,105 +1058,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json([]);
   });
 
-  // Inventory tasks (in-memory for now)
-  app.get("/api/inventory-tasks", requireAuth, async (_req, res) => {
-    try {
-      // Return most recent first
-      const rows = [...inMemoryInventoryTasks].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  // Create inventory task
-  app.post(
-    "/api/inventory-tasks",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const body = req.body || {};
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        if (!title) {
-          res.status(400).json({ error: "title is required" });
-          return;
-        }
-        const description =
-          typeof body.description === "string" ? body.description.trim() : "";
-        const assignedTo =
-          typeof body.assignedTo === "string" ? body.assignedTo.trim() : "";
-        const priority =
-          typeof body.priority === "string" ? body.priority : "medium";
-        const category =
-          typeof body.category === "string" ? body.category : "general";
-        const dueDate = body.dueDate
-          ? new Date(body.dueDate).toISOString()
-          : new Date().toISOString();
-
-        const rec = {
-          id: "task-" + Date.now(),
-          title,
-          description,
-          assignedTo,
-          status: "new",
-          priority,
-          dueDate,
-          category,
-          createdAt: new Date().toISOString(),
-          createdBy: req.user?.id || null,
-          notes: "",
-          timeSpent: null,
-          completedAt: null,
-        };
-
-        inMemoryInventoryTasks.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to create task" });
-      }
-    }
-  );
-
-  // Update inventory task status/details
-  app.put(
-    "/api/inventory-tasks/:id",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const id = String(req.params.id);
-        const idx = inMemoryInventoryTasks.findIndex(
-          (t) => String(t.id) === id
-        );
-        if (idx === -1) {
-          res.status(404).json({ error: "Task not found" });
-          return;
-        }
-        const body = req.body || {};
-        const patch: any = {};
-        if (typeof body.status === "string") patch.status = body.status;
-        if (typeof body.notes === "string") patch.notes = body.notes;
-        if (body.timeSpent != null && !Number.isNaN(Number(body.timeSpent)))
-          patch.timeSpent = Number(body.timeSpent);
-        if (body.completedAt != null)
-          patch.completedAt = body.completedAt
-            ? new Date(body.completedAt).toISOString()
-            : null;
-        patch.updatedAt = new Date().toISOString();
-
-        inMemoryInventoryTasks[idx] = {
-          ...inMemoryInventoryTasks[idx],
-          ...patch,
-        };
-        res.json(inMemoryInventoryTasks[idx]);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to update task" });
-      }
-    }
-  );
-
   // File uploads (generic upload URL)
   // app.post("/api/objects/upload", requireAuth, async (_req, res) => {
   //   try {
@@ -1298,26 +1238,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     }
   //   }
   // });
- app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-  try {
-    console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
 
-    // --- Call the new storage method ---
-    const quotations = await storage.getOutboundQuotations();
+      // --- Call the new storage method ---
+      const quotations = await storage.getOutboundQuotations();
 
-    console.log(`🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`);
-    // --- Send the correctly structured data ---
-    res.json(quotations);
-  } catch (error) {
-    // --- Handle errors from storage ---
-    console.error("💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:", error);
-    res.status(500).json({
-      error: "Failed to fetch outbound quotations",
-      // Optionally include more details from the error object
-      // details: error.message || "An unknown error occurred while fetching quotations.",
-    });
-  }
-});
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
+      );
+      // --- Send the correctly structured data ---
+      res.json(quotations);
+    } catch (error) {
+      // --- Handle errors from storage ---
+      console.error(
+        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
+        error
+      );
+      res.status(500).json({
+        error: "Failed to fetch outbound quotations",
+        // Optionally include more details from the error object
+        // details: error.message || "An unknown error occurred while fetching quotations.",
+      });
+    }
+  });
 
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
@@ -1402,34 +1347,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-// app.put("/api/outbound-quotations/:id", async (req, res) => {
-//   try {
-//     // 1. Parse and validate request body
-//     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
+  // app.put("/api/outbound-quotations/:id", async (req, res) => {
+  //   try {
+  //     // 1. Parse and validate request body
+  //     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
 
-//     // 2. Call the storage method to perform the update
-//     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
+  //     // 2. Call the storage method to perform the update
+  //     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
 
-//     // 3. Create activity log (optional)
-//     await storage.createActivity({
-//       userId: quotation.userId,
-//       action: "UPDATE_OUTBOUND_QUOTATION",
-//       entityType: "outbound_quotation",
-//       entityId: quotation.id,
-//       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
-//     });
+  //     // 3. Create activity log (optional)
+  //     await storage.createActivity({
+  //       userId: quotation.userId,
+  //       action: "UPDATE_OUTBOUND_QUOTATION",
+  //       entityType: "outbound_quotation",
+  //       entityId: quotation.id,
+  //       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+  //     });
 
-//     // 4. Send back the updated quotation
-//     res.json(quotation);
-//   } catch (error) {
-//     // 5. Handle errors (Zod validation or storage errors)
-//     if (error instanceof z.ZodError) {
-//        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
-//     }
-//     console.error("Failed to update outbound quotation:", error);
-//     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
-//   }
-// });
+  //     // 4. Send back the updated quotation
+  //     res.json(quotation);
+  //   } catch (error) {
+  //     // 5. Handle errors (Zod validation or storage errors)
+  //     if (error instanceof z.ZodError) {
+  //        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     console.error("Failed to update outbound quotation:", error);
+  //     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
+  //   }
+  // });
 
   // app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
   //   try {
@@ -1458,78 +1403,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
   // Inbound Quotations Routes
-  
-app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
-  try {
-    const { insertOutboundQuotationSchema } = await import("@shared/schema");
-    const parsedData = insertOutboundQuotationSchema.partial().parse(req.body);
 
-    // --- PREPARE DATA FOR DATABASE UPDATE ---
-    const updateData: any = {};
-    // Handle Date Fields
-    if (parsedData.quotationDate !== undefined) {
-        updateData.quotationDate = parsedData.quotationDate === null ? null :
-          (parsedData.quotationDate instanceof Date ? parsedData.quotationDate : new Date(parsedData.quotationDate));
-    }
-    if (parsedData.validUntil !== undefined) {
-        updateData.validUntil = parsedData.validUntil === null ? null :
-          (parsedData.validUntil instanceof Date ? parsedData.validUntil : new Date(parsedData.validUntil));
-    }
-    // Handle UUID/String Fields
-    if (parsedData.customerId !== undefined) {
+  app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertOutboundQuotationSchema } = await import("@shared/schema");
+      const parsedData = insertOutboundQuotationSchema
+        .partial()
+        .parse(req.body);
+
+      // --- PREPARE DATA FOR DATABASE UPDATE ---
+      const updateData: any = {};
+      // Handle Date Fields
+      if (parsedData.quotationDate !== undefined) {
+        updateData.quotationDate =
+          parsedData.quotationDate === null
+            ? null
+            : parsedData.quotationDate instanceof Date
+            ? parsedData.quotationDate
+            : new Date(parsedData.quotationDate);
+      }
+      if (parsedData.validUntil !== undefined) {
+        updateData.validUntil =
+          parsedData.validUntil === null
+            ? null
+            : parsedData.validUntil instanceof Date
+            ? parsedData.validUntil
+            : new Date(parsedData.validUntil);
+      }
+      // Handle UUID/String Fields
+      if (parsedData.customerId !== undefined) {
         updateData.customerId = parsedData.customerId || null;
-    }
-    if (parsedData.userId !== undefined) {
+      }
+      if (parsedData.userId !== undefined) {
         updateData.userId = parsedData.userId || null; // Or derive from req.user if needed
-    }
-    // Handle Numeric Fields
-    const numericFields = ['subtotalAmount', 'taxAmount', 'discountAmount', 'totalAmount'] as const;
-    for (const field of numericFields) {
+      }
+      // Handle Numeric Fields
+      const numericFields = [
+        "subtotalAmount",
+        "taxAmount",
+        "discountAmount",
+        "totalAmount",
+      ] as const;
+      for (const field of numericFields) {
         if (parsedData[field] !== undefined) {
-             updateData[field] = typeof parsedData[field] === 'string' ? parseFloat(parsedData[field]) : parsedData[field];
+          updateData[field] =
+            typeof parsedData[field] === "string"
+              ? parseFloat(parsedData[field])
+              : parsedData[field];
         }
-    }
-    // Handle Optional String Fields (including status)
-    const optionalStringFields = [
-        'quotationNumber', 'status', 'jobCardNumber', 'partNumber',
-        'paymentTerms', 'deliveryTerms', 'notes', 'warrantyTerms',
-        'specialTerms', 'bankName', 'accountNumber', 'ifscCode'
-    ] as const;
-    for (const field of optionalStringFields) {
+      }
+      // Handle Optional String Fields (including status)
+      const optionalStringFields = [
+        "quotationNumber",
+        "status",
+        "jobCardNumber",
+        "partNumber",
+        "paymentTerms",
+        "deliveryTerms",
+        "notes",
+        "warrantyTerms",
+        "specialTerms",
+        "bankName",
+        "accountNumber",
+        "ifscCode",
+      ] as const;
+      for (const field of optionalStringFields) {
         if (field in parsedData) {
-             // @ts-ignore - Dynamic assignment
-            updateData[field] = parsedData[field];
+          // @ts-ignore - Dynamic assignment
+          updateData[field] = parsedData[field];
         }
+      }
+      // Set updated timestamp
+      updateData.updatedAt = new Date();
+
+      // --- PERFORM THE UPDATE ---
+      const updatedQuotation = await storage.updateOutboundQuotation(
+        req.params.id,
+        updateData
+      );
+
+      // --- CREATE ACTIVITY LOG ---
+      await storage.createActivity({
+        userId: updatedQuotation.userId,
+        action: "UPDATE_OUTBOUND_QUOTATION",
+        entityType: "outbound_quotation",
+        entityId: updatedQuotation.id,
+        details: `Updated outbound quotation: ${updatedQuotation.quotationNumber}`,
+      });
+
+      // --- SEND RESPONSE ---
+      res.json(updatedQuotation);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid quotation data", details: error.errors });
+      }
+      console.error("Failed to update outbound quotation:", error);
+      res.status(500).json({
+        error: "Failed to update outbound quotation",
+        details: error.message,
+      });
     }
-    // Set updated timestamp
-    updateData.updatedAt = new Date();
+  });
 
-    // --- PERFORM THE UPDATE ---
-    const updatedQuotation = await storage.updateOutboundQuotation(req.params.id, updateData);
-
-    // --- CREATE ACTIVITY LOG ---
-    await storage.createActivity({
-      userId: updatedQuotation.userId,
-      action: "UPDATE_OUTBOUND_QUOTATION",
-      entityType: "outbound_quotation",
-      entityId: updatedQuotation.id,
-      details: `Updated outbound quotation: ${updatedQuotation.quotationNumber}`,
-    });
-
-    // --- SEND RESPONSE ---
-    res.json(updatedQuotation);
-
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
-    }
-    console.error("Failed to update outbound quotation:", error);
-    res.status(500).json({ error: "Failed to update outbound quotation", details: error.message });
-  }
-});
-  
-  
-  
   app.get("/api/inbound-quotations", async (req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();
@@ -1814,39 +1791,182 @@ app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
   );
   // Inventory leave request - DB first, fallback to memory
 
-  app.post("/api/inventory/leave-request", async (req, res) => {
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
     try {
-      const { userId, leaveType, startDate, endDate, reason, status } =
-        req.body;
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        type,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
 
-      // Validate required fields
-      if (!userId || !leaveType || !startDate || !endDate) {
-        return res.status(400).json({
-          error: "userId, leaveType, startDate, and endDate are required",
-        });
+      // Validate assignedTo
+      if (!isUuid(assignedTo)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo must be a valid UUID" });
       }
 
-      // Insert into DB using exact column names
-      const [record] = await db
-        .insert(leaveRequests)
-        .values({
-          id: uuidv4(),
-          userId: userId,
-          leave_type: leaveType, // matches DB column
-          start_date: startDate, // matches DB column
-          end_date: endDate, // matches DB column
-          reason: reason || null,
-          status: status || "pending",
-        })
-        .returning();
+      // Normalize enums
+      const normalizedPriority = priority?.toLowerCase() || "medium";
+      const normalizedStatus = "pending"; // default
+      const normalizedType = type?.toLowerCase() || "fabrication";
 
-      return res.status(201).json(record);
-    } catch (error: any) {
-      console.error("Error creating leave request:", error);
-      return res.status(500).json({ error: error.message });
+      const validPriorities = ["low", "medium", "high"];
+      if (!validPriorities.includes(normalizedPriority)) {
+        return res.status(400).json({ error: "Invalid priority" });
+      }
+
+      // Hardcode assignedBy (later you can take from auth session)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+      const [newTask] = await db
+        .insert(inventoryTasks)
+        .values({
+          title,
+          description,
+          type: normalizedType,
+          status: normalizedStatus,
+          priority: normalizedPriority,
+          assignedTo,
+          assignedBy,
+          productId,
+          sparePartId,
+          batchId,
+          fabricationOrderId,
+          expectedQuantity,
+          actualQuantity,
+          fromLocation,
+          toLocation,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+          attachmentPath,
+        })
+        .returning({
+          id: inventoryTasks.id,
+          title: inventoryTasks.title,
+          description: inventoryTasks.description,
+          type: inventoryTasks.type,
+          status: inventoryTasks.status,
+          priority: inventoryTasks.priority,
+          assignedTo: inventoryTasks.assignedTo,
+          assignedBy: inventoryTasks.assignedBy,
+          dueDate: inventoryTasks.dueDate,
+          createdAt: inventoryTasks.createdAt,
+          updatedAt: inventoryTasks.updatedAt,
+        });
+
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
+        error: "Failed to create inventory task",
+        details: err.message,
+      });
     }
   });
+  // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+  //     try {
+  //       const {
+  //         title,
+  //         description,
+  //         assignedTo,
+  //         priority,
+  //         dueDate,
+  //         type,
+  //         productId,
+  //         sparePartId,
+  //         batchId,
+  //         fabricationOrderId,
+  //         expectedQuantity,
+  //         actualQuantity,
+  //         fromLocation,
+  //         toLocation,
+  //         notes,
+  //         attachmentPath,
+  //       } = req.body;
 
+  //       // Validate assignedTo
+  //       if (!isUuid(assignedTo)) {
+  //         return res
+  //           .status(400)
+  //           .json({ error: "assignedTo must be a valid UUID" });
+  //       }
+
+  //       // Normalize enums
+  //       const normalizedPriority = priority?.toLowerCase() || "medium";
+  //       const normalizedStatus = "pending"; // default
+  //       const normalizedType = type?.toLowerCase() || "fabrication";
+
+  //       const validPriorities = ["low", "medium", "high"];
+  //       if (!validPriorities.includes(normalizedPriority)) {
+  //         return res.status(400).json({ error: "Invalid priority" });
+  //       }
+
+  //       // Hardcode assignedBy (later you can take from auth session)
+  //       const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+  //       const [newTask] = await db
+  //         .insert(inventoryTasks)
+  //         .values({
+  //           title,
+  //           description,
+  //           type: normalizedType,
+  //           status: normalizedStatus,
+  //           priority: normalizedPriority,
+  //           assignedTo,
+  //           assignedBy,
+  //           productId,
+  //           sparePartId,
+  //           batchId,
+  //           fabricationOrderId,
+  //           expectedQuantity,
+  //           actualQuantity,
+  //           fromLocation,
+  //           toLocation,
+  //           dueDate: dueDate ? new Date(dueDate) : null,
+  //           notes,
+  //           attachmentPath,
+  //         })
+  //         .returning({
+  //           id: inventoryTasks.id,
+  //           title: inventoryTasks.title,
+  //           description: inventoryTasks.description,
+  //           type: inventoryTasks.type,
+  //           status: inventoryTasks.status,
+  //           priority: inventoryTasks.priority,
+  //           assignedTo: inventoryTasks.assignedTo,
+  //           assignedBy: inventoryTasks.assignedBy,
+  //           dueDate: inventoryTasks.dueDate,
+  //           createdAt: inventoryTasks.createdAt,
+  //           updatedAt: inventoryTasks.updatedAt,
+  //         });
+
+  //       res
+  //         .status(201)
+  //         .json({ message: "Inventory task created", task: newTask });
+  //     } catch (err) {
+  //       console.error("Error creating inventory task:", err);
+  //       res.status(500).json({
+  //         error: "Failed to create inventory task",
+  //         details: err.message,
+  //       });
+  //     }
+  //   });
   app.get("/api/activities", (_req, res) => {
     res.json([]);
   });
@@ -3163,56 +3283,109 @@ app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
   //   const task = req.body;
   //   res.status(201).json({ message: "Task created", task });
   // });
-  // Create Inventory Task
-  app.post("/api/inventory-tasks", async (req, res) => {
+  app.get("/api/inventory-tasks", async (_req: Request, res: Response) => {
     try {
-      const data = req.body;
+      const tasks = await db.select().from(inventoryTasks);
+      res.status(200).json(tasks);
+    } catch (err) {
+      console.error("Error fetching inventory tasks:", err);
+      res.status(500).json({ error: "Failed to fetch inventory tasks" });
+    }
+  });
 
-      // Basic validation
-      if (!data.title || !data.assignedTo || !data.assignedBy) {
+  // Create Inventory Task
+  // Allowed enums
+  const validStatuses = ["pending", "in_progress", "completed", "cancelled"];
+  const validPriorities = ["low", "medium", "high", "urgent"];
+
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        category,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
+
+      // Hardcoded assignedBy (replace with logged-in user in real app)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573";
+
+      // Validate required fields
+      if (!title || !assignedTo || !assignedBy) {
         return res.status(400).json({
           error: "title, assignedTo, and assignedBy are required",
         });
       }
 
-      // Insert into DB
-      const [task] = await db
-        .insert(inventoryTasks)
+      // Validate UUIDs
+      if (!isUuid(assignedTo) || !isUuid(assignedBy)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo and assignedBy must be valid UUIDs" });
+      }
+
+      // Map API status to enum
+      let status = req.body.status || "pending";
+      if (status === "new") status = "pending";
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+
+      // Validate priority
+      const taskPriority = validPriorities.includes(priority)
+        ? priority
+        : "medium";
+
+      const [newTask] = await db
+        .insert("inventory_tasks")
         .values({
-          title: data.title,
-          description: data.description || null,
-          type: data.type || "Fabrication",
-          status: data.status || "pending",
-          priority: data.priority || "medium",
-          assignedTo: data.assignedTo,
-          assignedBy: data.assignedBy,
-          productId: data.productId || null,
-          sparePartId: data.sparePartId || null,
-          batchId: data.batchId || null,
-          fabricationOrderId: data.fabricationOrderId || null,
-          expectedQuantity: data.expectedQuantity || null,
-          actualQuantity: data.actualQuantity || null,
-          fromLocation: data.fromLocation || null,
-          toLocation: data.toLocation || null,
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          title,
+          description: description || null,
+          assignedTo,
+          assignedBy,
+          status,
+          priority: taskPriority,
+          category: category || null,
+          productId: productId || null,
+          sparePartId: sparePartId || null,
+          batchId: batchId || null,
+          fabricationOrderId: fabricationOrderId || null,
+          expectedQuantity: expectedQuantity || null,
+          actualQuantity: actualQuantity || null,
+          fromLocation: fromLocation || null,
+          toLocation: toLocation || null,
+          dueDate: dueDate ? new Date(dueDate) : null,
           completedDate: null,
-          notes: data.notes || null,
-          attachmentPath: data.attachmentPath || null,
+          notes: notes || null,
+          attachmentPath: attachmentPath || null,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
-        .returning();
+        .returning("*");
 
-      return res.status(201).json(task);
-    } catch (error: any) {
-      console.error("Error creating inventory task:", error);
-      return res.status(500).json({
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err: any) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
         error: "Failed to create inventory task",
-        details: error.message,
+        details: err.message,
       });
     }
   });
-
   // GET /api/tasks -> fetch all tasks
   app.get("/api/tasks", async (_req: Request, res: Response) => {
     try {
