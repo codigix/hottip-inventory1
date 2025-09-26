@@ -1,4 +1,35 @@
 // =====================
+// FABRICATION ORDERS
+// =====================
+export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled"
+]);
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  partId: uuid("part_id").notNull().references(() => spareParts.id),
+  quantity: integer("quantity").notNull().default(1),
+  status: fabricationOrderStatusEnum("status").notNull().default("pending"),
+  startDate: timestamp("start_date"),
+  dueDate: timestamp("due_date"),
+  assignedTo: uuid("assigned_to").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFabricationOrderSchema = z.object({
+  partId: z.string().uuid(),
+  quantity: z.coerce.number().min(1),
+  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  startDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  assignedTo: z.string().uuid().optional(),
+  notes: z.string().optional(),
+});
+// =====================
 // ADMIN SETTINGS
 // =====================
 export const adminSettings = pgTable("admin_settings", {
@@ -133,14 +164,13 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  leaveType: varchar("leave_type", { length: 50 }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  reason: text("reason").notNull(),
-  status: varchar("status", { length: 20 }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  leave_type: text("leave_type").notNull(),
+  start_date: timestamp("start_date").notNull(),
+  end_date: timestamp("end_date").notNull(),
+  reason: text("reason"),
+  status: text("status").default("pending"),
 });
 
 // =====================
@@ -290,6 +320,25 @@ export const products = pgTable("products", {
 });
 
 // =====================
+// SPARE PARTS
+// =====================
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partNumber: text("part_number").notNull().unique(),
+  name: text("name").notNull(),
+  type: text("type"),
+  status: text("status"),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("min_stock").default(0),
+  fabricationTime: integer("fabrication_time"),
+  location: text("location"),
+  unit: text("unit"),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).default(0),
+  specifications: text("specifications"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// =====================
 // SUPPLIERS
 // =====================
 export const suppliers = pgTable("suppliers", {
@@ -324,12 +373,40 @@ export const customers = pgTable("customers", {
 
 // =====================
 // VENDOR COMMUNICATIONS
+export const communicationType = pgEnum("communication_type", [
+  "general",
+  "phone",
+  "complaint",
+  "follow_up",
+]);
+export const communicationStatus = pgEnum("communication_status", [
+  "completed",
+  "pending",
+]);
 // =====================
 export const vendorCommunications = pgTable("vendor_communications", {
-  id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").references(() => suppliers.id),
-  message: text("message"),
-  communicationDate: timestamp("communication_date").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id),
+  type: communicationType("type").notNull(),
+  status: communicationStatus("status").notNull().default("completed"),
+  subject: text("subject").notNull(),
+  notes: text("notes"),
+  contactPerson: text("contactPerson"),
+  scheduledDate: timestamp("scheduledDate").default(sql`now()`),
+  completedDate: timestamp("completedDate"),
+  followUpRequired: boolean("followUpRequired").default(false),
+  followUpDate: timestamp("followUpDate"),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
 });
 
 // =====================

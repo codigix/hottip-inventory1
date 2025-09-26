@@ -1,4 +1,26 @@
-import { useState } from "react";
+// Transaction Details Modal
+function TransactionDetailsModal({ open, onOpenChange, transaction }: { open: boolean; onOpenChange: (v: boolean) => void; transaction: any }) {
+  if (!transaction) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Transaction Details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <div><b>Type:</b> {transaction.type}</div>
+          <div><b>Product ID:</b> {transaction.productId}</div>
+          <div><b>Quantity:</b> {transaction.quantity}</div>
+          <div><b>Reason:</b> {transaction.reason}</div>
+          <div><b>Reference Number:</b> {transaction.referenceNumber}</div>
+          <div><b>Notes:</b> {transaction.notes || '-'}</div>
+          <div><b>Date:</b> {transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : '-'}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -7,6 +29,84 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+// Stock Details Modal
+function StockDetailsModal({ open, onOpenChange, product }: { open: boolean; onOpenChange: (v: boolean) => void; product: any }) {
+  if (!product) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Stock Details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <div><b>Name:</b> {product.name}</div>
+          <div><b>SKU:</b> {product.sku}</div>
+          <div><b>Category:</b> {product.category}</div>
+          <div><b>Current Stock:</b> {product.stock} {product.unit}</div>
+          <div><b>Low Stock Threshold:</b> {product.lowStockThreshold}</div>
+          <div><b>Status:</b> {product.stock <= product.lowStockThreshold ? 'Low Stock' : 'In Stock'}</div>
+          <div><b>Price:</b> ₹{product.price}</div>
+          <div><b>Description:</b> {product.description || '-'}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Stock Edit Modal
+function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; product: any, onSave: (patch: any) => void }) {
+  const [form, setForm] = useState<any>(product || {});
+  // Sync form with product when opening
+  React.useEffect(() => { setForm(product || {}); }, [product, open]);
+  if (!product) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Stock</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Name</Label>
+            <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>SKU</Label>
+            <Input value={form.sku || ''} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Category</Label>
+            <Input value={form.category || ''} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Current Stock</Label>
+            <Input type="number" value={form.stock ?? ''} onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <Label>Low Stock Threshold</Label>
+            <Input type="number" value={form.lowStockThreshold ?? ''} onChange={e => setForm(f => ({ ...f, lowStockThreshold: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <Label>Unit</Label>
+            <Input value={form.unit || ''} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Price</Label>
+            <Input type="number" value={form.price ?? ''} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button onClick={() => onSave(form)}>Save</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +123,32 @@ export default function StockManagement() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const { toast } = useToast();
+  // For stock details modal
+  const [viewProduct, setViewProduct] = useState<any>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  // For transaction details modal
+  const [viewTransaction, setViewTransaction] = useState<any>(null);
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  // For stock edit modal
+  const [editProduct, setEditProduct] = useState<any>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Edit mutation
+  const editMutation = useMutation({
+    mutationFn: async (patch: any) => {
+      if (!patch.id) throw new Error("Missing product id");
+      return apiRequest('PUT', `/products/${patch.id}`, patch);
+    },
+    onSuccess: () => {
+      toast({ title: "Product updated", description: "Stock details updated successfully" });
+      setIsEditModalOpen(false);
+      setEditProduct(null);
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update product", variant: "destructive" });
+    }
+  });
 
   // Fetch products for stock management
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -414,7 +540,7 @@ export default function StockManagement() {
       </div>
 
       {/* Stock Overview Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -428,8 +554,25 @@ export default function StockManagement() {
               columns={productColumns}
               searchable={true}
               searchKey="name"
-              onEdit={() => {}}
-              onView={() => {}}
+              onEdit={(product) => {
+                setEditProduct(product);
+                setIsEditModalOpen(true);
+              }}
+              onView={(product) => {
+                setViewProduct(product);
+                setIsDetailsModalOpen(true);
+              }}
+            />
+            <StockDetailsModal
+              open={isDetailsModalOpen}
+              onOpenChange={setIsDetailsModalOpen}
+              product={viewProduct}
+            />
+            <StockEditModal
+              open={isEditModalOpen}
+              onOpenChange={setIsEditModalOpen}
+              product={editProduct}
+              onSave={(patch) => editMutation.mutate(patch)}
             />
           </CardContent>
         </Card>
@@ -450,12 +593,22 @@ export default function StockManagement() {
                 ))}
               </div>
             ) : (
-              <DataTable
-                data={stockTransactions || []}
-                columns={transactionColumns}
-                searchable={false}
-                onView={() => {}}
-              />
+              <>
+                <DataTable
+                  data={stockTransactions || []}
+                  columns={transactionColumns}
+                  searchable={false}
+                  onView={(transaction) => {
+                    setViewTransaction(transaction);
+                    setIsTransactionModalOpen(true);
+                  }}
+                />
+                <TransactionDetailsModal
+                  open={isTransactionModalOpen}
+                  onOpenChange={setIsTransactionModalOpen}
+                  transaction={viewTransaction}
+                />
+              </>
             )}
           </CardContent>
         </Card>

@@ -1,5 +1,8 @@
-import { useState } from "react";
+
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,33 +18,84 @@ import { Progress } from "@/components/ui/progress";
 import { Wrench, Package, Clock, CheckCircle, AlertCircle, Settings, Plus, FileText } from "lucide-react";
 
 export default function SparePartsFabrication() {
+    // Fabrication Orders state and API
+  const [isFabOrderDialogOpen, setIsFabOrderDialogOpen] = useState(false);
+  const [fabOrderForm, setFabOrderForm] = useState<any>({});
+  // Fetch fabrication orders
+  const { data: fabricationOrders = [], isLoading: fabOrdersLoading } = useQuery({
+    queryKey: ["/fabrication-orders"],
+    queryFn: async () => apiRequest("GET", "/fabrication-orders"),
+  });
+  // Add fabrication order mutation
+  const addFabOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!data.partId || !data.quantity) throw new Error("Part and quantity are required");
+      const payload = {
+        partId: data.partId,
+        quantity: Number(data.quantity),
+        status: data.status || "pending",
+        startDate: data.startDate || undefined,
+        dueDate: data.dueDate || undefined,
+        assignedTo: data.assignedTo || undefined,
+        notes: data.notes || "",
+      };
+      return apiRequest("POST", "/fabrication-orders", payload);
+    },
+    onSuccess: () => {
+      toast({ title: "Fabrication order added", description: "Order created successfully" });
+      setIsFabOrderDialogOpen(false);
+      setFabOrderForm({});
+      queryClient.invalidateQueries({ queryKey: ["/fabrication-orders"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to add fabrication order", variant: "destructive" });
+    }
+  });
   const [isSparePartDialogOpen, setIsSparePartDialogOpen] = useState(false);
   
-  // Mock data for spare parts (will be replaced with real API calls)
-  const spareParts = [
-    {
-      id: "1",
-      partNumber: "SP-001",
-      name: "Bearing Assembly",
-      type: "component",
-      status: "available",
-      stock: 15,
-      minStock: 5,
-      fabricationTime: 4,
-      location: "A-01-05"
-    },
-    {
-      id: "2", 
-      partNumber: "SP-002",
-      name: "Custom Valve",
-      type: "finished_part",
-      status: "in_fabrication",
-      stock: 2,
-      minStock: 3,
-      fabricationTime: 8,
-      location: "B-02-12"
+  const { toast } = useToast();
+  // Fetch spare parts from /api/spare-parts
+  const { data: spareParts = [], isLoading: partsLoading } = useQuery({
+    queryKey: ["/spare-parts"],
+    queryFn: async () => {
+      return await apiRequest("GET", "/spare-parts");
     }
-  ];
+  });
+
+  // Add spare part mutation (POST to /api/spare-parts)
+  const addSparePartMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Validate required fields
+      if (!data.partNumber || !data.name) throw new Error("Part Number and Name are required");
+      // Map to spareParts table fields
+      const payload = {
+        partNumber: data.partNumber,
+        name: data.name,
+        type: data.type || null,
+        status: data.status || null,
+        stock: Number(data.stock) || 0,
+        minStock: Number(data.minStock) || 0,
+        fabricationTime: data.fabricationTime ? Number(data.fabricationTime) : null,
+        location: data.location || null,
+        unit: data.unit || "pcs",
+        unitCost: data.unitCost ? Number(data.unitCost) : 0,
+        specifications: data.specifications || "",
+      };
+      return apiRequest("POST", "/spare-parts", payload);
+    },
+    onSuccess: () => {
+      toast({ title: "Spare part added", description: "Spare part added successfully" });
+      setIsSparePartDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/spare-parts"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to add spare part", variant: "destructive" });
+    }
+  });
+
+  // Form state for modal
+  const [form, setForm] = useState<any>({});
+  React.useEffect(() => { if (!isSparePartDialogOpen) setForm({}); }, [isSparePartDialogOpen]);
 
   const sparePartColumns = [
     {
@@ -64,7 +118,7 @@ export default function SparePartsFabrication() {
       header: "Type",
       cell: (part: any) => (
         <Badge variant="outline" className="capitalize">
-          {part.type.replace('_', ' ')}
+          {(part.type || '').replace('_', ' ')}
         </Badge>
       ),
     },
@@ -79,13 +133,13 @@ export default function SparePartsFabrication() {
           ready: { color: "default", icon: CheckCircle },
           damaged: { color: "destructive", icon: AlertCircle }
         };
-        const config = statusConfig[part.status as keyof typeof statusConfig];
+        const status = part.status || '';
+        const config = statusConfig[status as keyof typeof statusConfig] || { color: "outline", icon: FileText };
         const Icon = config.icon;
-        
         return (
           <Badge variant={config.color as any} className="flex items-center space-x-1">
             <Icon className="h-3 w-3" />
-            <span className="capitalize">{part.status.replace('_', ' ')}</span>
+            <span className="capitalize">{status.replace('_', ' ')}</span>
           </Badge>
         );
       },
@@ -131,60 +185,126 @@ export default function SparePartsFabrication() {
               <DialogHeader>
                 <DialogTitle>Add New Spare Part</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="partNumber">Part Number *</Label>
-                  <Input id="partNumber" placeholder="SP-001" data-testid="input-part-number" />
+              <form onSubmit={e => { e.preventDefault(); addSparePartMutation.mutate(form); }}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="partNumber">Part Number *</Label>
+                    <Input id="partNumber" placeholder="SP-001" data-testid="input-part-number" value={form.partNumber || ''} onChange={e => setForm(f => ({ ...f, partNumber: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="partName">Part Name *</Label>
+                    <Input id="partName" placeholder="Bearing Assembly" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="partType">Type</Label>
+                    <Select value={form.type || ''} onValueChange={val => setForm(f => ({ ...f, type: val }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="raw_material">Raw Material</SelectItem>
+                        <SelectItem value="component">Component</SelectItem>
+                        <SelectItem value="finished_part">Finished Part</SelectItem>
+                        <SelectItem value="tool">Tool</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="location">Storage Location</Label>
+                    <Input id="location" placeholder="A-01-05" value={form.location || ''} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="fabricationTime">Fabrication Time (hours)</Label>
+                    <Input id="fabricationTime" type="number" placeholder="4" value={form.fabricationTime || ''} onChange={e => setForm(f => ({ ...f, fabricationTime: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="unitCost">Unit Cost</Label>
+                    <Input id="unitCost" type="number" placeholder="0" value={form.unitCost || ''} onChange={e => setForm(f => ({ ...f, unitCost: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="specifications">Specifications</Label>
+                    <Textarea id="specifications" placeholder="Technical specifications..." value={form.specifications || ''} onChange={e => setForm(f => ({ ...f, specifications: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2 flex justify-end space-x-2">
+                    <Button variant="outline" type="button" onClick={() => setIsSparePartDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button data-testid="button-save-spare-part" type="submit" disabled={addSparePartMutation.isPending}>
+                      {addSparePartMutation.isPending ? 'Adding...' : 'Add Spare Part'}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="partName">Part Name *</Label>
-                  <Input id="partName" placeholder="Bearing Assembly" />
-                </div>
-                <div>
-                  <Label htmlFor="partType">Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="raw_material">Raw Material</SelectItem>
-                      <SelectItem value="component">Component</SelectItem>
-                      <SelectItem value="finished_part">Finished Part</SelectItem>
-                      <SelectItem value="tool">Tool</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="location">Storage Location</Label>
-                  <Input id="location" placeholder="A-01-05" />
-                </div>
-                <div>
-                  <Label htmlFor="fabricationTime">Fabrication Time (hours)</Label>
-                  <Input id="fabricationTime" type="number" placeholder="4" />
-                </div>
-                <div>
-                  <Label htmlFor="unitCost">Unit Cost</Label>
-                  <Input id="unitCost" type="number" placeholder="0" />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="specifications">Specifications</Label>
-                  <Textarea id="specifications" placeholder="Technical specifications..." />
-                </div>
-                <div className="col-span-2 flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsSparePartDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button data-testid="button-save-spare-part">
-                    Add Spare Part
-                  </Button>
-                </div>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" data-testid="button-fabrication-order">
-            <Settings className="h-4 w-4 mr-2" />
-            New Fabrication Order
-          </Button>
+          <Dialog open={isFabOrderDialogOpen} onOpenChange={setIsFabOrderDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-fabrication-order">
+                <Settings className="h-4 w-4 mr-2" />
+                New Fabrication Order
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>New Fabrication Order</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={e => { e.preventDefault(); addFabOrderMutation.mutate(fabOrderForm); }}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="fab-part">Spare Part *</Label>
+                    <Select value={fabOrderForm.partId || ''} onValueChange={val => setFabOrderForm(f => ({ ...f, partId: val }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select spare part..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {spareParts.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>{p.partNumber} - {p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="fab-qty">Quantity *</Label>
+                    <Input id="fab-qty" type="number" min={1} value={fabOrderForm.quantity || ''} onChange={e => setFabOrderForm(f => ({ ...f, quantity: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="fab-status">Status</Label>
+                    <Select value={fabOrderForm.status || 'pending'} onValueChange={val => setFabOrderForm(f => ({ ...f, status: val }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="fab-start">Start Date</Label>
+                    <Input id="fab-start" type="date" value={fabOrderForm.startDate || ''} onChange={e => setFabOrderForm(f => ({ ...f, startDate: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="fab-due">Due Date</Label>
+                    <Input id="fab-due" type="date" value={fabOrderForm.dueDate || ''} onChange={e => setFabOrderForm(f => ({ ...f, dueDate: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="fab-notes">Notes</Label>
+                    <Textarea id="fab-notes" value={fabOrderForm.notes || ''} onChange={e => setFabOrderForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2 flex justify-end space-x-2">
+                    <Button variant="outline" type="button" onClick={() => setIsFabOrderDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button data-testid="button-save-fab-order" type="submit" disabled={addFabOrderMutation.isPending}>
+                      {addFabOrderMutation.isPending ? 'Adding...' : 'Add Fabrication Order'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -263,54 +383,53 @@ export default function SparePartsFabrication() {
                 searchKey="partNumber"
                 onEdit={() => {}}
                 onView={() => {}}
+                isLoading={partsLoading}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="fabrication">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Fabrication Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Clock className="h-5 w-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="font-light">Custom Valve - SP-002</p>
-                        <p className="text-sm text-muted-foreground">Started: 2 days ago</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Progress value={65} className="w-32" />
-                      <p className="text-sm text-muted-foreground mt-1">65% Complete</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Settings className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-light">Motor Mount - SP-015</p>
-                        <p className="text-sm text-muted-foreground">Started: 5 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Progress value={20} className="w-32" />
-                      <p className="text-sm text-muted-foreground mt-1">20% Complete</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Fabrication Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border">
+                  <thead>
+                    <tr className="bg-muted">
+                      <th className="px-3 py-2 text-left">Part</th>
+                      <th className="px-3 py-2 text-left">Quantity</th>
+                      <th className="px-3 py-2 text-left">Status</th>
+                      <th className="px-3 py-2 text-left">Start Date</th>
+                      <th className="px-3 py-2 text-left">Due Date</th>
+                      <th className="px-3 py-2 text-left">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fabOrdersLoading ? (
+                      <tr><td colSpan={6}><Skeleton className="h-8 w-full" /></td></tr>
+                    ) : fabricationOrders.length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No fabrication orders</td></tr>
+                    ) : fabricationOrders.map((order: any) => {
+                      const part = spareParts.find((p: any) => p.id === order.partId);
+                      return (
+                        <tr key={order.id} className="border-b">
+                          <td className="px-3 py-2">{part ? `${part.partNumber} - ${part.name}` : order.partId}</td>
+                          <td className="px-3 py-2">{order.quantity}</td>
+                          <td className="px-3 py-2 capitalize">{order.status.replace('_', ' ')}</td>
+                          <td className="px-3 py-2">{order.startDate ? order.startDate.slice(0, 10) : ''}</td>
+                          <td className="px-3 py-2">{order.dueDate ? order.dueDate.slice(0, 10) : ''}</td>
+                          <td className="px-3 py-2">{order.notes}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="quality">

@@ -1,3 +1,34 @@
+  // Fabrication Orders API
+  app.get("/api/fabrication-orders", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(fabricationOrders);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching fabrication orders:", error);
+      res.status(500).json([]);
+    }
+  });
+
+  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
+    try {
+      const { insertFabricationOrderSchema } = await import("@shared/schema");
+      const data = insertFabricationOrderSchema.parse(req.body);
+      const [order] = await db.insert(fabricationOrders).values({
+        id: uuidv4(),
+        partId: data.partId,
+        quantity: data.quantity,
+        status: data.status || "pending",
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        assignedTo: data.assignedTo || null,
+        notes: data.notes || null,
+      }).returning();
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Error creating fabrication order:", error);
+      res.status(500).json({ error: "Failed to create fabrication order", details: error.message });
+    }
+  });
 import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
@@ -14,6 +45,7 @@ import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
 import { users } from "../shared/schema";
 import { tasks } from "../shared/schema";
+import { leaveRequests } from "../shared/schema";
 import { inventoryAttendance } from "@shared/schema";
 import { stockTransactions, suppliers } from "@shared/schema";
 // adjust path as needed
@@ -23,8 +55,8 @@ import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
 import { marketingAttendance } from "@shared/schema";
 // make sure users table is also imported
-import { products } from "@shared/schema"; // adjust path
-
+import { products, spareParts } from "@shared/schema"; // adjust path
+import { vendorCommunications } from "@shared/schema";
 import {
   users as usersTable,
   leads,
@@ -751,6 +783,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add product (original, no spare part fields)
+  app.post("/api/products", async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      if (!body.sku || !body.name || !body.category) {
+        return res.status(400).json({ error: "sku, name, and category are required" });
+      }
+      const [product] = await db.insert(products).values({
+        id: uuidv4(),
+        sku: body.sku,
+        name: body.name,
+        category: body.category,
+        price: body.price ?? 0,
+        stock: body.stock ?? 0,
+        costPrice: body.costPrice ?? 0,
+        lowStockThreshold: body.lowStockThreshold ?? 0,
+        unit: body.unit ?? "pcs",
+        description: body.description ?? "",
+      }).returning();
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ error: "Failed to create product", details: error.message });
+    }
+  });
+
+  // Spare Parts API
+
+  // Get all spare parts
+  app.get("/api/spare-parts", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(spareParts);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching spare parts:", error);
+      res.status(500).json([]);
+    }
+  });
+
+  // Add spare part
+  app.post("/api/spare-parts", async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      if (!body.partNumber || !body.name) {
+        return res.status(400).json({ error: "partNumber and name are required" });
+      }
+      const [sparePart] = await db.insert(spareParts).values({
+        id: uuidv4(),
+        partNumber: body.partNumber,
+        name: body.name,
+        type: body.type ?? null,
+        status: body.status ?? null,
+        stock: body.stock ?? 0,
+        minStock: body.minStock ?? 0,
+        fabricationTime: body.fabricationTime ?? null,
+        location: body.location ?? null,
+        unit: body.unit ?? "pcs",
+        unitCost: body.unitCost ?? 0,
+        specifications: body.specifications ?? "",
+      }).returning();
+      res.status(201).json(sparePart);
+    } catch (error) {
+      console.error("Error creating spare part:", error);
+      res.status(500).json({ error: "Failed to create spare part", details: error.message });
+    }
+  });
+
   // Suppliers CRUD
   // Suppliers Routes
   app.get(
@@ -835,14 +934,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor communications
+  // GET all vendor communications
   app.get("/api/vendor-communications", requireAuth, async (_req, res) => {
     try {
       const rows = await db.select().from(vendorCommunications);
       res.json(rows);
-    } catch (e) {
-      res.json([]);
+    } catch (e: any) {
+      console.error("Error fetching communications:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch communications", details: e.message });
     }
   });
+
+  // Save vendor communication (updated)
+  // Save vendor communication
+  // Save vendor communication
+  app.post("/api/vendor-communications", requireAuth, async (req, res) => {
+    try {
+      const { vendorId, message, communicationDate, followUpRequired } =
+        req.body;
+
+      if (!vendorId || !message) {
+        return res
+          .status(400)
+          .json({ error: "vendorId and message are required" });
+      }
+
+      // Extract type and subject/notes from message
+      let type: "phone" | "complaint" | "follow_up" | "general" = "general";
+      let subject = "general";
+      let notes = message;
+
+      const parts = message.split(":");
+      if (parts.length > 1) {
+        subject = parts[0].trim().toLowerCase();
+        notes = parts.slice(1).join(":").trim();
+      }
+
+      if (subject === "phone") type = "phone";
+      else if (subject === "complaint") type = "complaint";
+      else if (subject === "follow_up" || followUpRequired) type = "follow_up";
+
+      // Hardcode or get a valid userId from DB
+      const userId = "b7e51f78-4068-4f97-b486-6a58622268c6"; // replace with actual logged-in user id
+
+      const [saved] = await db
+        .insert(vendorCommunications)
+        .values({
+          supplierId: vendorId,
+          type,
+          status: "completed",
+          subject,
+          notes,
+          followUpRequired: followUpRequired || false,
+          communicationDate: communicationDate
+            ? new Date(communicationDate)
+            : new Date(),
+          userId,
+        })
+        .returning();
+
+      res.status(201).json(saved);
+    } catch (error: any) {
+      console.error("Error saving communication:", error);
+      res.status(500).json({
+        error: "Failed to save communication",
+        details: error.message,
+      });
+    }
+  });
+
+  // Save vendor communication
 
   // Stock transactions (stubbed)
   app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
@@ -1284,7 +1447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ error: "Failed to fetch outbound quotations" });
   //   }
   // });
-
   // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
   //   try {
   //     const rows = await db.select().from(inboundQuotations);
@@ -1659,60 +1821,39 @@ app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
     }
   );
   // Inventory leave request - DB first, fallback to memory
-  app.post(
-    "/api/inventory/leave-request",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { employeeName, leaveType, startDate, endDate, reason } =
-          req.body || {};
-        if (!employeeName || !leaveType || !startDate || !endDate || !reason) {
-          res.status(400).json({ error: "Missing required fields" });
-          return;
-        }
-        // Attempt DB insert into shared leaveRequests table
-        try {
-          const userIdVal = Number(req.user!.id);
-          const [row] = await db
-            .insert(leaveRequestsTable)
-            .values({
-              userId: Number.isFinite(userIdVal) ? userIdVal : null,
-              leaveType,
-              startDate: new Date(startDate),
-              endDate: new Date(endDate),
-              reason,
-              status: "pending",
-            })
-            .returning();
-          res.status(201).json(row);
-          return;
-        } catch (dbErr) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Inventory leave request DB insert failed, using in-memory fallback:",
-            dbErr
-          );
-        }
 
-        const rec = {
-          id: "mem-" + Date.now(),
-          employeeName,
-          userId: req.user!.id,
-          leaveType,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
-          reason,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          _fallback: true,
-        };
-        inMemoryInventoryLeaves.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to submit leave request" });
+  app.post("/api/inventory/leave-request", async (req, res) => {
+    try {
+      const { userId, leaveType, startDate, endDate, reason, status } =
+        req.body;
+
+      // Validate required fields
+      if (!userId || !leaveType || !startDate || !endDate) {
+        return res.status(400).json({
+          error: "userId, leaveType, startDate, and endDate are required",
+        });
       }
+
+      // Insert into DB using exact column names
+      const [record] = await db
+        .insert(leaveRequests)
+        .values({
+          id: uuidv4(),
+          userId: userId,
+          leave_type: leaveType, // matches DB column
+          start_date: startDate, // matches DB column
+          end_date: endDate, // matches DB column
+          reason: reason || null,
+          status: status || "pending",
+        })
+        .returning();
+
+      return res.status(201).json(record);
+    } catch (error: any) {
+      console.error("Error creating leave request:", error);
+      return res.status(500).json({ error: error.message });
     }
-  );
+  });
 
   app.get("/api/activities", (_req, res) => {
     res.json([]);
@@ -1863,6 +2004,39 @@ app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
       res
         .status(500)
         .json({ error: "Failed to delete attendance", details: error.message });
+    }
+  });
+  // GET /api/inventory/attendance-with-leave
+  app.get("/api/inventory/attendance-with-leave", async (req, res) => {
+    try {
+      const data = await db
+        .select({
+          attendanceId: attendance.id,
+          userId: attendance.userId,
+          date: attendance.date,
+          checkIn: attendance.checkIn,
+          checkOut: attendance.checkOut,
+          location: attendance.location,
+          status: attendance.status,
+          leaveType: leaveRequests.leaveType,
+          leaveStart: leaveRequests.startDate,
+          leaveEnd: leaveRequests.endDate,
+          leaveStatus: leaveRequests.status,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(attendance)
+        .leftJoin(leaveRequests, eq(attendance.userId, leaveRequests.userId))
+        .leftJoin(users, eq(attendance.userId, users.id));
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching attendance with leave:", error);
+      res.status(500).json({
+        error: "Failed to fetch attendance with leave",
+        details: error.message,
+      });
     }
   });
 
