@@ -249,15 +249,14 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull(),
-  leave_type: text("leave_type").notNull(),
-  start_date: timestamp("start_date").notNull(),
-  end_date: timestamp("end_date").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId").notNull(), // <-- matches your DB
+  leaveType: text("leave_type").notNull().default("annual"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date").notNull().defaultNow(),
   reason: text("reason"),
   status: text("status").default("pending"),
 });
-
 // =====================
 // FIELD VISITS
 // =====================

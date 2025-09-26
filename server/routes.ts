@@ -29,7 +29,8 @@ import { vendorCommunications } from "@shared/schema";
 import { spareParts } from "@shared/schema";
 import { inventoryTasks } from "@shared/schema";
 import { fabricationOrders } from "../shared/schema"; // adjust path if needed
-
+// POST attendance (check-in / check-out)
+import { v4 as uuidv4 } from "uuid";
 import {
   users as usersTable,
   leads,
@@ -1791,6 +1792,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
   // Inventory leave request - DB first, fallback to memory
 
+  // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+  //   try {
+  //     const {
+  //       title,
+  //       description,
+  //       assignedTo,
+  //       priority,
+  //       dueDate,
+  //       type,
+  //       productId,
+  //       sparePartId,
+  //       batchId,
+  //       fabricationOrderId,
+  //       expectedQuantity,
+  //       actualQuantity,
+  //       fromLocation,
+  //       toLocation,
+  //       notes,
+  //       attachmentPath,
+  //     } = req.body;
+
+  //     // Validate assignedTo
+  //     if (!isUuid(assignedTo)) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "assignedTo must be a valid UUID" });
+  //     }
+
+  //     // Normalize enums
+  //     const normalizedPriority = priority?.toLowerCase() || "medium";
+  //     const normalizedStatus = "pending"; // default
+  //     const normalizedType = type?.toLowerCase() || "fabrication";
+
+  //     const validPriorities = ["low", "medium", "high"];
+  //     if (!validPriorities.includes(normalizedPriority)) {
+  //       return res.status(400).json({ error: "Invalid priority" });
+  //     }
+
+  //     // Hardcode assignedBy (later you can take from auth session)
+  //     const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+  //     const [newTask] = await db
+  //       .insert(inventoryTasks)
+  //       .values({
+  //         title,
+  //         description,
+  //         type: normalizedType,
+  //         status: normalizedStatus,
+  //         priority: normalizedPriority,
+  //         assignedTo,
+  //         assignedBy,
+  //         productId,
+  //         sparePartId,
+  //         batchId,
+  //         fabricationOrderId,
+  //         expectedQuantity,
+  //         actualQuantity,
+  //         fromLocation,
+  //         toLocation,
+  //         dueDate: dueDate ? new Date(dueDate) : null,
+  //         notes,
+  //         attachmentPath,
+  //       })
+  //       .returning({
+  //         id: inventoryTasks.id,
+  //         title: inventoryTasks.title,
+  //         description: inventoryTasks.description,
+  //         type: inventoryTasks.type,
+  //         status: inventoryTasks.status,
+  //         priority: inventoryTasks.priority,
+  //         assignedTo: inventoryTasks.assignedTo,
+  //         assignedBy: inventoryTasks.assignedBy,
+  //         dueDate: inventoryTasks.dueDate,
+  //         createdAt: inventoryTasks.createdAt,
+  //         updatedAt: inventoryTasks.updatedAt,
+  //       });
+
+  //     res
+  //       .status(201)
+  //       .json({ message: "Inventory task created", task: newTask });
+  //   } catch (err) {
+  //     console.error("Error creating inventory task:", err);
+  //     res.status(500).json({
+  //       error: "Failed to create inventory task",
+  //       details: err.message,
+  //     });
+  //   }
+  // });
   app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
     try {
       const {
@@ -1879,94 +1968,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
-  //     try {
-  //       const {
-  //         title,
-  //         description,
-  //         assignedTo,
-  //         priority,
-  //         dueDate,
-  //         type,
-  //         productId,
-  //         sparePartId,
-  //         batchId,
-  //         fabricationOrderId,
-  //         expectedQuantity,
-  //         actualQuantity,
-  //         fromLocation,
-  //         toLocation,
-  //         notes,
-  //         attachmentPath,
-  //       } = req.body;
-
-  //       // Validate assignedTo
-  //       if (!isUuid(assignedTo)) {
-  //         return res
-  //           .status(400)
-  //           .json({ error: "assignedTo must be a valid UUID" });
-  //       }
-
-  //       // Normalize enums
-  //       const normalizedPriority = priority?.toLowerCase() || "medium";
-  //       const normalizedStatus = "pending"; // default
-  //       const normalizedType = type?.toLowerCase() || "fabrication";
-
-  //       const validPriorities = ["low", "medium", "high"];
-  //       if (!validPriorities.includes(normalizedPriority)) {
-  //         return res.status(400).json({ error: "Invalid priority" });
-  //       }
-
-  //       // Hardcode assignedBy (later you can take from auth session)
-  //       const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
-
-  //       const [newTask] = await db
-  //         .insert(inventoryTasks)
-  //         .values({
-  //           title,
-  //           description,
-  //           type: normalizedType,
-  //           status: normalizedStatus,
-  //           priority: normalizedPriority,
-  //           assignedTo,
-  //           assignedBy,
-  //           productId,
-  //           sparePartId,
-  //           batchId,
-  //           fabricationOrderId,
-  //           expectedQuantity,
-  //           actualQuantity,
-  //           fromLocation,
-  //           toLocation,
-  //           dueDate: dueDate ? new Date(dueDate) : null,
-  //           notes,
-  //           attachmentPath,
-  //         })
-  //         .returning({
-  //           id: inventoryTasks.id,
-  //           title: inventoryTasks.title,
-  //           description: inventoryTasks.description,
-  //           type: inventoryTasks.type,
-  //           status: inventoryTasks.status,
-  //           priority: inventoryTasks.priority,
-  //           assignedTo: inventoryTasks.assignedTo,
-  //           assignedBy: inventoryTasks.assignedBy,
-  //           dueDate: inventoryTasks.dueDate,
-  //           createdAt: inventoryTasks.createdAt,
-  //           updatedAt: inventoryTasks.updatedAt,
-  //         });
-
-  //       res
-  //         .status(201)
-  //         .json({ message: "Inventory task created", task: newTask });
-  //     } catch (err) {
-  //       console.error("Error creating inventory task:", err);
-  //       res.status(500).json({
-  //         error: "Failed to create inventory task",
-  //         details: err.message,
-  //       });
-  //     }
-  //   });
   app.get("/api/activities", (_req, res) => {
     res.json([]);
   });
@@ -2000,38 +2001,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST attendance (check-in / check-out)
   app.post("/api/attendance", async (req, res) => {
     try {
       const { userId, username, action, location, notes } = req.body;
 
-      // Must have either userId or username, plus action and location
       if ((!userId && !username) || !action || !location) {
-        return res
-          .status(400)
-          .json({ error: "userId or username, action, location are required" });
+        return res.status(400).json({
+          error: "userId or username, action, location are required",
+        });
       }
 
-      // 1️⃣ Get user from database if userId not provided
-      let user = null;
+      // Get user ID from users table if username is provided
+      let user;
       if (userId) {
-        [user] = await db.select().from(users).where({ id: userId });
+        [user] = await db.select().from("users").where({ id: userId });
       } else {
-        [user] = await db.select().from(users).where({ username });
+        [user] = await db.select().from("users").where({ username });
       }
 
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      const resolvedUserId = user.id; // Always use ID internally
-
-      // 2️⃣ Determine timestamps
+      const resolvedUserId = user.id;
       const timestamp = new Date();
 
       if (action === "check_in") {
         const [record] = await db
-          .insert(attendance)
+          .insert("attendance")
           .values({
             id: uuidv4(),
             userId: resolvedUserId,
@@ -2041,14 +2038,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "present",
             notes: notes || null,
           })
-          .returning();
+          .returning("*"); // return inserted row
         return res.status(201).json(record);
       }
 
       if (action === "check_out") {
         const [existing] = await db
           .select()
-          .from(attendance)
+          .from("attendance")
           .where({ userId: resolvedUserId })
           .orderBy("date", "desc")
           .limit(1);
@@ -2058,10 +2055,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const [updated] = await db
-          .update(attendance)
+          .update("attendance")
           .set({ checkOut: timestamp })
           .where({ id: existing.id })
-          .returning();
+          .returning("*");
 
         return res.json(updated);
       }
@@ -2069,9 +2066,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: "Unknown action" });
     } catch (error: any) {
       console.error("Error recording attendance:", error);
+      res.status(500).json({
+        error: "Failed to record attendance",
+        details: error.message,
+      });
+    }
+  });
+
+  // GET all attendance
+  app.get("/api/attendance", async (_req, res) => {
+    try {
+      const data = await db.select().from("attendance");
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error);
       res
         .status(500)
-        .json({ error: "Failed to record attendance", details: error.message });
+        .json({ error: "Failed to fetch attendance", details: error.message });
     }
   });
 
@@ -2118,35 +2129,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ error: "Failed to delete attendance", details: error.message });
     }
   });
-  // GET /api/inventory/attendance-with-leave
-  app.get("/api/inventory/attendance-with-leave", async (req, res) => {
-    try {
-      const data = await db
-        .select({
-          attendanceId: attendance.id,
-          userId: attendance.userId,
-          date: attendance.date,
-          checkIn: attendance.checkIn,
-          checkOut: attendance.checkOut,
-          location: attendance.location,
-          status: attendance.status,
-          leaveType: leaveRequests.leaveType,
-          leaveStart: leaveRequests.startDate,
-          leaveEnd: leaveRequests.endDate,
-          leaveStatus: leaveRequests.status,
-          username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        })
-        .from(attendance)
-        .leftJoin(leaveRequests, eq(attendance.userId, leaveRequests.userId))
-        .leftJoin(users, eq(attendance.userId, users.id));
 
-      res.json(data);
+  app.post("/api/inventory/leave-request", async (req, res) => {
+    try {
+      const { employeeName, leaveType, startDate, endDate, reason } = req.body;
+
+      // Validate input
+      if (!employeeName) {
+        return res.status(400).json({ error: "employeeName is required" });
+      }
+      if (!leaveType || !startDate || !endDate) {
+        return res.status(400).json({
+          error: "leaveType, startDate, and endDate are required",
+        });
+      }
+
+      // Find the user by employeeName (case-insensitive)
+      const userArray = await db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.username}) = LOWER(${employeeName.trim()})`)
+        .limit(1)
+        .execute();
+
+      const user = userArray[0];
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Insert leave request
+      const result = await db
+        .insert(leaveRequests)
+        .values({
+          userId: user.id, // use the user's ID
+          leaveType,
+          startDate,
+          endDate,
+          reason: reason || "",
+          status: "pending", // default leave status
+        })
+        .returning();
+
+      res.status(201).json({ data: result });
     } catch (error: any) {
-      console.error("Error fetching attendance with leave:", error);
+      console.error("Error creating leave request:", error);
       res.status(500).json({
-        error: "Failed to fetch attendance with leave",
+        error: "Failed to create leave request",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/inventory/attendance-with-leave", async (_req, res) => {
+    try {
+      const data = await db.select().from(leaveRequests);
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({
+        error: "Failed to fetch leave requests",
         details: error.message,
       });
     }
