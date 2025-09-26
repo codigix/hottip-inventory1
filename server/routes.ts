@@ -1156,6 +1156,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Quotations and invoices lists
 
+  // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+
+  //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
+  //     // This avoids the Drizzle internal error caused by nested selection objects.
+  //     const rows = await db
+  //       .select({
+  //         // --- Fields from outboundQuotations table ---
+  //         id: outboundQuotations.id,
+  //         quotationNumber: outboundQuotations.quotationNumber,
+  //         customerId: outboundQuotations.customerId,
+  //         userId: outboundQuotations.userId,
+  //         status: outboundQuotations.status,
+  //         quotationDate: outboundQuotations.quotationDate,
+  //         validUntil: outboundQuotations.validUntil,
+  //         jobCardNumber: outboundQuotations.jobCardNumber,
+  //         partNumber: outboundQuotations.partNumber,
+  //         subtotalAmount: outboundQuotations.subtotalAmount,
+  //         taxAmount: outboundQuotations.taxamount, // Exact DB column name
+  //         discountAmount: outboundQuotations.discountamount, // Exact DB column name
+  //         totalAmount: outboundQuotations.totalamount, // Exact DB column name
+  //         paymentTerms: outboundQuotations.paymentterms, // Exact DB column name
+  //         deliveryTerms: outboundQuotations.deliveryterms, // Exact DB column name
+  //         notes: outboundQuotations.notes,
+  //         ifscCode: outboundQuotations.ifscCode,
+  //         createdAt: outboundQuotations.createdAt,
+  //         updatedAt: outboundQuotations.updatedAt,
+  //         // --- Fields from customers table (joined) ---
+  //         // IMPORTANT: Select these individually and alias them to prevent conflicts
+  //         // and to identify them for manual nesting in the next step.
+  //         _customerIdJoin: customers.id, // Aliased customer ID
+  //         _customerNameJoin: customers.name, // Aliased customer name
+  //         _customerEmailJoin: customers.email, // Aliased customer email
+  //         _customerPhoneJoin: customers.phone, // Aliased customer phone
+  //         // Add other customer fields here if needed in the future, e.g.,
+  //         // _customerCityJoin: customers.city,
+  //       })
+  //       .from(outboundQuotations)
+  //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+
+  //     console.log(
+  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
+  //     );
+
+  //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
+  //     // Iterate through the flat rows returned by the DB query.
+  //     const transformedRows = rows.map((row) => {
+  //       // Determine if a customer record was successfully joined.
+  //       // If joined, _customerIdJoin will hold the customer's ID; otherwise, it might be null/undefined.
+  //       const hasCustomer =
+  //         row._customerIdJoin !== null && row._customerIdJoin !== undefined;
+
+  //       // Construct the final object for this quotation.
+  //       return {
+  //         // --- Include all fields directly from the outboundQuotations table ---
+  //         id: row.id,
+  //         quotationNumber: row.quotationNumber,
+  //         customerId: row.customerId,
+  //         userId: row.userId,
+  //         status: row.status,
+  //         quotationDate: row.quotationDate,
+  //         validUntil: row.validUntil,
+  //         jobCardNumber: row.jobCardNumber,
+  //         partNumber: row.partNumber,
+  //         subtotalAmount: row.subtotalAmount,
+  //         taxAmount: row.taxAmount,
+  //         discountAmount: row.discountAmount,
+  //         totalAmount: row.totalAmount,
+  //         paymentTerms: row.paymentTerms,
+  //         deliveryTerms: row.deliveryTerms,
+  //         notes: row.notes,
+  //         ifscCode: row.ifscCode,
+  //         createdAt: row.createdAt,
+  //         updatedAt: row.updatedAt,
+  //         // --- Conditionally build the nested 'customer' object ---
+  //         // If customer data was joined, create the nested object.
+  //         // If not, set customer to null (or {}).
+  //         customer: hasCustomer
+  //           ? {
+  //               id: row._customerIdJoin, // Use the aliased customer ID
+  //               name: row._customerNameJoin, // Use the aliased customer name
+  //               email: row._customerEmailJoin, // Use the aliased customer email
+  //               phone: row._customerPhoneJoin, // Use the aliased customer phone
+  //               // Map other customer fields here if you added them to the select above.
+  //             }
+  //           : null, // Or {} if preferred by frontend
+  //       };
+  //     });
+
+  //     console.log(
+  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
+  //     );
+  //     // Send the correctly structured data (with nested customer objects) to the frontend.
+  //     res.json(transformedRows);
+  //   } catch (error) {
+  //     // --- STEP 3: Robust Error Handling ---
+  //     // Catch any unexpected errors during the JOIN or transformation process.
+  //     console.error(
+  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+  //       error
+  //     );
+  //     // Fallback to a simple query to maintain API availability.
+  //     try {
+  //       console.log(
+  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+  //       );
+  //       const fallbackRows = await db.select().from(outboundQuotations);
+  //       res.json(fallbackRows);
+  //     } catch (fallbackError) {
+  //       // Catch errors in the fallback itself.
+  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+  //       res
+  //         .status(500)
+  //         .json({
+  //           error: "Failed to fetch outbound quotations",
+  //           details: error.message,
+  //         });
+  //     }
+  //   }
+  // });
+ app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+  try {
+    console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+
+    // --- Call the new storage method ---
+    const quotations = await storage.getOutboundQuotations();
+
+    console.log(`🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`);
+    // --- Send the correctly structured data ---
+    res.json(quotations);
+  } catch (error) {
+    // --- Handle errors from storage ---
+    console.error("💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:", error);
+    res.status(500).json({
+      error: "Failed to fetch outbound quotations",
+      // Optionally include more details from the error object
+      // details: error.message || "An unknown error occurred while fetching quotations.",
+    });
+  }
+});
+
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log(
@@ -1239,6 +1381,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+// app.put("/api/outbound-quotations/:id", async (req, res) => {
+//   try {
+//     // 1. Parse and validate request body
+//     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
+
+//     // 2. Call the storage method to perform the update
+//     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
+
+//     // 3. Create activity log (optional)
+//     await storage.createActivity({
+//       userId: quotation.userId,
+//       action: "UPDATE_OUTBOUND_QUOTATION",
+//       entityType: "outbound_quotation",
+//       entityId: quotation.id,
+//       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+//     });
+
+//     // 4. Send back the updated quotation
+//     res.json(quotation);
+//   } catch (error) {
+//     // 5. Handle errors (Zod validation or storage errors)
+//     if (error instanceof z.ZodError) {
+//        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+//     }
+//     console.error("Failed to update outbound quotation:", error);
+//     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
+//   }
+// });
+
   // app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
   //   try {
   //     const rows = await db.select().from(outboundQuotations);
@@ -1247,113 +1418,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ error: "Failed to fetch outbound quotations" });
   //   }
   // });
-  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-    try {
-      console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
-
-      // --- STEP 1: Perform LEFT JOIN with flattened selection ---
-      // Select fields individually from both tables to avoid Drizzle nesting error
-      const rows = await db
-        .select({
-          // --- Fields from outboundQuotations ---
-          id: outboundQuotations.id,
-          quotationNumber: outboundQuotations.quotationNumber,
-          customerId: outboundQuotations.customerId,
-          userId: outboundQuotations.userId,
-          status: outboundQuotations.status,
-          quotationDate: outboundQuotations.quotationDate,
-          validUntil: outboundQuotations.validUntil,
-          jobCardNumber: outboundQuotations.jobCardNumber,
-          partNumber: outboundQuotations.partNumber,
-          subtotalAmount: outboundQuotations.subtotalAmount,
-          taxAmount: outboundQuotations.taxamount, // DB column name
-          discountAmount: outboundQuotations.discountamount, // DB column name
-          totalAmount: outboundQuotations.totalamount, // DB column name
-          paymentTerms: outboundQuotations.paymentterms, // DB column name
-          deliveryTerms: outboundQuotations.deliveryterms, // DB column name
-          notes: outboundQuotations.notes,
-          ifscCode: outboundQuotations.ifscCode,
-          createdAt: outboundQuotations.createdAt,
-          updatedAt: outboundQuotations.updatedAt,
-          // --- Fields from customers (joined table) ---
-          // Aliased to prevent conflicts and identify for nesting
-          customerId_join: customers.id, // Alias for customer ID
-          customerName_join: customers.name,
-          customerEmail_join: customers.email,
-          customerPhone_join: customers.phone,
-          // Add other customer fields if needed later
-        })
-        .from(outboundQuotations)
-        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
-
-      console.log(`🐛 [DEBUG] Fetched ${rows.length} raw rows from DB`);
-
-      // --- STEP 2: Transform flat result into nested structure ---
-      const transformedRows = rows.map((row) => {
-        // Check if customer data was joined (customerId_join will be non-null)
-        const hasCustomer =
-          row.customerId_join !== null && row.customerId_join !== undefined;
-
-        return {
-          // --- Spread outboundQuotations fields ---
-          id: row.id,
-          quotationNumber: row.quotationNumber,
-          customerId: row.customerId,
-          userId: row.userId,
-          status: row.status,
-          quotationDate: row.quotationDate,
-          validUntil: row.validUntil,
-          jobCardNumber: row.jobCardNumber,
-          partNumber: row.partNumber,
-          subtotalAmount: row.subtotalAmount,
-          taxAmount: row.taxAmount,
-          discountAmount: row.discountAmount,
-          totalAmount: row.totalAmount,
-          paymentTerms: row.paymentTerms,
-          deliveryTerms: row.deliveryTerms,
-          notes: row.notes,
-          ifscCode: row.ifscCode,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          // --- Conditionally create nested 'customer' object ---
-          customer: hasCustomer
-            ? {
-                id: row.customerId_join,
-                name: row.customerName_join,
-                email: row.customerEmail_join,
-                phone: row.customerPhone_join,
-                // Map other customer fields as needed
-              }
-            : null, // Or {} if preferred
-        };
-      });
-
-      console.log(
-        `🐛 [DEBUG] Transformed ${transformedRows.length} rows for response`
-      );
-      res.json(transformedRows);
-    } catch (error) {
-      // --- STEP 3: Robust Error Handling ---
-      console.error(
-        "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
-        error
-      );
-      // Fallback to simple fetch to maintain API availability
-      try {
-        console.log(
-          "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
-        );
-        const fallbackRows = await db.select().from(outboundQuotations);
-        res.json(fallbackRows);
-      } catch (fallbackError) {
-        console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
-        res.status(500).json({
-          error: "Failed to fetch outbound quotations",
-          details: error.message,
-        });
-      }
-    }
-  });
   // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
   //   try {
   //     const rows = await db.select().from(inboundQuotations);
@@ -1373,6 +1437,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
   // Inbound Quotations Routes
+  
+app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+  try {
+    const { insertOutboundQuotationSchema } = await import("@shared/schema");
+    const parsedData = insertOutboundQuotationSchema.partial().parse(req.body);
+
+    // --- PREPARE DATA FOR DATABASE UPDATE ---
+    const updateData: any = {};
+    // Handle Date Fields
+    if (parsedData.quotationDate !== undefined) {
+        updateData.quotationDate = parsedData.quotationDate === null ? null :
+          (parsedData.quotationDate instanceof Date ? parsedData.quotationDate : new Date(parsedData.quotationDate));
+    }
+    if (parsedData.validUntil !== undefined) {
+        updateData.validUntil = parsedData.validUntil === null ? null :
+          (parsedData.validUntil instanceof Date ? parsedData.validUntil : new Date(parsedData.validUntil));
+    }
+    // Handle UUID/String Fields
+    if (parsedData.customerId !== undefined) {
+        updateData.customerId = parsedData.customerId || null;
+    }
+    if (parsedData.userId !== undefined) {
+        updateData.userId = parsedData.userId || null; // Or derive from req.user if needed
+    }
+    // Handle Numeric Fields
+    const numericFields = ['subtotalAmount', 'taxAmount', 'discountAmount', 'totalAmount'] as const;
+    for (const field of numericFields) {
+        if (parsedData[field] !== undefined) {
+             updateData[field] = typeof parsedData[field] === 'string' ? parseFloat(parsedData[field]) : parsedData[field];
+        }
+    }
+    // Handle Optional String Fields (including status)
+    const optionalStringFields = [
+        'quotationNumber', 'status', 'jobCardNumber', 'partNumber',
+        'paymentTerms', 'deliveryTerms', 'notes', 'warrantyTerms',
+        'specialTerms', 'bankName', 'accountNumber', 'ifscCode'
+    ] as const;
+    for (const field of optionalStringFields) {
+        if (field in parsedData) {
+             // @ts-ignore - Dynamic assignment
+            updateData[field] = parsedData[field];
+        }
+    }
+    // Set updated timestamp
+    updateData.updatedAt = new Date();
+
+    // --- PERFORM THE UPDATE ---
+    const updatedQuotation = await storage.updateOutboundQuotation(req.params.id, updateData);
+
+    // --- CREATE ACTIVITY LOG ---
+    await storage.createActivity({
+      userId: updatedQuotation.userId,
+      action: "UPDATE_OUTBOUND_QUOTATION",
+      entityType: "outbound_quotation",
+      entityId: updatedQuotation.id,
+      details: `Updated outbound quotation: ${updatedQuotation.quotationNumber}`,
+    });
+
+    // --- SEND RESPONSE ---
+    res.json(updatedQuotation);
+
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+    }
+    console.error("Failed to update outbound quotation:", error);
+    res.status(500).json({ error: "Failed to update outbound quotation", details: error.message });
+  }
+});
+  
+  
+  
   app.get("/api/inbound-quotations", async (req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();

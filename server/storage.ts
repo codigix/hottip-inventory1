@@ -86,6 +86,84 @@ async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise
   const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
   return row;
 }
+async getOutboundQuotations(): Promise<(OutboundQuotation & { customer: Customer | null })[]> { // Explicit return type
+    try {
+      console.log("💾 [STORAGE] getOutboundQuotations - Fetching quotations with customer data");
+
+      // --- STEP 1: Perform LEFT JOIN using Drizzle's select syntax ---
+      // Select all fields from outboundQuotations and specific fields from customers.
+      const result = await db
+        .select({
+          // Shorthand to select all fields from outboundQuotations table
+          quotation: outboundQuotations,
+          // Explicitly select fields from the joined customers table
+          customer: {
+            id: customers.id,
+            name: customers.name,
+            email: customers.email,
+            phone: customers.phone,
+            // Add other customer fields here if needed by the frontend later
+            // address: customers.address,
+            // city: customers.city,
+            // ...
+          },
+        })
+        .from(outboundQuotations)
+        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+
+      console.log(`💾 [STORAGE] getOutboundQuotations - Fetched ${result.length} raw rows with join`);
+
+      // --- STEP 2: Transform the Result ---
+      // Drizzle returns an array like [{ quotation: {...}, customer: {...} }, ...].
+      // We need to flatten this to match OutboundQuotation type with a nested 'customer' property.
+      const transformedQuotations = result.map((row) => ({
+        // Spread all fields from the 'quotation' object (outboundQuotations fields)
+        ...row.quotation,
+        // Add the 'customer' object. If no customer matched (LEFT JOIN), row.customer will be null.
+        customer: row.customer || null, // Ensure it's explicitly null if no join
+      }));
+
+      console.log(`💾 [STORAGE] getOutboundQuotations - Transformed ${transformedQuotations.length} quotations`);
+      // Return the correctly structured array
+      return transformedQuotations;
+    } catch (error) {
+      // --- STEP 3: Handle Errors ---
+      console.error("💥 [STORAGE] getOutboundQuotations - Error fetching quotations with customers:", error);
+      // Re-throw the error so the calling route can handle it (e.g., send a 500 response).
+      throw error;
+    }
+  }
+ async updateOutboundQuotation(
+    id: string, // Assuming ID is a string (UUID) based on your schema
+    update: Partial<InsertOutboundQuotation>
+  ): Promise<OutboundQuotation> {
+    try {
+      console.log(`💾 [STORAGE] updateOutboundQuotation - Updating quotation ID: ${id}`, update);
+
+      // --- Perform the database update ---
+      const [updatedRow] = await db
+        .update(outboundQuotations)
+        .set(update) // Apply the partial update data
+        .where(eq(outboundQuotations.id, id)) // Target the specific quotation by ID
+        .returning(); // Get the updated row back
+
+      // --- Check if the update was successful ---
+      if (!updatedRow) {
+        // If no row is returned, it means no quotation existed with that ID
+        const errorMessage = `Outbound quotation with ID '${id}' not found for update.`;
+        console.warn(`💾 [STORAGE] updateOutboundQuotation - ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
+
+      console.log(`💾 [STORAGE] updateOutboundQuotation - Successfully updated quotation ID: ${id}`);
+      return updatedRow; // Return the updated quotation object
+    } catch (error) {
+      // --- Handle errors ---
+      console.error("💥 [STORAGE] updateOutboundQuotation - Error updating quotation:", error);
+      // Re-throw the error so the calling route can handle it appropriately
+      throw error;
+    }
+  }
  // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
 
