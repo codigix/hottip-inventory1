@@ -1,34 +1,156 @@
+import {
+  pgTable,
+  serial,
+  varchar,
+  integer,
+  numeric,
+  timestamp,
+  boolean,
+  text,
+  uuid,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+
+import { decimal } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { z } from "zod";
+
+// USERS table definition (inline, since ./users is missing)
+// =====================
+// USERS
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
+});
+
 // =====================
 // FABRICATION ORDERS
 // =====================
-export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
-  "pending",
-  "in_progress",
-  "completed",
-  "cancelled"
-]);
-export const fabricationOrders = pgTable("fabrication_orders", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  partId: uuid("part_id").notNull().references(() => spareParts.id),
-  quantity: integer("quantity").notNull().default(1),
-  status: fabricationOrderStatusEnum("status").notNull().default("pending"),
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertFabricationOrderSchema = z.object({
   partId: z.string().uuid(),
   quantity: z.coerce.number().min(1),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
   notes: z.string().optional(),
 });
+
+export const spare_part_type = pgEnum("spare_part_type", [
+  "component",
+  "assembly",
+]);
+export const spare_part_status = pgEnum("spare_part_status", [
+  "available",
+  "unavailable",
+]);
+
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partNumber: text("partNumber").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  specifications: text("specifications"),
+  type: spare_part_type("type").notNull().default("component"),
+  status: spare_part_status("status").notNull().default("available"),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("minStock").notNull().default(0),
+  maxStock: integer("maxStock").notNull().default(100),
+  unitCost: numeric("unitCost", 10, 2),
+  location: text("location"),
+  unit: text("unit"),
+  fabricationtime: integer("fabricationtime"), // integer type now
+});
+
+// Enums
+export const inventoryTaskStatus = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+export const taskPriority = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+export const inventoryTaskType = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Maintenance",
+  "Inspection",
+]);
+
+export const inventoryTasks = pgTable("inventory_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: inventoryTaskType("type").notNull(),
+  status: inventoryTaskStatus("status").notNull().default("pending"),
+  priority: taskPriority("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo").notNull(),
+  assignedBy: uuid("assignedBy").notNull(),
+  productId: uuid("productId"),
+  sparePartId: uuid("sparePartId"),
+  batchId: uuid("batchId"),
+  fabricationOrderId: uuid("fabricationOrderId"),
+  expectedQuantity: integer("expectedQuantity"),
+  actualQuantity: integer("actualQuantity"),
+  fromLocation: text("fromLocation"),
+  toLocation: text("toLocation"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Enums
+export const fabricationOrderStatus = pgEnum("fabrication_order_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+
+export const fabricationOrderPriority = pgEnum("fabrication_order_priority", [
+  "low",
+  "normal",
+  "high",
+]);
+
+// Table definition
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderNumber: text("orderNumber").notNull(),
+  sparePartId: uuid("sparePartId").notNull(),
+  quantity: integer("quantity").notNull(),
+  status: fabricationOrderStatus("status").notNull().default("pending"),
+  priority: fabricationOrderPriority("priority").notNull().default("normal"),
+  startDate: timestamp("startDate"),
+  dueDate: timestamp("dueDate"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
 // =====================
 // ADMIN SETTINGS
 // =====================
@@ -65,43 +187,6 @@ export const insertAdminBackupSchema = z.object({
   filePath: z.string().optional(),
 });
 // shared/schema.ts
-import {
-  pgTable,
-  serial,
-  varchar,
-  integer,
-  numeric,
-  timestamp,
-  boolean,
-  text,
-  uuid,
-  pgEnum,
-} from "drizzle-orm/pg-core";
-import { decimal } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
-import { z } from "zod";
-
-// USERS table definition (inline, since ./users is missing)
-// =====================
-// USERS
-export const userRole = pgEnum("user_role", ["employee", "admin"]);
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull(),
-  email: text("email").notNull(),
-  password: text("password").notNull(),
-  role: userRole("role").default("employee").notNull(),
-  firstName: text("firstName").notNull(),
-  lastName: text("lastName").notNull(),
-  department: text("department"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt")
-    .default(sql`now()`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt")
-    .default(sql`now()`)
-    .notNull(),
-});
 // =====================
 // (Removed duplicate userRole and users exports)
 // =====================
@@ -164,15 +249,14 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull(),
-  leave_type: text("leave_type").notNull(),
-  start_date: timestamp("start_date").notNull(),
-  end_date: timestamp("end_date").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId").notNull(), // <-- matches your DB
+  leaveType: text("leave_type").notNull().default("annual"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date").notNull().defaultNow(),
   reason: text("reason"),
   status: text("status").default("pending"),
 });
-
 // =====================
 // FIELD VISITS
 // =====================
@@ -322,21 +406,6 @@ export const products = pgTable("products", {
 // =====================
 // SPARE PARTS
 // =====================
-export const spareParts = pgTable("spare_parts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  partNumber: text("part_number").notNull().unique(),
-  name: text("name").notNull(),
-  type: text("type"),
-  status: text("status"),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").default(0),
-  fabricationTime: integer("fabrication_time"),
-  location: text("location"),
-  unit: text("unit"),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).default(0),
-  specifications: text("specifications"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // =====================
 // SUPPLIERS
@@ -359,6 +428,18 @@ export const suppliers = pgTable("suppliers", {
   creditLimit: numeric("creditLimit", { precision: 10, scale: 2 }),
   // createdAt is not a column in your DB table, so it's omitted
 });
+
+export const inventory_task_type = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Inspection",
+  "Maintenance",
+]);
+export const inventory_task_status = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
 
 // =====================
 // CUSTOMERS
