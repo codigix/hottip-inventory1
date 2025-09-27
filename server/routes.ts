@@ -3658,8 +3658,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       requireAuth,
       async (req, res) => {
         try {
-          const userId = req.user.id; // 👈 from auth middleware
-
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
@@ -3667,16 +3665,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tomorrow.setDate(today.getDate() + 1);
 
           const rows = await db
-            .select()
+            .select({
+              id: marketingAttendance.id,
+              userId: marketingAttendance.userId,
+              date: marketingAttendance.date,
+              checkInTime: marketingAttendance.checkInTime,
+              checkOutTime: marketingAttendance.checkOutTime,
+              attendanceStatus: marketingAttendance.attendanceStatus,
+              isOnLeave: marketingAttendance.isOnLeave,
+              user: {
+                id: users.id,
+                firstName: users.firstName,
+                lastName: users.lastName,
+                email: users.email,
+                role: users.role,
+              },
+            })
             .from(marketingAttendance)
-            .where("userId", "=", userId)
-            .andWhere("date", ">=", today)
-            .andWhere("date", "<", tomorrow);
+            .leftJoin(users, eq(marketingAttendance.userId, users.id))
+            .where(
+              and(
+                gte(marketingAttendance.date, today),
+                lt(marketingAttendance.date, tomorrow)
+              )
+            );
 
           res.json(rows);
         } catch (e) {
           console.error("Error fetching today's attendance:", e);
           res.status(500).json({ error: "Failed to fetch today's attendance" });
+        }
+      }
+    );
+
+    // Check-in endpoint
+    app.post(
+      "/api/marketing-attendance/check-in",
+      requireAuth,
+      async (req: AuthenticatedRequest, res: Response) => {
+        try {
+          const {
+            userId,
+            latitude,
+            longitude,
+            location,
+            photoPath,
+            workDescription,
+          } = req.body;
+
+          const attendanceUserId = userId || req.user!.id;
+
+          const [row] = await db
+            .insert(marketingAttendance)
+            .values({
+              userId: attendanceUserId,
+              date: new Date(),
+              checkInTime: new Date(),
+              latitude,
+              longitude,
+              location,
+              photoPath,
+              workDescription,
+              attendanceStatus: "present",
+            })
+            .returning();
+
+          res.status(201).json(row);
+        } catch (e) {
+          console.error("Error creating check-in:", e);
+          res.status(500).json({ error: "Failed to create check-in record" });
+        }
+      }
+    );
+
+    // Check-out endpoint
+    app.post(
+      "/api/marketing-attendance/check-out",
+      requireAuth,
+      async (req: AuthenticatedRequest, res: Response) => {
+        try {
+          const {
+            userId,
+            latitude,
+            longitude,
+            location,
+            photoPath,
+            workDescription,
+            visitCount,
+            tasksCompleted,
+            outcome,
+            nextAction,
+          } = req.body;
+
+          const attendanceUserId = userId || req.user!.id;
+
+          // Find today's attendance record for the user
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+
+          const [existingAttendance] = await db
+            .select()
+            .from(marketingAttendance)
+            .where(
+              and(
+                eq(marketingAttendance.userId, attendanceUserId),
+                gte(marketingAttendance.date, today),
+                lt(marketingAttendance.date, tomorrow)
+              )
+            );
+
+          if (!existingAttendance) {
+            return res
+              .status(404)
+              .json({ error: "No check-in found for today" });
+          }
+
+          const [row] = await db
+            .update(marketingAttendance)
+            .set({
+              checkOutTime: new Date(),
+              latitude,
+              longitude,
+              location,
+              photoPath,
+              workDescription,
+              visitCount,
+              tasksCompleted,
+              outcome,
+              nextAction,
+            })
+            .where(eq(marketingAttendance.id, existingAttendance.id))
+            .returning();
+
+          res.json(row);
+        } catch (e) {
+          console.error("Error creating check-out:", e);
+          res.status(500).json({ error: "Failed to create check-out record" });
         }
       }
     );

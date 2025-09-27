@@ -1,179 +1,364 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, Calendar, TrendingUp, BarChart3, Package, Building2 } from "lucide-react";
+import {
+  Package,
+  TrendingUp,
+  Building2,
+  BarChart3,
+  Download,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 
 export default function InventoryReports() {
-  const [dateRange, setDateRange] = useState("last-30-days");
+  // Fetch reports data
+  const { data: stockBalance, isLoading: stockBalanceLoading } = useQuery({
+    queryKey: ["/api/reports/stock-balance"],
+  });
+
+  const { data: vendorHistory, isLoading: vendorHistoryLoading } = useQuery({
+    queryKey: ["/api/reports/vendor-history"],
+  });
+
+  const { data: reorderForecast, isLoading: reorderForecastLoading } = useQuery(
+    {
+      queryKey: ["/api/reports/reorder-forecast"],
+    }
+  );
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ["/api/reports/analytics"],
+  });
+
+  // Export functions
+  const handleExportStockBalance = async () => {
+    try {
+      const response = await fetch("/api/reports/stock-balance/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "stock-balance-report.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  };
+
+  const handleExportVendorHistory = async () => {
+    try {
+      const response = await fetch("/api/reports/vendor-history/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "vendor-history-report.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  };
+
+  const handleExportReorderForecast = async () => {
+    try {
+      const response = await fetch("/api/reports/reorder-forecast/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "reorder-forecast-report.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  };
+
+  const handleExportAnalytics = async () => {
+    try {
+      const response = await fetch("/api/reports/analytics/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "analytics-report.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  };
+
+  const handleExportAll = async () => {
+    try {
+      const response = await fetch("/api/reports/export-all", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "all-reports.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  };
+
+  if (
+    stockBalanceLoading ||
+    vendorHistoryLoading ||
+    reorderForecastLoading ||
+    analyticsLoading
+  ) {
+    return (
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Inventory Reports</h1>
-          <p className="text-muted-foreground">Stock balance, vendor history, and reorder forecasts</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Inventory Reports
+          </h1>
+          <p className="text-muted-foreground">
+            Comprehensive inventory analytics and reporting
+          </p>
         </div>
-        <div className="flex items-center space-x-4">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="last-7-days">Last 7 Days</SelectItem>
-              <SelectItem value="last-30-days">Last 30 Days</SelectItem>
-              <SelectItem value="last-3-months">Last 3 Months</SelectItem>
-              <SelectItem value="last-year">Last Year</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button  data-testid="button-export-all">
-            <Download className="h-4 w-4 mr-2" />
-            Export All Reports
-          </Button>
-        </div>
+        <Button
+          onClick={handleExportAll}
+          className="bg-primary hover:bg-primary/90"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export All Reports
+        </Button>
       </div>
 
-      {/* Quick Report Actions */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" data-testid="card-stock-balance">
+        <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Stock Balance</p>
-                <p className="text-lg font-semibold text-foreground">Current levels</p>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Package className="h-6 w-6 text-blue-600" />
               </div>
-              <Package className="h-8 w-8 text-blue-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Products</p>
+                <p className="text-2xl font-bold">
+                  {stockBalance?.summary?.totalProducts || 0}
+                </p>
+              </div>
             </div>
-            <Button  size="sm" className="w-full mt-4">
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" data-testid="card-vendor-history">
+        <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Vendor History</p>
-                <p className="text-lg font-semibold text-foreground">Performance</p>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
-              <Building2 className="h-8 w-8 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Value</p>
+                <p className="text-2xl font-bold">
+                  ₹{stockBalance?.summary?.totalValue?.toLocaleString() || 0}
+                </p>
+              </div>
             </div>
-            <Button  size="sm" className="w-full mt-4">
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" data-testid="card-reorder-forecast">
+        <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Reorder Forecast</p>
-                <p className="text-lg font-semibold text-foreground">Predictions</p>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
               </div>
-              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Low Stock Items</p>
+                <p className="text-2xl font-bold">
+                  {stockBalance?.summary?.lowStockItems || 0}
+                </p>
+              </div>
             </div>
-            <Button  size="sm" className="w-full mt-4">
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" data-testid="card-analytics">
+        <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Analytics</p>
-                <p className="text-lg font-semibold text-foreground">Insights</p>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Building2 className="h-6 w-6 text-purple-600" />
               </div>
-              <BarChart3 className="h-8 w-8 text-purple-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Active Vendors</p>
+                <p className="text-2xl font-bold">
+                  {vendorHistory?.vendors?.length || 0}
+                </p>
+              </div>
             </div>
-            <Button  size="sm" className="w-full mt-4">
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detailed Reports */}
+      {/* Reports Tabs */}
       <Tabs defaultValue="stock-balance" className="space-y-6">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="stock-balance">Stock Balance</TabsTrigger>
           <TabsTrigger value="vendor-analysis">Vendor Analysis</TabsTrigger>
           <TabsTrigger value="reorder-forecast">Reorder Forecast</TabsTrigger>
-          <TabsTrigger value="custom-reports">Custom Reports</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
+        {/* Stock Balance Report */}
         <TabsContent value="stock-balance">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Package className="h-5 w-5" />
-                  <span>Current Stock Balance Report</span>
+                  <span>Current Stock Balance</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button
+                  onClick={handleExportStockBalance}
+                  size="sm"
+                  variant="outline"
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Summary Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
-                    <p className="text-sm text-muted-foreground">Total Products</p>
-                    <p className="text-2xl font-bold">1,247</p>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
-                    <p className="text-sm text-muted-foreground">Total Stock Value</p>
-                    <p className="text-2xl font-bold">₹12,45,380</p>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-[0.3rem]">
-                    <p className="text-sm text-muted-foreground">Low Stock Items</p>
-                    <p className="text-2xl font-bold text-red-600">23</p>
-                  </div>
-                </div>
-
-                {/* Category Breakdown */}
-                <div>
-                  <h3 className="font-semibold mb-4">Stock by Category</h3>
+              <div className="space-y-4">
+                {stockBalance?.data?.length > 0 ? (
                   <div className="space-y-3">
-                    {[
-                      { category: "Steel Products", items: 456, value: "₹4,23,120", percentage: 34 },
-                      { category: "Aluminum Sheets", items: 234, value: "₹2,67,890", percentage: 21 },
-                      { category: "Spare Parts", items: 567, value: "₹3,54,370", percentage: 28 },
-                      { category: "Tools & Equipment", items: 78, value: "₹1,98,000", percentage: 17 }
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted/20 rounded-sm">
+                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
+                      <div>Product Name</div>
+                      <div className="text-center">SKU</div>
+                      <div className="text-center">Current Stock</div>
+                      <div className="text-center">Unit Price</div>
+                      <div className="text-center">Total Value</div>
+                      <div className="text-center">Status</div>
+                    </div>
+                    {stockBalance.data.map((product: any, index: number) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
+                      >
                         <div>
-                          <p className="font-light">{item.category}</p>
-                          <p className="text-sm text-muted-foreground">{item.items} items</p>
+                          <p className="font-light">{product.name}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-light">{item.value}</p>
-                          <p className="text-sm text-muted-foreground">{item.percentage}%</p>
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">
+                            {product.sku}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">{product.currentStock}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">₹{product.price}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">₹{product.value}</p>
+                        </div>
+                        <div className="text-center">
+                          <Badge
+                            variant={
+                              product.status === "In Stock"
+                                ? "default"
+                                : product.status === "Low Stock"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                          >
+                            {product.status}
+                          </Badge>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No stock data available
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Vendor Analysis Report */}
         <TabsContent value="vendor-analysis">
           <Card>
             <CardHeader>
@@ -182,202 +367,248 @@ export default function InventoryReports() {
                   <Building2 className="h-5 w-5" />
                   <span>Vendor Performance Analysis</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button
+                  onClick={handleExportVendorHistory}
+                  size="sm"
+                  variant="outline"
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Export PDF
+                  Export CSV
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Top Vendors */}
-                <div>
-                  <h3 className="font-semibold mb-4">Top Performing Vendors</h3>
+              <div className="space-y-4">
+                {vendorHistory?.data?.length > 0 ? (
                   <div className="space-y-3">
-                    {[
-                      { name: "Steel Industries Ltd", orders: 45, onTime: "98%", quality: "A+", value: "₹8,45,200" },
-                      { name: "Aluminum Works", orders: 32, onTime: "94%", quality: "A", value: "₹5,67,890" },
-                      { name: "Parts Supply Co", orders: 28, onTime: "91%", quality: "A-", value: "₹3,21,450" }
-                    ].map((vendor, index) => (
-                      <div key={index} className="grid grid-cols-5 gap-4 p-4 border rounded-lg">
+                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
+                      <div>Vendor Name</div>
+                      <div className="text-center">Total Orders</div>
+                      <div className="text-center">Total Value</div>
+                      <div className="text-center">On-Time Delivery</div>
+                      <div className="text-center">Quality Rating</div>
+                      <div className="text-center">Performance</div>
+                    </div>
+                    {vendorHistory.data.map((vendor: any, index: number) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
+                      >
                         <div>
                           <p className="font-light">{vendor.name}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Orders</p>
-                          <p className="font-light">{vendor.orders}</p>
+                          <p className="font-light">{vendor.totalOrders}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-sm text-muted-foreground">On Time</p>
-                          <p className="font-light">{vendor.onTime}</p>
+                          <p className="font-light">₹{vendor.totalValue}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Quality</p>
-                          <p className="font-light">{vendor.quality}</p>
+                          <p className="font-light">{vendor.onTimeDelivery}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Total Value</p>
-                          <p className="font-light">{vendor.value}</p>
+                        <div className="text-center">
+                          <p className="font-light">{vendor.qualityRating}</p>
+                        </div>
+                        <div className="text-center">
+                          <Badge variant="default">Good</Badge>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No vendor data available
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Reorder Forecast Report */}
         <TabsContent value="reorder-forecast">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-5 w-5" />
-                  <span>Reorder Forecast & Planning</span>
+                  <span>Reorder Forecast & Recommendations</span>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button
+                  onClick={handleExportReorderForecast}
+                  size="sm"
+                  variant="outline"
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Export Excel
+                  Export CSV
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Forecast Parameters */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="forecast-period">Forecast Period</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select period..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1-month">1 Month</SelectItem>
-                        <SelectItem value="3-months">3 Months</SelectItem>
-                        <SelectItem value="6-months">6 Months</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="demand-model">Demand Model</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select model..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="moving-average">Moving Average</SelectItem>
-                        <SelectItem value="exponential">Exponential Smoothing</SelectItem>
-                        <SelectItem value="linear-trend">Linear Trend</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Button className="mt-6 w-full">Generate Forecast</Button>
-                  </div>
-                </div>
-
-                {/* Reorder Recommendations */}
-                <div>
-                  <h3 className="font-semibold mb-4">Immediate Reorder Recommendations</h3>
+              <div className="space-y-4">
+                {reorderForecast?.data?.length > 0 ? (
                   <div className="space-y-3">
-                    {[
-                      { item: "Steel Rods - 12mm", current: 15, min: 25, suggested: 100, urgency: "High" },
-                      { item: "Aluminum Sheet - 5mm", current: 8, min: 10, suggested: 50, urgency: "Medium" },
-                      { item: "Bearing Assembly", current: 3, min: 5, suggested: 20, urgency: "High" }
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
+                      <div>Product Name</div>
+                      <div className="text-center">Current Stock</div>
+                      <div className="text-center">Minimum Level</div>
+                      <div className="text-center">Suggested Order</div>
+                      <div className="text-center">Days Until Stockout</div>
+                      <div className="text-center">Priority</div>
+                    </div>
+                    {reorderForecast.data.map((item: any, index: number) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
+                      >
                         <div>
-                          <p className="font-light">{item.item}</p>
-                          <p className="text-sm text-muted-foreground">Current: {item.current} | Min: {item.min}</p>
+                          <p className="font-light">{item.name}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-light">Suggest: {item.suggested}</p>
-                          <span className={`text-xs px-2 py-1 rounded ${item.urgency === 'High' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <div className="text-center">
+                          <p className="font-light">{item.currentStock}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">{item.lowStockThreshold}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">
+                            {item.recommendedReorder}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-light">
+                            {item.estimatedDaysToStockout}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <Badge
+                            variant={
+                              item.urgency === "High"
+                                ? "destructive"
+                                : item.urgency === "Medium"
+                                ? "secondary"
+                                : "default"
+                            }
+                          >
                             {item.urgency}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No reorder recommendations available
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="custom-reports">
+        {/* Analytics Report */}
+        <TabsContent value="analytics">
           <Card>
             <CardHeader>
-              <CardTitle>Custom Report Builder</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Inventory Analytics</span>
+                </div>
+                <Button
+                  onClick={handleExportAnalytics}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Category Breakdown */}
+                {analytics?.categoryBreakdown?.length > 0 && (
                   <div>
-                    <Label>Report Type</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select report type..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="inventory-movement">Inventory Movement</SelectItem>
-                        <SelectItem value="vendor-performance">Vendor Performance</SelectItem>
-                        <SelectItem value="cost-analysis">Cost Analysis</SelectItem>
-                        <SelectItem value="demand-analysis">Demand Analysis</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Date Range</Label>
-                    <div className="flex space-x-2">
-                      <Input type="date" />
-                      <Input type="date" />
+                    <h3 className="font-semibold mb-4">Category Breakdown</h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
+                        <div>Category</div>
+                        <div className="text-center">Products</div>
+                        <div className="text-center">Total Value</div>
+                        <div className="text-center">Percentage</div>
+                      </div>
+                      {analytics.categoryBreakdown.map(
+                        (category: any, index: number) => (
+                          <div
+                            key={index}
+                            className="grid grid-cols-4 gap-4 p-4 border rounded-lg"
+                          >
+                            <div>
+                              <p className="font-light">{category.category}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-light">{category.items}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-light">₹{category.value}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-light">
+                                {(
+                                  (parseFloat(category.value) /
+                                    analytics.totalInventoryValue) *
+                                  100
+                                ).toFixed(1)}
+                                %
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
-                </div>
-                
-                <div>
-                  <Label>Filters</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Category..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="steel">Steel Products</SelectItem>
-                        <SelectItem value="aluminum">Aluminum</SelectItem>
-                        <SelectItem value="spares">Spare Parts</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Location..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wh-a">Warehouse A</SelectItem>
-                        <SelectItem value="wh-b">Warehouse B</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vendor..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="steel-ind">Steel Industries</SelectItem>
-                        <SelectItem value="aluminum-works">Aluminum Works</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                )}
 
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline">Preview</Button>
-                  <Button>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Generate Report
-                  </Button>
-                </div>
+                {/* Top Selling Products */}
+                {analytics?.topSellingProducts?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-4">Top Selling Products</h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
+                        <div>Product Name</div>
+                        <div className="text-center">Units Sold</div>
+                        <div className="text-center">Revenue</div>
+                        <div className="text-center">Growth</div>
+                      </div>
+                      {analytics.topSellingProducts.map(
+                        (product: any, index: number) => (
+                          <div
+                            key={index}
+                            className="grid grid-cols-4 gap-4 p-4 border rounded-lg"
+                          >
+                            <div>
+                              <p className="font-light">{product.name}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-light">
+                                {product.outboundQty}
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-light">
+                                ₹{(product.outboundQty * 100).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <Badge variant="default">+5%</Badge>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
