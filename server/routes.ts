@@ -2014,9 +2014,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user ID from users table if username is provided
       let user;
       if (userId) {
-        [user] = await db.select().from("users").where({ id: userId });
+        [user] = await db.select().from(users).where(eq(users.id, userId));
       } else {
-        [user] = await db.select().from("users").where({ username });
+        [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, username));
       }
 
       if (!user) {
@@ -2028,7 +2031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (action === "check_in") {
         const [record] = await db
-          .insert("attendance")
+          .insert(attendance)
           .values({
             id: uuidv4(),
             userId: resolvedUserId,
@@ -2038,16 +2041,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "present",
             notes: notes || null,
           })
-          .returning("*"); // return inserted row
+          .returning();
         return res.status(201).json(record);
       }
 
       if (action === "check_out") {
         const [existing] = await db
           .select()
-          .from("attendance")
-          .where({ userId: resolvedUserId })
-          .orderBy("date", "desc")
+          .from(attendance)
+          .where(eq(attendance.userId, resolvedUserId))
+          .orderBy(desc(attendance.date))
           .limit(1);
 
         if (!existing || existing.checkOut) {
@@ -2055,10 +2058,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const [updated] = await db
-          .update("attendance")
+          .update(attendance)
           .set({ checkOut: timestamp })
-          .where({ id: existing.id })
-          .returning("*");
+          .where(eq(attendance.id, existing.id))
+          .returning();
 
         return res.json(updated);
       }
@@ -2076,7 +2079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET all attendance
   app.get("/api/attendance", async (_req, res) => {
     try {
-      const data = await db.select().from("attendance");
+      const data = await db.select().from(attendance);
       res.json({ data });
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
@@ -2164,8 +2167,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values({
           userId: user.id, // use the user's ID
           leaveType,
-          startDate,
-          endDate,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
           reason: reason || "",
           status: "pending", // default leave status
         })
@@ -2189,6 +2192,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching leave requests:", error);
       res.status(500).json({
         error: "Failed to fetch leave requests",
+        details: error.message,
+      });
+    }
+  });
+
+  // Approve leave request
+  app.put("/api/inventory/leave-request/:id/approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
+      }
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "approved" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request approved successfully",
+      });
+    } catch (error: any) {
+      console.error("Error approving leave request:", error);
+      res.status(500).json({
+        error: "Failed to approve leave request",
+        details: error.message,
+      });
+    }
+  });
+
+  // Reject leave request
+  app.put("/api/inventory/leave-request/:id/reject", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
+      }
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "rejected" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request rejected successfully",
+      });
+    } catch (error: any) {
+      console.error("Error rejecting leave request:", error);
+      res.status(500).json({
+        error: "Failed to reject leave request",
         details: error.message,
       });
     }

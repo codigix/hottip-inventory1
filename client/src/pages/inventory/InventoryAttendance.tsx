@@ -56,8 +56,19 @@ export default function InventoryAttendance() {
     isLoading: attendanceLoading,
     refetch: refetchAttendance,
   } = useQuery({
-    queryKey: ["/inventory/attendance-with-leave"],
-    queryFn: async () => apiRequest("GET", "/inventory/attendance-with-leave"),
+    queryKey: ["/api/attendance"],
+    queryFn: async () => apiRequest("GET", "/api/attendance"),
+  });
+
+  // Fetch leave requests data
+  const {
+    data: leaveRequestsData,
+    isLoading: leaveRequestsLoading,
+    refetch: refetchLeaveRequests,
+  } = useQuery({
+    queryKey: ["/api/inventory/attendance-with-leave"],
+    queryFn: async () =>
+      apiRequest("GET", "/api/inventory/attendance-with-leave"),
   });
 
   const [employees, setEmployees] = useState<any[]>([]);
@@ -71,7 +82,7 @@ export default function InventoryAttendance() {
   // Check-in/check-out mutation
   const attendanceMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/attendance", data);
+      return apiRequest("POST", "/api/attendance", data);
     },
     onSuccess: () => {
       toast({
@@ -82,7 +93,7 @@ export default function InventoryAttendance() {
       });
       setIsCheckInDialogOpen(false);
       resetAttendanceForm();
-      queryClient.invalidateQueries({ queryKey: ["/attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
     onError: (error: any) => {
       toast({
@@ -102,7 +113,7 @@ export default function InventoryAttendance() {
       endDate: string;
       reason: string;
     }) => {
-      return apiRequest("POST", "/inventory/leave-request", data);
+      return apiRequest("POST", "/api/inventory/leave-request", data);
     },
     onSuccess: () => {
       toast({
@@ -110,13 +121,71 @@ export default function InventoryAttendance() {
         description: "Leave request submitted successfully",
       });
       setIsLeaveDialogOpen(false);
-      setLeaveEmployee("");
+      setSelectedEmployee("");
       setLeaveType("");
+      // Refresh leave requests data
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/attendance-with-leave"],
+      });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error?.message || "Failed to submit leave request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Approve leave request mutation
+  const approveLeaveRequestMutation = useMutation({
+    mutationFn: async (leaveRequestId: string) => {
+      return apiRequest(
+        "PUT",
+        `/api/inventory/leave-request/${leaveRequestId}/approve`
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Leave request approved successfully",
+      });
+      // Refresh leave requests data
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/attendance-with-leave"],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to approve leave request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject leave request mutation
+  const rejectLeaveRequestMutation = useMutation({
+    mutationFn: async (leaveRequestId: string) => {
+      return apiRequest(
+        "PUT",
+        `/api/inventory/leave-request/${leaveRequestId}/reject`
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Leave request rejected successfully",
+      });
+      // Refresh leave requests data
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/attendance-with-leave"],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to reject leave request",
         variant: "destructive",
       });
     },
@@ -166,7 +235,7 @@ export default function InventoryAttendance() {
 
   const generateAttendanceReport = () => {
     // Generate CSV report
-    const reportData = attendance || [];
+    const reportData = inventoryStaff || [];
     const csvContent = [
       [
         "Employee",
@@ -218,7 +287,7 @@ export default function InventoryAttendance() {
       (document.getElementById("reason") as HTMLTextAreaElement)?.value || "";
 
     if (
-      !leaveEmployee ||
+      !selectedEmployee ||
       !leaveType ||
       !startDate ||
       !endDate ||
@@ -232,8 +301,19 @@ export default function InventoryAttendance() {
       return;
     }
 
+    // Find the selected employee to get their username
+    const employee = employees.find((emp) => emp.id === selectedEmployee);
+    if (!employee) {
+      toast({
+        title: "Error",
+        description: "Selected employee not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
     leaveRequestMutation.mutate({
-      employeeName: leaveEmployee,
+      employeeName: employee.username,
       leaveType,
       startDate,
       endDate,
@@ -242,30 +322,52 @@ export default function InventoryAttendance() {
   };
 
   // Use real API data or empty array as fallback
-  const inventoryStaff = Array.isArray(attendance) ? attendance : [];
+  const rawAttendanceData = Array.isArray(attendance?.data)
+    ? attendance.data
+    : [];
 
-  const leaveRequests = [
-    {
-      id: "1",
-      employee: "Mike Chen",
-      leaveType: "Sick Leave",
-      startDate: "2024-01-25",
-      endDate: "2024-01-26",
-      days: 2,
-      status: "approved",
-      reason: "Medical appointment",
-    },
-    {
-      id: "2",
-      employee: "Sarah Johnson",
-      leaveType: "Annual Leave",
-      startDate: "2024-01-30",
-      endDate: "2024-02-02",
-      days: 4,
-      status: "pending",
-      reason: "Family vacation",
-    },
-  ];
+  // Transform attendance data to include user names
+  const inventoryStaff = rawAttendanceData.map((record: any) => {
+    const user = employees.find((emp) => emp.id === record.userId);
+    return {
+      ...record,
+      name: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
+      department: user?.department || "Inventory",
+    };
+  });
+
+  // Debug logging
+  console.log("Raw attendance data:", rawAttendanceData);
+  console.log("Employees:", employees);
+  console.log("Transformed inventory staff:", inventoryStaff);
+
+  // Transform leave requests data to include user names and calculate days
+  const rawLeaveRequestsData = Array.isArray(leaveRequestsData?.data)
+    ? leaveRequestsData.data
+    : [];
+
+  const leaveRequests = rawLeaveRequestsData.map((request: any) => {
+    const user = employees.find((emp) => emp.id === request.userId);
+    const startDate = new Date(request.startDate);
+    const endDate = new Date(request.endDate);
+    const timeDiff = endDate.getTime() - startDate.getTime();
+    const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
+
+    return {
+      id: request.id,
+      employee: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
+      leaveType: request.leaveType,
+      startDate: request.startDate,
+      endDate: request.endDate,
+      days: days,
+      status: request.status,
+      reason: request.reason,
+    };
+  });
+
+  // Debug logging for leave requests
+  console.log("Raw leave requests data:", rawLeaveRequestsData);
+  console.log("Transformed leave requests:", leaveRequests);
 
   const attendanceColumns = [
     {
@@ -671,20 +773,33 @@ export default function InventoryAttendance() {
                     Today's Attendance - {new Date().toLocaleDateString()}
                   </span>
                 </div>
-                <Button size="sm" variant="outline">
-                  Refresh
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refetchAttendance()}
+                  disabled={attendanceLoading}
+                >
+                  {attendanceLoading ? "Loading..." : "Refresh"}
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <DataTable
-                data={inventoryStaff}
-                columns={attendanceColumns}
-                searchable={true}
-                searchKey="name"
-                onEdit={() => {}}
-                onView={() => {}}
-              />
+              {attendanceLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">
+                    Loading attendance data...
+                  </div>
+                </div>
+              ) : (
+                <DataTable
+                  data={inventoryStaff}
+                  columns={attendanceColumns}
+                  searchable={true}
+                  searchKey="name"
+                  onEdit={() => {}}
+                  onView={() => {}}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -693,20 +808,38 @@ export default function InventoryAttendance() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Leave Requests</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-5 w-5" />
+                    <span>Leave Requests</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => refetchLeaveRequests()}
+                    disabled={leaveRequestsLoading}
+                  >
+                    {leaveRequestsLoading ? "Loading..." : "Refresh"}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DataTable
-                  data={leaveRequests}
-                  columns={leaveColumns}
-                  searchable={true}
-                  searchKey="employee"
-                  onView={() => {}}
-                  onEdit={() => {}}
-                />
+                {leaveRequestsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-muted-foreground">
+                      Loading leave requests...
+                    </div>
+                  </div>
+                ) : (
+                  <DataTable
+                    data={leaveRequests}
+                    columns={leaveColumns}
+                    searchable={true}
+                    searchKey="employee"
+                    onView={() => {}}
+                    onEdit={() => {}}
+                  />
+                )}
               </CardContent>
             </Card>
 
@@ -716,40 +849,67 @@ export default function InventoryAttendance() {
                 <CardTitle>Pending Approvals</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {leaveRequests
-                    .filter((req) => req.status === "pending")
-                    .map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50"
-                      >
-                        <div>
-                          <p className="font-light">{request.employee}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {request.leaveType} - {request.days} days
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {request.reason}
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="destructive">
-                            Reject
-                          </Button>
-                          <Button size="sm">Approve</Button>
-                        </div>
-                      </div>
-                    ))}
-
-                  {leaveRequests.filter((req) => req.status === "pending")
-                    .length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">
-                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No pending leave requests</p>
+                {leaveRequestsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-muted-foreground">
+                      Loading pending approvals...
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {leaveRequests
+                      .filter((req) => req.status === "pending")
+                      .map((request) => (
+                        <div
+                          key={request.id}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50"
+                        >
+                          <div>
+                            <p className="font-light">{request.employee}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.leaveType} - {request.days} days
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {request.reason}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                rejectLeaveRequestMutation.mutate(request.id)
+                              }
+                              disabled={rejectLeaveRequestMutation.isPending}
+                            >
+                              {rejectLeaveRequestMutation.isPending
+                                ? "Rejecting..."
+                                : "Reject"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                approveLeaveRequestMutation.mutate(request.id)
+                              }
+                              disabled={approveLeaveRequestMutation.isPending}
+                            >
+                              {approveLeaveRequestMutation.isPending
+                                ? "Approving..."
+                                : "Approve"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {leaveRequests.filter((req) => req.status === "pending")
+                      .length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No pending leave requests</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

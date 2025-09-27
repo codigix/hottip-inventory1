@@ -243,6 +243,21 @@ export const marketingAttendance = pgTable("marketing_attendance", {
   checkInLocation: text("checkInLocation"),
   checkOutLocation: text("checkOutLocation"),
   checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+  // Additional fields used by storage methods
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  location: text("location"),
+  photoPath: text("photoPath"),
+  workDescription: text("workDescription"),
+  attendanceStatus: text("attendanceStatus").default("present"),
+  visitCount: integer("visitCount"),
+  tasksCompleted: integer("tasksCompleted"),
+  outcome: text("outcome"),
+  nextAction: text("nextAction"),
+  isOnLeave: boolean("isOnLeave").default(false),
 });
 
 // =====================
