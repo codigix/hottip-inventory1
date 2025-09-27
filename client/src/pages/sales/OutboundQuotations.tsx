@@ -2,81 +2,131 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, Eye, Edit, Send, Download, Filter } from "lucide-react";
-import { insertOutboundQuotationSchema, type InsertOutboundQuotation, type Customer, type OutboundQuotation } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus,
+  FileText,
+  Eye,
+  Edit,
+  Send,
+  Download,
+  Filter,
+} from "lucide-react";
+import {
+  insertOutboundQuotationSchema,
+  type InsertOutboundQuotation,
+  type Customer,
+  type OutboundQuotation,
+} from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 export default function OutboundQuotations() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedQuotation, setSelectedQuotation] = useState<OutboundQuotation | null>(null);
+  const [selectedQuotation, setSelectedQuotation] =
+    useState<OutboundQuotation | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false); // For Export All
-  const [filteredQuotations, setFilteredQuotations] = useState<OutboundQuotation[]>([]);
+  const [filteredQuotations, setFilteredQuotations] = useState<
+    OutboundQuotation[]
+  >([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toast } = useToast();
 
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
-    queryKey: ["/api/outbound-quotations"],
+    queryKey: ["/outbound-quotations"],
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   // Use shared schema with enhanced validation messages
   const quotationFormSchema = insertOutboundQuotationSchema.extend({
-    quotationNumber: z.string().min(1, "⚠️ Quotation number is required (e.g., QUO-2025-001)"),
-    customerId: z.string().min(1, "⚠️ Please select a customer from the dropdown"),
-    subtotalAmount: z.string().min(1, "⚠️ Subtotal amount is required (e.g., 1000.00)"),
-    totalAmount: z.string().min(1, "⚠️ Total amount is required (e.g., 1180.00)"),
+    quotationNumber: z
+      .string()
+      .min(1, "⚠️ Quotation number is required (e.g., QUO-2025-001)"),
+    customerId: z
+      .string()
+      .min(1, "⚠️ Please select a customer from the dropdown"),
+    subtotalAmount: z
+      .string()
+      .min(1, "⚠️ Subtotal amount is required (e.g., 1000.00)"),
+    totalAmount: z
+      .string()
+      .min(1, "⚠️ Total amount is required (e.g., 1180.00)"),
   });
 
   const form = useForm<z.infer<typeof quotationFormSchema>>({
     resolver: zodResolver(quotationFormSchema),
     defaultValues: {
-      status: 'draft',
+      status: "draft",
       quotationDate: new Date(),
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      subtotalAmount: '0.00',
-      taxAmount: '0.00',
-      discountAmount: '0.00',
-      totalAmount: '0.00',
-      quotationNumber: '',
-      customerId: '',
-      userId: '79c36f2b-237a-4ba6-a4b3-a12fc8a18446', // Real user ID from database
-      deliveryTerms: '',
-      paymentTerms: '',
-      warrantyTerms: '',
-      specialTerms: '',
-      notes: '',
-      jobCardNumber: '',
-      partNumber: '',
-      bankName: '',
-      accountNumber: '',
-      ifscCode: ''
+      subtotalAmount: "0.00",
+      taxAmount: "0.00",
+      discountAmount: "0.00",
+      totalAmount: "0.00",
+      quotationNumber: "",
+      customerId: "",
+      userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
+      deliveryTerms: "",
+      paymentTerms: "",
+      warrantyTerms: "",
+      specialTerms: "",
+      notes: "",
+      jobCardNumber: "",
+      partNumber: "",
+      bankName: "",
+      accountNumber: "",
+      ifscCode: "",
     },
   });
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) =>
-      apiRequest('POST', '/api/outbound-quotations', {
+      apiRequest("POST", "/outbound-quotations", {
         ...data,
-        userId: '79c36f2b-237a-4ba6-a4b3-a12fc8a18446', // Real user ID from database
+        userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outbound-quotations"] });
       toast({
         title: "Success",
         description: "Quotation created successfully",
@@ -85,7 +135,7 @@ export default function OutboundQuotations() {
       form.reset();
     },
     onError: (error: any) => {
-      console.error('Quotation creation error:', error);
+      console.error("Quotation creation error:", error);
 
       // Parse server validation errors and set field errors
       const issues = error?.data?.errors ?? error?.errors;
@@ -100,7 +150,8 @@ export default function OutboundQuotations() {
 
       toast({
         title: "Validation Error",
-        description: error?.message || "Please fix the highlighted fields and try again",
+        description:
+          error?.message || "Please fix the highlighted fields and try again",
         variant: "destructive",
       });
     },
@@ -121,14 +172,16 @@ export default function OutboundQuotations() {
     const resetData = {
       ...quotation,
       quotationDate: new Date(quotation.quotationDate),
-      validUntil: quotation.validUntil ? new Date(quotation.validUntil) : undefined,
+      validUntil: quotation.validUntil
+        ? new Date(quotation.validUntil)
+        : undefined,
       subtotalAmount: String(quotation.subtotalAmount),
       taxAmount: String(quotation.taxAmount),
       discountAmount: String(quotation.discountAmount),
       totalAmount: String(quotation.totalAmount),
-      customerId: quotation.customerId || '',
-      userId: quotation.userId || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
-      status: quotation.status || 'draft', // Ensure status is set
+      customerId: quotation.customerId || "",
+      userId: quotation.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      status: quotation.status || "draft", // Ensure status is set
     };
     console.log("Resetting form with data:", resetData); // Debug log
     form.reset(resetData);
@@ -148,9 +201,9 @@ export default function OutboundQuotations() {
       });
 
       // Refresh the list
-      queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outbound-quotations"] });
     } catch (error: any) {
-      console.error('Failed to send quotation:', error);
+      console.error("Failed to send quotation:", error);
       toast({
         title: "Error",
         description: error?.data?.error || "Failed to send quotation",
@@ -162,46 +215,57 @@ export default function OutboundQuotations() {
   // Handler for Download PDF action
   const handleDownloadQuotationPDF = async (quotation: OutboundQuotation) => {
     try {
-      console.log(`🐛 [FRONTEND] handleDownloadQuotationPDF - Requesting PDF for quotation ID: ${quotation.id}`);
+      console.log(
+        `🐛 [FRONTEND] handleDownloadQuotationPDF - Requesting PDF for quotation ID: ${quotation.id}`
+      );
 
       // Make API request to get the PDF as a Blob
       const response = await apiRequest<Blob>(
-        'GET',
+        "GET",
         `/api/outbound-quotations/${quotation.id}/pdf`,
         undefined, // No body for GET request
-        { responseType: 'blob' } // Important: Expect a binary file (Blob)
+        { responseType: "blob" } // Important: Expect a binary file (Blob)
       );
 
-      console.log(`🐛 [FRONTEND] handleDownloadQuotationPDF - Received PDF blob for ID: ${quotation.id}`);
+      console.log(
+        `🐛 [FRONTEND] handleDownloadQuotationPDF - Received PDF blob for ID: ${quotation.id}`
+      );
 
       // Create a temporary URL for the blob
-      const url = window.URL.createObjectURL(new Blob([response]));
-      
+      const url = window.URL.createObjectURL(response); // Use response directly as it's already a Blob
+
       // Create a temporary anchor element to trigger the download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       // Suggest a filename based on the quotation number
-      link.setAttribute('download', `Quotation_${quotation.quotationNumber}.pdf`);
-      
+      link.setAttribute(
+        "download",
+        `Quotation_${quotation.quotationNumber}.pdf`
+      );
+
       // Append to the body, click, and remove
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
-      
+
       // Clean up the object URL to free up memory
       window.URL.revokeObjectURL(url);
 
-      console.log(`🐛 [FRONTEND] handleDownloadQuotationPDF - PDF download triggered for ID: ${quotation.id}`);
-      
+      console.log(
+        `🐛 [FRONTEND] handleDownloadQuotationPDF - PDF download triggered for ID: ${quotation.id}`
+      );
+
       toast({
         title: "Success",
         description: `Quotation ${quotation.quotationNumber} PDF downloaded successfully.`,
       });
     } catch (error: any) {
-      console.error('Failed to download PDF:', error);
+      console.error("Failed to download PDF:", error);
       toast({
         title: "Error",
-        description: error?.data?.error || `Failed to download PDF for quotation ${quotation.quotationNumber}.`,
+        description:
+          error?.message ||
+          `Failed to download PDF for quotation ${quotation.quotationNumber}.`,
         variant: "destructive",
       });
     }
@@ -211,9 +275,11 @@ export default function OutboundQuotations() {
   // Export filter schema
   const exportFilterSchema = z.object({
     customerId: z.string().optional(), // Optional for "All Customers"
-    status: z.enum(["draft", "sent", "pending", "approved", "rejected"]).optional(),
+    status: z
+      .enum(["draft", "sent", "pending", "approved", "rejected"])
+      .optional(),
     startDate: z.string().optional(), // Keep as string for form handling
-    endDate: z.string().optional(),   // Keep as string for form handling
+    endDate: z.string().optional(), // Keep as string for form handling
   });
 
   // Export form
@@ -235,44 +301,111 @@ export default function OutboundQuotations() {
   };
 
   // Handler for Export Filter Submit (preview filtered results)
-  const handleExportFilterSubmit = async (data: z.infer<typeof exportFilterSchema>) => {
+  const handleExportFilterSubmit = async (
+    data: z.infer<typeof exportFilterSchema>
+  ) => {
     try {
       setIsPreviewLoading(true);
       console.log("🐛 [EXPORT] Applying filters:", data);
 
+      // Check if any filter is applied
+      const hasCustomerId = data.customerId && data.customerId !== "";
+      const hasStatus = !!data.status;
+      const hasStartDate = !!data.startDate;
+      const hasEndDate = !!data.endDate;
+
+      // Validate date range if both dates are provided
+      if (hasStartDate && hasEndDate) {
+        const start = new Date(data.startDate!);
+        const end = new Date(data.endDate!);
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          toast({
+            title: "Invalid Date Format",
+            description: "Please enter dates in YYYY-MM-DD format",
+            variant: "destructive",
+          });
+          setIsPreviewLoading(false);
+          return;
+        }
+
+        if (start > end) {
+          toast({
+            title: "Invalid Date Range",
+            description: "Start date must be before end date",
+            variant: "destructive",
+          });
+          setIsPreviewLoading(false);
+          return;
+        }
+      }
+
+      // Check if at least one filter is applied
+      const hasAnyFilter =
+        hasCustomerId || hasStatus || hasStartDate || hasEndDate;
+
+      if (!hasAnyFilter) {
+        toast({
+          title: "No Filters Applied",
+          description: "Please select at least one filter criteria",
+          variant: "secondary",
+        });
+        setIsPreviewLoading(false);
+        setFilteredQuotations([]);
+        return;
+      }
+
       // Build query params for the GET request
       const queryParams = new URLSearchParams();
-      if (data.customerId && data.customerId !== "") {
-        queryParams.append("customerId", data.customerId);
+
+      // Only add parameters that have values
+      if (hasCustomerId) {
+        queryParams.append("customerId", data.customerId!);
       }
-      if (data.status) {
-        queryParams.append("status", data.status);
+
+      if (hasStatus) {
+        queryParams.append("status", data.status!);
       }
-      if (data.startDate) {
-        queryParams.append("startDate", data.startDate);
+
+      if (hasStartDate) {
+        queryParams.append("startDate", data.startDate!);
       }
-      if (data.endDate) {
-        queryParams.append("endDate", data.endDate);
+
+      if (hasEndDate) {
+        queryParams.append("endDate", data.endDate!);
       }
 
       // Fetch filtered quotations from the backend
-      // This assumes your backend supports query parameters for filtering
       const response = await apiRequest<OutboundQuotation[]>(
-        'GET',
-        `/api/outbound-quotations?${queryParams.toString()}`
+        "GET",
+        `/outbound-quotations?${queryParams.toString()}`
       );
 
       console.log("🐛 [EXPORT] Filtered quotations received:", response);
+
+      // Update state with filtered results
       setFilteredQuotations(response || []);
-      toast({
-        title: "Success",
-        description: `Found ${response?.length || 0} quotations matching your filters.`,
-      });
+
+      // Show success message with count
+      if (response?.length > 0) {
+        toast({
+          title: "Filter Applied",
+          description: `Found ${response.length} quotations matching your criteria.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "No Matching Records",
+          description:
+            "No quotations match your filter criteria. Try adjusting your filters.",
+          variant: "secondary",
+        });
+      }
     } catch (error: any) {
-      console.error('Failed to filter quotations:', error);
+      console.error("Failed to filter quotations:", error);
       toast({
         title: "Error",
-        description: error?.data?.error || "Failed to filter quotations",
+        description: error?.message || "Failed to filter quotations",
         variant: "destructive",
       });
       setFilteredQuotations([]);
@@ -284,63 +417,108 @@ export default function OutboundQuotations() {
   // Handler for Export All Submit (download filtered results)
   const handleExportAllSubmit = async () => {
     try {
+      // Verify we have quotations to export
       if (filteredQuotations.length === 0) {
         toast({
-          title: "Info",
-          description: "No quotations to export. Please apply filters first.",
-          variant: "default",
+          title: "No Data to Export",
+          description: "Please apply filters to find quotations for export.",
+          variant: "secondary",
         });
         return;
       }
 
+      // Show loading toast
+      toast({
+        title: "Preparing Export",
+        description: "Generating export file...",
+      });
+
       // Prepare the query parameters for the export API based on current export form values
       const formData = exportForm.getValues();
       const queryParams = new URLSearchParams();
-      if (formData.customerId && formData.customerId !== "") {
+
+      // Check if any filter is applied
+      const hasCustomerId = formData.customerId && formData.customerId !== "";
+      const hasStatus = !!formData.status;
+      const hasStartDate = !!formData.startDate;
+      const hasEndDate = !!formData.endDate;
+
+      // Verify at least one filter is applied
+      const hasAnyFilter =
+        hasCustomerId || hasStatus || hasStartDate || hasEndDate;
+
+      if (!hasAnyFilter) {
+        toast({
+          title: "No Filters Applied",
+          description:
+            "Please select at least one filter criteria before exporting",
+          variant: "secondary",
+        });
+        return;
+      }
+
+      // Only add parameters that have values
+      if (hasCustomerId) {
         queryParams.append("customerId", formData.customerId);
       }
-      if (formData.status) {
-        queryParams.append("status", formData.status);
-      }
-      if (formData.startDate) {
-        queryParams.append("startDate", formData.startDate);
-      }
-      if (formData.endDate) {
-        queryParams.append("endDate", formData.endDate);
+
+      if (hasStatus) {
+        queryParams.append("status", formData.status!);
       }
 
-      // Call the API to generate the export (e.g., CSV, Excel, or PDF of all matching quotations)
-      // This assumes your backend has an endpoint like `/api/outbound-quotations/export`
-      const response = await apiRequest(
-        'GET',
-        `/api/outbound-quotations/export?${queryParams.toString()}`,
-        undefined,
-        { responseType: 'blob' } // Expect a binary file
+      if (hasStartDate) {
+        queryParams.append("startDate", formData.startDate!);
+      }
+
+      if (hasEndDate) {
+        queryParams.append("endDate", formData.endDate!);
+      }
+
+      console.log(
+        "🐛 [EXPORT] Exporting with params:",
+        Object.fromEntries(queryParams.entries())
       );
 
-      // Trigger download of the exported file
-      const filename = `Outbound_Quotations_Export_${new Date().toISOString().split('T')[0]}.xlsx`; // Adjust extension based on your backend's output
-      const url = window.URL.createObjectURL(new Blob([response]));
-      const link = document.createElement('a');
+      // Call the API to generate the export file
+      const response = await apiRequest<Blob>(
+        "GET",
+        `/outbound-quotations/export?${queryParams.toString()}`,
+        undefined,
+        { responseType: "blob" } // Important: Expect a binary file (Blob)
+      );
+
+      // Generate a meaningful filename with date
+      const today = new Date().toISOString().split("T")[0];
+      const filename = `HotTip_Quotations_Export_${today}.xlsx`;
+
+      // Create a download link for the blob
+      const url = window.URL.createObjectURL(response);
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', filename);
+      link.setAttribute("download", filename);
+
+      // Trigger the download
       document.body.appendChild(link);
       link.click();
+
+      // Clean up
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       toast({
-        title: "Success",
-        description: "Quotations exported successfully",
+        title: "Export Successful",
+        description: `${filteredQuotations.length} quotations exported successfully.`,
       });
 
-      setIsExportDialogOpen(false); // Close the dialog after successful export
-      setFilteredQuotations([]); // Clear the preview
+      // Close dialog and reset state
+      setIsExportDialogOpen(false);
+      setFilteredQuotations([]);
     } catch (error: any) {
-      console.error('Failed to export quotations:', error);
+      console.error("Failed to export quotations:", error);
       toast({
-        title: "Error",
-        description: error?.data?.error || "Failed to export quotations",
+        title: "Export Failed",
+        description:
+          error?.message || "Failed to generate export file. Please try again.",
         variant: "destructive",
       });
     }
@@ -349,61 +527,68 @@ export default function OutboundQuotations() {
 
   const columns = [
     {
-      key: 'quotationNumber',
-      header: 'Quotation #',
+      key: "quotationNumber",
+      header: "Quotation #",
       cell: (quotation: any) => (
         <div className="font-light">{quotation.quotationNumber}</div>
       ),
     },
     {
-      key: 'customer',
-      header: 'Client',
+      key: "customer",
+      header: "Client",
       cell: (quotation: any) => (
         <div>
-          <div className="font-light">{quotation.customer?.name || 'N/A'}</div>
-          <div className="text-xs text-muted-foreground">{quotation.customer?.email || ''}</div>
+          <div className="font-light">{quotation.customer?.name || "N/A"}</div>
+          <div className="text-xs text-muted-foreground">
+            {quotation.customer?.email || ""}
+          </div>
         </div>
       ),
     },
     {
-      key: 'quotationDate',
-      header: 'Date',
+      key: "quotationDate",
+      header: "Date",
       cell: (quotation: any) =>
         new Date(quotation.quotationDate).toLocaleDateString(),
     },
     {
-      key: 'totalAmount',
-      header: 'Total Amount',
+      key: "totalAmount",
+      header: "Total Amount",
       cell: (quotation: any) =>
-        `₹${parseFloat(quotation.totalAmount).toLocaleString('en-IN')}`,
+        `₹${parseFloat(quotation.totalAmount).toLocaleString("en-IN")}`,
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (quotation: any) => {
         const statusColors = {
-          draft: 'bg-gray-100 text-gray-800',
-          sent: 'bg-blue-100 text-blue-800',
-          pending: 'bg-yellow-100 text-yellow-800',
-          approved: 'bg-green-100 text-green-800',
-          rejected: 'bg-red-100 text-red-800'
+          draft: "bg-gray-100 text-gray-800",
+          sent: "bg-blue-100 text-blue-800",
+          pending: "bg-yellow-100 text-yellow-800",
+          approved: "bg-green-100 text-green-800",
+          rejected: "bg-red-100 text-red-800",
         };
         return (
-          <Badge className={statusColors[quotation.status as keyof typeof statusColors] || statusColors.draft}>
-            {quotation.status?.toUpperCase() || 'DRAFT'}
+          <Badge
+            className={
+              statusColors[quotation.status as keyof typeof statusColors] ||
+              statusColors.draft
+            }
+          >
+            {quotation.status?.toUpperCase() || "DRAFT"}
           </Badge>
         );
       },
     },
     {
-      key: 'actions',
-      header: 'Actions',
+      key: "actions",
+      header: "Actions",
       cell: (quotation: any) => (
         <div className="flex items-center space-x-2">
           {/* View Button */}
-          <Button 
-            size="sm" 
-            variant="ghost" 
+          <Button
+            size="sm"
+            variant="ghost"
             data-testid={`button-view-${quotation.id}`}
             onClick={() => handleViewQuotation(quotation)}
           >
@@ -411,9 +596,9 @@ export default function OutboundQuotations() {
           </Button>
 
           {/* Edit Button */}
-          <Button 
-            size="sm" 
-            variant="ghost" 
+          <Button
+            size="sm"
+            variant="ghost"
             data-testid={`button-edit-${quotation.id}`}
             onClick={() => handleEditQuotation(quotation)}
           >
@@ -421,9 +606,9 @@ export default function OutboundQuotations() {
           </Button>
 
           {/* Send Button */}
-          <Button 
-            size="sm" 
-            variant="ghost" 
+          <Button
+            size="sm"
+            variant="ghost"
             data-testid={`button-send-${quotation.id}`}
             onClick={() => handleSendQuotation(quotation)}
             disabled={quotation.status === "sent"} // Optional: disable if already sent
@@ -432,9 +617,9 @@ export default function OutboundQuotations() {
           </Button>
 
           {/* Download PDF Button */}
-          <Button 
-            size="sm" 
-            variant="ghost" 
+          <Button
+            size="sm"
+            variant="ghost"
             data-testid={`button-download-${quotation.id}`}
             onClick={() => handleDownloadQuotationPDF(quotation)}
           >
@@ -442,14 +627,17 @@ export default function OutboundQuotations() {
           </Button>
         </div>
       ),
-    }
+    },
   ];
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-outbound-quotations-title">
+          <h1
+            className="text-3xl font-bold tracking-tight"
+            data-testid="text-outbound-quotations-title"
+          >
             Outbound Quotations
           </h1>
           <p className="text-muted-foreground">
@@ -472,20 +660,26 @@ export default function OutboundQuotations() {
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(
-                (data) => createQuotationMutation.mutate(data),
-              )} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit((data) =>
+                  createQuotationMutation.mutate(data)
+                )}
+                className="space-y-4"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="quotationNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quotation Number <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>
+                          Quotation Number{" "}
+                          <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="QUO-2024-001" 
+                          <Input
+                            {...field}
+                            placeholder="QUO-2024-001"
                             data-testid="input-quotation-number"
                           />
                         </FormControl>
@@ -499,8 +693,13 @@ export default function OutboundQuotations() {
                     name="customerId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormLabel>
+                          Customer <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ""}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-customer">
                               <SelectValue placeholder="Select customer" />
@@ -531,8 +730,15 @@ export default function OutboundQuotations() {
                         <FormControl>
                           <Input
                             type="date"
-                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            value={
+                              field.value instanceof Date &&
+                              !isNaN(field.value.getTime())
+                                ? field.value.toISOString().split("T")[0]
+                                : new Date().toISOString().split("T")[0]
+                            }
+                            onChange={(e) =>
+                              field.onChange(new Date(e.target.value))
+                            }
                             data-testid="input-quotation-date"
                           />
                         </FormControl>
@@ -550,8 +756,15 @@ export default function OutboundQuotations() {
                         <FormControl>
                           <Input
                             type="date"
-                            value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            value={
+                              field.value instanceof Date &&
+                              !isNaN(field.value.getTime())
+                                ? field.value.toISOString().split("T")[0]
+                                : new Date().toISOString().split("T")[0]
+                            }
+                            onChange={(e) =>
+                              field.onChange(new Date(e.target.value))
+                            }
                             data-testid="input-valid-until-date"
                           />
                         </FormControl>
@@ -567,13 +780,16 @@ export default function OutboundQuotations() {
                     name="subtotalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subtotal Amount <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>
+                          Subtotal Amount{" "}
+                          <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00" 
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
                             data-testid="input-subtotal"
                           />
                         </FormControl>
@@ -589,11 +805,11 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Tax Amount</FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00" 
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
                             data-testid="input-tax"
                           />
                         </FormControl>
@@ -601,7 +817,6 @@ export default function OutboundQuotations() {
                       </FormItem>
                     )}
                   />
-
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -612,11 +827,11 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Discount Amount</FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00" 
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
                             data-testid="input-discount"
                           />
                         </FormControl>
@@ -630,13 +845,15 @@ export default function OutboundQuotations() {
                     name="totalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Total Amount <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>
+                          Total Amount <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00" 
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
                             data-testid="input-total"
                           />
                         </FormControl>
@@ -654,10 +871,10 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Payment Terms</FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            value={field.value || ''} 
-                            placeholder="30 days" 
+                          <Input
+                            {...field}
+                            value={field.value || ""}
+                            placeholder="30 days"
                             data-testid="input-payment-terms"
                           />
                         </FormControl>
@@ -673,10 +890,10 @@ export default function OutboundQuotations() {
                       <FormItem>
                         <FormLabel>Delivery Terms</FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            value={field.value || ''} 
-                            placeholder="Ex-works" 
+                          <Input
+                            {...field}
+                            value={field.value || ""}
+                            placeholder="Ex-works"
                             data-testid="input-delivery-terms"
                           />
                         </FormControl>
@@ -693,10 +910,10 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          {...field} 
-                          value={field.value || ''} 
-                          placeholder="Additional notes for the quotation" 
+                        <Textarea
+                          {...field}
+                          value={field.value || ""}
+                          placeholder="Additional notes for the quotation"
                           data-testid="textarea-notes"
                         />
                       </FormControl>
@@ -722,7 +939,9 @@ export default function OutboundQuotations() {
                     disabled={createQuotationMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createQuotationMutation.isPending ? "Creating..." : "Create Quotation"}
+                    {createQuotationMutation.isPending
+                      ? "Creating..."
+                      : "Create Quotation"}
                   </Button>
                 </div>
               </form>
@@ -747,49 +966,74 @@ export default function OutboundQuotations() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <strong>Quotation Number:</strong> {selectedQuotation.quotationNumber}
+                  <strong>Quotation Number:</strong>{" "}
+                  {selectedQuotation.quotationNumber}
                 </div>
                 <div>
-                  <strong>Customer:</strong> {selectedQuotation.customer?.name || 'N/A'}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <strong>Quotation Date:</strong> {new Date(selectedQuotation.quotationDate).toLocaleDateString()}
-                </div>
-                <div>
-                  <strong>Valid Until:</strong> {selectedQuotation.validUntil ? new Date(selectedQuotation.validUntil).toLocaleDateString() : 'N/A'}
+                  <strong>Customer:</strong>{" "}
+                  {selectedQuotation.customer?.name || "N/A"}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <strong>Subtotal Amount:</strong> ₹{parseFloat(selectedQuotation.subtotalAmount).toLocaleString('en-IN')}
+                  <strong>Quotation Date:</strong>{" "}
+                  {new Date(
+                    selectedQuotation.quotationDate
+                  ).toLocaleDateString()}
                 </div>
                 <div>
-                  <strong>Tax Amount:</strong> ₹{parseFloat(selectedQuotation.taxAmount).toLocaleString('en-IN')}
+                  <strong>Valid Until:</strong>{" "}
+                  {selectedQuotation.validUntil
+                    ? new Date(
+                        selectedQuotation.validUntil
+                      ).toLocaleDateString()
+                    : "N/A"}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <strong>Discount Amount:</strong> ₹{parseFloat(selectedQuotation.discountAmount).toLocaleString('en-IN')}
+                  <strong>Subtotal Amount:</strong> ₹
+                  {parseFloat(selectedQuotation.subtotalAmount).toLocaleString(
+                    "en-IN"
+                  )}
                 </div>
                 <div>
-                  <strong>Total Amount:</strong> ₹{parseFloat(selectedQuotation.totalAmount).toLocaleString('en-IN')}
+                  <strong>Tax Amount:</strong> ₹
+                  {parseFloat(selectedQuotation.taxAmount).toLocaleString(
+                    "en-IN"
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <strong>Payment Terms:</strong> {selectedQuotation.paymentTerms || 'N/A'}
+                  <strong>Discount Amount:</strong> ₹
+                  {parseFloat(selectedQuotation.discountAmount).toLocaleString(
+                    "en-IN"
+                  )}
                 </div>
                 <div>
-                  <strong>Delivery Terms:</strong> {selectedQuotation.deliveryTerms || 'N/A'}
+                  <strong>Total Amount:</strong> ₹
+                  {parseFloat(selectedQuotation.totalAmount).toLocaleString(
+                    "en-IN"
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <strong>Payment Terms:</strong>{" "}
+                  {selectedQuotation.paymentTerms || "N/A"}
+                </div>
+                <div>
+                  <strong>Delivery Terms:</strong>{" "}
+                  {selectedQuotation.deliveryTerms || "N/A"}
                 </div>
               </div>
               <div>
-                <strong>Notes:</strong> {selectedQuotation.notes || 'N/A'}
+                <strong>Notes:</strong> {selectedQuotation.notes || "N/A"}
               </div>
               <div>
-                <strong>Status:</strong> {selectedQuotation.status?.toUpperCase() || 'DRAFT'}
+                <strong>Status:</strong>{" "}
+                {selectedQuotation.status?.toUpperCase() || "DRAFT"}
               </div>
             </div>
           )}
@@ -809,8 +1053,8 @@ export default function OutboundQuotations() {
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(
-              (data) => {
+            <form
+              onSubmit={form.handleSubmit((data) => {
                 if (!selectedQuotation) return;
                 // Prepare data for update
                 // Ensure dates are Date objects or ISO strings if needed by backend
@@ -843,10 +1087,12 @@ export default function OutboundQuotations() {
                       description: "Quotation updated successfully",
                     });
                     setIsEditDialogOpen(false);
-                    queryClient.invalidateQueries({ queryKey: ['/api/outbound-quotations'] });
+                    queryClient.invalidateQueries({
+                      queryKey: ["/api/outbound-quotations"],
+                    });
                   })
                   .catch((error: any) => {
-                    console.error('Failed to update quotation:', error);
+                    console.error("Failed to update quotation:", error);
                     toast({
                       title: "Error",
                       description:
@@ -854,19 +1100,22 @@ export default function OutboundQuotations() {
                       variant: "destructive",
                     });
                   });
-              }
-            )} className="space-y-4">
+              })}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="quotationNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Quotation Number <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>
+                        Quotation Number <span className="text-red-500">*</span>
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          placeholder="QUO-2024-001" 
+                        <Input
+                          {...field}
+                          placeholder="QUO-2024-001"
                           data-testid="input-quotation-number"
                         />
                       </FormControl>
@@ -880,8 +1129,13 @@ export default function OutboundQuotations() {
                   name="customerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormLabel>
+                        Customer <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-customer">
                             <SelectValue placeholder="Select customer" />
@@ -909,7 +1163,10 @@ export default function OutboundQuotations() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "draft"}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "draft"}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-status">
                           <SelectValue placeholder="Select status" />
@@ -939,8 +1196,15 @@ export default function OutboundQuotations() {
                       <FormControl>
                         <Input
                           type="date"
-                          value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                          onChange={(e) => field.onChange(new Date(e.target.value))}
+                          value={
+                            field.value instanceof Date &&
+                            !isNaN(field.value.getTime())
+                              ? field.value.toISOString().split("T")[0]
+                              : new Date().toISOString().split("T")[0]
+                          }
+                          onChange={(e) =>
+                            field.onChange(new Date(e.target.value))
+                          }
                           data-testid="input-quotation-date"
                         />
                       </FormControl>
@@ -958,8 +1222,15 @@ export default function OutboundQuotations() {
                       <FormControl>
                         <Input
                           type="date"
-                          value={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                          onChange={(e) => field.onChange(new Date(e.target.value))}
+                          value={
+                            field.value instanceof Date &&
+                            !isNaN(field.value.getTime())
+                              ? field.value.toISOString().split("T")[0]
+                              : new Date().toISOString().split("T")[0]
+                          }
+                          onChange={(e) =>
+                            field.onChange(new Date(e.target.value))
+                          }
                           data-testid="input-valid-until-date"
                         />
                       </FormControl>
@@ -975,13 +1246,15 @@ export default function OutboundQuotations() {
                   name="subtotalAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Subtotal Amount <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>
+                        Subtotal Amount <span className="text-red-500">*</span>
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="0.00" 
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           data-testid="input-subtotal"
                         />
                       </FormControl>
@@ -997,11 +1270,11 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Tax Amount</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="0.00" 
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           data-testid="input-tax"
                         />
                       </FormControl>
@@ -1009,7 +1282,6 @@ export default function OutboundQuotations() {
                     </FormItem>
                   )}
                 />
-
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1020,11 +1292,11 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Discount Amount</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="0.00" 
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           data-testid="input-discount"
                         />
                       </FormControl>
@@ -1038,13 +1310,15 @@ export default function OutboundQuotations() {
                   name="totalAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Total Amount <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>
+                        Total Amount <span className="text-red-500">*</span>
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="0.00" 
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           data-testid="input-total"
                         />
                       </FormControl>
@@ -1062,10 +1336,10 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Payment Terms</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ''} 
-                          placeholder="30 days" 
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          placeholder="30 days"
                           data-testid="input-payment-terms"
                         />
                       </FormControl>
@@ -1081,10 +1355,10 @@ export default function OutboundQuotations() {
                     <FormItem>
                       <FormLabel>Delivery Terms</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ''} 
-                          placeholder="Ex-works" 
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          placeholder="Ex-works"
                           data-testid="input-delivery-terms"
                         />
                       </FormControl>
@@ -1101,10 +1375,10 @@ export default function OutboundQuotations() {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
-                        value={field.value || ''} 
-                        placeholder="Additional notes for the quotation" 
+                      <Textarea
+                        {...field}
+                        value={field.value || ""}
+                        placeholder="Additional notes for the quotation"
                         data-testid="textarea-notes"
                       />
                     </FormControl>
@@ -1141,194 +1415,238 @@ export default function OutboundQuotations() {
 
       {/* Export All Dialog */}
       <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Export All Quotations</DialogTitle>
+            <DialogTitle className="flex items-center">
+              <Download className="h-5 w-5 mr-2" />
+              Export All Quotations
+            </DialogTitle>
             <DialogDescription>
-              Filter and export quotations to a file.
+              Filter quotations by client, status, and date range before
+              exporting.
             </DialogDescription>
           </DialogHeader>
 
-          <Form {...exportForm}>
-            <form
-              onSubmit={exportForm.handleSubmit(handleExportFilterSubmit)}
-              className="space-y-4"
-            >
-              <FormField
-                control={exportForm.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-export-customer">
-                          <SelectValue placeholder="All Clients" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">All Clients</SelectItem>
-                        {(customers || []).map((customer: any) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Filter Form - Left Column */}
+            <div className="md:col-span-1 bg-muted/30 p-4 rounded-lg">
+              <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                FILTER OPTIONS
+              </h3>
 
-              <FormField
-                control={exportForm.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-export-status">
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">All Statuses</SelectItem>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="sent">Sent</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Form {...exportForm}>
+                <form
+                  onSubmit={exportForm.handleSubmit(handleExportFilterSubmit)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={exportForm.control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Client</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-export-customer">
+                              <SelectValue placeholder="All Clients" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">All Clients</SelectItem>
+                            {(customers || []).map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={exportForm.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        value={
-                          field.value instanceof Date && !isNaN(field.value.getTime())
-                            ? field.value.toISOString().split('T')[0]
-                            : ""
-                        }
-                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                        data-testid="input-export-start-date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={exportForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-export-status">
+                              <SelectValue placeholder="All Statuses" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">All Statuses</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="sent">Sent</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={exportForm.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        value={
-                          field.value instanceof Date && !isNaN(field.value.getTime())
-                            ? field.value.toISOString().split('T')[0]
-                            : ""
-                        }
-                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                        data-testid="input-export-end-date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={exportForm.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="w-full"
+                            data-testid="input-export-start-date"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="flex justify-end space-x-2">
+                  <FormField
+                    control={exportForm.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="w-full"
+                            data-testid="input-export-end-date"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isPreviewLoading}
+                    data-testid="button-submit-export"
+                  >
+                    {isPreviewLoading ? "Filtering..." : "Apply Filters"}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+
+            {/* Preview Section - Right Column */}
+            <div className="md:col-span-2">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  PREVIEW RESULTS
+                </h3>
+                <span className="text-sm bg-secondary px-2 py-1 rounded-md">
+                  {filteredQuotations.length} quotation
+                  {filteredQuotations.length !== 1 ? "s" : ""} found
+                </span>
+              </div>
+
+              {filteredQuotations.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="max-h-[350px] overflow-y-auto">
+                    <DataTable
+                      data={filteredQuotations || []}
+                      columns={columns}
+                      searchable={false}
+                      searchKey="quotationNumber"
+                    />
+                  </div>
+
+                  {/* Export Button */}
+                  <div className="bg-muted/20 p-3 flex justify-end">
+                    <Button
+                      onClick={handleExportAllSubmit}
+                      disabled={
+                        filteredQuotations.length === 0 || isPreviewLoading
+                      }
+                      data-testid="button-export-all-submit"
+                      size="sm"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export All ({filteredQuotations.length} Quotation
+                      {filteredQuotations.length !== 1 ? "s" : ""})
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="border rounded-lg flex flex-col items-center justify-center p-8 h-[350px] text-center bg-muted/10">
+                  <Filter className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                  <p className="text-muted-foreground mb-2">
+                    {isPreviewLoading
+                      ? "Loading quotations..."
+                      : "No quotations match the selected filters."}
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    {!isPreviewLoading &&
+                      "Try adjusting your filter criteria or click 'Apply Filters' to see all available quotations."}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsExportDialogOpen(false)}
                   data-testid="button-cancel-export"
+                  size="sm"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isPreviewLoading}
-                  data-testid="button-submit-export"
-                >
-                  {isPreviewLoading ? "Filtering..." : "Apply Filters"}
+                  Close
                 </Button>
               </div>
-            </form>
-          </Form>
-
-          {/* Preview Section */}
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Filtered Quotations ({filteredQuotations.length})</h3>
-            {filteredQuotations.length > 0 ? (
-              <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-                <DataTable
-                  data={(filteredQuotations || [])}
-                  columns={columns}
-                  searchable={false}
-                  searchKey="quotationNumber"
-                />
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-4">
-                {isPreviewLoading ? "Loading..." : "No quotations match the selected filters."}
-              </div>
-            )}
-          </div>
-
-          {/* Export Button */}
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={handleExportAllSubmit}
-              disabled={filteredQuotations.length === 0 || isPreviewLoading}
-              data-testid="button-export-submit"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export All ({filteredQuotations.length})
-            </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
-            <span>All Outbound Quotations</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                <span>All Outbound Quotations</span>
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Company → Client quotations with workflow status management
+              </CardDescription>
+            </div>
+
             {/* Export All Button */}
             <Button
-              size="sm"
               variant="outline"
-              className="ml-auto"
+              className="flex items-center gap-1"
               onClick={handleExportAll}
               data-testid="button-export-all-main"
             >
-              <Filter className="h-4 w-4 mr-2" />
-              Export All
+              <Download className="h-4 w-4" />
+              <span>Export All</span>
             </Button>
-          </CardTitle>
-          <CardDescription>
-            Company → Client quotations with workflow status management
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <DataTable
-            data={(quotations || [])}
+            data={quotations || []}
             columns={columns}
             searchable={true}
             searchKey="quotationNumber"
@@ -1338,8 +1656,6 @@ export default function OutboundQuotations() {
     </div>
   );
 }
-
-
 
 // import { useState } from "react";
 // import { useQuery, useMutation } from "@tanstack/react-query";
@@ -1832,7 +2148,7 @@ export default function OutboundQuotations() {
 //                 //   toast({
 //                 //     title: "Validation Error",
 //                 //     description: "Please fix the highlighted fields and try again",
-      
+
 //                 //     variant: "destructive",
 //                 //   });
 //                 // }

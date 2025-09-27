@@ -1,3 +1,22 @@
+
+// shared/schema.ts
+import {
+  pgTable,
+  serial,
+  varchar,
+  integer,
+  numeric,
+  timestamp,
+  boolean,
+  text,
+  uuid,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { decimal } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { z } from "zod";
+
+
 // =====================
 // FABRICATION ORDERS
 // =====================
@@ -64,23 +83,6 @@ export const insertAdminBackupSchema = z.object({
   size: z.coerce.number().optional(),
   filePath: z.string().optional(),
 });
-// shared/schema.ts
-import {
-  pgTable,
-  serial,
-  varchar,
-  integer,
-  numeric,
-  timestamp,
-  boolean,
-  text,
-  uuid,
-  pgEnum,
-} from "drizzle-orm/pg-core";
-import { decimal } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
-import { z } from "zod";
-
 // USERS table definition (inline, since ./users is missing)
 // =====================
 // USERS
