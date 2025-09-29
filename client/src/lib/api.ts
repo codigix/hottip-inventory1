@@ -4,147 +4,131 @@ import { apiRequest } from "./queryClient";
 export const api = {
   // Users
   users: {
-    getAll: () => fetch("/api/users").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/users/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/users"),
+    getById: (id: string) => apiRequest(`/users/${id}`),
     create: (data: any) =>
-      apiRequest("/api/users", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/users", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/users/${id}`, {
+      apiRequest(`/users/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    delete: (id: string) =>
-      apiRequest(`/api/users/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiRequest(`/users/${id}`, { method: "DELETE" }),
   },
 
   // Products
   products: {
-    getAll: () => fetch("/api/products").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/products/${id}`).then((res) => res.json()),
-    getLowStock: () =>
-      fetch("/api/products/low-stock").then((res) => res.json()),
+    getAll: () => apiRequest("/products"),
+    getById: (id: string) => apiRequest(`/products/${id}`),
+    getLowStock: () => apiRequest("/products/low-stock"),
     search: (query: string) =>
-      fetch(`/api/products/search?q=${encodeURIComponent(query)}`).then((res) =>
-        res.json()
-      ),
+      apiRequest(`/products/search?q=${encodeURIComponent(query)}`),
     create: (data: any) =>
-      apiRequest("/api/products", {
+      apiRequest("/products", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/products/${id}`, {
+      apiRequest(`/products/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    delete: (id: string) =>
-      apiRequest(`/api/products/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiRequest(`/products/${id}`, { method: "DELETE" }),
   },
 
   // Customers
   customers: {
-    getAll: () => fetch("/api/customers").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/customers/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/customers"),
+    getById: (id: string) => apiRequest(`/customers/${id}`),
     create: (data: any) =>
-      apiRequest("/api/customers", {
+      apiRequest("/customers", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/customers/${id}`, {
+      apiRequest(`/customers/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/api/customers/${id}`, { method: "DELETE" }),
+      apiRequest(`/customers/${id}`, { method: "DELETE" }),
   },
 
   // Orders
   orders: {
-    getAll: () => fetch("/api/orders").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/orders/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/orders"),
+    getById: (id: string) => apiRequest(`/orders/${id}`),
     create: (data: any) =>
-      apiRequest("/api/orders", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/orders", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/orders/${id}`, {
+      apiRequest(`/orders/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    delete: (id: string) =>
-      apiRequest(`/api/orders/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiRequest(`/orders/${id}`, { method: "DELETE" }),
   },
 
   // Suppliers
   suppliers: {
-    getAll: () => fetch("/api/suppliers").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/suppliers/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/suppliers"),
+    getById: (id: string) => apiRequest(`/suppliers/${id}`),
     create: (data: any) =>
-      apiRequest("/api/suppliers", {
+      apiRequest("/suppliers", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/suppliers/${id}`, {
+      apiRequest(`/suppliers/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/api/suppliers/${id}`, { method: "DELETE" }),
+      apiRequest(`/suppliers/${id}`, { method: "DELETE" }),
   },
 
   // Shipments
   shipments: {
-    getAll: () => fetch("/api/shipments").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/shipments/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/shipments"),
+    getById: (id: string) => apiRequest(`/shipments/${id}`),
     create: (data: any) =>
-      apiRequest("/api/shipments", {
+      apiRequest("/shipments", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/shipments/${id}`, {
+      apiRequest(`/shipments/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/api/shipments/${id}`, { method: "DELETE" }),
+      apiRequest(`/shipments/${id}`, { method: "DELETE" }),
   },
 
   // Tasks
   tasks: {
-    getAll: () => fetch("/api/tasks").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/tasks/${id}`).then((res) => res.json()),
-    getByUser: (userId: string) =>
-      fetch(`/api/tasks/user/${userId}`).then((res) => res.json()),
+    getAll: () => apiRequest("/tasks"),
+    getById: (id: string) => apiRequest(`/tasks/${id}`),
+    getByUser: (userId: string) => apiRequest(`/tasks/user/${userId}`),
     create: (data: any) =>
-      apiRequest("/api/tasks", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/tasks", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/tasks/${id}`, {
+      apiRequest(`/tasks/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    delete: (id: string) =>
-      apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiRequest(`/tasks/${id}`, { method: "DELETE" }),
   },
 
   // Attendance
   attendance: {
-    getByUser: (userId: string) =>
-      fetch(`/api/attendance/${userId}`).then((res) => res.json()),
+    getByUser: (userId: string) => apiRequest(`/attendance/${userId}`),
     create: (data: any) =>
-      apiRequest("/api/attendance", {
+      apiRequest("/attendance", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/attendance/${id}`, {
+      apiRequest(`/attendance/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -152,32 +136,29 @@ export const api = {
 
   // Marketing Attendance
   marketingAttendance: {
-    getAll: () => fetch("/api/marketing-attendance").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/marketing-attendance/${id}`).then((res) => res.json()),
-    getToday: () =>
-      fetch("/api/marketing-attendance/today").then((res) => res.json()),
-    getMetrics: () =>
-      fetch("/api/marketing-attendance/metrics").then((res) => res.json()),
+    getAll: () => apiRequest("/marketing-attendance"),
+    getById: (id: string) => apiRequest(`/marketing-attendance/${id}`),
+    getToday: () => apiRequest("/marketing-attendance/today"),
+    getMetrics: () => apiRequest("/marketing-attendance/metrics"),
     create: (data: any) =>
-      apiRequest("/api/marketing-attendance", {
+      apiRequest("/marketing-attendance", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/marketing-attendance/${id}`, {
+      apiRequest(`/marketing-attendance/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/api/marketing-attendance/${id}`, { method: "DELETE" }),
+      apiRequest(`/marketing-attendance/${id}`, { method: "DELETE" }),
     checkIn: (data: any) =>
-      apiRequest("/api/marketing-attendance/check-in", {
+      apiRequest("/marketing-attendance/check-in", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     checkOut: (data: any) =>
-      apiRequest("/api/marketing-attendance/check-out", {
+      apiRequest("/marketing-attendance/check-out", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -185,32 +166,29 @@ export const api = {
 
   // Leave Requests
   leaveRequests: {
-    getAll: () => fetch("/api/leave-requests").then((res) => res.json()),
-    getById: (id: string) =>
-      fetch(`/api/leave-requests/${id}`).then((res) => res.json()),
+    getAll: () => apiRequest("/leave-requests"),
+    getById: (id: string) => apiRequest(`/leave-requests/${id}`),
     getByStatus: (status: string) =>
-      fetch(`/api/leave-requests/status/${status}`).then((res) => res.json()),
+      apiRequest(`/leave-requests/status/${status}`),
     create: (data: any) =>
-      apiRequest("/api/leave-requests", {
+      apiRequest("/leave-requests", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/api/leave-requests/${id}`, {
+      apiRequest(`/leave-requests/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/api/leave-requests/${id}`, { method: "DELETE" }),
+      apiRequest(`/leave-requests/${id}`, { method: "DELETE" }),
   },
 
   // Dashboard & Analytics
   dashboard: {
-    getMetrics: () => fetch("/api/dashboard/metrics").then((res) => res.json()),
+    getMetrics: () => apiRequest("/dashboard/metrics"),
     getActivities: (limit?: number) =>
-      fetch(`/api/activities${limit ? `?limit=${limit}` : ""}`).then((res) =>
-        res.json()
-      ),
+      apiRequest(`/activities${limit ? `?limit=${limit}` : ""}`),
   },
 };
 

@@ -19,6 +19,8 @@ import {
   users,
   products,
   marketingAttendance,
+  marketing_Todays,
+  marketing_metrics,
   leaveRequests,
 } from "@shared/schema";
 
@@ -462,31 +464,48 @@ class Storage {
       user: r.users,
     }));
   }
-
   async getTodayMarketingAttendance(): Promise<any[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
+    try {
+      const rows = await db.execute(sql`
+      SELECT ma.*,
+             u.id   AS user_id,
+             CONCAT(u."firstName", ' ', u."lastName") AS user_name,
+             u.email AS user_email
+      FROM marketing_Todays ma
+      LEFT JOIN users u ON ma."userId" = u.id
+      WHERE DATE(ma.date) = CURRENT_DATE
+      ORDER BY ma.date DESC
+    `);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
-
-    const rows = await db
-      .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(
-        and(
-          gte(marketingAttendance.date, today),
-          lt(marketingAttendance.date, tomorrow)
-        )
-      )
-      .orderBy(desc(marketingAttendance.date));
-
-    // Map results: include user details nested under `user`
-    return rows.map((r) => ({
-      ...r.marketingAttendance,
-      user: r.users,
-    }));
+      return rows.map((r: any) => ({
+        id: r.id,
+        userId: r.userId,
+        date: r.date,
+        checkInTime: r.checkInTime,
+        checkOutTime: r.checkOutTime,
+        checkInLocation: r.checkInLocation,
+        checkOutLocation: r.checkOutLocation,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        location: r.location,
+        photoPath: r.photoPath,
+        workDescription: r.workDescription,
+        attendanceStatus: r.attendanceStatus,
+        visitCount: r.visitCount,
+        tasksCompleted: r.tasksCompleted,
+        outcome: r.outcome,
+        nextAction: r.nextAction,
+        isOnLeave: r.isOnLeave,
+        user: {
+          id: r.user_id,
+          name: r.user_name,
+          email: r.user_email,
+        },
+      }));
+    } catch (error: any) {
+      console.error("❌ Error in getTodayMarketingAttendance:", error);
+      throw new Error("Failed to fetch attendance record");
+    }
   }
 
   async checkInMarketingAttendance(
@@ -618,74 +637,45 @@ class Storage {
 
     return row;
   }
-
-  async getMarketingAttendanceMetrics() {
-    const todayStart = startOfDay(new Date());
-    const todayEnd = endOfDay(new Date());
-
-    // total attendance records
-    const [{ total }] = await db
-      .select({ total: sql<number>`COUNT(*)` })
-      .from(marketingAttendance);
-
-    // present today (unique users who checked in today)
-    const [{ presentToday }] = await db
-      .select({ presentToday: sql<number>`COUNT(DISTINCT "userId")` })
-      .from(marketingAttendance)
-      .where(
-        gte(marketingAttendance.date, todayStart) &&
-          lte(marketingAttendance.date, todayEnd)
-      );
-
-    const totalEmployees = total ?? 0;
-    const present = presentToday ?? 0;
-    const absent = totalEmployees - present;
-
-    // late arrivals (checked in after 10 AM)
-    const [{ lateToday }] = await db.execute(sql`
-      SELECT COUNT(*)::int AS "lateToday"
-      FROM "marketingAttendance"
-      WHERE "checkInTime"::time > '10:00:00'
-        AND "date" BETWEEN ${todayStart} AND ${todayEnd}
+  async getMarketingAttendanceMetrics(): Promise<any> {
+    try {
+      const rows = await db.execute(sql`
+      SELECT 
+        COUNT(*) AS total_records,
+        COUNT(CASE WHEN ma."attendanceStatus" = 'present' THEN 1 END) AS present_count,
+        COUNT(CASE WHEN ma."attendanceStatus" = 'absent' THEN 1 END) AS absent_count,
+        COUNT(CASE WHEN ma."isOnLeave" = true THEN 1 END) AS leave_count,
+        COALESCE(AVG(NULLIF(ma."visitCount", 0)), 0) AS avg_visits,
+        COALESCE(AVG(NULLIF(ma."tasksCompleted", 0)), 0) AS avg_tasks
+      FROM marketing_Todays ma
     `);
 
-    // placeholder for leave tracking
-    const onLeaveToday = 0;
+      const r = rows[0];
 
-    // monthly stats
-    const monthStart = startOfMonth(new Date());
-    const monthEnd = endOfMonth(new Date());
-
-    const [{ presentDays }] = await db.execute(sql`
-      SELECT COUNT(DISTINCT "date"::date)::int AS "presentDays"
-      FROM "marketingAttendance"
-      WHERE "date" BETWEEN ${monthStart} AND ${monthEnd}
-    `);
-
-    const leaveDays = 0;
-
-    return {
-      totalEmployees,
-      presentToday: present,
-      absentToday: absent,
-      lateToday: lateToday?.lateToday ?? 0,
-      onLeaveToday,
-      attendanceRate: totalEmployees > 0 ? (present / totalEmployees) * 100 : 0,
-      monthlyStats: {
-        totalDays: new Date().getDate(),
-        presentDays: presentDays?.presentDays ?? 0,
-        absentDays: new Date().getDate() - (presentDays?.presentDays ?? 0),
-        leaveDays,
-      },
-    };
+      return {
+        totalRecords: Number(r.total_records ?? 0),
+        presentCount: Number(r.present_count ?? 0),
+        absentCount: Number(r.absent_count ?? 0),
+        leaveCount: Number(r.leave_count ?? 0),
+        avgVisits: Number(r.avg_visits ?? 0),
+        avgTasks: Number(r.avg_tasks ?? 0),
+      };
+    } catch (error: any) {
+      console.error("❌ Error in getMarketingAttendanceMetrics:", error);
+      throw new Error("Failed to fetch attendance metrics");
+    }
   }
 
   // Leave Request Methods
   async getLeaveRequests(): Promise<LeaveRequest[]> {
-    return await db
-      .select()
-      .from(leaveRequests)
-      .orderBy(desc(leaveRequests.startDate));
+    const rows = await db.execute(sql`
+    SELECT 
+      *,
+      EXTRACT(DAY FROM (end_date - start_date)) + 1 AS total_days
+    FROM leave_requests
+    ORDER BY start_date DESC
+  `);
+    return rows;
   }
 
   async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {

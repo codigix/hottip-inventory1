@@ -160,9 +160,11 @@ export default function MarketingAttendance() {
     queryFn: marketingAttendance.getMetrics,
   });
 
-  const { data: leaveRequestsData = [] } = useQuery({
+  const { data: leaveRequestsData = [], error: leaveRequestsError } = useQuery({
     queryKey: ["leave-requests"],
     queryFn: leaveRequests.getAll,
+    retry: 1, // Only retry once for leave requests
+    retryOnMount: false, // Don't retry on component mount
   });
 
   // Mock users for now - in a real app, this would come from an API
@@ -193,7 +195,25 @@ export default function MarketingAttendance() {
   // Calculate leave balance from leave requests
   const leaveBalance: LeaveBalance = useMemo(() => {
     const totalLeave = 30; // This would come from user profile in a real app
-    const usedLeave = leaveRequestsData
+
+    // Debug logging
+    console.log(
+      "leaveRequestsData:",
+      leaveRequestsData,
+      "Type:",
+      typeof leaveRequestsData,
+      "IsArray:",
+      Array.isArray(leaveRequestsData)
+    );
+    if (leaveRequestsError) {
+      console.log("leaveRequestsError:", leaveRequestsError);
+    }
+
+    // Ensure leaveRequestsData is always an array
+    const safeLeaveRequestsData = Array.isArray(leaveRequestsData)
+      ? leaveRequestsData
+      : [];
+    const usedLeave = safeLeaveRequestsData
       .filter((req) => req.status === "approved" && req.totalDays)
       .reduce((sum, req) => sum + (req.totalDays || 0), 0);
 
