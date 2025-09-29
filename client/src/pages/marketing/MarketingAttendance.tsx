@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Users,
   Clock,
@@ -18,17 +18,23 @@ import {
   CheckCircle,
   XCircle,
   Pause,
-  Play
+  Play,
 } from "lucide-react";
 import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
+
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +62,7 @@ interface MarketingAttendance {
   date?: string;
   checkInTime?: string;
   checkOutTime?: string;
-  attendanceStatus?: 'present' | 'absent' | 'late';
+  attendanceStatus?: "present" | "absent" | "late";
   isOnLeave?: boolean;
 }
 
@@ -97,65 +103,149 @@ interface LeaveBalance {
 
 interface LeaveRequest {
   id?: string;
-  leaveType: 'sick' | 'vacation' | 'personal' | 'emergency' | 'training' | 'other';
+  leaveType:
+    | "sick"
+    | "vacation"
+    | "personal"
+    | "emergency"
+    | "training"
+    | "other";
   startDate: Date;
   endDate: Date;
   reason: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  status?: "pending" | "approved" | "rejected" | "cancelled";
   totalDays?: number;
 }
 
-type ViewMode = 'dashboard' | 'team' | 'calendar' | 'reports';
-type StatusFilter = 'all' | 'present' | 'absent' | 'late' | 'on_leave';
+type ViewMode = "dashboard" | "team" | "calendar" | "reports";
+type StatusFilter = "all" | "present" | "absent" | "late" | "on_leave";
 
 export default function MarketingAttendance() {
-  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(
+    undefined
+  );
 
   // Modal states
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
   const [checkOutModalOpen, setCheckOutModalOpen] = useState(false);
   const [leaveRequestModalOpen, setLeaveRequestModalOpen] = useState(false);
-  const [selectedAttendanceUser, setSelectedAttendanceUser] = useState<string | undefined>(undefined);
+  const [selectedAttendanceUser, setSelectedAttendanceUser] = useState<
+    string | undefined
+  >(undefined);
 
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  // Auto-refresh interval (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
-    }, 30000); // 30 seconds
+  // Mock data for development and testing
+  const mockUsers: User[] = [
+    {
+      id: "dev-admin-user",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      role: "admin",
+    },
+    {
+      id: "dev-employee-1",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+      role: "employee",
+    },
+    {
+      id: "dev-employee-2",
+      firstName: "Bob",
+      lastName: "Johnson",
+      email: "bob@example.com",
+      role: "employee",
+    },
+  ];
 
-    return () => clearInterval(interval);
-  }, [queryClient]);
-  // Dashboard data query removed: endpoint and type mismatch. Use separate dashboard page/queries if needed.
+  const mockTodayAttendance: AttendanceWithUser[] = [
+    {
+      id: "mock-1",
+      userId: "dev-admin-user",
+      date: new Date().toISOString(),
+      checkInTime: new Date().toISOString(),
+      checkOutTime: null,
+      attendanceStatus: "present",
+      isOnLeave: false,
+      user: {
+        id: "dev-admin-user",
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
+        role: "admin",
+      },
+    },
+    {
+      id: "mock-2",
+      userId: "dev-employee-1",
+      date: new Date().toISOString(),
+      checkInTime: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+      checkOutTime: null,
+      attendanceStatus: "present",
+      isOnLeave: false,
+      user: {
+        id: "dev-employee-1",
+        firstName: "Jane",
+        lastName: "Smith",
+        email: "jane@example.com",
+        role: "employee",
+      },
+    },
+  ];
 
-  // Fetch today's attendance
-  const { data: todayAttendance = [], isLoading: attendanceLoading, error: attendanceError } = useQuery<AttendanceWithUser[]>({
-    queryKey: ['/marketing-attendance/today'],
-  });
+  const mockAllAttendance: AttendanceWithUser[] = [
+    ...mockTodayAttendance,
+    {
+      id: "mock-3",
+      userId: "dev-employee-2",
+      date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // Yesterday
+      checkInTime: new Date(
+        Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60 * 60 * 9
+      ).toISOString(), // Yesterday 9 AM
+      checkOutTime: new Date(
+        Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60 * 60 * 18
+      ).toISOString(), // Yesterday 6 PM
+      attendanceStatus: "present",
+      isOnLeave: false,
+      user: {
+        id: "dev-employee-2",
+        firstName: "Bob",
+        lastName: "Johnson",
+        email: "bob@example.com",
+        role: "employee",
+      },
+    },
+  ];
 
-  // Fetch all attendance records for calendar view
-  const { data: allAttendance = [] } = useQuery<AttendanceWithUser[]>({
-    queryKey: ['/marketing-attendance'],
-    meta: { errorMessage: "Failed to load attendance records" }
-  });
+  const mockMetrics: AttendanceMetrics = {
+    totalEmployees: 3,
+    presentToday: 2,
+    absentToday: 1,
+    lateToday: 0,
+    onLeaveToday: 0,
+    averageWorkHours: 8.5,
+    attendanceRate: 67,
+    monthlyStats: {
+      totalDays: 22,
+      presentDays: 18,
+      absentDays: 2,
+      leaveDays: 2,
+    },
+  };
 
-  // Fetch attendance metrics
-  const { data: metrics, isLoading: metricsLoading } = useQuery<AttendanceMetrics>({
-    queryKey: ['/marketing-attendance/metrics'],
-    meta: { errorMessage: "Failed to load attendance metrics" }
-  });
-
-  // Fetch users for team management
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/users'],
-    meta: { errorMessage: "Failed to load users" }
-  });
+  // Use mock data instead of API calls
+  const todayAttendance = mockTodayAttendance;
+  const allAttendance = mockAllAttendance;
+  const metrics = mockMetrics;
+  const users = mockUsers;
+  const attendanceLoading = false;
+  const metricsLoading = false;
+  const attendanceError = null;
 
   // Fetch leave balance (mock data for now)
   const leaveBalance: LeaveBalance = {
@@ -164,28 +254,46 @@ export default function MarketingAttendance() {
     remainingLeave: 18,
     sickLeave: 8,
     vacationLeave: 15,
-    personalLeave: 7
+    personalLeave: 7,
   };
 
-  // Check-in mutation - FIXED: Remove automatic modal handling, let modals control flow
+  // Check-in mutation - Mock implementation for development
   const checkInMutation = useMutation({
-    mutationFn: (data: { userId?: string; latitude: number; longitude: number; location?: string; photoPath?: string; workDescription?: string }) =>
-      apiRequest('/marketing-attendance/check-in', { method: 'POST', body: data }),
+    mutationFn: async (data: {
+      userId?: string;
+      latitude: number;
+      longitude: number;
+      location?: string;
+      photoPath?: string;
+      workDescription?: string;
+    }) => {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Return mock response
+      return {
+        id: `checkin-${Date.now()}`,
+        userId: data.userId,
+        checkInTime: new Date().toISOString(),
+        latitude: data.latitude,
+        longitude: data.longitude,
+        location: data.location,
+        workDescription: data.workDescription,
+      };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
+      // No need to invalidate queries since we're using static mock data
       toast({ title: "Successfully checked in!" });
       // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
       // Error handling is now done in handleCheckInSubmit
-      console.error('Check-in mutation error:', error);
-    }
+      console.error("Check-in mutation error:", error);
+    },
   });
 
-  // Check-out mutation - FIXED: Remove automatic modal handling, let modals control flow
+  // Check-out mutation - Mock implementation for development
   const checkOutMutation = useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       userId?: string;
       latitude: number;
       longitude: number;
@@ -196,27 +304,49 @@ export default function MarketingAttendance() {
       tasksCompleted?: number;
       outcome?: string;
       nextAction?: string;
-    }) =>
-      apiRequest('/marketing-attendance/check-out', { method: 'POST', body: data }),
+    }) => {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Return mock response
+      return {
+        id: `checkout-${Date.now()}`,
+        userId: data.userId,
+        checkOutTime: new Date().toISOString(),
+        latitude: data.latitude,
+        longitude: data.longitude,
+        location: data.location,
+        workDescription: data.workDescription,
+        visitCount: data.visitCount,
+        tasksCompleted: data.tasksCompleted,
+        outcome: data.outcome,
+        nextAction: data.nextAction,
+      };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
+      // No need to invalidate queries since we're using static mock data
       toast({ title: "Successfully checked out!" });
       // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
       // Error handling is now done in handleCheckOutSubmit
-      console.error('Check-out mutation error:', error);
-    }
+      console.error("Check-out mutation error:", error);
+    },
   });
 
-  // Leave request submission mutation
+  // Leave request submission mutation - Mock implementation for development
   const leaveRequestMutation = useMutation({
-    mutationFn: (leaveRequest: LeaveRequest) =>
-      apiRequest('/marketing-attendance/leave-request', { method: 'POST', body: leaveRequest }),
+    mutationFn: async (leaveRequest: LeaveRequest) => {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Return mock response
+      return {
+        id: `leave-${Date.now()}`,
+        ...leaveRequest,
+        status: "pending" as const,
+      };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
+      // No need to invalidate queries since we're using static mock data
       toast({ title: "Leave request submitted successfully!" });
       setLeaveRequestModalOpen(false);
     },
@@ -224,23 +354,27 @@ export default function MarketingAttendance() {
       toast({
         title: "Error submitting leave request",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // Filter attendance based on search and status
   const filteredAttendance = useMemo(() => {
-    return todayAttendance.filter(record => {
-      const matchesSearch = !searchTerm ||
-        record.user?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return todayAttendance.filter((record) => {
+      const matchesSearch =
+        !searchTerm ||
+        record.user?.firstName
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         record.user?.lastName.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === 'all' ||
-        (statusFilter === 'present' && record.attendanceStatus === 'present') ||
-        (statusFilter === 'absent' && record.attendanceStatus === 'absent') ||
-        (statusFilter === 'late' && record.attendanceStatus === 'late') ||
-        (statusFilter === 'on_leave' && record.isOnLeave);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "present" && record.attendanceStatus === "present") ||
+        (statusFilter === "absent" && record.attendanceStatus === "absent") ||
+        (statusFilter === "late" && record.attendanceStatus === "late") ||
+        (statusFilter === "on_leave" && record.isOnLeave);
 
       return matchesSearch && matchesStatus;
     });
@@ -252,7 +386,7 @@ export default function MarketingAttendance() {
     setCheckInModalOpen(true);
   };
 
-  // Handle check-out  
+  // Handle check-out
   const handleCheckOut = (userId: string) => {
     setSelectedAttendanceUser(userId);
     setCheckOutModalOpen(true);
@@ -268,18 +402,18 @@ export default function MarketingAttendance() {
     try {
       const result = await checkInMutation.mutateAsync({
         userId: selectedAttendanceUser,
-        ...data
+        ...data,
       });
 
       return {
         attendanceId: result.id,
-        success: true
+        success: true,
       };
     } catch (error: any) {
       return {
-        attendanceId: '',
+        attendanceId: "",
         success: false,
-        error: error.message || 'Check-in failed'
+        error: error.message || "Check-in failed",
       };
     }
   };
@@ -298,18 +432,18 @@ export default function MarketingAttendance() {
     try {
       const result = await checkOutMutation.mutateAsync({
         userId: selectedAttendanceUser,
-        ...data
+        ...data,
       });
 
       return {
         attendanceId: result.id,
-        success: true
+        success: true,
       };
     } catch (error: any) {
       return {
-        attendanceId: '',
+        attendanceId: "",
         success: false,
-        error: error.message || 'Check-out failed'
+        error: error.message || "Check-out failed",
       };
     }
   };
@@ -321,14 +455,18 @@ export default function MarketingAttendance() {
 
   // Get attendance status counts
   const statusCounts = useMemo(() => {
-    const counts = todayAttendance.reduce((acc, record) => {
-      if (record.isOnLeave) {
-        acc.on_leave++;
-      } else {
-        acc[record.attendanceStatus] = (acc[record.attendanceStatus] || 0) + 1;
-      }
-      return acc;
-    }, { present: 0, absent: 0, late: 0, on_leave: 0 } as Record<string, number>);
+    const counts = todayAttendance.reduce(
+      (acc, record) => {
+        if (record.isOnLeave) {
+          acc.on_leave++;
+        } else {
+          acc[record.attendanceStatus] =
+            (acc[record.attendanceStatus] || 0) + 1;
+        }
+        return acc;
+      },
+      { present: 0, absent: 0, late: 0, on_leave: 0 } as Record<string, number>
+    );
 
     return counts;
   }, [todayAttendance]);
@@ -341,16 +479,19 @@ export default function MarketingAttendance() {
     lateToday: statusCounts.late,
     onLeaveToday: statusCounts.on_leave,
     averageWorkHours: 8.5,
-    attendanceRate: users.length > 0 ? (statusCounts.present / users.length) * 100 : 0,
+    attendanceRate:
+      users.length > 0 ? (statusCounts.present / users.length) * 100 : 0,
     monthlyStats: {
       totalDays: 22,
       presentDays: 18,
       absentDays: 2,
-      leaveDays: 2
-    }
+      leaveDays: 2,
+    },
   };
 
-  const selectedUser = selectedAttendanceUser ? users.find(u => u.id === selectedAttendanceUser) : null;
+  const selectedUser = selectedAttendanceUser
+    ? users.find((u) => u.id === selectedAttendanceUser)
+    : null;
 
   if (attendanceError) {
     return (
@@ -370,7 +511,9 @@ export default function MarketingAttendance() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="page-title">Marketing Attendance</h1>
+          <h1 className="text-3xl font-bold" data-testid="page-title">
+            Marketing Attendance
+          </h1>
           <p className="text-muted-foreground">
             Track team attendance with live location and leave management
           </p>
@@ -380,8 +523,7 @@ export default function MarketingAttendance() {
           <Button
             variant="outline"
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/today'] });
-              queryClient.invalidateQueries({ queryKey: ['/marketing-attendance/metrics'] });
+              toast({ title: "Data refreshed (using mock data)" });
             }}
             data-testid="button-refresh"
           >
@@ -400,7 +542,10 @@ export default function MarketingAttendance() {
       </div>
 
       {/* View Tabs */}
-      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
+      <Tabs
+        value={viewMode}
+        onValueChange={(value) => setViewMode(value as ViewMode)}
+      >
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dashboard" data-testid="tab-dashboard">
             <BarChart3 className="h-4 w-4 mr-2" />
@@ -426,45 +571,78 @@ export default function MarketingAttendance() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-light">Present Today</CardTitle>
+                <CardTitle className="text-sm font-light">
+                  Present Today
+                </CardTitle>
                 <UserCheck className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600" data-testid="metric-present">
+                <div
+                  className="text-2xl font-bold text-green-600"
+                  data-testid="metric-present"
+                >
                   {displayMetrics.presentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0 ? `${((displayMetrics.presentToday / users.length) * 100).toFixed(1)}%` : '0%'} of team
+                  {users.length > 0
+                    ? `${(
+                        (displayMetrics.presentToday / users.length) *
+                        100
+                      ).toFixed(1)}%`
+                    : "0%"}{" "}
+                  of team
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-light">Absent Today</CardTitle>
+                <CardTitle className="text-sm font-light">
+                  Absent Today
+                </CardTitle>
                 <UserX className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600" data-testid="metric-absent">
+                <div
+                  className="text-2xl font-bold text-red-600"
+                  data-testid="metric-absent"
+                >
                   {displayMetrics.absentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0 ? `${((displayMetrics.absentToday / users.length) * 100).toFixed(1)}%` : '0%'} of team
+                  {users.length > 0
+                    ? `${(
+                        (displayMetrics.absentToday / users.length) *
+                        100
+                      ).toFixed(1)}%`
+                    : "0%"}{" "}
+                  of team
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-light">Late Arrivals</CardTitle>
+                <CardTitle className="text-sm font-light">
+                  Late Arrivals
+                </CardTitle>
                 <Timer className="h-4 w-4 text-orange-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600" data-testid="metric-late">
+                <div
+                  className="text-2xl font-bold text-orange-600"
+                  data-testid="metric-late"
+                >
                   {displayMetrics.lateToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0 ? `${((displayMetrics.lateToday / users.length) * 100).toFixed(1)}%` : '0%'} of team
+                  {users.length > 0
+                    ? `${(
+                        (displayMetrics.lateToday / users.length) *
+                        100
+                      ).toFixed(1)}%`
+                    : "0%"}{" "}
+                  of team
                 </p>
               </CardContent>
             </Card>
@@ -475,11 +653,20 @@ export default function MarketingAttendance() {
                 <Calendar className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600" data-testid="metric-leave">
+                <div
+                  className="text-2xl font-bold text-blue-600"
+                  data-testid="metric-leave"
+                >
                   {displayMetrics.onLeaveToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0 ? `${((displayMetrics.onLeaveToday / users.length) * 100).toFixed(1)}%` : '0%'} of team
+                  {users.length > 0
+                    ? `${(
+                        (displayMetrics.onLeaveToday / users.length) *
+                        100
+                      ).toFixed(1)}%`
+                    : "0%"}{" "}
+                  of team
                 </p>
               </CardContent>
             </Card>
@@ -533,16 +720,23 @@ export default function MarketingAttendance() {
               {attendanceLoading ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-16 bg-muted rounded animate-pulse" />
+                    <div
+                      key={i}
+                      className="h-16 bg-muted rounded animate-pulse"
+                    />
                   ))}
                 </div>
               ) : todayAttendance.length > 0 ? (
                 <div className="space-y-3">
                   {todayAttendance.slice(0, 5).map((record) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={record.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                          {record.user?.firstName?.[0]}{record.user?.lastName?.[0]}
+                          {record.user?.firstName?.[0]}
+                          {record.user?.lastName?.[0]}
                         </div>
                         <div>
                           <p className="font-light">
@@ -550,20 +744,28 @@ export default function MarketingAttendance() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {record.checkInTime
-                              ? `Checked in at ${format(new Date(record.checkInTime), 'HH:mm')}`
-                              : 'Not checked in'
-                            }
+                              ? `Checked in at ${format(
+                                  new Date(record.checkInTime),
+                                  "HH:mm"
+                                )}`
+                              : "Not checked in"}
                           </p>
                         </div>
                       </div>
                       <Badge
-                        variant={record.attendanceStatus === 'present' ? 'default' :
-                          record.attendanceStatus === 'late' ? 'secondary' : 'destructive'}
+                        variant={
+                          record.attendanceStatus === "present"
+                            ? "default"
+                            : record.attendanceStatus === "late"
+                            ? "secondary"
+                            : "destructive"
+                        }
                       >
                         {record.isOnLeave
-                          ? 'On Leave'
-                          : (record.attendanceStatus ?? 'UNKNOWN').replace('_', ' ').toUpperCase()
-                        }
+                          ? "On Leave"
+                          : (record.attendanceStatus ?? "UNKNOWN")
+                              .replace("_", " ")
+                              .toUpperCase()}
                       </Badge>
                     </div>
                   ))}
@@ -591,7 +793,10 @@ export default function MarketingAttendance() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+            >
               <SelectTrigger className="w-48" data-testid="filter-status">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue />
@@ -610,7 +815,10 @@ export default function MarketingAttendance() {
           {attendanceLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-64 bg-muted rounded-lg animate-pulse" />
+                <div
+                  key={i}
+                  className="h-64 bg-muted rounded-lg animate-pulse"
+                />
               ))}
             </div>
           ) : (
@@ -632,7 +840,9 @@ export default function MarketingAttendance() {
               <CardContent className="py-8">
                 <div className="text-center">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No team members found</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No team members found
+                  </h3>
                   <p className="text-muted-foreground">
                     Try adjusting your search or filter criteria.
                   </p>
@@ -665,19 +875,27 @@ export default function MarketingAttendance() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Working Days</span>
-                    <span className="font-light">{displayMetrics?.monthlyStats?.totalDays ?? 0}</span>
+                    <span className="font-light">
+                      {displayMetrics?.monthlyStats?.totalDays ?? 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Days Present</span>
-                    <span className="font-light text-green-600">{displayMetrics?.monthlyStats?.presentDays ?? 0}</span>
+                    <span className="font-light text-green-600">
+                      {displayMetrics?.monthlyStats?.presentDays ?? 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Days Absent</span>
-                    <span className="font-light text-red-600">{displayMetrics?.monthlyStats?.absentDays ?? 0}</span>
+                    <span className="font-light text-red-600">
+                      {displayMetrics?.monthlyStats?.absentDays ?? 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Leave Days</span>
-                    <span className="font-light text-blue-600">{displayMetrics?.monthlyStats?.leaveDays ?? 0}</span>
+                    <span className="font-light text-blue-600">
+                      {displayMetrics?.monthlyStats?.leaveDays ?? 0}
+                    </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
@@ -685,8 +903,10 @@ export default function MarketingAttendance() {
                     <span className="font-bold text-green-600">
                       {(
                         ((displayMetrics?.monthlyStats?.presentDays ?? 0) /
-                          (displayMetrics?.monthlyStats?.totalDays ?? 1)) * 100
-                      ).toFixed(1)}%
+                          (displayMetrics?.monthlyStats?.totalDays ?? 1)) *
+                        100
+                      ).toFixed(1)}
+                      %
                     </span>
                   </div>
                 </div>
@@ -702,15 +922,21 @@ export default function MarketingAttendance() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Leave</span>
-                    <span className="font-light">{leaveBalance.totalLeave} days</span>
+                    <span className="font-light">
+                      {leaveBalance.totalLeave} days
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Used Leave</span>
-                    <span className="font-light text-orange-600">{leaveBalance.usedLeave} days</span>
+                    <span className="font-light text-orange-600">
+                      {leaveBalance.usedLeave} days
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Remaining Leave</span>
-                    <span className="font-light text-green-600">{leaveBalance.remainingLeave} days</span>
+                    <span className="font-light text-green-600">
+                      {leaveBalance.remainingLeave} days
+                    </span>
                   </div>
                   <Separator />
                   <div className="space-y-2">
@@ -764,7 +990,11 @@ export default function MarketingAttendance() {
         onCheckIn={handleCheckInSubmit}
         isLoading={checkInMutation.isPending}
         userId={selectedAttendanceUser}
-        userName={selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : undefined}
+        userName={
+          selectedUser
+            ? `${selectedUser.firstName} ${selectedUser.lastName}`
+            : undefined
+        }
       />
 
       <CheckOutModal
@@ -773,9 +1003,17 @@ export default function MarketingAttendance() {
         onCheckOut={handleCheckOutSubmit}
         isLoading={checkOutMutation.isPending}
         userId={selectedAttendanceUser}
-        userName={selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : undefined}
-        checkInTime={selectedAttendanceUser ?
-          todayAttendance.find(a => a.userId === selectedAttendanceUser)?.checkInTime?.toString() : undefined
+        userName={
+          selectedUser
+            ? `${selectedUser.firstName} ${selectedUser.lastName}`
+            : undefined
+        }
+        checkInTime={
+          selectedAttendanceUser
+            ? todayAttendance
+                .find((a) => a.userId === selectedAttendanceUser)
+                ?.checkInTime?.toString()
+            : undefined
         }
       />
 

@@ -1371,6 +1371,7 @@ export const checkOutMarketingAttendance = async (
 ): Promise<void> => {
   try {
     const {
+      attendanceId,
       latitude,
       longitude,
       location,
@@ -1381,6 +1382,11 @@ export const checkOutMarketingAttendance = async (
     } = req.body;
     const userId = req.user!.id;
 
+    if (!attendanceId) {
+      res.status(400).json({ error: "Attendance ID is required" });
+      return;
+    }
+
     if (!latitude || !longitude) {
       res
         .status(400)
@@ -1388,16 +1394,28 @@ export const checkOutMarketingAttendance = async (
       return;
     }
 
-    const attendance = await storage.checkOutMarketingAttendance(userId, {
-      checkOutTime: new Date(),
-      checkOutLatitude: latitude,
-      checkOutLongitude: longitude,
-      checkOutLocation: location,
-      checkOutPhotoPath: photoPath,
-      workDescription,
-      visitCount,
-      tasksCompleted,
-    });
+    // Check ownership - ensure the attendance belongs to the authenticated user
+    const existing = await storage.getMarketingAttendance(attendanceId);
+    if (!existing || existing.userId !== userId) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to check out this attendance" });
+      return;
+    }
+
+    const attendance = await storage.checkOutMarketingAttendanceById(
+      attendanceId,
+      {
+        checkOutTime: new Date(),
+        checkOutLatitude: latitude,
+        checkOutLongitude: longitude,
+        checkOutLocation: location,
+        checkOutPhotoPath: photoPath,
+        workDescription,
+        visitCount,
+        tasksCompleted,
+      }
+    );
 
     res.json({ attendance, message: "Successfully checked out" });
   } catch (error) {

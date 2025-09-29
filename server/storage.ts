@@ -1,10 +1,21 @@
-import { customers } from '@shared/schema';
+import { customers } from "@shared/schema";
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 // ...existing code...
-import { db } from './db';
-import { and, desc, eq, gte, lt, lte, sql, count, avg, isNotNull } from 'drizzle-orm';
-import { users, products, marketingAttendance } from '@shared/schema';
+import { db } from "./db";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  lt,
+  lte,
+  sql,
+  count,
+  avg,
+  isNotNull,
+} from "drizzle-orm";
+import { users, products, marketingAttendance } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
 
@@ -14,7 +25,11 @@ export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 
-import { suppliers,outboundQuotations,inboundQuotations } from '@shared/schema';
+import {
+  suppliers,
+  outboundQuotations,
+  inboundQuotations,
+} from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
@@ -33,45 +48,62 @@ class Storage {
     return user;
   }
   // Get all customers
-  async getCustomers(): Promise < Customer[] > {
-  return await db.select().from(customers).orderBy(desc(customers.createdAt));
-}
+  async getCustomers(): Promise<Customer[]> {
+    return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  }
   // Clients CRUD
-  async createCustomer(insertCustomer: InsertCustomer): Promise < Customer > {
-  const [row] = await db.insert(customers).values(insertCustomer).returning();
-  return row;
-}
+  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+    const [row] = await db.insert(customers).values(insertCustomer).returning();
+    return row;
+  }
   // Suppliers CRUD
-  async getSuppliers(): Promise < Supplier[] > {
-  return await db.select().from(suppliers); 
-}
+  async getSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers);
+  }
 
-  async createSupplier(insertSupplier: InsertSupplier): Promise < Supplier > {
-  const [row] = await db.insert(suppliers).values(insertSupplier).returning();
-  return row;
-}
+  async createSupplier(insertSupplier: InsertSupplier): Promise<Supplier> {
+    const [row] = await db.insert(suppliers).values(insertSupplier).returning();
+    return row;
+  }
 
-  async updateSupplier(id: string | number, update: Partial<InsertSupplier>): Promise < Supplier > {
-  const [row] = await db.update(suppliers).set(update).where(eq(suppliers.id, id)).returning();
-  return row;
-}
+  async updateSupplier(
+    id: string | number,
+    update: Partial<InsertSupplier>
+  ): Promise<Supplier> {
+    const [row] = await db
+      .update(suppliers)
+      .set(update)
+      .where(eq(suppliers.id, id))
+      .returning();
+    return row;
+  }
 
-  async deleteSupplier(id: string | number): Promise < void> {
-  await db.delete(suppliers).where(eq(suppliers.id, id));
-}
+  async deleteSupplier(id: string | number): Promise<void> {
+    await db.delete(suppliers).where(eq(suppliers.id, id));
+  }
 
-// async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
-//     const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
-//     return row;
-//   }
+  // async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
+  //     const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
+  //     return row;
+  //   }
 
-async createOutboundQuotation(insertQuotation: InsertOutboundQuotation): Promise<OutboundQuotation> {
-  const [row] = await db.insert(outboundQuotations).values(insertQuotation).returning();
-  return row;
-}
-async getOutboundQuotations(): Promise<(OutboundQuotation & { customer: Customer | null })[]> { // Explicit return type
+  async createOutboundQuotation(
+    insertQuotation: InsertOutboundQuotation
+  ): Promise<OutboundQuotation> {
+    const [row] = await db
+      .insert(outboundQuotations)
+      .values(insertQuotation)
+      .returning();
+    return row;
+  }
+  async getOutboundQuotations(): Promise<
+    (OutboundQuotation & { customer: Customer | null })[]
+  > {
+    // Explicit return type
     try {
-      console.log("💾 [STORAGE] getOutboundQuotations - Fetching quotations with customer data");
+      console.log(
+        "💾 [STORAGE] getOutboundQuotations - Fetching quotations with customer data"
+      );
 
       // --- STEP 1: Perform LEFT JOIN using Drizzle's select syntax ---
       // Select all fields from outboundQuotations and specific fields from customers.
@@ -94,7 +126,9 @@ async getOutboundQuotations(): Promise<(OutboundQuotation & { customer: Customer
         .from(outboundQuotations)
         .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
 
-      console.log(`💾 [STORAGE] getOutboundQuotations - Fetched ${result.length} raw rows with join`);
+      console.log(
+        `💾 [STORAGE] getOutboundQuotations - Fetched ${result.length} raw rows with join`
+      );
 
       // --- STEP 2: Transform the Result ---
       // Drizzle returns an array like [{ quotation: {...}, customer: {...} }, ...].
@@ -106,22 +140,30 @@ async getOutboundQuotations(): Promise<(OutboundQuotation & { customer: Customer
         customer: row.customer || null, // Ensure it's explicitly null if no join
       }));
 
-      console.log(`💾 [STORAGE] getOutboundQuotations - Transformed ${transformedQuotations.length} quotations`);
+      console.log(
+        `💾 [STORAGE] getOutboundQuotations - Transformed ${transformedQuotations.length} quotations`
+      );
       // Return the correctly structured array
       return transformedQuotations;
     } catch (error) {
       // --- STEP 3: Handle Errors ---
-      console.error("💥 [STORAGE] getOutboundQuotations - Error fetching quotations with customers:", error);
+      console.error(
+        "💥 [STORAGE] getOutboundQuotations - Error fetching quotations with customers:",
+        error
+      );
       // Re-throw the error so the calling route can handle it (e.g., send a 500 response).
       throw error;
     }
   }
- async updateOutboundQuotation(
+  async updateOutboundQuotation(
     id: string, // Assuming ID is a string (UUID) based on your schema
     update: Partial<InsertOutboundQuotation>
   ): Promise<OutboundQuotation> {
     try {
-      console.log(`💾 [STORAGE] updateOutboundQuotation - Updating quotation ID: ${id}`, update);
+      console.log(
+        `💾 [STORAGE] updateOutboundQuotation - Updating quotation ID: ${id}`,
+        update
+      );
 
       // --- Perform the database update ---
       const [updatedRow] = await db
@@ -138,231 +180,281 @@ async getOutboundQuotations(): Promise<(OutboundQuotation & { customer: Customer
         throw new Error(errorMessage);
       }
 
-      console.log(`💾 [STORAGE] updateOutboundQuotation - Successfully updated quotation ID: ${id}`);
+      console.log(
+        `💾 [STORAGE] updateOutboundQuotation - Successfully updated quotation ID: ${id}`
+      );
       return updatedRow; // Return the updated quotation object
     } catch (error) {
       // --- Handle errors ---
-      console.error("💥 [STORAGE] updateOutboundQuotation - Error updating quotation:", error);
+      console.error(
+        "💥 [STORAGE] updateOutboundQuotation - Error updating quotation:",
+        error
+      );
       // Re-throw the error so the calling route can handle it appropriately
       throw error;
     }
   }
- // In-memory fallbacks (used when DB is unavailable)
+  // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
 
-// Inbound Quotations CRUD////////////////////////////////////////////////////
-async createInboundQuotation(insertQuotation: InsertInboundQuotation): Promise<InboundQuotation> {
-  const [row] = await db.insert(inboundQuotations).values(insertQuotation).returning();
-  return row;
-}
-
-// Add other CRUD methods if needed
-async getInboundQuotations(): Promise<InboundQuotation[]> {
-  return await db.select().from(inboundQuotations); // ✅ Remove orderBy clause
-}
-
-async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
-  const [row] = await db.select().from(inboundQuotations).where(eq(inboundQuotations.id, id));
-  return row;
-}
-
-// async updateInboundQuotation(id: string, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
-//   const [row] = await db.update(inboundQuotations).set(update).where(eq(inboundQuotations.id, id)).returning();
-//   return row;
-// }
-async updateInboundQuotation(id: string | number, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
-  const [row] = await db
-    .update(inboundQuotations)
-    .set(update)
-    .where(eq(inboundQuotations.id, id)) // Use the correct ID column name if it's not 'id'
-    .returning();
-  if (!row) {
-    throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
+  // Inbound Quotations CRUD////////////////////////////////////////////////////
+  async createInboundQuotation(
+    insertQuotation: InsertInboundQuotation
+  ): Promise<InboundQuotation> {
+    const [row] = await db
+      .insert(inboundQuotations)
+      .values(insertQuotation)
+      .returning();
+    return row;
   }
-  return row;
-}
+
+  // Add other CRUD methods if needed
+  async getInboundQuotations(): Promise<InboundQuotation[]> {
+    return await db.select().from(inboundQuotations); // ✅ Remove orderBy clause
+  }
+
+  async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
+    const [row] = await db
+      .select()
+      .from(inboundQuotations)
+      .where(eq(inboundQuotations.id, id));
+    return row;
+  }
+
+  // async updateInboundQuotation(id: string, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
+  //   const [row] = await db.update(inboundQuotations).set(update).where(eq(inboundQuotations.id, id)).returning();
+  //   return row;
+  // }
+  async updateInboundQuotation(
+    id: string | number,
+    update: Partial<InsertInboundQuotation>
+  ): Promise<InboundQuotation> {
+    const [row] = await db
+      .update(inboundQuotations)
+      .set(update)
+      .where(eq(inboundQuotations.id, id)) // Use the correct ID column name if it's not 'id'
+      .returning();
+    if (!row) {
+      throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
+    }
+    return row;
+  }
 
   // Users
-  async getUser(id: string): Promise < User | undefined > {
-  const [u] = await db.select().from(users).where(eq(users.id, id));
-  return u || undefined;
-}
+  async getUser(id: string): Promise<User | undefined> {
+    const [u] = await db.select().from(users).where(eq(users.id, id));
+    return u || undefined;
+  }
 
-  async getUserByUsername(username: string): Promise < User | undefined > {
-  const [u] = await db.select().from(users).where(eq(users.username, username));
-  return u || undefined;
-}
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [u] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
+    return u || undefined;
+  }
 
- async  createUser(data: {
-  username: string;
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  department?: string | null;
-  role?: "employee" | "admin";
-}) {
-  const [user] = await db
-    .insert(users)
-    .values({
-      username: data.username,
-      email: data.email,
-      password: data.password, // hashed already!
-      firstName: data.firstName,
-      lastName: data.lastName,
-      department: data.department ?? null,
-      role: data.role ?? "employee",
-    })
-    .returning();
-  return user;
-}
+  async createUser(data: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    department?: string | null;
+    role?: "employee" | "admin";
+  }) {
+    const [user] = await db
+      .insert(users)
+      .values({
+        username: data.username,
+        email: data.email,
+        password: data.password, // hashed already!
+        firstName: data.firstName,
+        lastName: data.lastName,
+        department: data.department ?? null,
+        role: data.role ?? "employee",
+      })
+      .returning();
+    return user;
+  }
 
-  async updateUser(id: string, updateUser: Partial<InsertUser>): Promise < User > {
-  const [u] = await db.update(users).set({ ...updateUser }).where(eq(users.id, id)).returning();
-  return u;
-}
+  async updateUser(id: string, updateUser: Partial<InsertUser>): Promise<User> {
+    const [u] = await db
+      .update(users)
+      .set({ ...updateUser })
+      .where(eq(users.id, id))
+      .returning();
+    return u;
+  }
 
-  async deleteUser(id: string): Promise < void> {
-  await db.delete(users).where(eq(users.id, id));
-}
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
 
-  async getUsers(): Promise < User[] > {
-  return await db.select().from(users).orderBy(desc(users.createdAt));
-}
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
 
   // Products
-  async getProducts(): Promise < Product[] > {
-  try {
-    const rows = await db.select().from(products).orderBy(desc(products.createdAt));
-    // Merge DB rows with any in-memory products (avoid duplicates by id/sku)
-    if(this.inMemoryProducts.length === 0) return rows as any;
-    const bySku = new Map<string, any>();
-    for(const r of rows as any[]) {
-      if (r.sku) bySku.set(String(r.sku), r);
-    }
-      const merged = [...rows as any[]];
-    for(const p of this.inMemoryProducts) {
-  // If DB already has same SKU, skip in-memory entry
-  if (p.sku && bySku.has(String(p.sku))) continue;
-  merged.push(p);
-}
-return merged as any;
+  async getProducts(): Promise<Product[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(products)
+        .orderBy(desc(products.createdAt));
+      // Merge DB rows with any in-memory products (avoid duplicates by id/sku)
+      if (this.inMemoryProducts.length === 0) return rows as any;
+      const bySku = new Map<string, any>();
+      for (const r of rows as any[]) {
+        if (r.sku) bySku.set(String(r.sku), r);
+      }
+      const merged = [...(rows as any[])];
+      for (const p of this.inMemoryProducts) {
+        // If DB already has same SKU, skip in-memory entry
+        if (p.sku && bySku.has(String(p.sku))) continue;
+        merged.push(p);
+      }
+      return merged as any;
     } catch (_e) {
-  // DB unavailable; serve in-memory list
-  return this.inMemoryProducts as any;
-}
+      // DB unavailable; serve in-memory list
+      return this.inMemoryProducts as any;
+    }
   }
 
-addProductFallback(p: any) {
-  // ensure it has id
-  const id = p.id || String(Date.now());
-  const record = { id, createdAt: new Date().toISOString(), ...p };
-  // replace if same id or same sku exists
-  const idx = this.inMemoryProducts.findIndex(x => x.id === record.id || (record.sku && x.sku === record.sku));
-  if (idx >= 0) this.inMemoryProducts[idx] = record; else this.inMemoryProducts.push(record);
-  return record;
-}
-
-updateProductFallback(id: string | number, patch: any) {
-  const idx = this.inMemoryProducts.findIndex(x => String(x.id) === String(id));
-  if (idx >= 0) {
-    this.inMemoryProducts[idx] = { ...this.inMemoryProducts[idx], ...patch };
-    return this.inMemoryProducts[idx];
+  addProductFallback(p: any) {
+    // ensure it has id
+    const id = p.id || String(Date.now());
+    const record = { id, createdAt: new Date().toISOString(), ...p };
+    // replace if same id or same sku exists
+    const idx = this.inMemoryProducts.findIndex(
+      (x) => x.id === record.id || (record.sku && x.sku === record.sku)
+    );
+    if (idx >= 0) this.inMemoryProducts[idx] = record;
+    else this.inMemoryProducts.push(record);
+    return record;
   }
-  // if not found, create
-  const created = { id: String(id), ...patch };
-  this.inMemoryProducts.push(created);
-  return created;
-}
 
-deleteProductFallback(id: string | number) {
-  const idx = this.inMemoryProducts.findIndex(x => String(x.id) === String(id));
-  if (idx >= 0) this.inMemoryProducts.splice(idx, 1);
-}
+  updateProductFallback(id: string | number, patch: any) {
+    const idx = this.inMemoryProducts.findIndex(
+      (x) => String(x.id) === String(id)
+    );
+    if (idx >= 0) {
+      this.inMemoryProducts[idx] = { ...this.inMemoryProducts[idx], ...patch };
+      return this.inMemoryProducts[idx];
+    }
+    // if not found, create
+    const created = { id: String(id), ...patch };
+    this.inMemoryProducts.push(created);
+    return created;
+  }
+
+  deleteProductFallback(id: string | number) {
+    const idx = this.inMemoryProducts.findIndex(
+      (x) => String(x.id) === String(id)
+    );
+    if (idx >= 0) this.inMemoryProducts.splice(idx, 1);
+  }
 
   // Activity log (no-op minimal stub)
-  async createActivity(_activity: any): Promise < any > {
-  // No persistent activity log table is defined in the current schema.
-  // Return a minimal object to satisfy callers that do not rely on the result.
-  return { id: 'activity-stub', createdAt: new Date().toISOString(), ..._activity };
-}
+  async createActivity(_activity: any): Promise<any> {
+    // No persistent activity log table is defined in the current schema.
+    // Return a minimal object to satisfy callers that do not rely on the result.
+    return {
+      id: "activity-stub",
+      createdAt: new Date().toISOString(),
+      ..._activity,
+    };
+  }
 
   // Marketing Attendance
-  async getMarketingAttendance(id: string): Promise < any > {
-  const [row] = await db
-    .select()
-    .from(marketingAttendance)
-    .leftJoin(users, eq(marketingAttendance.userId, users.id))
-    .where(eq(marketingAttendance.id, id));
+  async getMarketingAttendance(id: string): Promise<any> {
+    const [row] = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(eq(marketingAttendance.id, id));
 
-  if(!row) return undefined;
-  return {
-    ...row.marketingAttendance,
-    user: row.users,
-  };
-}
+    if (!row) return undefined;
+    return {
+      ...row.marketingAttendance,
+      user: row.users,
+    };
+  }
 
-  async getMarketingAttendances(): Promise < any[] > {
-  const rows = await db
-    .select()
-    .from(marketingAttendance)
-    .leftJoin(users, eq(marketingAttendance.userId, users.id))
-    .orderBy(desc(marketingAttendance.date));
+  async getMarketingAttendances(): Promise<any[]> {
+    const rows = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .orderBy(desc(marketingAttendance.date));
 
-  return rows.map(r => ({
-    ...r.marketingAttendance,
-    user: r.users,
-  }));
-}
+    return rows.map((r) => ({
+      ...r.marketingAttendance,
+      user: r.users,
+    }));
+  }
 
-  async createMarketingAttendance(insertAttendance: InsertMarketingAttendance): Promise < MarketingAttendance > {
-  const [row] = await db.insert(marketingAttendance).values(insertAttendance).returning();
-  return row;
-}
+  async createMarketingAttendance(
+    insertAttendance: InsertMarketingAttendance
+  ): Promise<MarketingAttendance> {
+    const [row] = await db
+      .insert(marketingAttendance)
+      .values(insertAttendance)
+      .returning();
+    return row;
+  }
 
-  async updateMarketingAttendance(id: string, update: Partial<InsertMarketingAttendance>): Promise < MarketingAttendance > {
-  const [row] = await db
-    .update(marketingAttendance)
-    .set({ ...update, date: update.date ?? undefined })
-    .where(eq(marketingAttendance.id, id))
-    .returning();
-  return row;
-}
+  async updateMarketingAttendance(
+    id: string,
+    update: Partial<InsertMarketingAttendance>
+  ): Promise<MarketingAttendance> {
+    const [row] = await db
+      .update(marketingAttendance)
+      .set({ ...update, date: update.date ?? undefined })
+      .where(eq(marketingAttendance.id, id))
+      .returning();
+    return row;
+  }
 
-  async deleteMarketingAttendance(id: string): Promise < void> {
-  await db.delete(marketingAttendance).where(eq(marketingAttendance.id, id));
-}
+  async deleteMarketingAttendance(id: string): Promise<void> {
+    await db.delete(marketingAttendance).where(eq(marketingAttendance.id, id));
+  }
 
-  async getMarketingAttendanceByEmployee(userId: string): Promise < any[] > {
-  const rows = await db
-    .select()
-    .from(marketingAttendance)
-    .leftJoin(users, eq(marketingAttendance.userId, users.id))
-    .where(eq(marketingAttendance.userId, userId))
-    .orderBy(desc(marketingAttendance.date));
+  async getMarketingAttendanceByEmployee(userId: string): Promise<any[]> {
+    const rows = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(eq(marketingAttendance.userId, userId))
+      .orderBy(desc(marketingAttendance.date));
 
-  return rows.map(r => ({
-    ...r.marketingAttendance,
-    user: r.users,
-  }));
-}
+    return rows.map((r) => ({
+      ...r.marketingAttendance,
+      user: r.users,
+    }));
+  }
 
-  async getMarketingAttendanceByDateRange(startDate: Date, endDate: Date): Promise < any[] > {
-  const rows = await db
-    .select()
-    .from(marketingAttendance)
-    .leftJoin(users, eq(marketingAttendance.userId, users.id))
-    .where(and(
-      gte(marketingAttendance.date, startDate),
-      lte(marketingAttendance.date, endDate)
-    ))
-    .orderBy(desc(marketingAttendance.date));
+  async getMarketingAttendanceByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<any[]> {
+    const rows = await db
+      .select()
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .where(
+        and(
+          gte(marketingAttendance.date, startDate),
+          lte(marketingAttendance.date, endDate)
+        )
+      )
+      .orderBy(desc(marketingAttendance.date));
 
-  return rows.map(r => ({
-    ...r.marketingAttendance,
-    user: r.users,
-  }));
-}
+    return rows.map((r) => ({
+      ...r.marketingAttendance,
+      user: r.users,
+    }));
+  }
 
   async getTodayMarketingAttendance(): Promise<any[]> {
     const today = new Date();
@@ -384,100 +476,140 @@ deleteProductFallback(id: string | number) {
       .orderBy(desc(marketingAttendance.date));
 
     // Map results: include user details nested under `user`
-    return rows.map(r => ({
+    return rows.map((r) => ({
       ...r.marketingAttendance,
       user: r.users,
     }));
   }
 
-  async checkInMarketingAttendance(userId: string, data: any): Promise < MarketingAttendance > {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  async checkInMarketingAttendance(
+    userId: string,
+    data: any
+  ): Promise<MarketingAttendance> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Check existing record for today
-  const existing = await db
-    .select()
-    .from(marketingAttendance)
-    .where(and(
-      eq(marketingAttendance.userId, userId),
-      gte(marketingAttendance.date, today)
-    ));
+    // Check existing record for today
+    const existing = await db
+      .select()
+      .from(marketingAttendance)
+      .where(
+        and(
+          eq(marketingAttendance.userId, userId),
+          gte(marketingAttendance.date, today)
+        )
+      );
 
-  if(existing.length > 0) {
-  const [row] = await db
-    .update(marketingAttendance)
-    .set({
+    if (existing.length > 0) {
+      const [row] = await db
+        .update(marketingAttendance)
+        .set({
+          checkInTime: data.checkInTime ?? new Date(),
+          latitude: data.latitude,
+          longitude: data.longitude,
+          location: data.location,
+          photoPath: data.photoPath,
+          workDescription: data.workDescription,
+          attendanceStatus: data.attendanceStatus ?? "present",
+        })
+        .where(eq(marketingAttendance.id, (existing[0] as any).id))
+        .returning();
+      return row;
+    }
+
+    const insert: InsertMarketingAttendance = {
+      userId,
+      date: data.date ?? new Date(),
       checkInTime: data.checkInTime ?? new Date(),
       latitude: data.latitude,
       longitude: data.longitude,
       location: data.location,
       photoPath: data.photoPath,
       workDescription: data.workDescription,
-      attendanceStatus: data.attendanceStatus ?? 'present',
-    })
-    .where(eq(marketingAttendance.id, (existing[0] as any).id))
-    .returning();
-  return row;
-}
+      attendanceStatus: data.attendanceStatus ?? "present",
+    } as InsertMarketingAttendance;
 
-const insert: InsertMarketingAttendance = {
-  userId,
-  date: data.date ?? new Date(),
-  checkInTime: data.checkInTime ?? new Date(),
-  latitude: data.latitude,
-  longitude: data.longitude,
-  location: data.location,
-  photoPath: data.photoPath,
-  workDescription: data.workDescription,
-  attendanceStatus: data.attendanceStatus ?? 'present',
-} as InsertMarketingAttendance;
-
-const [row] = await db.insert(marketingAttendance).values(insert).returning();
-return row;
+    const [row] = await db
+      .insert(marketingAttendance)
+      .values(insert)
+      .returning();
+    return row;
   }
 
-  async checkOutMarketingAttendance(userId: string, data: any): Promise < MarketingAttendance > {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  async checkOutMarketingAttendance(
+    userId: string,
+    data: any
+  ): Promise<MarketingAttendance> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const existing = await db
-    .select()
-    .from(marketingAttendance)
-    .where(and(
-      eq(marketingAttendance.userId, userId),
-      gte(marketingAttendance.date, today)
-    ));
+    const existing = await db
+      .select()
+      .from(marketingAttendance)
+      .where(
+        and(
+          eq(marketingAttendance.userId, userId),
+          gte(marketingAttendance.date, today)
+        )
+      );
 
-  if(existing.length === 0) {
-  // If no check-in, create minimal record then update
-  const base: InsertMarketingAttendance = {
-    userId,
-    date: new Date(),
-    checkInTime: new Date(),
-    attendanceStatus: 'present',
-  } as InsertMarketingAttendance;
-  const [created] = await db.insert(marketingAttendance).values(base).returning();
-  existing.push(created as any);
-}
+    if (existing.length === 0) {
+      // If no check-in, create minimal record then update
+      const base: InsertMarketingAttendance = {
+        userId,
+        date: new Date(),
+        checkInTime: new Date(),
+        attendanceStatus: "present",
+      } as InsertMarketingAttendance;
+      const [created] = await db
+        .insert(marketingAttendance)
+        .values(base)
+        .returning();
+      existing.push(created as any);
+    }
 
-const [row] = await db
-  .update(marketingAttendance)
-  .set({
-    checkOutTime: data.checkOutTime ?? new Date(),
-    latitude: data.latitude,
-    longitude: data.longitude,
-    location: data.location,
-    photoPath: data.photoPath,
-    workDescription: data.workDescription,
-    visitCount: data.visitCount,
-    tasksCompleted: data.tasksCompleted,
-    outcome: data.outcome,
-    nextAction: data.nextAction,
-  })
-  .where(eq(marketingAttendance.userId, userId))
-  .returning();
+    const [row] = await db
+      .update(marketingAttendance)
+      .set({
+        checkOutTime: data.checkOutTime ?? new Date(),
+        latitude: data.latitude,
+        longitude: data.longitude,
+        location: data.location,
+        photoPath: data.photoPath,
+        workDescription: data.workDescription,
+        visitCount: data.visitCount,
+        tasksCompleted: data.tasksCompleted,
+        outcome: data.outcome,
+        nextAction: data.nextAction,
+      })
+      .where(eq(marketingAttendance.userId, userId))
+      .returning();
 
-return row;
+    return row;
+  }
+
+  async checkOutMarketingAttendanceById(
+    attendanceId: string,
+    data: any
+  ): Promise<MarketingAttendance> {
+    const [row] = await db
+      .update(marketingAttendance)
+      .set({
+        checkOutTime: data.checkOutTime ?? new Date(),
+        checkOutLatitude: data.checkOutLatitude,
+        checkOutLongitude: data.checkOutLongitude,
+        checkOutLocation: data.checkOutLocation,
+        checkOutPhotoPath: data.checkOutPhotoPath,
+        workDescription: data.workDescription,
+        visitCount: data.visitCount,
+        tasksCompleted: data.tasksCompleted,
+        outcome: data.outcome,
+        nextAction: data.nextAction,
+      })
+      .where(eq(marketingAttendance.id, attendanceId))
+      .returning();
+
+    return row;
   }
 
   async getMarketingAttendanceMetrics() {
@@ -495,7 +627,7 @@ return row;
       .from(marketingAttendance)
       .where(
         gte(marketingAttendance.date, todayStart) &&
-        lte(marketingAttendance.date, todayEnd)
+          lte(marketingAttendance.date, todayEnd)
       );
 
     const totalEmployees = total ?? 0;

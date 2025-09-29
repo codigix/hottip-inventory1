@@ -1737,59 +1737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Marketing leave request - always available with DB fallback
-  app.post(
-    "/api/marketing-attendance/leave-request",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { leaveType, startDate, endDate, reason } = req.body || {};
-        if (!leaveType || !startDate || !endDate || !reason) {
-          res.status(400).json({ error: "Missing required fields" });
-          return;
-        }
-        // Try DB insert first
-        try {
-          const userIdVal = Number(req.user!.id);
-          const [row] = await db
-            .insert(leaveRequestsTable)
-            .values({
-              userId: Number.isFinite(userIdVal) ? userIdVal : null,
-              leaveType,
-              startDate: new Date(startDate),
-              endDate: new Date(endDate),
-              reason,
-              status: "pending",
-            })
-            .returning();
-          res.status(201).json(row);
-          return;
-        } catch (dbErr) {
-          // Fall through to in-memory fallback
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Leave request DB insert failed, using in-memory fallback:",
-            dbErr
-          );
-        }
 
-        const rec = {
-          id: "mem-" + Date.now(),
-          userId: req.user!.id,
-          leaveType,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
-          reason,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          _fallback: true,
-        };
-        inMemoryMarketingLeaves.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to submit leave request" });
-      }
-    }
-  );
   // Inventory leave request - DB first, fallback to memory
 
   // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
@@ -3616,248 +3564,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Attendance metrics
 
-    // Check-in
-    app.get("/api/marketing-attendance", requireAuth, async (_req, res) => {
+    // 📌 INSERT attendance record (Check-in)
+    // GET /api/marketing-attendance
+    // GET all attendance
+    app.get("/api/marketing-attendance", async (_req, res) => {
       try {
-        const rows = await db.select().from(marketingAttendance);
-        res.json(rows);
+        const rows = await db.select().from(marketingAttendance).execute();
+
+        const formatted = rows.map((row) => ({
+          id: row.id,
+          userId: row.userId,
+          date: row.date,
+          checkInTime: row.checkInTime,
+          checkOutTime: row.checkOutTime,
+          checkInLocation: row.checkInLocation,
+          checkOutLocation: row.checkOutLocation,
+          checkInLatitude: row.checkInLatitude
+            ? Number(row.checkInLatitude)
+            : null,
+          checkInLongitude: row.checkInLongitude
+            ? Number(row.checkInLongitude)
+            : null,
+          checkOutLatitude: row.checkOutLatitude
+            ? Number(row.checkOutLatitude)
+            : null,
+          checkOutLongitude: row.checkOutLongitude
+            ? Number(row.checkOutLongitude)
+            : null,
+          attendanceStatus:
+            row.attendanceStatus || (row.checkInTime ? "present" : "absent"),
+          isOnLeave: row.isOnLeave ?? false,
+        }));
+
+        // If no data, return mock data for testing
+        if (formatted.length === 0) {
+          const mockData = [
+            {
+              id: "mock-1",
+              userId: "dev-admin-user",
+              date: new Date().toISOString(),
+              checkInTime: new Date().toISOString(),
+              checkOutTime: null,
+              checkInLocation: "Office",
+              checkOutLocation: null,
+              checkInLatitude: 12.9716,
+              checkInLongitude: 77.5946,
+              checkOutLatitude: null,
+              checkOutLongitude: null,
+              attendanceStatus: "present",
+              isOnLeave: false,
+              user: {
+                id: "dev-admin-user",
+                firstName: "John",
+                lastName: "Doe",
+                email: "john@example.com",
+                role: "admin",
+              },
+            },
+          ];
+          return res.json(mockData);
+        }
+
+        res.json(formatted);
       } catch (e) {
         console.error("Error fetching attendance:", e);
-        res.status(500).json({ error: "Failed to fetch attendance record" });
+        res.status(500).json({ error: "Failed to fetch marketing attendance" });
       }
     });
 
-    // 📌 INSERT attendance record (Check-in)
-    app.post(
-      "/api/marketing-attendance",
-      requireAuth,
-      async (req: Request, res: Response) => {
-        try {
-          const { userId, checkInLocation, checkInLatitude } = req.body;
+    // GET today's attendance
+    app.get("/api/marketing-attendance/today", async (_req, res) => {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-          const [row] = await db
-            .insert(marketingAttendance)
-            .values({
-              userId,
-              date: new Date(),
-              checkInTime: new Date(),
-              checkInLocation,
-              checkInLatitude,
-            })
-            .returning();
+        const rows = await db
+          .select()
+          .from(marketingAttendance)
+          .where(
+            and(
+              gte(marketingAttendance.date, today),
+              lt(marketingAttendance.date, tomorrow)
+            )
+          )
+          .execute();
 
-          res.status(201).json(row);
-        } catch (e) {
-          console.error("Error inserting attendance:", e);
-          res.status(500).json({ error: "Failed to insert attendance record" });
-        }
-      }
-    );
-    app.get(
-      "/api/marketing-attendance/today",
-      requireAuth,
-      async (req, res) => {
-        try {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+        const formatted = rows.map((row) => ({
+          id: row.id,
+          userId: row.userId,
+          date: row.date,
+          checkInTime: row.checkInTime,
+          checkOutTime: row.checkOutTime,
+          checkInLocation: row.checkInLocation,
+          checkOutLocation: row.checkOutLocation,
+          checkInLatitude: row.checkInLatitude
+            ? Number(row.checkInLatitude)
+            : null,
+          checkInLongitude: row.checkInLongitude
+            ? Number(row.checkInLongitude)
+            : null,
+          checkOutLatitude: row.checkOutLatitude
+            ? Number(row.checkOutLatitude)
+            : null,
+          checkOutLongitude: row.checkOutLongitude
+            ? Number(row.checkOutLongitude)
+            : null,
+          attendanceStatus:
+            row.attendanceStatus || (row.checkInTime ? "present" : "absent"),
+          isOnLeave: row.isOnLeave ?? false,
+        }));
 
-          const tomorrow = new Date(today);
-          tomorrow.setDate(today.getDate() + 1);
-
-          const rows = await db
-            .select({
-              id: marketingAttendance.id,
-              userId: marketingAttendance.userId,
-              date: marketingAttendance.date,
-              checkInTime: marketingAttendance.checkInTime,
-              checkOutTime: marketingAttendance.checkOutTime,
-              attendanceStatus: marketingAttendance.attendanceStatus,
-              isOnLeave: marketingAttendance.isOnLeave,
-              user: {
-                id: users.id,
-                firstName: users.firstName,
-                lastName: users.lastName,
-                email: users.email,
-                role: users.role,
-              },
-            })
-            .from(marketingAttendance)
-            .leftJoin(users, eq(marketingAttendance.userId, users.id))
-            .where(
-              and(
-                gte(marketingAttendance.date, today),
-                lt(marketingAttendance.date, tomorrow)
-              )
-            );
-
-          res.json(rows);
-        } catch (e) {
-          console.error("Error fetching today's attendance:", e);
-          res.status(500).json({ error: "Failed to fetch today's attendance" });
-        }
-      }
-    );
-
-    // Check-in endpoint
-    app.post(
-      "/api/marketing-attendance/check-in",
-      requireAuth,
-      async (req: AuthenticatedRequest, res: Response) => {
-        try {
-          const {
-            userId,
-            latitude,
-            longitude,
-            location,
-            photoPath,
-            workDescription,
-          } = req.body;
-
-          const attendanceUserId = userId || req.user!.id;
-
-          const [row] = await db
-            .insert(marketingAttendance)
-            .values({
-              userId: attendanceUserId,
-              date: new Date(),
-              checkInTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
+        // If no data, return mock data for testing
+        if (formatted.length === 0) {
+          const mockData = [
+            {
+              id: "mock-1",
+              userId: "dev-admin-user",
+              date: new Date().toISOString(),
+              checkInTime: new Date().toISOString(),
+              checkOutTime: null,
+              checkInLocation: "Office",
+              checkOutLocation: null,
+              checkInLatitude: 12.9716,
+              checkInLongitude: 77.5946,
+              checkOutLatitude: null,
+              checkOutLongitude: null,
               attendanceStatus: "present",
-            })
-            .returning();
-
-          res.status(201).json(row);
-        } catch (e) {
-          console.error("Error creating check-in:", e);
-          res.status(500).json({ error: "Failed to create check-in record" });
+              isOnLeave: false,
+              user: {
+                id: "dev-admin-user",
+                firstName: "John",
+                lastName: "Doe",
+                email: "john@example.com",
+                role: "admin",
+              },
+            },
+          ];
+          return res.json(mockData);
         }
+
+        res.json(formatted);
+      } catch (e) {
+        console.error("Error fetching today's attendance:", e);
+        res.status(500).json({ error: "Failed to fetch today's attendance" });
       }
-    );
+    });
 
-    // Check-out endpoint
-    app.post(
-      "/api/marketing-attendance/check-out",
-      requireAuth,
-      async (req: AuthenticatedRequest, res: Response) => {
-        try {
-          const {
-            userId,
-            latitude,
-            longitude,
-            location,
-            photoPath,
-            workDescription,
-            visitCount,
-            tasksCompleted,
-            outcome,
-            nextAction,
-          } = req.body;
+    // GET /api/marketing-attendance/metrics
+    app.get("/api/marketing-attendance/metrics", async (_req, res) => {
+      try {
+        const rows = await db.select().from(marketingAttendance).execute();
 
-          const attendanceUserId = userId || req.user!.id;
+        const totalEmployees = rows.length;
+        const presentToday = rows.filter((r) => r.checkInTime).length;
+        const absentToday = rows.filter((r) => !r.checkInTime).length;
+        const onLeaveToday = rows.filter((r) => r.isOnLeave).length;
 
-          // Find today's attendance record for the user
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const tomorrow = new Date(today);
-          tomorrow.setDate(today.getDate() + 1);
-
-          const [existingAttendance] = await db
-            .select()
-            .from(marketingAttendance)
-            .where(
-              and(
-                eq(marketingAttendance.userId, attendanceUserId),
-                gte(marketingAttendance.date, today),
-                lt(marketingAttendance.date, tomorrow)
-              )
-            );
-
-          if (!existingAttendance) {
-            return res
-              .status(404)
-              .json({ error: "No check-in found for today" });
-          }
-
-          const [row] = await db
-            .update(marketingAttendance)
-            .set({
-              checkOutTime: new Date(),
-              latitude,
-              longitude,
-              location,
-              photoPath,
-              workDescription,
-              visitCount,
-              tasksCompleted,
-              outcome,
-              nextAction,
-            })
-            .where(eq(marketingAttendance.id, existingAttendance.id))
-            .returning();
-
-          res.json(row);
-        } catch (e) {
-          console.error("Error creating check-out:", e);
-          res.status(500).json({ error: "Failed to create check-out record" });
-        }
-      }
-    );
-
-    // 📌 UPDATE attendance record (Check-out)
-    app.put(
-      "/api/marketing-attendance/:id/checkout",
-      requireAuth,
-      async (req: Request, res: Response) => {
-        try {
-          const { id } = req.params;
-          const { checkOutLocation } = req.body;
-
-          const [row] = await db
-            .update(marketingAttendance)
-            .set({
-              checkOutTime: new Date(),
-              checkOutLocation,
-            })
-            .where(sql`${marketingAttendance.id} = ${id}`)
-            .returning();
-
-          res.json(row);
-        } catch (e) {
-          console.error("Error updating attendance:", e);
-          res.status(500).json({ error: "Failed to update attendance record" });
-        }
-      }
-    );
-
-    // 📌 METRICS (total, checked-in, checked-out)
-    app.get(
-      "/api/marketing-attendance/metrics",
-      requireAuth,
-      async (_req, res) => {
-        try {
-          const [row] = await db
-            .select({
-              total: sql`COUNT(*)::integer`,
-              checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
-              checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
-            })
-            .from(marketingAttendance);
-
-          res.json({
-            total: Number((row as any)?.total || 0),
-            checkedIn: Number((row as any)?.checkedIn || 0),
-            checkedOut: Number((row as any)?.checkedOut || 0),
+        // If no data, return mock metrics for testing
+        if (totalEmployees === 0) {
+          return res.json({
+            totalEmployees: 1,
+            presentToday: 1,
+            absentToday: 0,
+            lateToday: 0,
+            onLeaveToday: 0,
+            averageWorkHours: 8,
+            attendanceRate: 100,
+            monthlyStats: {
+              totalDays: 22,
+              presentDays: 1,
+              absentDays: 0,
+              leaveDays: 0,
+            },
           });
-        } catch (e) {
-          console.error("Error fetching attendance metrics:", e);
-          res.status(500).json({ error: "Failed to fetch attendance metrics" });
         }
+
+        res.json({
+          totalEmployees,
+          presentToday,
+          absentToday,
+          lateToday: 0, // optional: add late calculation logic
+          onLeaveToday,
+          averageWorkHours: 8,
+          attendanceRate: totalEmployees
+            ? (presentToday / totalEmployees) * 100
+            : 0,
+          monthlyStats: {
+            totalDays: 22,
+            presentDays: presentToday,
+            absentDays: absentToday,
+            leaveDays: onLeaveToday,
+          },
+        });
+      } catch (e) {
+        console.error("Error fetching attendance metrics:", e);
+        res.status(500).json({ error: "Failed to fetch attendance metrics" });
       }
-    );
+    });
+
     // Photo upload URL generation
     app.post(
       "/api/marketing-attendance/photo/upload-url",
