@@ -423,7 +423,11 @@ export default function MarketingAttendance() {
           <Button
             variant="outline"
             onClick={() => {
-              toast({ title: "Data refreshed (using mock data)" });
+              queryClient.invalidateQueries({
+                queryKey: ["marketing-attendance"],
+              });
+              queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+              toast({ title: "Data refreshed successfully" });
             }}
             data-testid="button-refresh"
           >
