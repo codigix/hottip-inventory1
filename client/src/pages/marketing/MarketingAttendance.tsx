@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Clock,
@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 
 import { useToast } from "@/hooks/use-toast";
+import { marketingAttendance, leaveRequests } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,9 +138,35 @@ export default function MarketingAttendance() {
   >(undefined);
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Mock data for development and testing
-  const mockUsers: User[] = [
+  // API Queries
+  const {
+    data: todayAttendance = [],
+    isLoading: attendanceLoading,
+    error: attendanceError,
+  } = useQuery({
+    queryKey: ["marketing-attendance", "today"],
+    queryFn: marketingAttendance.getToday,
+  });
+
+  const { data: allAttendance = [] } = useQuery({
+    queryKey: ["marketing-attendance", "all"],
+    queryFn: marketingAttendance.getAll,
+  });
+
+  const { data: metrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ["marketing-attendance", "metrics"],
+    queryFn: marketingAttendance.getMetrics,
+  });
+
+  const { data: leaveRequestsData = [] } = useQuery({
+    queryKey: ["leave-requests"],
+    queryFn: leaveRequests.getAll,
+  });
+
+  // Mock users for now - in a real app, this would come from an API
+  const users: User[] = [
     {
       id: "dev-admin-user",
       firstName: "John",
@@ -163,190 +190,63 @@ export default function MarketingAttendance() {
     },
   ];
 
-  const mockTodayAttendance: AttendanceWithUser[] = [
-    {
-      id: "mock-1",
-      userId: "dev-admin-user",
-      date: new Date().toISOString(),
-      checkInTime: new Date().toISOString(),
-      checkOutTime: null,
-      attendanceStatus: "present",
-      isOnLeave: false,
-      user: {
-        id: "dev-admin-user",
-        firstName: "John",
-        lastName: "Doe",
-        email: "john@example.com",
-        role: "admin",
-      },
-    },
-    {
-      id: "mock-2",
-      userId: "dev-employee-1",
-      date: new Date().toISOString(),
-      checkInTime: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-      checkOutTime: null,
-      attendanceStatus: "present",
-      isOnLeave: false,
-      user: {
-        id: "dev-employee-1",
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        role: "employee",
-      },
-    },
-  ];
+  // Calculate leave balance from leave requests
+  const leaveBalance: LeaveBalance = useMemo(() => {
+    const totalLeave = 30; // This would come from user profile in a real app
+    const usedLeave = leaveRequestsData
+      .filter((req) => req.status === "approved" && req.totalDays)
+      .reduce((sum, req) => sum + (req.totalDays || 0), 0);
 
-  const mockAllAttendance: AttendanceWithUser[] = [
-    ...mockTodayAttendance,
-    {
-      id: "mock-3",
-      userId: "dev-employee-2",
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // Yesterday
-      checkInTime: new Date(
-        Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60 * 60 * 9
-      ).toISOString(), // Yesterday 9 AM
-      checkOutTime: new Date(
-        Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60 * 60 * 18
-      ).toISOString(), // Yesterday 6 PM
-      attendanceStatus: "present",
-      isOnLeave: false,
-      user: {
-        id: "dev-employee-2",
-        firstName: "Bob",
-        lastName: "Johnson",
-        email: "bob@example.com",
-        role: "employee",
-      },
-    },
-  ];
+    return {
+      totalLeave,
+      usedLeave,
+      remainingLeave: totalLeave - usedLeave,
+      sickLeave: 8,
+      vacationLeave: 15,
+      personalLeave: 7,
+    };
+  }, [leaveRequestsData]);
 
-  const mockMetrics: AttendanceMetrics = {
-    totalEmployees: 3,
-    presentToday: 2,
-    absentToday: 1,
-    lateToday: 0,
-    onLeaveToday: 0,
-    averageWorkHours: 8.5,
-    attendanceRate: 67,
-    monthlyStats: {
-      totalDays: 22,
-      presentDays: 18,
-      absentDays: 2,
-      leaveDays: 2,
-    },
-  };
-
-  // Use mock data instead of API calls
-  const todayAttendance = mockTodayAttendance;
-  const allAttendance = mockAllAttendance;
-  const metrics = mockMetrics;
-  const users = mockUsers;
-  const attendanceLoading = false;
-  const metricsLoading = false;
-  const attendanceError = null;
-
-  // Fetch leave balance (mock data for now)
-  const leaveBalance: LeaveBalance = {
-    totalLeave: 30,
-    usedLeave: 12,
-    remainingLeave: 18,
-    sickLeave: 8,
-    vacationLeave: 15,
-    personalLeave: 7,
-  };
-
-  // Check-in mutation - Mock implementation for development
+  // Check-in mutation
   const checkInMutation = useMutation({
-    mutationFn: async (data: {
-      userId?: string;
-      latitude: number;
-      longitude: number;
-      location?: string;
-      photoPath?: string;
-      workDescription?: string;
-    }) => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Return mock response
-      return {
-        id: `checkin-${Date.now()}`,
-        userId: data.userId,
-        checkInTime: new Date().toISOString(),
-        latitude: data.latitude,
-        longitude: data.longitude,
-        location: data.location,
-        workDescription: data.workDescription,
-      };
-    },
+    mutationFn: marketingAttendance.checkIn,
     onSuccess: () => {
-      // No need to invalidate queries since we're using static mock data
+      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
       toast({ title: "Successfully checked in!" });
-      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      // Error handling is now done in handleCheckInSubmit
       console.error("Check-in mutation error:", error);
+      toast({
+        title: "Check-in failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
-  // Check-out mutation - Mock implementation for development
+  // Check-out mutation
   const checkOutMutation = useMutation({
-    mutationFn: async (data: {
-      userId?: string;
-      latitude: number;
-      longitude: number;
-      location?: string;
-      photoPath?: string;
-      workDescription?: string;
-      visitCount?: number;
-      tasksCompleted?: number;
-      outcome?: string;
-      nextAction?: string;
-    }) => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Return mock response
-      return {
-        id: `checkout-${Date.now()}`,
-        userId: data.userId,
-        checkOutTime: new Date().toISOString(),
-        latitude: data.latitude,
-        longitude: data.longitude,
-        location: data.location,
-        workDescription: data.workDescription,
-        visitCount: data.visitCount,
-        tasksCompleted: data.tasksCompleted,
-        outcome: data.outcome,
-        nextAction: data.nextAction,
-      };
-    },
+    mutationFn: marketingAttendance.checkOut,
     onSuccess: () => {
-      // No need to invalidate queries since we're using static mock data
+      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
       toast({ title: "Successfully checked out!" });
-      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      // Error handling is now done in handleCheckOutSubmit
       console.error("Check-out mutation error:", error);
+      toast({
+        title: "Check-out failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
-  // Leave request submission mutation - Mock implementation for development
+  // Leave request submission mutation
   const leaveRequestMutation = useMutation({
-    mutationFn: async (leaveRequest: LeaveRequest) => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Return mock response
-      return {
-        id: `leave-${Date.now()}`,
-        ...leaveRequest,
-        status: "pending" as const,
-      };
-    },
+    mutationFn: (data: Omit<LeaveRequest, "id" | "status">) =>
+      leaveRequests.create(data),
     onSuccess: () => {
-      // No need to invalidate queries since we're using static mock data
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       toast({ title: "Leave request submitted successfully!" });
       setLeaveRequestModalOpen(false);
     },

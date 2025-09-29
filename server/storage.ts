@@ -15,7 +15,12 @@ import {
   avg,
   isNotNull,
 } from "drizzle-orm";
-import { users, products, marketingAttendance } from "@shared/schema";
+import {
+  users,
+  products,
+  marketingAttendance,
+  leaveRequests,
+} from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
 
@@ -24,6 +29,8 @@ export type InsertUser = typeof users.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
 
 import {
   suppliers,
@@ -671,6 +678,80 @@ class Storage {
         leaveDays,
       },
     };
+  }
+
+  // Leave Request Methods
+  async getLeaveRequests(): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    const [row] = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, id));
+    return row;
+  }
+
+  async getLeaveRequestsByUser(userId: string): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.userId, userId))
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  async createLeaveRequest(
+    insertLeaveRequest: InsertLeaveRequest
+  ): Promise<LeaveRequest> {
+    const [row] = await db
+      .insert(leaveRequests)
+      .values(insertLeaveRequest)
+      .returning();
+    return row;
+  }
+
+  async updateLeaveRequest(
+    id: string,
+    update: Partial<InsertLeaveRequest>
+  ): Promise<LeaveRequest> {
+    const [row] = await db
+      .update(leaveRequests)
+      .set(update)
+      .where(eq(leaveRequests.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteLeaveRequest(id: string): Promise<void> {
+    await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
+  }
+
+  async getLeaveRequestsByStatus(status: string): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.status, status))
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  async getLeaveRequestsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(
+        and(
+          gte(leaveRequests.startDate, startDate),
+          lte(leaveRequests.endDate, endDate)
+        )
+      )
+      .orderBy(desc(leaveRequests.startDate));
   }
 }
 

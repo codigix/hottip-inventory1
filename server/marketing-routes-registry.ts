@@ -1536,6 +1536,175 @@ export const generateMarketingAttendancePhotoUploadUrl = async (
 };
 
 // ==========================================
+// LEAVE REQUEST HANDLERS
+// ==========================================
+
+export const getLeaveRequests = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    // Admin can see all, users see their own
+    const leaveRequests =
+      req.user!.role === "admin"
+        ? await storage.getLeaveRequests()
+        : await storage.getLeaveRequestsByUser(req.user!.id);
+
+    res.json(leaveRequests);
+  } catch (error) {
+    console.error("Get leave requests error:", error);
+    res.status(500).json({ error: "Failed to fetch leave requests" });
+  }
+};
+
+export const getLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const leaveRequest = await storage.getLeaveRequest(id);
+
+    if (!leaveRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only see their own requests unless admin
+    if (req.user!.role !== "admin" && leaveRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to view this leave request" });
+      return;
+    }
+
+    res.json(leaveRequest);
+  } catch (error) {
+    console.error("Get leave request error:", error);
+    res.status(500).json({ error: "Failed to fetch leave request" });
+  }
+};
+
+export const createLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validatedData = insertLeaveRequestSchema.parse({
+      ...req.body,
+      userId: req.user!.id,
+    });
+
+    const leaveRequest = await storage.createLeaveRequest(validatedData);
+    res.status(201).json(leaveRequest);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Invalid request data",
+        details: error.errors,
+      });
+      return;
+    }
+    console.error("Create leave request error:", error);
+    res.status(500).json({ error: "Failed to create leave request" });
+  }
+};
+
+export const updateLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const validatedData = insertLeaveRequestSchema.partial().parse(req.body);
+
+    // Check if leave request exists and user has permission
+    const existingRequest = await storage.getLeaveRequest(id);
+    if (!existingRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only update their own requests unless admin
+    if (req.user!.role !== "admin" && existingRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to update this leave request" });
+      return;
+    }
+
+    const leaveRequest = await storage.updateLeaveRequest(id, validatedData);
+    res.json(leaveRequest);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Invalid request data",
+        details: error.errors,
+      });
+      return;
+    }
+    console.error("Update leave request error:", error);
+    res.status(500).json({ error: "Failed to update leave request" });
+  }
+};
+
+export const deleteLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if leave request exists and user has permission
+    const existingRequest = await storage.getLeaveRequest(id);
+    if (!existingRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only delete their own requests unless admin
+    if (req.user!.role !== "admin" && existingRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to delete this leave request" });
+      return;
+    }
+
+    await storage.deleteLeaveRequest(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Delete leave request error:", error);
+    res.status(500).json({ error: "Failed to delete leave request" });
+  }
+};
+
+export const getLeaveRequestsByStatus = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status } = req.params;
+
+    // Admin can see all, users see their own
+    const leaveRequests =
+      req.user!.role === "admin"
+        ? await storage.getLeaveRequestsByStatus(status)
+        : await storage.getLeaveRequestsByUser(req.user!.id);
+
+    // Filter by status for non-admin users
+    const filteredRequests =
+      req.user!.role === "admin"
+        ? leaveRequests
+        : leaveRequests.filter((request) => request.status === status);
+
+    res.json(filteredRequests);
+  } catch (error) {
+    console.error("Get leave requests by status error:", error);
+    res.status(500).json({ error: "Failed to fetch leave requests" });
+  }
+};
+
+// ==========================================
 // MARKETING ANALYTICS HANDLERS
 // ==========================================
 
@@ -2009,6 +2178,46 @@ export function registerMarketingRoutes(
       path: "/api/marketing-attendance/photo/upload-url",
       middlewares: ["requireAuth"],
       handler: generateMarketingAttendancePhotoUploadUrl,
+    },
+
+    // ==========================================
+    // LEAVE REQUEST ROUTES (6 endpoints)
+    // ==========================================
+    {
+      method: "get",
+      path: "/api/leave-requests",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequests,
+    },
+    {
+      method: "get",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequest,
+    },
+    {
+      method: "post",
+      path: "/api/leave-requests",
+      middlewares: ["requireAuth"],
+      handler: createLeaveRequest,
+    },
+    {
+      method: "put",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: updateLeaveRequest,
+    },
+    {
+      method: "delete",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: deleteLeaveRequest,
+    },
+    {
+      method: "get",
+      path: "/api/leave-requests/status/:status",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequestsByStatus,
     },
 
     // ==========================================

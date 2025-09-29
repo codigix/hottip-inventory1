@@ -265,12 +265,13 @@ export const marketingAttendance = pgTable("marketing_attendance", {
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("userId").notNull(), // <-- matches your DB
-  leaveType: text("leave_type").notNull().default("annual"),
-  startDate: timestamp("start_date").notNull().defaultNow(),
-  endDate: timestamp("end_date").notNull().defaultNow(),
-  reason: text("reason"),
+  userId: uuid("userId").notNull(),
+  leaveType: text("leave_type").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: text("reason").notNull(),
   status: text("status").default("pending"),
+  totalDays: integer("total_days"),
 });
 // =====================
 // FIELD VISITS
@@ -806,6 +807,22 @@ export const insertMarketingAttendanceSchema = z.object({
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),
+});
+
+export const insertLeaveRequestSchema = z.object({
+  userId: z.any(),
+  leaveType: z.enum([
+    "sick",
+    "vacation",
+    "personal",
+    "emergency",
+    "training",
+    "other",
+  ]),
+  startDate: z.string(),
+  endDate: z.string(),
+  reason: z.string(),
+  totalDays: z.number().optional(),
 });
 
 export const updateLeadStatusSchema = z.object({
