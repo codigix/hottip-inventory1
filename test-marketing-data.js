@@ -1,7 +1,7 @@
 // Test script to add sample marketing attendance data
 const { drizzle } = require("drizzle-orm/postgres-js");
 const postgres = require("postgres");
-const { marketingTodays, users } = require("./shared/schema");
+const { marketingAttendance, users } = require("./shared/schema");
 
 // Database connection
 const connectionString =
@@ -60,7 +60,7 @@ async function addSampleData() {
 
     // Insert the sample data
     const inserted = await db
-      .insert(marketingTodays)
+      .insert(marketingAttendance)
       .values(sampleData)
       .returning();
     console.log("✅ Added sample attendance records:", inserted.length);

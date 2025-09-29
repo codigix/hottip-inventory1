@@ -19,7 +19,6 @@ import {
   users,
   products,
   marketingAttendance,
-  marketing_Todays,
   marketing_metrics,
   leaveRequests,
 } from "@shared/schema";
@@ -471,7 +470,7 @@ class Storage {
              u.id   AS user_id,
              CONCAT(u."firstName", ' ', u."lastName") AS user_name,
              u.email AS user_email
-      FROM marketing_Todays ma
+      FROM "marketingAttendance" ma
       LEFT JOIN users u ON ma."userId" = u.id
       WHERE DATE(ma.date) = CURRENT_DATE
       ORDER BY ma.date DESC
@@ -647,7 +646,7 @@ class Storage {
         COUNT(CASE WHEN ma."isOnLeave" = true THEN 1 END) AS leave_count,
         COALESCE(AVG(NULLIF(ma."visitCount", 0)), 0) AS avg_visits,
         COALESCE(AVG(NULLIF(ma."tasksCompleted", 0)), 0) AS avg_tasks
-      FROM marketing_Todays ma
+      FROM "marketingAttendance" ma
     `);
 
       const r = rows[0];

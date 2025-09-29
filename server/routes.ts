@@ -22,11 +22,7 @@ import { desc } from "drizzle-orm";
 import { attendance } from "../shared/schema";
 import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
-import {
-  marketingAttendance,
-  marketingTodays,
-  marketingMetrics,
-} from "../shared/schema";
+import { marketingAttendance, marketingMetrics } from "../shared/schema";
 
 // make sure users table is also imported
 import { products, spareParts } from "../shared/schema"; // adjust path

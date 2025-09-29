@@ -19,7 +19,7 @@ import {
   fieldVisitFilterSchema,
   marketingTaskFilterSchema,
   attendancePhotoUploadSchema,
-  marketingTodays,
+  marketingAttendance,
   users,
 } from "@shared/schema";
 import { ObjectStorageService } from "./objectStorage";
@@ -1463,41 +1463,41 @@ export const getTodayMarketingAttendance = async (
     // Query using Drizzle ORM with proper join and error handling
     const rows = await db
       .select({
-        id: marketingTodays.id,
-        userId: marketingTodays.userId,
-        date: marketingTodays.date,
-        checkInTime: marketingTodays.checkInTime,
-        checkOutTime: marketingTodays.checkOutTime,
-        latitude: marketingTodays.latitude,
-        longitude: marketingTodays.longitude,
-        location: marketingTodays.location,
-        photoPath: marketingTodays.photoPath,
-        workDescription: marketingTodays.workDescription,
-        attendanceStatus: marketingTodays.attendanceStatus,
-        visitCount: marketingTodays.visitCount,
-        tasksCompleted: marketingTodays.tasksCompleted,
-        outcome: marketingTodays.outcome,
-        nextAction: marketingTodays.nextAction,
-        isOnLeave: marketingTodays.isOnLeave,
+        id: marketingAttendance.id,
+        userId: marketingAttendance.userId,
+        date: marketingAttendance.date,
+        checkInTime: marketingAttendance.checkInTime,
+        checkOutTime: marketingAttendance.checkOutTime,
+        latitude: marketingAttendance.latitude,
+        longitude: marketingAttendance.longitude,
+        location: marketingAttendance.location,
+        photoPath: marketingAttendance.photoPath,
+        workDescription: marketingAttendance.workDescription,
+        attendanceStatus: marketingAttendance.attendanceStatus,
+        visitCount: marketingAttendance.visitCount,
+        tasksCompleted: marketingAttendance.tasksCompleted,
+        outcome: marketingAttendance.outcome,
+        nextAction: marketingAttendance.nextAction,
+        isOnLeave: marketingAttendance.isOnLeave,
         // User fields with null handling
         userId_user: users.id,
         userFirstName: users.firstName,
         userLastName: users.lastName,
         userEmail: users.email,
       })
-      .from(marketingTodays)
-      .leftJoin(users, eq(marketingTodays.userId, users.id))
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id))
       .where(
         and(
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
+          gte(marketingAttendance.date, startOfDay),
+          lt(marketingAttendance.date, endOfDay),
           // Apply user-based scoping
           req.user!.role === "admin" || req.user!.role === "manager"
             ? undefined
-            : eq(marketingTodays.userId, req.user!.id)
+            : eq(marketingAttendance.userId, req.user!.id)
         )
       )
-      .orderBy(desc(marketingTodays.date));
+      .orderBy(desc(marketingAttendance.date));
 
     console.log(
       `📊 [Registry] Found ${rows.length} marketing attendance records for today`
@@ -1558,17 +1558,17 @@ export const getMarketingAttendanceMetrics = async (
     let query = db
       .select({
         totalRecords: sql<number>`COUNT(*)`,
-        presentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'present' THEN 1 END)`,
-        absentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'absent' THEN 1 END)`,
-        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.isOnLeave} = true THEN 1 END)`,
-        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.visitCount}, 0)), 0)`,
-        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.tasksCompleted}, 0)), 0)`,
+        presentCount: sql<number>`COUNT(CASE WHEN ${marketingAttendance.attendanceStatus} = 'present' THEN 1 END)`,
+        absentCount: sql<number>`COUNT(CASE WHEN ${marketingAttendance.attendanceStatus} = 'absent' THEN 1 END)`,
+        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingAttendance.isOnLeave} = true THEN 1 END)`,
+        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingAttendance.visitCount}, 0)), 0)`,
+        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingAttendance.tasksCompleted}, 0)), 0)`,
       })
-      .from(marketingTodays);
+      .from(marketingAttendance);
 
     // Apply user-based scoping for non-admin users
     if (req.user!.role !== "admin" && req.user!.role !== "manager") {
-      query = query.where(eq(marketingTodays.userId, req.user!.id));
+      query = query.where(eq(marketingAttendance.userId, req.user!.id));
     }
 
     const result = await query;
