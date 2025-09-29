@@ -1,4 +1,3 @@
-
 // shared/schema.ts
 import {
   pgTable,
@@ -16,7 +15,6 @@ import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
 
-
 // =====================
 // FABRICATION ORDERS
 // =====================
@@ -24,11 +22,13 @@ export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
   "pending",
   "in_progress",
   "completed",
-  "cancelled"
+  "cancelled",
 ]);
 export const fabricationOrders = pgTable("fabrication_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
-  partId: uuid("part_id").notNull().references(() => spareParts.id),
+  partId: uuid("part_id")
+    .notNull()
+    .references(() => spareParts.id),
   quantity: integer("quantity").notNull().default(1),
   status: fabricationOrderStatusEnum("status").notNull().default("pending"),
   startDate: timestamp("start_date"),
@@ -42,7 +42,9 @@ export const fabricationOrders = pgTable("fabrication_orders", {
 export const insertFabricationOrderSchema = z.object({
   partId: z.string().uuid(),
   quantity: z.coerce.number().min(1),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
@@ -151,15 +153,56 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 // MARKETING ATTENDANCE (camelCase, matches actual DB)
 // =====================
+// export const marketingAttendance = pgTable("marketing_attendance", {
+//   id: uuid("id").defaultRandom().primaryKey(),
+//   userId: uuid("userId").notNull(),
+//   date: timestamp("date").notNull(),
+//   checkInTime: timestamp("checkInTime"),
+//   checkOutTime: timestamp("checkOutTime"),
+//   checkInLocation: text("checkInLocation"),
+//   checkOutLocation: text("checkOutLocation"),
+//   checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+//   checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+//   checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+//   checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+//   checkInPhotoPath: text("checkInPhotoPath"),
+//   checkOutPhotoPath: text("checkOutPhotoPath"),
+//   photoPath: text("photoPath"),
+//   latitude: numeric("latitude", { precision: 10, scale: 7 }),
+//   longitude: numeric("longitude", { precision: 10, scale: 7 }),
+//   location: text("location"),
+//   workDescription: text("workDescription"),
+//   visitCount: integer("visitCount"),
+//   tasksCompleted: integer("tasksCompleted"),
+//   outcome: text("outcome"),
+//   nextAction: text("nextAction"),
+//   attendanceStatus: text("attendanceStatus").default("present"),
+// });
+
 export const marketingAttendance = pgTable("marketing_attendance", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull(),
-  date: timestamp("date").notNull(),
-  checkInTime: timestamp("checkInTime"),
-  checkOutTime: timestamp("checkOutTime"),
-  checkInLocation: text("checkInLocation"),
-  checkOutLocation: text("checkOutLocation"),
-  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ UUID primary key
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }), // ✅ UUID FK, NOT NULL
+  date: timestamp("date").notNull(), // ✅ Timestamp, NOT NULL
+  checkInTime: timestamp("checkInTime"), // ✅ Timestamp
+  checkOutTime: timestamp("checkOutTime"), // ✅ Timestamp
+  checkInLocation: text("checkInLocation"), // ✅ Text
+  checkOutLocation: text("checkOutLocation"), // ✅ Text
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision
+  // Remove or comment out the line below since the column doesn't exist in DB
+  // checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }), // ❌ Column does not exist
+  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision
+  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision (assuming this exists)
+  photoPath: text("photoPath"), // ✅ Text
+  workDescription: text("workDescription"), // ✅ Text
+  visitCount: integer("visitCount"), // ✅ Integer
+  tasksCompleted: integer("tasksCompleted"), // ✅ Integer
+  outcome: text("outcome"), // ✅ Text
+  nextAction: text("nextAction"), // ✅ Text
+  attendanceStatus: text("attendanceStatus").default("present"), // ✅ Text with default
+  createdAt: timestamp("createdAt").defaultNow(), // ✅ Timestamp with default
+  updatedAt: timestamp("updatedAt").defaultNow(), // ✅ Timestamp with default
 });
 
 // =====================
@@ -304,14 +347,23 @@ export const inboundQuotations = pgTable("inbound_quotations", {
 //   status: varchar("status", { length: 20 }),
 //   issuedAt: timestamp("issued_at").defaultNow(),
 // });
-export const invoiceStatus = pgEnum("invoice_status", ["draft", "sent", "paid", "overdue"]);
+export const invoiceStatus = pgEnum("invoice_status", [
+  "draft",
+  "sent",
+  "paid",
+  "overdue",
+]);
 
 export const invoices = pgTable("invoices", {
   id: uuid("id").defaultRandom().primaryKey(), // ✅ UUID primary key
   invoiceNumber: text("invoiceNumber").notNull().unique(), // ✅ Unique constraint
   quotationId: uuid("quotationId").references(() => outboundQuotations.id), // ✅ UUID FK
-  customerId: uuid("customerId").notNull().references(() => customers.id), // ✅ UUID FK, NOT NULL
-  userId: uuid("userId").notNull().references(() => users.id), // ✅ UUID FK, NOT NULL
+  customerId: uuid("customerId")
+    .notNull()
+    .references(() => customers.id), // ✅ UUID FK, NOT NULL
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id), // ✅ UUID FK, NOT NULL
   status: invoiceStatus("status").notNull().default("draft"), // ✅ Enum, NOT NULL
   invoiceDate: timestamp("invoiceDate").notNull().defaultNow(), // ✅ Timestamp, NOT NULL
   dueDate: timestamp("dueDate").notNull(), // ✅ Timestamp, NOT NULL
@@ -746,17 +798,25 @@ export const insertMarketingTaskSchema = z.object({
 });
 
 export const insertMarketingAttendanceSchema = z.object({
-  userId: z.any(),
-  date: z.string().optional(),
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  userId: z.string().uuid(),
+  date: z.coerce.date().optional(),
+  checkInTime: z.coerce.date().optional(),
+  checkOutTime: z.coerce.date().optional(),
+  checkInLatitude: z.coerce.number().optional(),
+  checkInLongitude: z.coerce.number().optional(),
+  checkOutLatitude: z.coerce.number().optional(),
+  checkOutLongitude: z.coerce.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
   location: z.string().optional(),
+  checkInLocation: z.string().optional(),
+  checkOutLocation: z.string().optional(),
+  checkInPhotoPath: z.string().optional(),
+  checkOutPhotoPath: z.string().optional(),
   photoPath: z.string().optional(),
   workDescription: z.string().optional(),
-  visitCount: z.number().optional(),
-  tasksCompleted: z.number().optional(),
+  visitCount: z.coerce.number().optional(),
+  tasksCompleted: z.coerce.number().optional(),
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),

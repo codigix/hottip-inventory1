@@ -664,30 +664,136 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
     }));
   }
 
-  async getTodayMarketingAttendance(): Promise<any[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
+  // async getTodayMarketingAttendance(): Promise<any[]> {
+  //   const today = new Date();
+  //   today.setHours(0, 0, 0, 0); // start of today
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
+  //   const tomorrow = new Date(today);
+  //   tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
 
-    const rows = await db
-      .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(
-        and(
-          gte(marketingAttendance.date, today),
-          lt(marketingAttendance.date, tomorrow)
-        )
-      )
-      .orderBy(desc(marketingAttendance.date));
+  //   const rows = await db
+  //     .select()
+  //     .from(marketingAttendance)
+  //     .leftJoin(users, eq(marketingAttendance.userId, users.id))
+  //     .where(
+  //       and(
+  //         gte(marketingAttendance.date, today),
+  //         lt(marketingAttendance.date, tomorrow)
+  //       )
+  //     )
+  //     .orderBy(desc(marketingAttendance.date));
 
-    // Map results: include user details nested under `user`
-    return rows.map((r) => ({
-      ...r.marketingAttendance,
-      user: r.users,
-    }));
+  //   // Map results: include user details nested under `user`
+  //   return rows.map((r) => ({
+  //     ...r.marketingAttendance,
+  //     user: r.users,
+  //   }));
+  // }
+
+ async getTodayMarketingAttendance(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
+    try {
+      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Fetching records for user ID: ${userId} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+
+      // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
+      // This avoids the Drizzle internal error caused by nested selection objects.
+      const rows = await db
+        .select({
+          // --- Fields from marketingAttendance table ---
+          id: marketingAttendance.id,
+          userId: marketingAttendance.userId,
+          date: marketingAttendance.date,
+          checkInTime: marketingAttendance.checkInTime,
+          checkOutTime: marketingAttendance.checkOutTime,
+          checkInLocation: marketingAttendance.checkInLocation,
+          checkOutLocation: marketingAttendance.checkOutLocation,
+          checkInLatitude: marketingAttendance.checkInLatitude,
+          checkInLongitude: marketingAttendance.checkInLongitude,
+          checkOutLatitude: marketingAttendance.checkOutLatitude,
+          checkOutLongitude: marketingAttendance.checkOutLongitude,
+          photoPath: marketingAttendance.photoPath,
+          workDescription: marketingAttendance.workDescription,
+          visitCount: marketingAttendance.visitCount,
+          tasksCompleted: marketingAttendance.tasksCompleted,
+          outcome: marketingAttendance.outcome,
+          nextAction: marketingAttendance.nextAction,
+          attendanceStatus: marketingAttendance.attendanceStatus,
+          createdAt: marketingAttendance.createdAt,
+          updatedAt: marketingAttendance.updatedAt,
+          // --- Fields from users table (joined) ---
+          // IMPORTANT: Select these individually and alias them to prevent conflicts
+          // and to identify them for manual nesting in the next step.
+          _userIdJoin: users.id,        // Aliased user ID
+          _userNameJoin: users.name,    // Aliased user name
+          _userEmailJoin: users.email,  // Aliased user email
+          _userPhoneJoin: users.phone, // Aliased user phone
+          // Add other user fields if needed by the frontend later
+          // _userDepartmentJoin: users.department,
+          // _userRoleJoin: users.role,
+          // ...
+        })
+        .from(marketingAttendance)
+        .leftJoin(users, eq(marketingAttendance.userId, users.id)) // Join condition
+        .where(and(
+          eq(marketingAttendance.userId, userId), // Filter by user ID
+          gte(marketingAttendance.date, startDate), // Filter by date range start
+          lt(marketingAttendance.date, endDate) // Filter by date range end
+        ))
+        .orderBy(desc(marketingAttendance.date)); // Order by date descending
+
+      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Fetched ${rows.length} raw rows with join (flattened approach)`);
+
+      // --- STEP 2: Transform the Result ---
+      // Drizzle returns an array like [{ marketingAttendance: {...}, users: {...} }, ...].
+      // We need to flatten this to match MarketingAttendance type with a nested 'user' property.
+      const transformedRows = rows.map(row => {
+        // Check if user data was joined (userId_join will be non-null if user exists)
+        const hasUser = row._userIdJoin !== null && row._userIdJoin !== undefined;
+
+        return {
+          // Spread all fields from the 'marketingAttendance' object (marketingAttendance fields)
+          ...row.marketingAttendance,
+          // Conditionally create the nested 'user' object
+          user: hasUser ? {
+            id: row._userIdJoin,       // Use the aliased user ID
+            name: row._userNameJoin,    // Use the aliased user name
+            email: row._userEmailJoin,  // Use the aliased user email
+            phone: row._userPhoneJoin, // Use the aliased user phone
+            // Map other user fields as needed
+          } : null // Or {} if preferred
+        };
+      });
+
+      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Transformed ${transformedRows.length} rows`);
+      // Return the correctly structured array
+      return transformedRows;
+    } catch (error) {
+      // --- STEP 3: Robust Error Handling ---
+      console.error("💥 [STORAGE] getTodayMarketingAttendance - Error fetching today's attendance with JOIN:", error);
+      // Fallback to simple fetch to maintain API availability.
+      try {
+          console.log("🐛 [STORAGE] getTodayMarketingAttendance - Falling back to simple attendance fetch...");
+          const fallbackRows = await db
+            .select()
+            .from(marketingAttendance)
+            .where(and(
+              eq(marketingAttendance.userId, userId),
+              gte(marketingAttendance.date, startDate),
+              lt(marketingAttendance.date, endDate)
+            ))
+            .orderBy(desc(marketingAttendance.date));
+          
+          // Transform simple rows to match the expected structure with null user
+          const transformedFallback = fallbackRows.map(row => ({
+            ...row,
+            user: null // No user data in fallback
+          }));
+          
+          return transformedFallback;
+      } catch (fallbackError) {
+          console.error("💥 [STORAGE] getTodayMarketingAttendance - Fallback fetch also failed:", fallbackError);
+          throw new Error("Failed to fetch today's attendance: " + (error.message || "An unknown error occurred"));
+      }
+    }
   }
 
   async checkInMarketingAttendance(
@@ -796,66 +902,90 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
     return row;
   }
 
+  // async getMarketingAttendanceMetrics() {
+  //   const todayStart = startOfDay(new Date());
+  //   const todayEnd = endOfDay(new Date());
+
+  //   // total attendance records
+  //   const [{ total }] = await db
+  //     .select({ total: sql<number>`COUNT(*)` })
+  //     .from(marketingAttendance);
+
+  //   // present today (unique users who checked in today)
+  //   const [{ presentToday }] = await db
+  //     .select({ presentToday: sql<number>`COUNT(DISTINCT "userId")` })
+  //     .from(marketingAttendance)
+  //     .where(
+  //       gte(marketingAttendance.date, todayStart) &&
+  //         lte(marketingAttendance.date, todayEnd)
+  //     );
+
+  //   const totalEmployees = total ?? 0;
+  //   const present = presentToday ?? 0;
+  //   const absent = totalEmployees - present;
+
+  //   // late arrivals (checked in after 10 AM)
+  //   const [{ lateToday }] = await db.execute(sql`
+  //     SELECT COUNT(*)::int AS "lateToday"
+  //     FROM "marketingAttendance"
+  //     WHERE "checkInTime"::time > '10:00:00'
+  //       AND "date" BETWEEN ${todayStart} AND ${todayEnd}
+  //   `);
+
+  //   // placeholder for leave tracking
+  //   const onLeaveToday = 0;
+
+  //   // monthly stats
+  //   const monthStart = startOfMonth(new Date());
+  //   const monthEnd = endOfMonth(new Date());
+
+  //   const [{ presentDays }] = await db.execute(sql`
+  //     SELECT COUNT(DISTINCT "date"::date)::int AS "presentDays"
+  //     FROM "marketingAttendance"
+  //     WHERE "date" BETWEEN ${monthStart} AND ${monthEnd}
+  //   `);
+
+  //   const leaveDays = 0;
+
+  //   return {
+  //     totalEmployees,
+  //     presentToday: present,
+  //     absentToday: absent,
+  //     lateToday: lateToday?.lateToday ?? 0,
+  //     onLeaveToday,
+  //     attendanceRate: totalEmployees > 0 ? (present / totalEmployees) * 100 : 0,
+  //     monthlyStats: {
+  //       totalDays: new Date().getDate(),
+  //       presentDays: presentDays?.presentDays ?? 0,
+  //       absentDays: new Date().getDate() - (presentDays?.presentDays ?? 0),
+  //       leaveDays,
+  //     },
+  //   };
+  // }
   async getMarketingAttendanceMetrics() {
-    const todayStart = startOfDay(new Date());
-    const todayEnd = endOfDay(new Date());
+  try {
+    console.log("💾 [STORAGE] getMarketingAttendanceMetrics - Fetching attendance metrics");
 
-    // total attendance records
-    const [{ total }] = await db
-      .select({ total: sql<number>`COUNT(*)` })
-      .from(marketingAttendance);
+    // --- Perform the database query directly ---
+    const [row] = await db.select({
+      total: sql<number>`COUNT(*)::integer`,
+      checkedIn: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+      checkedOut: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+    }).from(marketingAttendance);
 
-    // present today (unique users who checked in today)
-    const [{ presentToday }] = await db
-      .select({ presentToday: sql<number>`COUNT(DISTINCT "userId")` })
-      .from(marketingAttendance)
-      .where(
-        gte(marketingAttendance.date, todayStart) &&
-          lte(marketingAttendance.date, todayEnd)
-      );
-
-    const totalEmployees = total ?? 0;
-    const present = presentToday ?? 0;
-    const absent = totalEmployees - present;
-
-    // late arrivals (checked in after 10 AM)
-    const [{ lateToday }] = await db.execute(sql`
-      SELECT COUNT(*)::int AS "lateToday"
-      FROM "marketingAttendance"
-      WHERE "checkInTime"::time > '10:00:00'
-        AND "date" BETWEEN ${todayStart} AND ${todayEnd}
-    `);
-
-    // placeholder for leave tracking
-    const onLeaveToday = 0;
-
-    // monthly stats
-    const monthStart = startOfMonth(new Date());
-    const monthEnd = endOfMonth(new Date());
-
-    const [{ presentDays }] = await db.execute(sql`
-      SELECT COUNT(DISTINCT "date"::date)::int AS "presentDays"
-      FROM "marketingAttendance"
-      WHERE "date" BETWEEN ${monthStart} AND ${monthEnd}
-    `);
-
-    const leaveDays = 0;
-
-    return {
-      totalEmployees,
-      presentToday: present,
-      absentToday: absent,
-      lateToday: lateToday?.lateToday ?? 0,
-      onLeaveToday,
-      attendanceRate: totalEmployees > 0 ? (present / totalEmployees) * 100 : 0,
-      monthlyStats: {
-        totalDays: new Date().getDate(),
-        presentDays: presentDays?.presentDays ?? 0,
-        absentDays: new Date().getDate() - (presentDays?.presentDays ?? 0),
-        leaveDays,
-      },
+    const metrics = {
+      total: Number((row as any)?.total || 0),
+      checkedIn: Number((row as any)?.checkedIn || 0),
+      checkedOut: Number((row as any)?.checkedOut || 0),
     };
+
+    console.log("💾 [STORAGE] getMarketingAttendanceMetrics - Fetched metrics:", metrics);
+    return metrics;
+  } catch (error) {
+    console.error("💥 [STORAGE] getMarketingAttendanceMetrics - Error fetching metrics:", error);
+    throw error; // Re-throw to be caught by the route handler
   }
+}
 }
 
 export const storage = new Storage();

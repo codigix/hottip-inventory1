@@ -1428,7 +1428,7 @@ export const getTodayMarketingAttendance = async (
     );
     res.json(attendance);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch today's attendance" });
+    res.status(500).json({ error.message: "Failed to fetch today's attendance",details: error.message});
   }
 };
 

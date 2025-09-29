@@ -3231,7 +3231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(rows);
       } catch (e) {
         console.error("Error fetching attendance:", e);
-        res.status(500).json({ error: "Failed to fetch attendance record" });
+        res.status(500).json({ error: "Failed to fetch attendance record", details:e.message });
       }
     });
 
@@ -3261,35 +3261,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     );
-    app.get(
-      "/marketing-attendance/today",
-      requireAuth,
-      async (req, res) => {
-        try {
-          const userId = req.user.id; // 👈 from auth middleware
+    // app.get(
+    //   "/marketing-attendance/today",
+    //   requireAuth,
+    //   async (req, res) => {
+    //     try {
+    //       const userId = req.user.id; // 👈 from auth middleware
 
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+    //       const today = new Date();
+    //       today.setHours(0, 0, 0, 0);
 
-          const tomorrow = new Date(today);
-          tomorrow.setDate(today.getDate() + 1);
+    //       const tomorrow = new Date(today);
+    //       tomorrow.setDate(today.getDate() + 1);
 
-          const rows = await db
-            .select()
-            .from(marketingAttendance)
-            .where("userId", "=", userId)
-            .andWhere("date", ">=", today)
-            .andWhere("date", "<", tomorrow);
+    //       const rows = await db
+    //         .select()
+    //         .from(marketingAttendance)
+    //         .where("userId", "=", userId)
+    //         .andWhere("date", ">=", today)
+    //         .andWhere("date", "<", tomorrow);
 
-          res.json(rows);
-        } catch (e) {
-          console.error("Error fetching today's attendance:", e);
-          res.status(500).json({ error: "Failed to fetch today's attendance" });
-        }
-      }
-    );
+    //       res.json(rows);
+    //     } catch (e) {
+    //       console.error("Error fetching today's attendance:", e);
+    //       res.status(500).json({ error: "Failed to fetch today's attendance" });
+    //     }
+    //   }
+    // );
 
     // 📌 UPDATE attendance record (Check-out)
+
+   app.get("/api/marketing-attendance/today", requireAuth, async (req, res) => {
+  try {
+    console.log("🐛 [ROUTE] GET /api/marketing-attendance/today - Request received for user ID:", req.user?.id);
+
+    // --- STEP 1: Get the authenticated user's ID ---
+    const userId = req.user?.id;
+    if (!userId) {
+      console.warn("🐛 [ROUTE] GET /api/marketing-attendance/today - User ID not found in request");
+      return res.status(401).json({ error: "Unauthorized: User ID not found" });
+    }
+
+    // --- STEP 2: Calculate date range for today ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
+
+    // --- STEP 3: Perform LEFT JOIN with FLAT field selection ---
+    // This avoids the Drizzle internal error caused by nested selection objects.
+    const rows = await db
+      .select({
+        // --- Fields from marketingAttendance table ---
+        id: marketingAttendance.id,
+        quotationNumber: marketingAttendance.quotationNumber,
+        customerId: marketingAttendance.customerId,
+        userId: marketingAttendance.userId,
+        status: marketingAttendance.status,
+        quotationDate: marketingAttendance.quotationDate,
+        validUntil: marketingAttendance.validUntil,
+        jobCardNumber: marketingAttendance.jobCardNumber,
+        partNumber: marketingAttendance.partNumber,
+        subtotalAmount: marketingAttendance.subtotalAmount,
+        taxAmount: marketingAttendance.taxamount, // Note the column name from DB schema
+        discountAmount: marketingAttendance.discountamount, // Note the column name from DB schema
+        totalAmount: marketingAttendance.totalamount, // Note the column name from DB schema
+        paymentTerms: marketingAttendance.paymentterms, // Note the column name from DB schema
+        deliveryTerms: marketingAttendance.deliveryterms, // Note the column name from DB schema
+        notes: marketingAttendance.notes,
+        bankName: marketingAttendance.bankName,
+        accountNumber: marketingAttendance.accountNumber,
+        ifscCode: marketingAttendance.ifscCode,
+        warrantyTerms: marketingAttendance.warrantyTerms,
+        specialTerms: marketingAttendance.specialTerms,
+        createdAt: marketingAttendance.createdAt,
+        updatedAt: marketingAttendance.updatedAt,
+        // --- Fields from users table (joined) ---
+        // IMPORTANT: Select these individually and alias them to prevent conflicts
+        // and to identify them for manual nesting in the next step.
+        _userIdJoin: users.id,        // Aliased user ID
+        _userNameJoin: users.name,    // Aliased user name
+        _userEmailJoin: users.email,  // Aliased user email
+        _userPhoneJoin: users.phone, // Aliased user phone
+        // Add other user fields if needed by the frontend later
+        // _userDepartmentJoin: users.department,
+        // _userRoleJoin: users.role,
+        // ...
+      })
+      .from(marketingAttendance)
+      .leftJoin(users, eq(marketingAttendance.userId, users.id)) // Join condition
+      .where(and(
+        eq(marketingAttendance.userId, userId), // Filter by user ID
+        gte(marketingAttendance.quotationDate, today), // Filter by date range start
+        lt(marketingAttendance.quotationDate, tomorrow) // Filter by date range end
+      ));
+
+    console.log(`🐛 [ROUTE] GET /api/marketing-attendance/today - Fetched ${rows.length} raw rows with join (flat approach)`);
+
+    // --- STEP 4: Transform the Result ---
+    // Drizzle returns an array like [{ marketingAttendance: {...}, users: {...} }, ...].
+    // We need to flatten this to match MarketingAttendance type with a nested 'user' property.
+    const transformedRows = rows.map(row => {
+      // Check if user data was joined (userId_join will be non-null if user exists)
+      const hasUser = row._userIdJoin !== null && row._userIdJoin !== undefined;
+
+      return {
+        // Spread all fields from the 'marketingAttendance' object (marketingAttendance fields)
+        ...row.marketingAttendance,
+        // Conditionally create the nested 'user' object
+        user: hasUser ? {
+          id: row._userIdJoin,       // Use the aliased user ID
+          name: row._userNameJoin,    // Use the aliased user name
+          email: row._userEmailJoin,  // Use the aliased user email
+          phone: row._userPhoneJoin, // Use the aliased user phone
+          // Map other user fields as needed
+        } : null // Or {} if preferred
+      };
+    });
+
+    console.log(`🐛 [ROUTE] GET /api/marketing-attendance/today - Transformed ${transformedRows.length} rows`);
+    res.json(transformedRows);
+  } catch (error) {
+    console.error("💥 [ROUTE] GET /api/marketing-attendance/today - Error fetching today's attendance:", error);
+    // Fallback to simple fetch to maintain API availability.
+    try {
+        console.log("🐛 [ROUTE] GET /api/marketing-attendance/today - Falling back to simple fetch...");
+        const fallbackRows = await db.select().from(marketingAttendance);
+        res.json(fallbackRows);
+    } catch (fallbackError) {
+        console.error("💥 [ROUTE] GET /api/marketing-attendance/today - Fallback fetch also failed:", fallbackError);
+        res.status(500).json({ error: "Failed to fetch today's attendance", details: error.message });
+    }
+  }
+});
     app.put(
       "/api/marketing-attendance/:id/checkout",
       requireAuth,
@@ -3316,27 +3420,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
 
     // 📌 METRICS (total, checked-in, checked-out)
+    // app.get(
+    //   "/api/marketing-attendance/metrics",
+    //   requireAuth,
+    //   async (_req, res) => {
+    //     try {
+    //       const [row] = await db
+    //         .select({
+    //           total: sql`COUNT(*)::integer`,
+    //           checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+    //           checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+    //         })
+    //         .from(marketingAttendance);
+
+    //       res.json({
+    //         total: Number((row as any)?.total || 0),
+    //         checkedIn: Number((row as any)?.checkedIn || 0),
+    //         checkedOut: Number((row as any)?.checkedOut || 0),
+    //       });
+    //     } catch (e) {
+    //       console.error("Error fetching attendance metrics:", e);
+    //       res.status(500).json({ error: "Failed to fetch attendance metrics" });
+    //     }
+    //   }
+    // );
     app.get(
       "/api/marketing-attendance/metrics",
       requireAuth,
       async (_req, res) => {
         try {
+          console.log(
+            "🐛 [ROUTE] GET /api/marketing-attendance/metrics - Request received"
+          );
+
+          // --- STEP 1: Perform the database query using correct Drizzle syntax ---
           const [row] = await db
             .select({
-              total: sql`COUNT(*)::integer`,
-              checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
-              checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+              total: sql<number>`COUNT(*)::integer`,
+              checkedIn: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+              checkedOut: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
             })
             .from(marketingAttendance);
 
-          res.json({
+          // --- STEP 2: Safely extract metrics from the query result ---
+          const metrics = {
             total: Number((row as any)?.total || 0),
             checkedIn: Number((row as any)?.checkedIn || 0),
             checkedOut: Number((row as any)?.checkedOut || 0),
-          });
-        } catch (e) {
-          console.error("Error fetching attendance metrics:", e);
-          res.status(500).json({ error: "Failed to fetch attendance metrics" });
+          };
+
+          console.log(
+            "🐛 [ROUTE] GET /api/marketing-attendance/metrics - Fetched metrics:",
+            metrics
+          );
+          res.json(metrics);
+        } catch (error) {
+          console.error(
+            "💥 [ROUTE] GET /api/marketing-attendance/metrics - Error fetching metrics:",
+            error
+          );
+          // Fallback to default metrics on error to keep UI functional
+          res.json({ total: 0, checkedIn: 0, checkedOut: 0 });
         }
       }
     );
