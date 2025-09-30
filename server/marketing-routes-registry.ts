@@ -41,6 +41,13 @@ interface AuthenticatedRequest extends Request {
 // Marketing Route Handlers - Extracted from routes.ts
 
 // ==========================================
+// MARKETING ROUTES REGISTRY
+// ==========================================
+
+// Forward declaration - will be defined in registerMarketingRoutes
+export let marketingRoutes: MarketingRoute[] = [];
+
+// ==========================================
 // LEADS HANDLERS
 // ==========================================
 
@@ -2355,7 +2362,7 @@ export function registerMarketingRoutes(
   } = middleware;
 
   // Define all marketing routes with their middleware requirements
-  const marketingRoutes: MarketingRoute[] = [
+  marketingRoutes = [
     // ==========================================
     // LEADS ROUTES (9 endpoints)
     // ==========================================
