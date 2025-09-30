@@ -385,6 +385,157 @@ export default function MarketingAttendance() {
     leaveRequestMutation.mutate(leaveRequest);
   };
 
+  // Export utility functions
+  const downloadCSV = (data: string, filename: string) => {
+    const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Monthly Report
+  const handleExportMonthly = () => {
+    const currentDate = new Date();
+    const monthName = currentDate.toLocaleString("default", {
+      month: "long",
+      year: "numeric",
+    });
+
+    const csvData = [
+      ["Monthly Attendance Report", monthName],
+      [""],
+      ["Metric", "Value"],
+      ["Total Employees", displayMetrics.totalEmployees.toString()],
+      ["Present Today", displayMetrics.presentToday.toString()],
+      ["Absent Today", displayMetrics.absentToday.toString()],
+      ["Late Today", displayMetrics.lateToday.toString()],
+      ["On Leave Today", displayMetrics.onLeaveToday.toString()],
+      ["Attendance Rate", `${displayMetrics.attendanceRate.toFixed(1)}%`],
+      ["Average Work Hours", displayMetrics.averageWorkHours.toString()],
+      [""],
+      ["Monthly Statistics"],
+      ["Total Days", displayMetrics.monthlyStats.totalDays.toString()],
+      ["Present Days", displayMetrics.monthlyStats.presentDays.toString()],
+      ["Absent Days", displayMetrics.monthlyStats.absentDays.toString()],
+      ["Leave Days", displayMetrics.monthlyStats.leaveDays.toString()],
+    ];
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `monthly-attendance-report-${currentDate.getFullYear()}-${(
+      currentDate.getMonth() + 1
+    )
+      .toString()
+      .padStart(2, "0")}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Monthly report exported successfully!" });
+  };
+
+  // Export Team Summary
+  const handleExportTeam = () => {
+    const currentDate = new Date();
+    const dateStr = currentDate.toISOString().split("T")[0];
+
+    const csvData = [
+      ["Team Attendance Summary", dateStr],
+      [""],
+      ["Employee", "Status", "Check In", "Check Out", "On Leave"],
+    ];
+
+    // Add attendance data
+    todayAttendance.forEach((record) => {
+      csvData.push([
+        record.user
+          ? `${record.user.firstName} ${record.user.lastName}`
+          : "Unknown",
+        record.attendanceStatus || "N/A",
+        record.checkInTime
+          ? new Date(record.checkInTime).toLocaleTimeString()
+          : "N/A",
+        record.checkOutTime
+          ? new Date(record.checkOutTime).toLocaleTimeString()
+          : "N/A",
+        record.isOnLeave ? "Yes" : "No",
+      ]);
+    });
+
+    // Add summary
+    csvData.push([""]);
+    csvData.push(["Summary"]);
+    csvData.push(["Total Employees", displayMetrics.totalEmployees.toString()]);
+    csvData.push(["Present", displayMetrics.presentToday.toString()]);
+    csvData.push(["Absent", displayMetrics.absentToday.toString()]);
+    csvData.push(["On Leave", displayMetrics.onLeaveToday.toString()]);
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `team-summary-${dateStr}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Team summary exported successfully!" });
+  };
+
+  // Export Attendance Log
+  const handleExportAttendanceLog = () => {
+    const currentDate = new Date();
+    const dateStr = currentDate.toISOString().split("T")[0];
+
+    const csvData = [
+      ["Attendance Log", dateStr],
+      [""],
+      [
+        "Date",
+        "Employee",
+        "Check In Time",
+        "Check Out Time",
+        "Status",
+        "Location",
+        "Work Hours",
+        "On Leave",
+      ],
+    ];
+
+    // Add all attendance records
+    allAttendance.forEach((record) => {
+      const checkInTime = record.checkInTime
+        ? new Date(record.checkInTime)
+        : null;
+      const checkOutTime = record.checkOutTime
+        ? new Date(record.checkOutTime)
+        : null;
+
+      let workHours = "N/A";
+      if (checkInTime && checkOutTime) {
+        const hours =
+          (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+        workHours = hours.toFixed(2);
+      }
+
+      csvData.push([
+        record.date || dateStr,
+        record.user
+          ? `${record.user.firstName} ${record.user.lastName}`
+          : "Unknown",
+        checkInTime ? checkInTime.toLocaleTimeString() : "N/A",
+        checkOutTime ? checkOutTime.toLocaleTimeString() : "N/A",
+        record.attendanceStatus || "N/A",
+        "N/A", // Location data not available in current schema
+        workHours,
+        record.isOnLeave ? "Yes" : "No",
+      ]);
+    });
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `attendance-log-${dateStr}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Attendance log exported successfully!" });
+  };
+
   // Get attendance status counts
   const statusCounts = useMemo(() => {
     const counts = todayAttendance.reduce(
@@ -909,15 +1060,27 @@ export default function MarketingAttendance() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
-                <Button variant="outline" data-testid="export-monthly">
+                <Button
+                  variant="outline"
+                  data-testid="export-monthly"
+                  onClick={handleExportMonthly}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Monthly Report
                 </Button>
-                <Button variant="outline" data-testid="export-team">
+                <Button
+                  variant="outline"
+                  data-testid="export-team"
+                  onClick={handleExportTeam}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Team Summary
                 </Button>
-                <Button variant="outline" data-testid="export-attendance">
+                <Button
+                  variant="outline"
+                  data-testid="export-attendance"
+                  onClick={handleExportAttendanceLog}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Attendance Log
                 </Button>
