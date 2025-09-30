@@ -22,6 +22,9 @@ import {
   marketing_Todays,
   marketing_metrics,
   leaveRequests,
+  marketingTasks,
+  leads,
+  fieldVisits,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -33,6 +36,10 @@ export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
+export type MarketingTask = typeof marketingTasks.$inferSelect;
+export type InsertMarketingTask = typeof marketingTasks.$inferInsert;
+export type Lead = typeof leads.$inferSelect;
+export type FieldVisit = typeof fieldVisits.$inferSelect;
 
 import {
   suppliers,
@@ -717,6 +724,64 @@ class Storage {
         )
       )
       .orderBy(desc(leaveRequests.startDate));
+  }
+
+  // Marketing Tasks methods
+  async createMarketingTask(task: InsertMarketingTask): Promise<MarketingTask> {
+    const [row] = await db.insert(marketingTasks).values(task).returning();
+    return row;
+  }
+
+  async getMarketingTask(id: string): Promise<MarketingTask | null> {
+    const [row] = await db
+      .select()
+      .from(marketingTasks)
+      .where(eq(marketingTasks.id, id));
+    return row || null;
+  }
+
+  async getMarketingTasks(): Promise<MarketingTask[]> {
+    return await db
+      .select()
+      .from(marketingTasks)
+      .orderBy(desc(marketingTasks.dueDate));
+  }
+
+  async updateMarketingTask(
+    id: string,
+    update: Partial<InsertMarketingTask>
+  ): Promise<MarketingTask> {
+    const [row] = await db
+      .update(marketingTasks)
+      .set(update)
+      .where(eq(marketingTasks.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteMarketingTask(id: string): Promise<void> {
+    await db.delete(marketingTasks).where(eq(marketingTasks.id, id));
+  }
+
+  // Lead methods
+  async getLead(id: string): Promise<Lead | null> {
+    const [row] = await db.select().from(leads).where(eq(leads.id, id));
+    return row || null;
+  }
+
+  // Field Visit methods
+  async getFieldVisit(id: string): Promise<FieldVisit | null> {
+    const [row] = await db
+      .select()
+      .from(fieldVisits)
+      .where(eq(fieldVisits.id, id));
+    return row || null;
+  }
+
+  // Activity logging method (placeholder - implement based on your activity schema)
+  async createActivity(activity: any): Promise<void> {
+    // TODO: Implement activity logging if you have an activities table
+    console.log("Activity logged:", activity);
   }
 }
 

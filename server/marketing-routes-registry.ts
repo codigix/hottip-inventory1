@@ -979,11 +979,14 @@ export const createMarketingTask = async (
   res: Response
 ): Promise<void> => {
   try {
+    // 1️⃣ Validate payload
     const taskData = insertMarketingTaskSchema.parse(req.body);
 
+    // 2️⃣ Set creator and assignment
+    taskData.createdBy = req.user!.id;
     taskData.assignedBy = req.user!.id;
-    // Note: createdBy field may need to be added to schema
 
+    // 3️⃣ Validate related entities
     if (taskData.leadId) {
       const lead = await storage.getLead(taskData.leadId);
       if (!lead) {
@@ -1000,7 +1003,20 @@ export const createMarketingTask = async (
       }
     }
 
-    const task = await storage.createMarketingTask(taskData);
+    // 4️⃣ Convert date strings to Date objects
+    const taskDataForDb = {
+      ...taskData,
+      dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
+      startedDate: new Date(), // track creation time
+      completedDate: taskData.completedDate
+        ? new Date(taskData.completedDate)
+        : undefined,
+    };
+
+    // 5️⃣ Create task
+    const task = await storage.createMarketingTask(taskDataForDb);
+
+    // 6️⃣ Log activity
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_MARKETING_TASK",
@@ -1008,15 +1024,19 @@ export const createMarketingTask = async (
       entityId: task.id,
       details: `Created marketing task: ${task.title}`,
     });
+
     res.status(201).json(task);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       res
         .status(400)
         .json({ error: "Invalid task data", details: error.errors });
       return;
     }
-    res.status(500).json({ error: "Failed to create marketing task" });
+    res.status(500).json({
+      error: "Failed to create marketing task",
+      details: error.message,
+    });
   }
 };
 

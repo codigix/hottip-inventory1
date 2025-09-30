@@ -220,15 +220,59 @@ export const leads = pgTable("leads", {
 // =====================
 // MARKETING TASKS
 // =====================
+// Enums for marketing tasks
+export const marketingTaskType = pgEnum("marketing_task_type", [
+  "follow_up",
+  "meeting",
+  "call",
+  "email",
+  "visit",
+  "demo",
+  "proposal",
+  "other",
+]);
+
+export const marketingTaskStatus = pgEnum("marketing_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+
+export const leadPriority = pgEnum("lead_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+
 export const marketingTasks = pgTable("marketing_tasks", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 100 }).notNull(),
-  status: varchar("status", { length: 20 }).default("pending"),
-  priority: varchar("priority", { length: 20 }).default("medium"),
-  assignedToUserId: integer("assigned_to").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: marketingTaskType("type").notNull().default("follow_up"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id),
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id),
+  createdBy: uuid("createdBy")
+    .notNull()
+    .references(() => users.id),
+  priority: leadPriority("priority").notNull().default("medium"),
+  status: marketingTaskStatus("status").notNull().default("pending"),
+  dueDate: timestamp("dueDate"),
+  startedDate: timestamp("startedDate"),
+  completedDate: timestamp("completedDate"),
+  leadId: uuid("leadId").references(() => leads.id),
+  fieldVisitId: uuid("fieldVisitId").references(() => fieldVisits.id),
+  customerId: uuid("customerId"), // references customers table
+  estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
+  tags: text("tags").array(), // text array type
+  isRecurring: boolean("isRecurring").default(false),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
 });
 
 // =====================
@@ -812,15 +856,35 @@ export const insertFieldVisitSchema = z.object({
 
 export const insertMarketingTaskSchema = z.object({
   title: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedToUserId: z.any().optional(),
-  createdAt: z.string().optional(),
+  description: z.string().optional(),
+  type: z
+    .enum([
+      "follow_up",
+      "meeting",
+      "call",
+      "email",
+      "visit",
+      "demo",
+      "proposal",
+      "other",
+    ])
+    .optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  tags: z.array(z.string()).optional(),
+  assignedTo: z.string().uuid(),
+  assignedBy: z.string().uuid().optional(),
+  createdBy: z.string().uuid().optional(),
+  leadId: z.string().uuid().optional(),
+  fieldVisitId: z.string().uuid().optional(),
+  customerId: z.string().uuid().optional(),
   dueDate: z.string().optional(),
+  startedDate: z.string().optional(),
   completedDate: z.string().optional(),
-  leadId: z.any().optional(),
-  fieldVisitId: z.any().optional(),
-  assignedBy: z.any().optional(),
+  estimatedHours: z.string().optional(),
+  isRecurring: z.boolean().optional(),
 });
 
 export const insertMarketingAttendanceSchema = z.object({
