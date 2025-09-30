@@ -1794,17 +1794,17 @@ export const getMarketingAttendanceMetrics = async (
     let query = db
       .select({
         totalRecords: sql<number>`COUNT(*)`,
-        presentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'present' THEN 1 END)`,
-        absentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'absent' THEN 1 END)`,
-        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.isOnLeave} = true THEN 1 END)`,
-        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.visitCount}, 0)), 0)`,
-        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.tasksCompleted}, 0)), 0)`,
+        presentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendancestatus} = 'present' THEN 1 END)`,
+        absentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendancestatus} = 'absent' THEN 1 END)`,
+        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.isonleave} = true THEN 1 END)`,
+        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.visitcount}, 0)), 0)`,
+        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.taskscompleted}, 0)), 0)`,
       })
       .from(marketingTodays);
 
     // Apply user-based scoping for non-admin users
     if (req.user!.role !== "admin" && req.user!.role !== "manager") {
-      query = query.where(eq(marketingTodays.userId, req.user!.id));
+      query = query.where(eq(marketingTodays.userid, req.user!.id));
     }
 
     const result = await query;
@@ -1968,7 +1968,16 @@ export const createLeaveRequest = async (
 
     const validatedData = insertLeaveRequestSchema.parse(requestData);
 
-    const leaveRequest = await storage.createLeaveRequest(validatedData);
+    // Calculate total_days
+    const start = new Date(validatedData.startDate);
+    const end = new Date(validatedData.endDate);
+    const totalDays =
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    const leaveRequest = await storage.createLeaveRequest({
+      ...validatedData,
+      totalDays: totalDays,
+    });
     res.status(201).json(leaveRequest);
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -77,6 +77,17 @@ interface AttendanceWithUser extends MarketingAttendance {
   };
 }
 
+// API response interface - matches backend response
+interface ApiAttendanceMetrics {
+  totalRecords: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  avgVisits: number;
+  avgTasks: number;
+}
+
+// Frontend display interface
 interface AttendanceMetrics {
   totalEmployees: number;
   presentToday: number;
@@ -155,10 +166,11 @@ export default function MarketingAttendance() {
     queryFn: marketingAttendance.getAll,
   });
 
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ["marketing-attendance", "metrics"],
-    queryFn: marketingAttendance.getMetrics,
-  });
+  const { data: metrics, isLoading: metricsLoading } =
+    useQuery<ApiAttendanceMetrics>({
+      queryKey: ["marketing-attendance", "metrics"],
+      queryFn: marketingAttendance.getMetrics,
+    });
 
   const { data: leaveRequestsData = [], error: leaveRequestsError } = useQuery({
     queryKey: ["leave-requests"],
@@ -391,16 +403,20 @@ export default function MarketingAttendance() {
     return counts;
   }, [todayAttendance]);
 
-  // Default metrics if loading
-  const displayMetrics: AttendanceMetrics = metrics || {
-    totalEmployees: users.length,
-    presentToday: statusCounts.present,
-    absentToday: statusCounts.absent,
-    lateToday: statusCounts.late,
-    onLeaveToday: statusCounts.on_leave,
+  // Default metrics if loading - map API response to expected format
+  const displayMetrics: AttendanceMetrics = {
+    totalEmployees: metrics?.totalRecords || users.length,
+    presentToday: metrics?.presentCount || statusCounts.present,
+    absentToday: metrics?.absentCount || statusCounts.absent,
+    lateToday: statusCounts.late, // API doesn't track late separately yet
+    onLeaveToday: metrics?.leaveCount || statusCounts.on_leave,
     averageWorkHours: 8.5,
     attendanceRate:
-      users.length > 0 ? (statusCounts.present / users.length) * 100 : 0,
+      (metrics?.totalRecords || users.length) > 0
+        ? ((metrics?.presentCount || statusCounts.present) /
+            (metrics?.totalRecords || users.length)) *
+          100
+        : 0,
     monthlyStats: {
       totalDays: 22,
       presentDays: 18,
@@ -508,9 +524,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.presentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.presentToday / users.length) *
+                        (displayMetrics.presentToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -534,9 +551,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.absentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.absentToday / users.length) *
+                        (displayMetrics.absentToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -560,9 +578,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.lateToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.lateToday / users.length) *
+                        (displayMetrics.lateToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -584,9 +603,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.onLeaveToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.onLeaveToday / users.length) *
+                        (displayMetrics.onLeaveToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
