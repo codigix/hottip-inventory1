@@ -20,6 +20,7 @@ import {
   fieldVisitFilterSchema,
   marketingTaskFilterSchema,
   attendancePhotoUploadSchema,
+  insertLeaveRequestSchema,
   marketingTodays,
   users,
 } from "@shared/schema";
@@ -1957,18 +1958,12 @@ export const createLeaveRequest = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Convert Date objects to ISO strings for validation
+    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
+    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+
     const requestData = {
       ...req.body,
-      userId: req.user!.id,
-      startDate:
-        req.body.startDate instanceof Date
-          ? req.body.startDate.toISOString().split("T")[0]
-          : req.body.startDate,
-      endDate:
-        req.body.endDate instanceof Date
-          ? req.body.endDate.toISOString().split("T")[0]
-          : req.body.endDate,
+      userId: testUserId, // Always use the hardcoded user
     };
 
     const validatedData = insertLeaveRequestSchema.parse(requestData);
@@ -2011,7 +2006,20 @@ export const updateLeaveRequest = async (
       return;
     }
 
-    const leaveRequest = await storage.updateLeaveRequest(id, validatedData);
+    // Calculate total_days if dates are being updated
+    let updateData = { ...validatedData };
+    if (validatedData.startDate || validatedData.endDate) {
+      const startDate = validatedData.startDate || existingRequest.startDate;
+      const endDate = validatedData.endDate || existingRequest.endDate;
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const totalDays =
+        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) +
+        1;
+      updateData.totalDays = totalDays;
+    }
+
+    const leaveRequest = await storage.updateLeaveRequest(id, updateData);
     res.json(leaveRequest);
   } catch (error) {
     if (error instanceof z.ZodError) {

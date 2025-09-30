@@ -850,8 +850,8 @@ export const insertLeaveRequestSchema = z.object({
     "training",
     "other",
   ]),
-  startDate: z.string(),
-  endDate: z.string(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
   reason: z.string(),
   totalDays: z.number().optional(),
 });
