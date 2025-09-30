@@ -109,6 +109,9 @@ export default function AttendanceCalendar({
     const grouped: Record<string, AttendanceWithUser[]> = {};
 
     filteredAttendance.forEach((record) => {
+      // Skip records without a valid date
+      if (!record.date) return;
+
       const dateKey = format(new Date(record.date), "yyyy-MM-dd");
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
