@@ -6,7 +6,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-// Removed unused schema imports from ../shared/schema to avoid runtime errors
+// Removed unused schema imports from @shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
@@ -15,23 +15,19 @@ import { v4 as uuidv4 } from "uuid";
 import { users } from "../shared/schema";
 import { tasks } from "../shared/schema";
 import { leaveRequests } from "../shared/schema";
-import { inventoryAttendance } from "../shared/schema";
-import { stockTransactions, suppliers } from "../shared/schema";
+import { inventoryAttendance } from "@shared/schema";
+import { stockTransactions, suppliers } from "@shared/schema";
 // adjust path as needed
 import { desc } from "drizzle-orm";
-import { attendance } from "../shared/schema";
+import { attendance } from "@shared/schema";
 import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
-import {
-  marketingAttendance,
-  marketingTodays,
-  marketingMetrics,
-} from "../shared/schema";
 
 // make sure users table is also imported
-import { products, spareParts } from "../shared/schema"; // adjust path
-import { vendorCommunications } from "../shared/schema";
-import { inventoryTasks } from "../shared/schema";
+import { products, spareParts } from "@shared/schema"; // adjust path
+import { vendorCommunications } from "@shared/schema";
+import { spareParts } from "@shared/schema";
+import { inventoryTasks } from "@shared/schema";
 import { fabricationOrders } from "../shared/schema"; // adjust path if needed
 // POST attendance (check-in / check-out)
 import { v4 as uuidv4 } from "uuid";
@@ -56,7 +52,7 @@ import {
   insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
   customers,
-} from "../shared/schema";
+} from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
 
@@ -84,42 +80,6 @@ const userCreateSchema = userInsertSchema.extend({
 
 // Register schema for /api/register endpoint (fixes missing schema error)
 const registerSchema = userCreateSchema;
-
-// Zod schemas for marketing attendance responses (relaxed for better compatibility)
-const marketingAttendanceSchema = z.object({
-  id: z.string(), // Relaxed from uuid() to string()
-  userId: z.string(), // Relaxed from uuid() to string()
-  date: z.string(),
-  checkInTime: z.string().nullable(),
-  checkOutTime: z.string().nullable(),
-  latitude: z.number().nullable(),
-  longitude: z.number().nullable(),
-  location: z.string().nullable(),
-  photoPath: z.string().nullable(),
-  workDescription: z.string().nullable(),
-  attendanceStatus: z.string(),
-  visitCount: z.number().nullable(),
-  tasksCompleted: z.number().nullable(),
-  outcome: z.string().nullable(),
-  nextAction: z.string().nullable(),
-  isOnLeave: z.boolean(),
-  user: z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string(),
-  }),
-});
-
-const marketingAttendanceArraySchema = z.array(marketingAttendanceSchema);
-
-const marketingMetricsSchema = z.object({
-  totalRecords: z.number(),
-  presentCount: z.number(),
-  absentCount: z.number(),
-  leaveCount: z.number(),
-  avgVisits: z.number(),
-  avgTasks: z.number(),
-});
 
 // Logistics shipment creation schema
 const logisticsShipmentInsertSchema = z.object({
@@ -425,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/clients", requireAuth, async (req, res) => {
     try {
       // Use insertCustomerSchema for validation (from shared/schema)
-      const { insertCustomerSchema } = await import("../shared/schema");
+      const { insertCustomerSchema } = await import("@shared/schema");
       const customerData = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
@@ -1136,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
-  //     const { insertOutboundQuotationSchema } = await import("../shared/schema");
+  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
   //     const data = insertOutboundQuotationSchema
   //       .partial({ customerId: true })
   //       .parse(req.body); // ← allow optional customerId
@@ -1309,9 +1269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🐛 [DEBUG] req.body:", req.body);
       console.log("🐛 [DEBUG] req.user:", req.user);
 
-      const { insertOutboundQuotationSchema } = await import(
-        "../shared/schema"
-      );
+      const { insertOutboundQuotationSchema } = await import("@shared/schema");
       console.log("🐛 [DEBUG] About to parse request body with Zod schema");
       const parsedData = insertOutboundQuotationSchema
         .partial({ customerId: true })
@@ -1445,9 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
     try {
-      const { insertOutboundQuotationSchema } = await import(
-        "../shared/schema"
-      );
+      const { insertOutboundQuotationSchema } = await import("@shared/schema");
       const parsedData = insertOutboundQuotationSchema
         .partial()
         .parse(req.body);
@@ -1574,7 +1530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
     try {
-      const { insertInboundQuotationSchema } = await import("../shared/schema");
+      const { insertInboundQuotationSchema } = await import("@shared/schema");
 
       // Pre-process req.body to remove null values for optional fields
       // This ensures Zod validation passes if fields are explicitly sent as null
@@ -3638,11 +3594,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (e) {
     console.warn("⚠️ Accounts routes registry load failed", e);
   }
-
-  // Marketing attendance routes are now handled by marketing-routes-registry.ts
-  // Removed duplicate /api/marketing-attendance/today route to avoid conflicts
-
-  // Removed duplicate /api/marketing-attendance/metrics route to avoid conflicts
 
   const httpServer = createServer(app);
   return httpServer;

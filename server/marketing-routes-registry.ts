@@ -1,8 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
-import { db } from "./db";
-import { sql, eq, and, gte, lt, desc } from "drizzle-orm";
 import {
   insertLeadSchema,
   updateLeadSchema,
@@ -19,8 +17,6 @@ import {
   fieldVisitFilterSchema,
   marketingTaskFilterSchema,
   attendancePhotoUploadSchema,
-  marketingTodays,
-  users,
 } from "@shared/schema";
 import { ObjectStorageService } from "./objectStorage";
 
@@ -1432,115 +1428,25 @@ export const getTodayMarketingAttendance = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Disable ETag for this route
-    res.set("Cache-Control", "no-cache");
+    // SECURITY: Apply user-based scoping for today's marketing attendance
+    const filterOptions: any = {};
 
-    // Get today's date range (current date in local timezone)
-    const today = new Date();
-    const startOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-      0,
-      0,
-      0,
-      0
+    if (req.user!.role === "admin" || req.user!.role === "manager") {
+      // Admins and managers can see all today's marketing attendance
+    } else {
+      // Regular employees can only see their own today's marketing attendance
+      filterOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserAttendance: true,
+      };
+    }
+
+    const attendance = await storage.getTodayMarketingAttendance(
+      Object.keys(filterOptions).length > 0 ? filterOptions : undefined
     );
-    const endOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + 1,
-      0,
-      0,
-      0,
-      0
-    );
-
-    console.log(
-      `🔍 [Registry] Querying marketing attendance for date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`
-    );
-
-    // Query using Drizzle ORM with proper join and error handling
-    const rows = await db
-      .select({
-        id: marketingTodays.id,
-        userId: marketingTodays.userId,
-        date: marketingTodays.date,
-        checkInTime: marketingTodays.checkInTime,
-        checkOutTime: marketingTodays.checkOutTime,
-        latitude: marketingTodays.latitude,
-        longitude: marketingTodays.longitude,
-        location: marketingTodays.location,
-        photoPath: marketingTodays.photoPath,
-        workDescription: marketingTodays.workDescription,
-        attendanceStatus: marketingTodays.attendanceStatus,
-        visitCount: marketingTodays.visitCount,
-        tasksCompleted: marketingTodays.tasksCompleted,
-        outcome: marketingTodays.outcome,
-        nextAction: marketingTodays.nextAction,
-        isOnLeave: marketingTodays.isOnLeave,
-        // User fields with null handling
-        userId_user: users.id,
-        userFirstName: users.firstName,
-        userLastName: users.lastName,
-        userEmail: users.email,
-      })
-      .from(marketingTodays)
-      .leftJoin(users, eq(marketingTodays.userId, users.id))
-      .where(
-        and(
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
-          // Apply user-based scoping
-          req.user!.role === "admin" || req.user!.role === "manager"
-            ? undefined
-            : eq(marketingTodays.userId, req.user!.id)
-        )
-      )
-      .orderBy(desc(marketingTodays.date));
-
-    console.log(
-      `📊 [Registry] Found ${rows.length} marketing attendance records for today`
-    );
-
-    // Transform the data to match the expected response structure
-    const attendance = rows.map((row) => ({
-      id: row.id,
-      userId: row.userId,
-      date: row.date?.toISOString() || new Date().toISOString(),
-      checkInTime: row.checkInTime?.toISOString() || null,
-      checkOutTime: row.checkOutTime?.toISOString() || null,
-      latitude: row.latitude ? parseFloat(String(row.latitude)) : null,
-      longitude: row.longitude ? parseFloat(String(row.longitude)) : null,
-      location: row.location || null,
-      photoPath: row.photoPath || null,
-      workDescription: row.workDescription || null,
-      attendanceStatus: row.attendanceStatus || "present",
-      visitCount: row.visitCount || null,
-      tasksCompleted: row.tasksCompleted || null,
-      outcome: row.outcome || null,
-      nextAction: row.nextAction || null,
-      isOnLeave: row.isOnLeave || false,
-      user: {
-        id: row.userId_user || row.userId || "",
-        name:
-          row.userFirstName && row.userLastName
-            ? `${row.userFirstName} ${row.userLastName}`
-            : "Unknown User",
-        email: row.userEmail || "",
-      },
-    }));
-
     res.json(attendance);
-  } catch (error: any) {
-    console.error(
-      "❌ [Registry] GET /api/marketing-attendance/today error:",
-      error
-    );
-    console.error("Error stack:", error.stack);
-
-    // Return empty array instead of 500 error for better UX
-    res.json([]);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch today's attendance" });
   }
 };
 
@@ -1549,63 +1455,25 @@ export const getMarketingAttendanceMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Disable ETag for this route
-    res.set("Cache-Control", "no-cache");
+    // SECURITY: Apply user-based scoping for marketing attendance metrics
+    const metricsOptions: any = {};
 
-    console.log("🔍 [Registry] Querying marketing attendance metrics...");
-
-    // Build query with user-based scoping
-    let query = db
-      .select({
-        totalRecords: sql<number>`COUNT(*)`,
-        presentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'present' THEN 1 END)`,
-        absentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendanceStatus} = 'absent' THEN 1 END)`,
-        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.isOnLeave} = true THEN 1 END)`,
-        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.visitCount}, 0)), 0)`,
-        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.tasksCompleted}, 0)), 0)`,
-      })
-      .from(marketingTodays);
-
-    // Apply user-based scoping for non-admin users
-    if (req.user!.role !== "admin" && req.user!.role !== "manager") {
-      query = query.where(eq(marketingTodays.userId, req.user!.id));
+    if (req.user!.role === "admin" || req.user!.role === "manager") {
+      // Admins and managers can see all marketing attendance metrics
+    } else {
+      // Regular employees can only see metrics for their own marketing attendance
+      metricsOptions.userScope = {
+        userId: req.user!.id,
+        showOnlyUserAttendance: true,
+      };
     }
 
-    const result = await query;
-    const row = result[0];
-
-    console.log("📊 [Registry] Raw metrics result:", row);
-
-    // Build metrics object with safe number conversion
-    const metrics = {
-      totalRecords: Number(row?.totalRecords ?? 0),
-      presentCount: Number(row?.presentCount ?? 0),
-      absentCount: Number(row?.absentCount ?? 0),
-      leaveCount: Number(row?.leaveCount ?? 0),
-      avgVisits: Math.round(Number(row?.avgVisits ?? 0) * 100) / 100, // Round to 2 decimal places
-      avgTasks: Math.round(Number(row?.avgTasks ?? 0) * 100) / 100, // Round to 2 decimal places
-    };
-
-    console.log("📈 [Registry] Processed metrics:", metrics);
-    res.json(metrics);
-  } catch (error: any) {
-    console.error(
-      "❌ [Registry] GET /api/marketing-attendance/metrics error:",
-      error
+    const metrics = await storage.getMarketingAttendanceMetrics(
+      Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined
     );
-    console.error("Error stack:", error.stack);
-
-    // Return default metrics instead of 500 error for better UX
-    const defaultMetrics = {
-      totalRecords: 0,
-      presentCount: 0,
-      absentCount: 0,
-      leaveCount: 0,
-      avgVisits: 0,
-      avgTasks: 0,
-    };
-
-    res.json(defaultMetrics);
+    res.json(metrics);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch attendance metrics" });
   }
 };
 
@@ -2180,7 +2048,6 @@ export function registerMarketingRoutes(
     {
       method: "get",
       path: "/api/field-visits/today",
-
       middlewares: ["requireAuth"],
       handler: getTodayFieldVisits,
     },
@@ -2252,32 +2119,6 @@ export function registerMarketingRoutes(
     // ==========================================
     // MARKETING ATTENDANCE ROUTES (10 endpoints)
     // ==========================================
-    // IMPORTANT: Specific routes MUST come before parameterized routes
-    // to avoid Express matching "/today" and "/metrics" as ":id" parameters
-    {
-      method: "get",
-      path: "/api/marketing-attendance/today",
-      middlewares: ["requireAuth"],
-      handler: getTodayMarketingAttendance,
-    },
-    {
-      method: "get",
-      path: "/api/marketing-attendance/metrics",
-      middlewares: ["requireAuth", "requireMarketingAccess"],
-      handler: getMarketingAttendanceMetrics,
-    },
-    {
-      method: "post",
-      path: "/api/marketing-attendance/check-in",
-      middlewares: ["requireAuth"],
-      handler: checkInMarketingAttendance,
-    },
-    {
-      method: "post",
-      path: "/api/marketing-attendance/check-out",
-      middlewares: ["requireAuth"],
-      handler: checkOutMarketingAttendance,
-    },
     {
       method: "get",
       path: "/api/marketing-attendance",
@@ -2307,6 +2148,30 @@ export function registerMarketingRoutes(
       path: "/api/marketing-attendance/:id",
       middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
       handler: deleteMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/check-in",
+      middlewares: ["requireAuth"],
+      handler: checkInMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/check-out",
+      middlewares: ["requireAuth"],
+      handler: checkOutMarketingAttendance,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-attendance/today",
+      middlewares: ["requireAuth"],
+      handler: getTodayMarketingAttendance,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-attendance/metrics",
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getMarketingAttendanceMetrics,
     },
     {
       method: "post",
