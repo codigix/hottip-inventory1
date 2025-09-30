@@ -531,12 +531,8 @@ class Storage {
         .update(marketingAttendance)
         .set({
           checkInTime: data.checkInTime ?? new Date(),
-          latitude: data.latitude,
-          longitude: data.longitude,
-          location: data.location,
-          photoPath: data.photoPath,
-          workDescription: data.workDescription,
-          attendanceStatus: data.attendanceStatus ?? "present",
+          checkInLatitude: data.latitude,
+          checkInLocation: data.location,
         })
         .where(eq(marketingAttendance.id, (existing[0] as any).id))
         .returning();
@@ -547,12 +543,8 @@ class Storage {
       userId,
       date: data.date ?? new Date(),
       checkInTime: data.checkInTime ?? new Date(),
-      latitude: data.latitude,
-      longitude: data.longitude,
-      location: data.location,
-      photoPath: data.photoPath,
-      workDescription: data.workDescription,
-      attendanceStatus: data.attendanceStatus ?? "present",
+      checkInLatitude: data.latitude,
+      checkInLocation: data.location,
     } as InsertMarketingAttendance;
 
     const [row] = await db
@@ -585,7 +577,6 @@ class Storage {
         userId,
         date: new Date(),
         checkInTime: new Date(),
-        attendanceStatus: "present",
       } as InsertMarketingAttendance;
       const [created] = await db
         .insert(marketingAttendance)
@@ -598,15 +589,7 @@ class Storage {
       .update(marketingAttendance)
       .set({
         checkOutTime: data.checkOutTime ?? new Date(),
-        latitude: data.latitude,
-        longitude: data.longitude,
-        location: data.location,
-        photoPath: data.photoPath,
-        workDescription: data.workDescription,
-        visitCount: data.visitCount,
-        tasksCompleted: data.tasksCompleted,
-        outcome: data.outcome,
-        nextAction: data.nextAction,
+        checkOutLocation: data.location,
       })
       .where(eq(marketingAttendance.userId, userId))
       .returning();
@@ -622,15 +605,7 @@ class Storage {
       .update(marketingAttendance)
       .set({
         checkOutTime: data.checkOutTime ?? new Date(),
-        checkOutLatitude: data.checkOutLatitude,
-        checkOutLongitude: data.checkOutLongitude,
         checkOutLocation: data.checkOutLocation,
-        checkOutPhotoPath: data.checkOutPhotoPath,
-        workDescription: data.workDescription,
-        visitCount: data.visitCount,
-        tasksCompleted: data.tasksCompleted,
-        outcome: data.outcome,
-        nextAction: data.nextAction,
       })
       .where(eq(marketingAttendance.id, attendanceId))
       .returning();

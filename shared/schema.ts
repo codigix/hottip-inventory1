@@ -259,25 +259,25 @@ export const marketingAttendance = pgTable("marketing_attendance", {
   nextAction: text("nextAction"),
   isOnLeave: boolean("isOnLeave").default(false),
 });
-export const marketingTodays = pgTable("marketing_Todays", {
+export const marketingTodays = pgTable("marketing_todays", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("userId")
+  userid: uuid("userid")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
-  checkInTime: timestamp("checkInTime"),
-  checkOutTime: timestamp("checkOutTime"),
+  checkintime: timestamp("checkintime"),
+  checkouttime: timestamp("checkouttime"),
   latitude: numeric("latitude", 10, 7),
   longitude: numeric("longitude", 10, 7),
   location: text("location"),
-  photoPath: text("photoPath"),
-  workDescription: text("workDescription"),
-  attendanceStatus: text("attendanceStatus").default("present"),
-  visitCount: integer("visitCount"),
-  tasksCompleted: integer("tasksCompleted"),
+  photopath: text("photopath"),
+  workdescription: text("workdescription"),
+  attendancestatus: text("attendancestatus").default("present"),
+  visitcount: integer("visitcount"),
+  taskscompleted: integer("taskscompleted"),
   outcome: text("outcome"),
-  nextAction: text("nextAction"),
-  isOnLeave: boolean("isOnLeave").default(false),
+  nextaction: text("nextaction"),
+  isonleave: boolean("isonleave").default(false),
 });
 
 // New Table: Marketing_Metrics
