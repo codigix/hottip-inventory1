@@ -8,11 +8,11 @@ import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
+import { jsPDF } from "jspdf";
 import { db } from "./db";
-import { sql, eq, and, gte, lt } from "drizzle-orm";
+import { sql, eq, and, gte, lt, desc } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
-import { users } from "../shared/schema";
 import { tasks } from "../shared/schema";
 import { leaveRequests } from "../shared/schema";
 import { inventoryAttendance } from "../shared/schema";
@@ -28,6 +28,8 @@ import {
   marketingMetrics,
 } from "../shared/schema";
 
+import { generateOutboundQuotationPdf } from "./utils/pdfGenerator";
+import { Readable } from "stream";
 // make sure users table is also imported
 import { products, spareParts } from "../shared/schema"; // adjust path
 import { vendorCommunications } from "../shared/schema";
@@ -53,18 +55,16 @@ import {
   invoices,
   leaveRequests as leaveRequestsTable,
   insertOutboundQuotationSchema,
-  insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
   customers,
-} from "../shared/schema";
+} from "@shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
-// Fabrication Orders API
-
-// Login schema
+// Login schemaimport { sql, eq, and, gte, lt } from "drizzle-orm";
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
+// Fabrication Orders API
 
 // Local user schema used for create/update since shared insertUserSchema is not present
 const userInsertSchema = z.object({
@@ -1002,78 +1002,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor communications
-  // GET all vendor communications
   app.get("/api/vendor-communications", requireAuth, async (_req, res) => {
     try {
       const rows = await db.select().from(vendorCommunications);
       res.json(rows);
-    } catch (e: any) {
-      console.error("Error fetching communications:", e);
-      res
-        .status(500)
-        .json({ error: "Failed to fetch communications", details: e.message });
+    } catch (e) {
+      res.json([]);
     }
   });
-
-  // Save vendor communication (updated)
-  // Save vendor communication
-  // Save vendor communication
-  app.post("/api/vendor-communications", requireAuth, async (req, res) => {
-    try {
-      const { vendorId, message, communicationDate, followUpRequired } =
-        req.body;
-
-      if (!vendorId || !message) {
-        return res
-          .status(400)
-          .json({ error: "vendorId and message are required" });
-      }
-
-      // Extract type and subject/notes from message
-      let type: "phone" | "complaint" | "follow_up" | "general" = "general";
-      let subject = "general";
-      let notes = message;
-
-      const parts = message.split(":");
-      if (parts.length > 1) {
-        subject = parts[0].trim().toLowerCase();
-        notes = parts.slice(1).join(":").trim();
-      }
-
-      if (subject === "phone") type = "phone";
-      else if (subject === "complaint") type = "complaint";
-      else if (subject === "follow_up" || followUpRequired) type = "follow_up";
-
-      // Hardcode or get a valid userId from DB
-      const userId = "b7e51f78-4068-4f97-b486-6a58622268c6"; // replace with actual logged-in user id
-
-      const [saved] = await db
-        .insert(vendorCommunications)
-        .values({
-          supplierId: vendorId,
-          type,
-          status: "completed",
-          subject,
-          notes,
-          followUpRequired: followUpRequired || false,
-          communicationDate: communicationDate
-            ? new Date(communicationDate)
-            : new Date(),
-          userId,
-        })
-        .returning();
-
-      res.status(201).json(saved);
-    } catch (error: any) {
-      console.error("Error saving communication:", error);
-      res.status(500).json({
-        error: "Failed to save communication",
-        details: error.message,
-      });
-    }
-  });
-
-  // Save vendor communication
 
   // Stock transactions (stubbed)
   app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
@@ -1153,153 +1089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Quotations and invoices lists
-
-  // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-  //   try {
-  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
-
-  //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
-  //     // This avoids the Drizzle internal error caused by nested selection objects.
-  //     const rows = await db
-  //       .select({
-  //         // --- Fields from outboundQuotations table ---
-  //         id: outboundQuotations.id,
-  //         quotationNumber: outboundQuotations.quotationNumber,
-  //         customerId: outboundQuotations.customerId,
-  //         userId: outboundQuotations.userId,
-  //         status: outboundQuotations.status,
-  //         quotationDate: outboundQuotations.quotationDate,
-  //         validUntil: outboundQuotations.validUntil,
-  //         jobCardNumber: outboundQuotations.jobCardNumber,
-  //         partNumber: outboundQuotations.partNumber,
-  //         subtotalAmount: outboundQuotations.subtotalAmount,
-  //         taxAmount: outboundQuotations.taxamount, // Exact DB column name
-  //         discountAmount: outboundQuotations.discountamount, // Exact DB column name
-  //         totalAmount: outboundQuotations.totalamount, // Exact DB column name
-  //         paymentTerms: outboundQuotations.paymentterms, // Exact DB column name
-  //         deliveryTerms: outboundQuotations.deliveryterms, // Exact DB column name
-  //         notes: outboundQuotations.notes,
-  //         ifscCode: outboundQuotations.ifscCode,
-  //         createdAt: outboundQuotations.createdAt,
-  //         updatedAt: outboundQuotations.updatedAt,
-  //         // --- Fields from customers table (joined) ---
-  //         // IMPORTANT: Select these individually and alias them to prevent conflicts
-  //         // and to identify them for manual nesting in the next step.
-  //         _customerIdJoin: customers.id, // Aliased customer ID
-  //         _customerNameJoin: customers.name, // Aliased customer name
-  //         _customerEmailJoin: customers.email, // Aliased customer email
-  //         _customerPhoneJoin: customers.phone, // Aliased customer phone
-  //         // Add other customer fields here if needed in the future, e.g.,
-  //         // _customerCityJoin: customers.city,
-  //       })
-  //       .from(outboundQuotations)
-  //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
-
-  //     console.log(
-  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
-  //     );
-
-  //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
-  //     // Iterate through the flat rows returned by the DB query.
-  //     const transformedRows = rows.map((row) => {
-  //       // Determine if a customer record was successfully joined.
-  //       // If joined, _customerIdJoin will hold the customer's ID; otherwise, it might be null/undefined.
-  //       const hasCustomer =
-  //         row._customerIdJoin !== null && row._customerIdJoin !== undefined;
-
-  //       // Construct the final object for this quotation.
-  //       return {
-  //         // --- Include all fields directly from the outboundQuotations table ---
-  //         id: row.id,
-  //         quotationNumber: row.quotationNumber,
-  //         customerId: row.customerId,
-  //         userId: row.userId,
-  //         status: row.status,
-  //         quotationDate: row.quotationDate,
-  //         validUntil: row.validUntil,
-  //         jobCardNumber: row.jobCardNumber,
-  //         partNumber: row.partNumber,
-  //         subtotalAmount: row.subtotalAmount,
-  //         taxAmount: row.taxAmount,
-  //         discountAmount: row.discountAmount,
-  //         totalAmount: row.totalAmount,
-  //         paymentTerms: row.paymentTerms,
-  //         deliveryTerms: row.deliveryTerms,
-  //         notes: row.notes,
-  //         ifscCode: row.ifscCode,
-  //         createdAt: row.createdAt,
-  //         updatedAt: row.updatedAt,
-  //         // --- Conditionally build the nested 'customer' object ---
-  //         // If customer data was joined, create the nested object.
-  //         // If not, set customer to null (or {}).
-  //         customer: hasCustomer
-  //           ? {
-  //               id: row._customerIdJoin, // Use the aliased customer ID
-  //               name: row._customerNameJoin, // Use the aliased customer name
-  //               email: row._customerEmailJoin, // Use the aliased customer email
-  //               phone: row._customerPhoneJoin, // Use the aliased customer phone
-  //               // Map other customer fields here if you added them to the select above.
-  //             }
-  //           : null, // Or {} if preferred by frontend
-  //       };
-  //     });
-
-  //     console.log(
-  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
-  //     );
-  //     // Send the correctly structured data (with nested customer objects) to the frontend.
-  //     res.json(transformedRows);
-  //   } catch (error) {
-  //     // --- STEP 3: Robust Error Handling ---
-  //     // Catch any unexpected errors during the JOIN or transformation process.
-  //     console.error(
-  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
-  //       error
-  //     );
-  //     // Fallback to a simple query to maintain API availability.
-  //     try {
-  //       console.log(
-  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
-  //       );
-  //       const fallbackRows = await db.select().from(outboundQuotations);
-  //       res.json(fallbackRows);
-  //     } catch (fallbackError) {
-  //       // Catch errors in the fallback itself.
-  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
-  //       res
-  //         .status(500)
-  //         .json({
-  //           error: "Failed to fetch outbound quotations",
-  //           details: error.message,
-  //         });
-  //     }
-  //   }
-  // });
-  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-    try {
-      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
-
-      // --- Call the new storage method ---
-      const quotations = await storage.getOutboundQuotations();
-
-      console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
-      );
-      // --- Send the correctly structured data ---
-      res.json(quotations);
-    } catch (error) {
-      // --- Handle errors from storage ---
-      console.error(
-        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
-        error
-      );
-      res.status(500).json({
-        error: "Failed to fetch outbound quotations",
-        // Optionally include more details from the error object
-        // details: error.message || "An unknown error occurred while fetching quotations.",
-      });
-    }
-  });
 
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
@@ -1386,68 +1175,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // app.put("/api/outbound-quotations/:id", async (req, res) => {
-  //   try {
-  //     // 1. Parse and validate request body
-  //     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
 
-  //     // 2. Call the storage method to perform the update
-  //     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
+      // --- STEP 1: Perform LEFT JOIN with flattened selection ---
+      // Select fields individually from both tables to avoid Drizzle nesting error
+      const rows = await db
+        .select({
+          // --- Fields from outboundQuotations ---
+          id: outboundQuotations.id,
+          quotationNumber: outboundQuotations.quotationNumber,
+          customerId: outboundQuotations.customerId,
+          userId: outboundQuotations.userId,
+          status: outboundQuotations.status,
+          quotationDate: outboundQuotations.quotationDate,
+          validUntil: outboundQuotations.validUntil,
+          jobCardNumber: outboundQuotations.jobCardNumber,
+          partNumber: outboundQuotations.partNumber,
+          subtotalAmount: outboundQuotations.subtotalAmount,
+          taxAmount: outboundQuotations.taxamount, // DB column name
+          discountAmount: outboundQuotations.discountamount, // DB column name
+          totalAmount: outboundQuotations.totalamount, // DB column name
+          paymentTerms: outboundQuotations.paymentterms, // DB column name
+          deliveryTerms: outboundQuotations.deliveryterms, // DB column name
+          notes: outboundQuotations.notes,
+          ifscCode: outboundQuotations.ifscCode,
+          createdAt: outboundQuotations.createdAt,
+          updatedAt: outboundQuotations.updatedAt,
+          // --- Fields from customers (joined table) ---
+          // Aliased to prevent conflicts and identify for nesting
+          customerId_join: customers.id, // Alias for customer ID
+          customerName_join: customers.name,
+          customerEmail_join: customers.email,
+          customerPhone_join: customers.phone,
+          // Add other customer fields if needed later
+        })
+        .from(outboundQuotations)
+        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
 
-  //     // 3. Create activity log (optional)
-  //     await storage.createActivity({
-  //       userId: quotation.userId,
-  //       action: "UPDATE_OUTBOUND_QUOTATION",
-  //       entityType: "outbound_quotation",
-  //       entityId: quotation.id,
-  //       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
-  //     });
+      console.log(`🐛 [DEBUG] Fetched ${rows.length} raw rows from DB`);
 
-  //     // 4. Send back the updated quotation
-  //     res.json(quotation);
-  //   } catch (error) {
-  //     // 5. Handle errors (Zod validation or storage errors)
-  //     if (error instanceof z.ZodError) {
-  //        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
-  //     }
-  //     console.error("Failed to update outbound quotation:", error);
-  //     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
-  //   }
-  // });
+      // --- STEP 2: Transform flat result into nested structure ---
+      const transformedRows = rows.map((row) => {
+        // Check if customer data was joined (customerId_join will be non-null)
+        const hasCustomer =
+          row.customerId_join !== null && row.customerId_join !== undefined;
 
-  // app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(outboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.status(500).json({ error: "Failed to fetch outbound quotations" });
-  //   }
-  // });
-  // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(inboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
+        return {
+          // --- Spread outboundQuotations fields ---
+          id: row.id,
+          quotationNumber: row.quotationNumber,
+          customerId: row.customerId,
+          userId: row.userId,
+          status: row.status,
+          quotationDate: row.quotationDate,
+          validUntil: row.validUntil,
+          jobCardNumber: row.jobCardNumber,
+          partNumber: row.partNumber,
+          subtotalAmount: row.subtotalAmount,
+          taxAmount: row.taxAmount,
+          discountAmount: row.discountAmount,
+          totalAmount: row.totalAmount,
+          paymentTerms: row.paymentTerms,
+          deliveryTerms: row.deliveryTerms,
+          notes: row.notes,
+          ifscCode: row.ifscCode,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          // --- Conditionally create nested 'customer' object ---
+          customer: hasCustomer
+            ? {
+                id: row.customerId_join,
+                name: row.customerName_join,
+                email: row.customerEmail_join,
+                phone: row.customerPhone_join,
+                // Map other customer fields as needed
+              }
+            : null, // Or {} if preferred
+        };
+      });
 
-  // Alias: /api/quotations/inbound → inbound quotations
-  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(inboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
-  // Inbound Quotations Routes
+      console.log(
+        `🐛 [DEBUG] Transformed ${transformedRows.length} rows for response`
+      );
+      res.json(transformedRows);
+    } catch (error) {
+      // --- STEP 3: Robust Error Handling ---
+      console.error(
+        "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+        error
+      );
+      // Fallback to simple fetch to maintain API availability
+      try {
+        console.log(
+          "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+        );
+        const fallbackRows = await db.select().from(outboundQuotations);
+        res.json(fallbackRows);
+      } catch (fallbackError) {
+        console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+        res.status(500).json({
+          error: "Failed to fetch outbound quotations",
+          details: error.message,
+        });
+      }
+    }
+  });
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
     try {
-      const { insertOutboundQuotationSchema } = await import(
-        "../shared/schema"
-      );
+      const { insertOutboundQuotationSchema } = await import("@shared/schema");
       const parsedData = insertOutboundQuotationSchema
         .partial()
         .parse(req.body);
@@ -1548,6 +1386,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/outbound-quotations/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Request received`
+      );
+
+      // Get the quotation data with customer details
+      const quotation = await storage.getOutboundQuotation(req.params.id);
+      if (!quotation) {
+        console.warn(
+          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Quotation not found`
+        );
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+
+      // If customer ID exists but customer details aren't populated, fetch them
+      if (quotation.customerId && !quotation.customer) {
+        try {
+          const customer = await storage.getCustomer(quotation.customerId);
+          if (customer) {
+            quotation.customer = customer;
+          }
+        } catch (err) {
+          console.warn(
+            `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Could not fetch customer details:`,
+            err
+          );
+          // Continue without customer details rather than failing
+        }
+      }
+
+      // Fetch quotation items if they exist
+      try {
+        if (!quotation.items) {
+          const items = await storage.getOutboundQuotationItems(quotation.id);
+          if (items && items.length > 0) {
+            quotation.items = items;
+          }
+        }
+      } catch (err) {
+        console.warn(
+          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Could not fetch quotation items:`,
+          err
+        );
+        // Continue without items rather than failing
+      }
+
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Generating PDF...`
+      );
+      const pdfStream = await generateOutboundQuotationPdf(quotation);
+
+      // Set appropriate headers for PDF download
+      const filename = `Quotation_${quotation.quotationNumber}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+
+      // Pipe the PDF stream to the response
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Sending PDF response`
+      );
+      pdfStream.pipe(res);
+
+      // Handle stream events
+      pdfStream.on("end", () => {
+        console.log(
+          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - PDF stream completed successfully`
+        );
+      });
+
+      pdfStream.on("error", (err) => {
+        console.error(
+          `💥 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Error in PDF stream:`,
+          err
+        );
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Failed to generate quotation PDF",
+            details: err.message,
+          });
+        }
+      });
+    } catch (error) {
+      console.error(
+        `💥 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Error generating PDF:`,
+        error
+      );
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: "Failed to generate quotation PDF",
+          details: error.message,
+        });
+      }
+    }
+  });
+
+  // Inbound Quotations Routes
   app.get("/api/inbound-quotations", async (req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();
@@ -1693,20 +1631,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // app.get("/api/invoices", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(invoices);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
   // Invoice Routes
-  app.get("/api/invoices", requireAuth, async (req, res) => {
+  app.get("/api/invoices", requireAuth, async (_req, res) => {
     try {
+      console.log("🐛 [ROUTE] GET /api/invoices - Request received");
+
+      // --- Call the new storage method ---
       const invoices = await storage.getInvoices();
+
+      console.log(
+        `🐛 [ROUTE] GET /api/invoices - Returning ${invoices.length} invoices`
+      );
+      // --- Send the correctly structured data ---
       res.json(invoices);
     } catch (error) {
+      // --- Handle errors from storage ---
+      console.error(
+        "💥 [ROUTE] GET /api/invoices - Error fetching invoices:",
+        error
+      );
       res
         .status(500)
         .json({ error: "Failed to fetch invoices", details: error.message });
@@ -1721,16 +1664,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(invoice);
     } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch invoice", details: error.message });
+      console.error("Failed to fetch invoice:", error);
+      res.status(500).json({
+        error: "Failed to fetch invoice",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
   app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
-      const invoiceData = insertInvoiceSchema.parse(req.body);
-      const invoice = await storage.createInvoice(invoiceData);
+      const { insertInvoiceSchema } = await import("@shared/schema");
+      const parsedData = insertInvoiceSchema.parse(req.body);
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        customerId: parsedData.customerId
+          ? Number(parsedData.customerId)
+          : null,
+        userId: req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+        issuedAt: new Date(parsedData.issuedAt),
+        dueDate: parsedData.dueDate ? new Date(parsedData.dueDate) : null,
+        paidAt: parsedData.paidAt ? new Date(parsedData.paidAt) : null,
+        subtotalAmount: parseFloat(parsedData.subtotalAmount),
+        taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
+        discountAmount: parsedData.discountAmount
+          ? parseFloat(parsedData.discountAmount)
+          : 0,
+        totalAmount: parseFloat(parsedData.totalAmount),
+      };
+
+      const invoice = await storage.createInvoice(data);
+
       await storage.createActivity({
         userId: invoice.userId,
         action: "CREATE_INVOICE",
@@ -1738,21 +1704,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: invoice.id,
         details: `Created invoice: ${invoice.invoiceNumber}`,
       });
+
       res.status(201).json(invoice);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid invoice data", details: error.errors });
+        return res.status(400).json({
+          error: "Invalid invoice data",
+          details: error.errors,
+        });
       }
-      res.status(500).json({ error: "Failed to create invoice" });
+      console.error("Failed to create invoice:", error);
+      res.status(500).json({
+        error: "Failed to create invoice",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
   app.put("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
-      const invoiceData = insertInvoiceSchema.partial().parse(req.body);
-      const invoice = await storage.updateInvoice(req.params.id, invoiceData);
+      const { insertInvoiceSchema } = await import("@shared/schema");
+      const parsedData = insertInvoiceSchema.partial().parse(req.body);
+
+      // Convert types for database
+      const updateData = {
+        ...parsedData,
+        customerId: parsedData.customerId
+          ? Number(parsedData.customerId)
+          : null,
+        userId: req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+        issuedAt: parsedData.issuedAt
+          ? new Date(parsedData.issuedAt)
+          : undefined,
+        dueDate: parsedData.dueDate ? new Date(parsedData.dueDate) : null,
+        paidAt: parsedData.paidAt ? new Date(parsedData.paidAt) : null,
+        subtotalAmount: parsedData.subtotalAmount
+          ? parseFloat(parsedData.subtotalAmount)
+          : undefined,
+        taxAmount: parsedData.taxAmount
+          ? parseFloat(parsedData.taxAmount)
+          : undefined,
+        discountAmount: parsedData.discountAmount
+          ? parseFloat(parsedData.discountAmount)
+          : undefined,
+        totalAmount: parsedData.totalAmount
+          ? parseFloat(parsedData.totalAmount)
+          : undefined,
+      };
+
+      const invoice = await storage.updateInvoice(req.params.id, updateData);
+
       await storage.createActivity({
         userId: invoice.userId,
         action: "UPDATE_INVOICE",
@@ -1760,9 +1761,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: invoice.id,
         details: `Updated invoice: ${invoice.invoiceNumber}`,
       });
+
       res.json(invoice);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update invoice" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid invoice data",
+          details: error.errors,
+        });
+      }
+      console.error("Failed to update invoice:", error);
+      res.status(500).json({
+        error: "Failed to update invoice",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
@@ -1779,6 +1791,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Marketing leave request - always available with DB fallback
 
   // Inventory leave request - DB first, fallback to memory
+  app.post(
+    "/api/inventory/leave-request",
+    requireAuth,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { employeeName, leaveType, startDate, endDate, reason } =
+          req.body || {};
+        if (!employeeName || !leaveType || !startDate || !endDate || !reason) {
+          res.status(400).json({ error: "Missing required fields" });
+          return;
+        }
+        // Attempt DB insert into shared leaveRequests table
+        try {
+          const userIdVal = Number(req.user!.id);
+          const [row] = await db
+            .insert(leaveRequestsTable)
+            .values({
+              userId: Number.isFinite(userIdVal) ? userIdVal : null,
+              leaveType,
+              startDate: new Date(startDate),
+              endDate: new Date(endDate),
+              reason,
+              status: "pending",
+            })
+            .returning();
+          res.status(201).json(row);
+          return;
+        } catch (dbErr) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "Inventory leave request DB insert failed, using in-memory fallback:",
+            dbErr
+          );
+        }
 
   // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
   //   try {

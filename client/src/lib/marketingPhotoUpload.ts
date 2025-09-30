@@ -4,7 +4,7 @@
 interface MarketingPhotoUploadOptions {
   file: File;
   attendanceId: string;
-  photoType: 'check-in' | 'check-out';
+  photoType: "check-in" | "check-out";
 }
 
 interface MarketingPhotoUploadResult {
@@ -13,34 +13,34 @@ interface MarketingPhotoUploadResult {
   error?: string;
 }
 
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest } from "@/lib/queryClient";
 
-export const uploadMarketingAttendancePhoto = async ({ 
-  file, 
-  attendanceId, 
-  photoType 
+export const uploadMarketingAttendancePhoto = async ({
+  file,
+  attendanceId,
+  photoType,
 }: MarketingPhotoUploadOptions): Promise<MarketingPhotoUploadResult> => {
   try {
     // Step 1: Get upload URL from backend
-    const { uploadURL, objectPath } = await apiRequest<{ uploadURL: string; objectPath: string }>(
-      '/marketing-attendance/photo/upload-url',
-      {
-        method: 'POST',
-        body: {
-          attendanceId,
-          fileName: file.name,
-          contentType: file.type,
-          photoType,
-        },
-      }
-    );
+    const { uploadURL, objectPath } = await apiRequest<{
+      uploadURL: string;
+      objectPath: string;
+    }>("/api/marketing-attendance/photo/upload-url", {
+      method: "POST",
+      body: {
+        attendanceId,
+        fileName: file.name,
+        contentType: file.type,
+        photoType,
+      },
+    });
 
     // Step 2: Upload file directly to object storage using signed URL
     const uploadResponse = await fetch(uploadURL, {
-      method: 'PUT',
+      method: "PUT",
       body: file,
       headers: {
-        'Content-Type': file.type,
+        "Content-Type": file.type,
       },
     });
 
@@ -52,13 +52,12 @@ export const uploadMarketingAttendancePhoto = async ({
       objectPath,
       success: true,
     };
-
   } catch (error) {
-    console.error('Marketing photo upload error:', error);
+    console.error("Marketing photo upload error:", error);
     return {
-      objectPath: '',
+      objectPath: "",
       success: false,
-      error: error instanceof Error ? error.message : 'Upload failed',
+      error: error instanceof Error ? error.message : "Upload failed",
     };
   }
 };

@@ -25,6 +25,7 @@ import {
   marketingTasks,
   leads,
   fieldVisits,
+  users,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -45,6 +46,7 @@ import {
   suppliers,
   outboundQuotations,
   inboundQuotations,
+  invoices,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -171,6 +173,54 @@ class Storage {
       throw error;
     }
   }
+  async getOutboundQuotation(
+    id: string
+  ): Promise<OutboundQuotation & { customer: Customer | null }> {
+    try {
+      console.log(
+        `💾 [STORAGE] getOutboundQuotation - Fetching quotation ID: ${id} with customer data`
+      );
+
+      const result = await db
+        .select({
+          quotation: outboundQuotations,
+          customer: {
+            id: customers.id,
+            name: customers.name,
+            email: customers.email,
+            phone: customers.phone,
+            // Add other customer fields needed for PDF
+          },
+        })
+        .from(outboundQuotations)
+        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id))
+        .where(eq(outboundQuotations.id, id));
+
+      if (result.length === 0) {
+        console.warn(
+          `💾 [STORAGE] getOutboundQuotation - Quotation ID ${id} not found`
+        );
+        return undefined; // Or throw an error
+      }
+
+      const row = result[0];
+      const transformedQuotation = {
+        ...row.quotation,
+        customer: row.customer || null,
+      };
+
+      console.log(
+        `💾 [STORAGE] getOutboundQuotation - Fetched quotation ID: ${id}`
+      );
+      return transformedQuotation;
+    } catch (error) {
+      console.error(
+        "💥 [STORAGE] getOutboundQuotation - Error fetching quotation:",
+        error
+      );
+      throw error;
+    }
+  }
   async updateOutboundQuotation(
     id: string, // Assuming ID is a string (UUID) based on your schema
     update: Partial<InsertOutboundQuotation>
@@ -254,6 +304,217 @@ class Storage {
       throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
     }
     return row;
+  }
+
+  //invices CRUD////////////////////////////////////////////////////
+
+  // --- INVOICES CRUD ---
+  // In storage.ts
+  async getInvoices(): Promise<Invoice[]> {
+    try {
+      console.log(
+        "💾 [STORAGE] getInvoices - Fetching invoices with customer data"
+      );
+
+      // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
+      // This avoids the Drizzle internal error caused by nested selection objects.
+      const rows = await db
+        .select({
+          // --- Fields from invoices table ---
+          id: invoices.id,
+          quotationNumber: invoices.quotationNumber,
+          customerId: invoices.customerId,
+          userId: invoices.userId,
+          status: invoices.status,
+          quotationDate: invoices.quotationDate,
+          validUntil: invoices.validUntil,
+          jobCardNumber: invoices.jobCardNumber,
+          partNumber: invoices.partNumber,
+          subtotalAmount: invoices.subtotalAmount,
+          taxAmount: invoices.taxamount, // Note the column name from DB schema
+          discountAmount: invoices.discountamount, // Note the column name from DB schema
+          totalAmount: invoices.totalamount, // Note the column name from DB schema
+          paymentTerms: invoices.paymentterms, // Note the column name from DB schema
+          deliveryTerms: invoices.deliveryterms, // Note the column name from DB schema
+          notes: invoices.notes,
+          bankName: invoices.bankName,
+          accountNumber: invoices.accountNumber,
+          ifscCode: invoices.ifscCode,
+          warrantyTerms: invoices.warrantyTerms,
+          specialTerms: invoices.specialTerms,
+          createdAt: invoices.createdAt,
+          updatedAt: invoices.updatedAt,
+          // --- Fields from customers table (joined) ---
+          // IMPORTANT: Select these individually and alias them to prevent conflicts
+          // and to identify them for manual nesting in the next step.
+          _customerIdJoin: customers.id, // Aliased customer ID
+          _customerNameJoin: customers.name, // Aliased customer name
+          _customerEmailJoin: customers.email, // Aliased customer email
+          _customerPhoneJoin: customers.phone, // Aliased customer phone
+          // Add other customer fields if needed by the frontend later
+          // _customerCityJoin: customers.city,
+          // _customerStateJoin: customers.state,
+          // ...
+        })
+        .from(invoices)
+        .leftJoin(customers, eq(invoices.customerId, customers.id)); // Join condition
+
+      console.log(
+        `💾 [STORAGE] getInvoices - Fetched ${rows.length} raw rows with join`
+      );
+
+      // --- STEP 2: Transform the Result ---
+      // Drizzle returns an array like [{ invoice: {...}, customer: {...} }, ...].
+      // We need to flatten this to match Invoice type with a nested 'customer' property.
+      const transformedInvoices = rows.map((row) => {
+        // Check if customer data was joined (customerId_join will be non-null if customer exists)
+        const hasCustomer =
+          row._customerIdJoin !== null && row._customerIdJoin !== undefined;
+
+        return {
+          // Spread all fields from the 'invoice' object (invoice fields)
+          ...row.invoice,
+          // Conditionally create the nested 'customer' object
+          customer: hasCustomer
+            ? {
+                id: row._customerIdJoin, // Use the aliased customer ID
+                name: row._customerNameJoin, // Use the aliased customer name
+                email: row._customerEmailJoin, // Use the aliased customer email
+                phone: row._customerPhoneJoin, // Use the aliased customer phone
+                // Map other customer fields as needed
+              }
+            : null, // Or {} if preferred
+        };
+      });
+
+      console.log(
+        `💾 [STORAGE] getInvoices - Transformed ${transformedInvoices.length} invoices`
+      );
+      // Return the correctly structured array
+      return transformedInvoices;
+    } catch (error) {
+      // --- STEP 3: Robust Error Handling ---
+      console.error(
+        "💥 [STORAGE] getInvoices - Error fetching invoices with JOIN:",
+        error
+      );
+      // Fallback to a simple query to maintain API availability.
+      try {
+        console.log(
+          "🐛 [STORAGE] getInvoices - Falling back to simple invoices fetch..."
+        );
+        const fallbackRows = await db.select().from(invoices);
+        return fallbackRows;
+      } catch (fallbackError) {
+        console.error(
+          "💥 [STORAGE] getInvoices - Fallback fetch also failed:",
+          fallbackError
+        );
+        throw new Error(
+          "Failed to fetch invoices: " +
+            (error.message || "An unknown error occurred")
+        );
+      }
+    }
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    try {
+      console.log(
+        "💾 [STORAGE] createInvoice - Creating new invoice",
+        insertInvoice
+      );
+
+      // Convert types for database
+      const data = {
+        ...insertInvoice,
+        // Convert string amounts to numbers
+        subtotalAmount: parseFloat(insertInvoice.subtotalAmount),
+        taxAmount: insertInvoice.taxAmount
+          ? parseFloat(insertInvoice.taxAmount)
+          : 0,
+        discountAmount: insertInvoice.discountAmount
+          ? parseFloat(insertInvoice.discountAmount)
+          : 0,
+        totalAmount: parseFloat(insertInvoice.totalAmount),
+        // Convert date strings to Date objects
+        invoiceDate: new Date(insertInvoice.invoiceDate),
+        dueDate: new Date(insertInvoice.dueDate),
+        // Use a valid user ID
+        userId: insertInvoice.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      const [row] = await db.insert(invoices).values(data).returning();
+      console.log(
+        "💾 [STORAGE] createInvoice - Invoice created successfully",
+        row
+      );
+      return row;
+    } catch (error) {
+      console.error(
+        "💥 [STORAGE] createInvoice - Error creating invoice:",
+        error
+      );
+      throw error; // Re-throw to be caught by the route handler
+    }
+  }
+
+  async updateInvoice(
+    id: string,
+    update: Partial<InsertInvoice>
+  ): Promise<Invoice> {
+    try {
+      console.log(
+        `💾 [STORAGE] updateInvoice - Updating invoice ID: ${id}`,
+        update
+      );
+
+      // Convert types for database
+      const data = {
+        ...update,
+        // Convert string amounts to numbers if provided
+        subtotalAmount: update.subtotalAmount
+          ? parseFloat(update.subtotalAmount)
+          : undefined,
+        taxAmount: update.taxAmount ? parseFloat(update.taxAmount) : undefined,
+        discountAmount: update.discountAmount
+          ? parseFloat(update.discountAmount)
+          : undefined,
+        totalAmount: update.totalAmount
+          ? parseFloat(update.totalAmount)
+          : undefined,
+        // Convert date strings to Date objects if provided
+        invoiceDate: update.invoiceDate
+          ? new Date(update.invoiceDate)
+          : undefined,
+        dueDate: update.dueDate ? new Date(update.dueDate) : undefined,
+        // Use a valid user ID if provided
+        userId: update.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      const [row] = await db
+        .update(invoices)
+        .set(data)
+        .where(eq(invoices.id, id))
+        .returning();
+
+      if (!row) {
+        const errorMessage = `Invoice with ID '${id}' not found for update.`;
+        console.warn(`💾 [STORAGE] updateInvoice - ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
+
+      console.log(
+        `💾 [STORAGE] updateInvoice - Invoice ID: ${id} updated successfully`
+      );
+      return row;
+    } catch (error) {
+      console.error(
+        "💥 [STORAGE] updateInvoice - Error updating invoice:",
+        error
+      );
+      throw error; // Re-throw to be caught by the route handler
+    }
   }
 
   // Users
@@ -782,6 +1043,101 @@ class Storage {
   async createActivity(activity: any): Promise<void> {
     // TODO: Implement activity logging if you have an activities table
     console.log("Activity logged:", activity);
+  }
+
+  // async getMarketingAttendanceMetrics() {
+  //   const todayStart = startOfDay(new Date());
+  //   const todayEnd = endOfDay(new Date());
+
+  //   // total attendance records
+  //   const [{ total }] = await db
+  //     .select({ total: sql<number>`COUNT(*)` })
+  //     .from(marketingAttendance);
+
+  //   // present today (unique users who checked in today)
+  //   const [{ presentToday }] = await db
+  //     .select({ presentToday: sql<number>`COUNT(DISTINCT "userId")` })
+  //     .from(marketingAttendance)
+  //     .where(
+  //       gte(marketingAttendance.date, todayStart) &&
+  //         lte(marketingAttendance.date, todayEnd)
+  //     );
+
+  //   const totalEmployees = total ?? 0;
+  //   const present = presentToday ?? 0;
+  //   const absent = totalEmployees - present;
+
+  //   // late arrivals (checked in after 10 AM)
+  //   const [{ lateToday }] = await db.execute(sql`
+  //     SELECT COUNT(*)::int AS "lateToday"
+  //     FROM "marketingAttendance"
+  //     WHERE "checkInTime"::time > '10:00:00'
+  //       AND "date" BETWEEN ${todayStart} AND ${todayEnd}
+  //   `);
+
+  //   // placeholder for leave tracking
+  //   const onLeaveToday = 0;
+
+  //   // monthly stats
+  //   const monthStart = startOfMonth(new Date());
+  //   const monthEnd = endOfMonth(new Date());
+
+  //   const [{ presentDays }] = await db.execute(sql`
+  //     SELECT COUNT(DISTINCT "date"::date)::int AS "presentDays"
+  //     FROM "marketingAttendance"
+  //     WHERE "date" BETWEEN ${monthStart} AND ${monthEnd}
+  //   `);
+
+  //   const leaveDays = 0;
+
+  //   return {
+  //     totalEmployees,
+  //     presentToday: present,
+  //     absentToday: absent,
+  //     lateToday: lateToday?.lateToday ?? 0,
+  //     onLeaveToday,
+  //     attendanceRate: totalEmployees > 0 ? (present / totalEmployees) * 100 : 0,
+  //     monthlyStats: {
+  //       totalDays: new Date().getDate(),
+  //       presentDays: presentDays?.presentDays ?? 0,
+  //       absentDays: new Date().getDate() - (presentDays?.presentDays ?? 0),
+  //       leaveDays,
+  //     },
+  //   };
+  // }
+  async getMarketingAttendanceMetrics() {
+    try {
+      console.log(
+        "💾 [STORAGE] getMarketingAttendanceMetrics - Fetching attendance metrics"
+      );
+
+      // --- Perform the database query directly ---
+      const [row] = await db
+        .select({
+          total: sql<number>`COUNT(*)::integer`,
+          checkedIn: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
+          checkedOut: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
+        })
+        .from(marketingAttendance);
+
+      const metrics = {
+        total: Number((row as any)?.total || 0),
+        checkedIn: Number((row as any)?.checkedIn || 0),
+        checkedOut: Number((row as any)?.checkedOut || 0),
+      };
+
+      console.log(
+        "💾 [STORAGE] getMarketingAttendanceMetrics - Fetched metrics:",
+        metrics
+      );
+      return metrics;
+    } catch (error) {
+      console.error(
+        "💥 [STORAGE] getMarketingAttendanceMetrics - Error fetching metrics:",
+        error
+      );
+      throw error; // Re-throw to be caught by the route handler
+    }
   }
 }
 

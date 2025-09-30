@@ -23,16 +23,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import type { MarketingAttendance, User as UserType } from "@shared/schema";
+import { marketingAttendance, users as usersTable } from "@shared/schema";
 
-interface AttendanceWithUser extends MarketingAttendance {
-  user?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  };
+type MarketingAttendanceRecord = typeof marketingAttendance.$inferSelect;
+type UserRecord = typeof usersTable.$inferSelect;
+
+interface AttendanceWithUser extends MarketingAttendanceRecord {
+  user?: Partial<UserRecord>;
 }
 
 interface AttendanceCardProps {

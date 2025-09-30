@@ -41,21 +41,26 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-import type { MarketingAttendance, User } from "@shared/schema";
+import { marketingAttendance, users as usersTable } from "@shared/schema";
 
-interface AttendanceWithUser extends MarketingAttendance {
+type MarketingAttendanceRecord = typeof marketingAttendance.$inferSelect;
+type UserRecord = typeof usersTable.$inferSelect;
+
+interface AttendanceWithUser extends MarketingAttendanceRecord {
   user?: {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
+    firstName: string | null;
+    lastName: string | null;
+    email?: string | null;
+    role?: string | null;
   };
+  isOnLeave?: boolean | null;
+  leaveType?: string | null;
 }
 
 interface AttendanceCalendarProps {
   attendanceData: AttendanceWithUser[];
-  users: User[];
+  users: UserRecord[];
   selectedUserId?: string;
   onUserSelect?: (userId: string | undefined) => void;
   onDateSelect?: (date: Date) => void;
@@ -71,20 +76,32 @@ interface DayAttendance {
   onLeaveCount: number;
 }
 
-const statusColors = {
+const STATUS_COLOR_CLASSES = {
   present: "bg-green-100 text-green-800 border-green-200",
   absent: "bg-red-100 text-red-800 border-red-200",
   late: "bg-orange-100 text-orange-800 border-orange-200",
   half_day: "bg-yellow-100 text-yellow-800 border-yellow-200",
   holiday: "bg-blue-100 text-blue-800 border-blue-200",
-};
+} as const;
 
-const statusIcons = {
+type AttendanceStatusKey = keyof typeof STATUS_COLOR_CLASSES;
+
+const STATUS_ICONS: Record<AttendanceStatusKey, JSX.Element> = {
   present: <CheckCircle className="h-3 w-3" />,
   absent: <XCircle className="h-3 w-3" />,
   late: <Clock className="h-3 w-3" />,
   half_day: <AlertCircle className="h-3 w-3" />,
   holiday: <CalendarIcon className="h-3 w-3" />,
+};
+
+const normalizeStatus = (
+  status?: string | null
+): AttendanceStatusKey | undefined => {
+  if (!status) return undefined;
+  const lower = status
+    .toLowerCase()
+    .replace(/\s+/g, "_") as AttendanceStatusKey;
+  return lower in STATUS_COLOR_CLASSES ? lower : undefined;
 };
 
 export default function AttendanceCalendar({
@@ -142,18 +159,13 @@ export default function AttendanceCalendar({
 
     const summary = dayAttendance.reduce(
       (acc, record) => {
-        switch (record.attendanceStatus) {
-          case "present":
-            acc.presentCount++;
-            break;
-          case "absent":
-            acc.absentCount++;
-            break;
-          case "late":
-            acc.lateCount++;
-            break;
-          default:
-            break;
+        const normalized = normalizeStatus(record.attendanceStatus);
+        if (normalized === "present") {
+          acc.presentCount++;
+        } else if (normalized === "absent") {
+          acc.absentCount++;
+        } else if (normalized === "late") {
+          acc.lateCount++;
         }
         if (record.isOnLeave) {
           acc.onLeaveCount++;
@@ -171,7 +183,7 @@ export default function AttendanceCalendar({
   };
 
   // Get the primary status for a day (used for coloring)
-  const getDayPrimaryStatus = (dayData: DayAttendance): string => {
+  const getDayPrimaryStatus = (dayData: DayAttendance): AttendanceStatusKey => {
     if (dayData.onLeaveCount > 0) return "holiday";
     if (dayData.absentCount > 0) return "absent";
     if (dayData.lateCount > 0) return "late";
@@ -195,7 +207,7 @@ export default function AttendanceCalendar({
     : null;
 
   // Get user initials
-  const getUserInitials = (user: User) => {
+  const getUserInitials = (user: UserRecord) => {
     return `${user.firstName?.[0] || ""}${
       user.lastName?.[0] || ""
     }`.toUpperCase();

@@ -10,7 +10,6 @@ import {
   uuid,
   pgEnum,
 } from "drizzle-orm/pg-core";
-
 import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -278,6 +277,32 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 // MARKETING ATTENDANCE (camelCase, matches actual DB)
 // =====================
+// export const marketingAttendance = pgTable("marketing_attendance", {
+//   id: uuid("id").defaultRandom().primaryKey(),
+//   userId: uuid("userId").notNull(),
+//   date: timestamp("date").notNull(),
+//   checkInTime: timestamp("checkInTime"),
+//   checkOutTime: timestamp("checkOutTime"),
+//   checkInLocation: text("checkInLocation"),
+//   checkOutLocation: text("checkOutLocation"),
+//   checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+//   checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+//   checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+//   checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+//   checkInPhotoPath: text("checkInPhotoPath"),
+//   checkOutPhotoPath: text("checkOutPhotoPath"),
+//   photoPath: text("photoPath"),
+//   latitude: numeric("latitude", { precision: 10, scale: 7 }),
+//   longitude: numeric("longitude", { precision: 10, scale: 7 }),
+//   location: text("location"),
+//   workDescription: text("workDescription"),
+//   visitCount: integer("visitCount"),
+//   tasksCompleted: integer("tasksCompleted"),
+//   outcome: text("outcome"),
+//   nextAction: text("nextAction"),
+//   attendanceStatus: text("attendanceStatus").default("present"),
+// });
+
 export const marketingAttendance = pgTable("marketing_attendance", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("userId").notNull(),
@@ -469,13 +494,48 @@ export const inboundQuotations = pgTable("inbound_quotations", {
 // =====================
 // INVOICES
 // =====================
+// export const invoices = pgTable("invoices", {
+//   id: serial("id").primaryKey(),
+//   customerId: integer("customer_id").references(() => customers.id),
+//   invoiceNumber: varchar("invoice_number", { length: 50 }),
+//   totalAmount: numeric("total_amount"),
+//   status: varchar("status", { length: 20 }),
+//   issuedAt: timestamp("issued_at").defaultNow(),
+// });
+export const invoiceStatus = pgEnum("invoice_status", [
+  "draft",
+  "sent",
+  "paid",
+  "overdue",
+]);
+
 export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  customerId: integer("customer_id").references(() => customers.id),
-  invoiceNumber: varchar("invoice_number", { length: 50 }),
-  totalAmount: numeric("total_amount"),
-  status: varchar("status", { length: 20 }),
-  issuedAt: timestamp("issued_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), // ✅ UUID primary key
+  invoiceNumber: text("invoiceNumber").notNull().unique(), // ✅ Unique constraint
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id), // ✅ UUID FK
+  customerId: uuid("customerId")
+    .notNull()
+    .references(() => customers.id), // ✅ UUID FK, NOT NULL
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id), // ✅ UUID FK, NOT NULL
+  status: invoiceStatus("status").notNull().default("draft"), // ✅ Enum, NOT NULL
+  invoiceDate: timestamp("invoiceDate").notNull().defaultNow(), // ✅ Timestamp, NOT NULL
+  dueDate: timestamp("dueDate").notNull(), // ✅ Timestamp, NOT NULL
+  subtotalAmount: numeric("subtotalAmount", { precision: 10, scale: 2 }), // ✅ Numeric with precision
+  taxAmount: numeric("taxamount", { precision: 10, scale: 2 }), // ✅ Fixed column name
+  discountAmount: numeric("discountamount", { precision: 10, scale: 2 }), // ✅ Fixed column name
+  totalAmount: numeric("totalamount", { precision: 10, scale: 2 }).notNull(), // ✅ Fixed column name, NOT NULL
+  paymentTerms: text("paymentterms"), // ✅ Fixed column name
+  deliveryTerms: text("deliveryterms"), // ✅ Fixed column name
+  notes: text("notes"), // ✅ OK - matches DB
+  jobCardNumber: text("jobCardNumber"), // ✅ OK - matches DB
+  partNumber: text("partNumber"), // ✅ OK - matches DB
+  bankName: text("bankName"), // ✅ OK - matches DB
+  accountNumber: text("accountNumber"), // ✅ OK - matches DB
+  ifscCode: text("ifscCode"), // ✅ OK - matches DB
+  createdAt: timestamp("createdAt").defaultNow(), // ✅ OK - matches DB
+  updatedAt: timestamp("updatedAt").defaultNow(), // ✅ OK - matches DB
 });
 
 // =====================
@@ -702,17 +762,39 @@ export const insertInboundQuotationSchema = z.object({
   attachmentPath: z.string().optional(),
   attachmentName: z.string().optional(),
 });
+// export const insertInvoiceSchema = z.object({
+//   customerId: z.string(),
+//   items: z.array(
+//     z.object({
+//       productId: z.string(),
+//       quantity: z.number(),
+//       price: z.number(),
+//     })
+//   ),
+//   totalAmount: z.number(),
+//   issuedAt: z.string().optional(),
+// });
+
 export const insertInvoiceSchema = z.object({
-  customerId: z.string(),
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      quantity: z.number(),
-      price: z.number(),
-    })
-  ),
-  totalAmount: z.number(),
-  issuedAt: z.string().optional(),
+  invoiceNumber: z.string().min(1, "Invoice number is required"),
+  quotationId: z.string().uuid().optional(), // UUID string
+  customerId: z.string().uuid(), // UUID string, required
+  userId: z.string().uuid(), // UUID string, required
+  status: z.enum(["draft", "sent", "paid", "overdue"]).default("draft"),
+  invoiceDate: z.string().or(z.date()), // Accept string or Date
+  dueDate: z.string().or(z.date()), // Accept string or Date
+  subtotalAmount: z.string().min(1, "Subtotal amount is required"),
+  taxAmount: z.string().optional(),
+  discountAmount: z.string().optional(),
+  totalAmount: z.string().min(1, "Total amount is required"),
+  paymentTerms: z.string().optional(),
+  deliveryTerms: z.string().optional(),
+  notes: z.string().optional(),
+  jobCardNumber: z.string().optional(),
+  partNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  ifscCode: z.string().optional(),
 });
 
 export const insertCustomerSchema = z.object({
@@ -888,17 +970,25 @@ export const insertMarketingTaskSchema = z.object({
 });
 
 export const insertMarketingAttendanceSchema = z.object({
-  userId: z.any(),
-  date: z.string().optional(),
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  userId: z.string().uuid(),
+  date: z.coerce.date().optional(),
+  checkInTime: z.coerce.date().optional(),
+  checkOutTime: z.coerce.date().optional(),
+  checkInLatitude: z.coerce.number().optional(),
+  checkInLongitude: z.coerce.number().optional(),
+  checkOutLatitude: z.coerce.number().optional(),
+  checkOutLongitude: z.coerce.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
   location: z.string().optional(),
+  checkInLocation: z.string().optional(),
+  checkOutLocation: z.string().optional(),
+  checkInPhotoPath: z.string().optional(),
+  checkOutPhotoPath: z.string().optional(),
   photoPath: z.string().optional(),
   workDescription: z.string().optional(),
-  visitCount: z.number().optional(),
-  tasksCompleted: z.number().optional(),
+  visitCount: z.coerce.number().optional(),
+  tasksCompleted: z.coerce.number().optional(),
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),
