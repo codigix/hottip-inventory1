@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React, { useEffect } from "react";
-
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -74,7 +74,7 @@ export default function InventoryAttendance() {
   const [employees, setEmployees] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/users")
+    fetch(`${BASE_URL}/api/users`)
       .then((res) => res.json())
       .then((data) => setEmployees(data))
       .catch((err) => console.error(err));
