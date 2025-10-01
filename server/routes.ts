@@ -66,6 +66,7 @@ const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
+// Fabrication Orders API
 
 // Local user schema used for create/update since shared insertUserSchema is not present
 const userInsertSchema = z.object({
