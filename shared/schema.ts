@@ -432,13 +432,35 @@ export const inboundQuotations = pgTable("inbound_quotations", {
 // =====================
 // INVOICES
 // =====================
+export const invoiceStatus = pgEnum("invoice_status", [
+  "draft",
+  "sent",
+  "paid",
+  "overdue",
+  "cancelled",
+]);
 export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  customerId: integer("customer_id").references(() => customers.id),
-  invoiceNumber: varchar("invoice_number", { length: 50 }),
-  totalAmount: numeric("total_amount"),
-  status: varchar("status", { length: 20 }),
-  issuedAt: timestamp("issued_at").defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceNumber: text("invoiceNumber").notNull(),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  customerId: uuid("customerId").references(() => customers.id),
+  userId: uuid("userId").references(() => users.id),
+  status: invoiceStatus("status").notNull().default("draft"),
+  invoiceDate: timestamp("invoiceDate").notNull(),
+  dueDate: timestamp("dueDate").notNull(),
+  subtotalAmount: numeric("subtotalAmount", { precision: 10, scale: 2 }),
+  cgstRate: numeric("cgstRate", { precision: 5, scale: 2 }).default(0),
+  cgstAmount: numeric("cgstAmount", { precision: 10, scale: 2 }).default(0),
+  sgstRate: numeric("sgstRate", { precision: 5, scale: 2 }).default(0),
+  sgstAmount: numeric("sgstAmount", { precision: 10, scale: 2 }).default(0),
+  igstRate: numeric("igstRate", { precision: 5, scale: 2 }).default(0),
+  igstAmount: numeric("igstAmount", { precision: 10, scale: 2 }).default(0),
+  discountAmount: numeric("discountAmount", {
+    precision: 10,
+    scale: 2,
+  }).default(0),
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
+  balanceAmount: numeric("balanceAmount", { precision: 10, scale: 2 }),
 });
 
 // =====================
@@ -499,10 +521,12 @@ export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
 // CUSTOMERS
 // =====================
 export const customers = pgTable("customers", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   email: varchar("email", { length: 100 }),
   phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  gstNumber: varchar("gstNumber", { length: 20 }),
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
@@ -698,16 +722,26 @@ export const insertInboundQuotationSchema = z.object({
   attachmentName: z.string().optional(),
 });
 export const insertInvoiceSchema = z.object({
-  customerId: z.string(),
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      quantity: z.number(),
-      price: z.number(),
-    })
-  ),
-  totalAmount: z.number(),
-  issuedAt: z.string().optional(),
+  invoiceNumber: z.string().min(1, "Invoice number is required"),
+  quotationId: z.string().uuid().optional(),
+  customerId: z.string().uuid("Customer is required"),
+  userId: z.string().uuid("User is required"),
+  status: z
+    .enum(["draft", "sent", "paid", "overdue", "cancelled"])
+    .optional()
+    .default("draft"),
+  invoiceDate: z.date("Invoice date is required"),
+  dueDate: z.date("Due date is required"),
+  subtotalAmount: z.number().min(0, "Subtotal must be positive").optional(),
+  cgstRate: z.number().min(0).max(100).optional().default(0),
+  cgstAmount: z.number().min(0).optional().default(0),
+  sgstRate: z.number().min(0).max(100).optional().default(0),
+  sgstAmount: z.number().min(0).optional().default(0),
+  igstRate: z.number().min(0).max(100).optional().default(0),
+  igstAmount: z.number().min(0).optional().default(0),
+  discountAmount: z.number().min(0).optional().default(0),
+  totalAmount: z.number().min(0, "Total amount is required"),
+  balanceAmount: z.number().min(0).optional(),
 });
 
 export const insertCustomerSchema = z.object({
@@ -715,6 +749,7 @@ export const insertCustomerSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  gstNumber: z.string().optional(),
 });
 
 // Customer schema

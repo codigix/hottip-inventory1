@@ -55,6 +55,7 @@ import {
   insertOutboundQuotationSchema,
   insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
+  insertInvoiceSchema,
   customers,
 } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";

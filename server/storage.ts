@@ -38,6 +38,7 @@ import {
   suppliers,
   outboundQuotations,
   inboundQuotations,
+  invoices,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -46,6 +47,8 @@ export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -727,6 +730,76 @@ class Storage {
         )
       )
       .orderBy(desc(leaveRequests.startDate));
+  }
+
+  // Invoice methods
+  async getInvoices(): Promise<Invoice[]> {
+    return await db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        quotationId: invoices.quotationId,
+        customerId: invoices.customerId,
+        userId: invoices.userId,
+        status: invoices.status,
+        invoiceDate: invoices.invoiceDate,
+        dueDate: invoices.dueDate,
+        subtotalAmount: invoices.subtotalAmount,
+        // GST fields - will be null if columns don't exist yet
+        cgstRate: sql<number>`${invoices.cgstRate}`.as("cgstRate"),
+        cgstAmount: sql<number>`${invoices.cgstAmount}`.as("cgstAmount"),
+        sgstRate: sql<number>`${invoices.sgstRate}`.as("sgstRate"),
+        sgstAmount: sql<number>`${invoices.sgstAmount}`.as("sgstAmount"),
+        igstRate: sql<number>`${invoices.igstRate}`.as("igstRate"),
+        igstAmount: sql<number>`${invoices.igstAmount}`.as("igstAmount"),
+        discountAmount: sql<number>`${invoices.discountAmount}`.as(
+          "discountAmount"
+        ),
+        totalAmount: sql<number>`${invoices.totalAmount}`.as("totalAmount"),
+        balanceAmount: sql<number>`${invoices.balanceAmount}`.as(
+          "balanceAmount"
+        ),
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          address: customers.address,
+          gstNumber: customers.gstNumber,
+        },
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .orderBy(desc(invoices.invoiceDate));
+  }
+
+  async getInvoice(id: string | number): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const [row] = await db.insert(invoices).values(insertInvoice).returning();
+    return row;
+  }
+
+  async updateInvoice(
+    id: string | number,
+    update: Partial<InsertInvoice>
+  ): Promise<Invoice> {
+    const [row] = await db
+      .update(invoices)
+      .set(update)
+      .where(eq(invoices.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteInvoice(id: string | number): Promise<void> {
+    await db.delete(invoices).where(eq(invoices.id, id));
   }
 }
 

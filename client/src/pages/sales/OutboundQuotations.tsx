@@ -45,6 +45,7 @@ import {
   Send,
   Download,
   Filter,
+  Receipt,
 } from "lucide-react";
 import {
   insertOutboundQuotationSchema,
@@ -283,6 +284,72 @@ export default function OutboundQuotations() {
     }
   };
 
+  // Handler for Convert to Invoice action
+  const handleConvertToInvoice = async (quotation: OutboundQuotation) => {
+    try {
+      // Generate invoice number (replace QUO with INV)
+      const invoiceNumber = quotation.quotationNumber.replace(/^QUO/i, "INV");
+
+      // Set invoice date to today, due date to 30 days from now
+      const invoiceDate = new Date();
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const subtotal = quotation.subtotalAmount || quotation.totalAmount || 0;
+      const taxAmount = quotation.taxAmount || 0;
+      const discount = quotation.discountAmount || 0;
+      const total = quotation.totalAmount || subtotal + taxAmount - discount;
+
+      // Assume CGST and SGST if taxAmount > 0
+      const cgstRate = taxAmount > 0 ? 9 : 0;
+      const sgstRate = taxAmount > 0 ? 9 : 0;
+      const cgstAmount = taxAmount / 2;
+      const sgstAmount = taxAmount / 2;
+
+      const invoiceData = {
+        invoiceNumber,
+        quotationId: quotation.id,
+        customerId: quotation.customerId,
+        userId: quotation.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Default user ID
+        status: "draft" as const,
+        invoiceDate,
+        dueDate,
+        subtotalAmount: subtotal,
+        cgstRate,
+        cgstAmount,
+        sgstRate,
+        sgstAmount,
+        igstRate: 0,
+        igstAmount: 0,
+        discountAmount: discount,
+        totalAmount: total,
+        balanceAmount: total, // Initially balance = total
+      };
+
+      // Create the invoice
+      await apiRequest("POST", "/invoices", invoiceData);
+
+      toast({
+        title: "Success",
+        description: `Quotation converted to invoice ${invoiceNumber}`,
+      });
+
+      // Refresh quotations list
+      queryClient.invalidateQueries({ queryKey: ["/outbound-quotations"] });
+
+      // Optionally refresh invoices list if you have it
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+    } catch (error: any) {
+      console.error("Failed to convert quotation to invoice:", error);
+      toast({
+        title: "Error",
+        description:
+          error?.data?.error || "Failed to convert quotation to invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
   // --- EXPORT ALL FUNCTIONALITY ---
   // Handler for Export All action (opens dialog)
   const handleExportAll = () => {
@@ -508,6 +575,18 @@ export default function OutboundQuotations() {
           >
             <Download className="h-4 w-4" />
           </Button>
+
+          {/* Convert to Invoice Button - only for approved quotations */}
+          {quotation.status === "approved" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid={`button-convert-${quotation.id}`}
+              onClick={() => handleConvertToInvoice(quotation)}
+            >
+              <Receipt className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
