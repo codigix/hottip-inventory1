@@ -4,7 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
 import compression from "compression";
-import { registerRoutes } from "./routes.js";
+import { registerRoutes } from "./routes";
 
 // Ensure development mode by default for local running to enable dev auth bypass
 if (!process.env.NODE_ENV) {

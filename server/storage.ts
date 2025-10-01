@@ -39,34 +39,16 @@ import {
   outboundQuotations,
   inboundQuotations,
   invoices,
-  batches,
-  barcodes,
-  inventoryTasks,
-  orders,
-  orderItems,
-  payments,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
-export type Payment = typeof payments.$inferSelect;
-export type InsertPayment = typeof payments.$inferInsert;
 export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
-export type Batch = typeof batches.$inferSelect;
-export type InsertBatch = typeof batches.$inferInsert;
-export type Barcode = typeof barcodes.$inferSelect;
-export type InsertBarcode = typeof barcodes.$inferInsert;
-export type InventoryTask = typeof inventoryTasks.$inferSelect;
-export type InsertInventoryTask = typeof inventoryTasks.$inferInsert;
 export type InsertInvoice = typeof invoices.$inferInsert;
-export type Order = typeof orders.$inferSelect;
-export type InsertOrder = typeof orders.$inferInsert;
-export type OrderItem = typeof orderItems.$inferSelect;
-export type InsertOrderItem = typeof orderItems.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -86,24 +68,6 @@ class Storage {
     const [row] = await db.insert(customers).values(insertCustomer).returning();
     return row;
   }
-
-  async updateCustomer(
-    id: string | number,
-    update: Partial<InsertCustomer>
-  ): Promise<Customer | undefined> {
-    const [row] = await db
-      .update(customers)
-      .set(update)
-      .where(eq(customers.id, id))
-      .returning();
-    return row;
-  }
-
-  async deleteCustomer(id: string | number): Promise<boolean> {
-    const result = await db.delete(customers).where(eq(customers.id, id));
-    return result.rowCount > 0;
-  }
-
   // Suppliers CRUD
   async getSuppliers(): Promise<Supplier[]> {
     return await db.select().from(suppliers);
@@ -836,202 +800,6 @@ class Storage {
 
   async deleteInvoice(id: string | number): Promise<void> {
     await db.delete(invoices).where(eq(invoices.id, id));
-  }
-
-  // Batch methods
-  async getBatches(): Promise<Batch[]> {
-    return await db.select().from(batches);
-  }
-
-  async getBatch(id: string): Promise<Batch | undefined> {
-    const [batch] = await db.select().from(batches).where(eq(batches.id, id));
-    return batch;
-  }
-
-  async createBatch(insertBatch: InsertBatch): Promise<Batch> {
-    const [row] = await db.insert(batches).values(insertBatch).returning();
-    return row;
-  }
-
-  async updateBatch(id: string, update: Partial<InsertBatch>): Promise<Batch> {
-    const [row] = await db
-      .update(batches)
-      .set(update)
-      .where(eq(batches.id, id))
-      .returning();
-    return row;
-  }
-
-  async deleteBatch(id: string): Promise<void> {
-    await db.delete(batches).where(eq(batches.id, id));
-  }
-
-  // Inventory task methods
-  async getInventoryTasks(): Promise<InventoryTask[]> {
-    return await db.select().from(inventoryTasks);
-  }
-
-  async getInventoryTask(id: string): Promise<InventoryTask | undefined> {
-    const [task] = await db
-      .select()
-      .from(inventoryTasks)
-      .where(eq(inventoryTasks.id, id));
-    return task;
-  }
-
-  async createInventoryTask(
-    insertTask: InsertInventoryTask
-  ): Promise<InventoryTask> {
-    const [row] = await db
-      .insert(inventoryTasks)
-      .values(insertTask)
-      .returning();
-    return row;
-  }
-
-  async updateInventoryTask(
-    id: string,
-    update: Partial<InsertInventoryTask>
-  ): Promise<InventoryTask> {
-    const [row] = await db
-      .update(inventoryTasks)
-      .set(update)
-      .where(eq(inventoryTasks.id, id))
-      .returning();
-    return row;
-  }
-
-  async deleteInventoryTask(id: string): Promise<void> {
-    await db.delete(inventoryTasks).where(eq(inventoryTasks.id, id));
-  }
-
-  // Barcode methods
-  async getBarcodes(): Promise<Barcode[]> {
-    return await db.select().from(barcodes);
-  }
-
-  async getBarcode(id: string): Promise<Barcode | undefined> {
-    const [barcode] = await db
-      .select()
-      .from(barcodes)
-      .where(eq(barcodes.id, id));
-    return barcode;
-  }
-
-  async getBarcodeByCode(code: string): Promise<Barcode | undefined> {
-    const [barcode] = await db
-      .select()
-      .from(barcodes)
-      .where(eq(barcodes.code, code));
-    return barcode;
-  }
-
-  async createBarcode(insertBarcode: InsertBarcode): Promise<Barcode> {
-    const [row] = await db.insert(barcodes).values(insertBarcode).returning();
-    return row;
-  }
-
-  async deleteBarcode(id: string): Promise<void> {
-    await db.delete(barcodes).where(eq(barcodes.id, id));
-  }
-
-  // Order methods
-  async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders);
-  }
-
-  async getOrder(id: string): Promise<Order | undefined> {
-    const [order] = await db.select().from(orders).where(eq(orders.id, id));
-    return order;
-  }
-
-  async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const [row] = await db.insert(orders).values(insertOrder).returning();
-    return row;
-  }
-
-  async updateOrder(id: string, update: Partial<InsertOrder>): Promise<Order> {
-    const [row] = await db
-      .update(orders)
-      .set(update)
-      .where(eq(orders.id, id))
-      .returning();
-    return row;
-  }
-
-  async deleteOrder(id: string): Promise<void> {
-    await db.delete(orders).where(eq(orders.id, id));
-  }
-
-  // Order item methods
-  async getOrderItems(orderId: string): Promise<OrderItem[]> {
-    return await db
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.orderId, orderId));
-  }
-
-  async getOrderItem(id: string): Promise<OrderItem | undefined> {
-    const [item] = await db
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.id, id));
-    return item;
-  }
-
-  async createOrderItem(insertItem: InsertOrderItem): Promise<OrderItem> {
-    const [row] = await db.insert(orderItems).values(insertItem).returning();
-    return row;
-  }
-
-  async updateOrderItem(
-    id: string,
-    update: Partial<InsertOrderItem>
-  ): Promise<OrderItem> {
-    const [row] = await db
-      .update(orderItems)
-      .set(update)
-      .where(eq(orderItems.id, id))
-      .returning();
-    return row;
-  }
-
-  async deleteOrderItem(id: string): Promise<void> {
-    await db.delete(orderItems).where(eq(orderItems.id, id));
-  }
-
-  // Payment methods
-  async getPayments(): Promise<Payment[]> {
-    return await db.select().from(payments).orderBy(desc(payments.createdAt));
-  }
-
-  async getPayment(id: string): Promise<Payment | undefined> {
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.id, id));
-    return payment;
-  }
-
-  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
-    const [row] = await db.insert(payments).values(insertPayment).returning();
-    return row;
-  }
-
-  async updatePayment(
-    id: string,
-    update: Partial<InsertPayment>
-  ): Promise<Payment> {
-    const [row] = await db
-      .update(payments)
-      .set(update)
-      .where(eq(payments.id, id))
-      .returning();
-    return row;
-  }
-
-  async deletePayment(id: string): Promise<void> {
-    await db.delete(payments).where(eq(payments.id, id));
   }
 }
 

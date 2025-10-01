@@ -252,7 +252,7 @@ export default function OutboundQuotations() {
       // Assuming you have an API endpoint that generates and returns a PDF file
       const response = await apiRequest(
         "GET",
-        `/api/outbound-quotations/${quotation.id}/pdf`,
+        `/outbound-quotations/${quotation.id}/pdf`,
         undefined, // No body needed for GET
         { responseType: "blob" } // Important: Tell fetch/Axios to expect a binary blob
       );

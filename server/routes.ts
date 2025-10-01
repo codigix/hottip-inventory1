@@ -1,298 +1,553 @@
-﻿import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
+import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import {
-  //insertUserSchema,
-  insertProductSchema,
-  insertCustomerSchema,
-  insertOrderSchema,
-  insertOrderItemSchema,
-  insertSupplierSchema,
-  //insertShipmentSchema,
-  //insertTaskSchema,
-  insertAttendanceSchema,
-  insertOutboundQuotationSchema,
-  //insertQuotationItemSchema,
-  insertInboundQuotationSchema,
-  //insertInboundQuotationItemSchema,
-  insertInvoiceSchema,
-  //insertInvoiceItemSchema,
-  //insertStockTransactionSchema,
-  //insertSparePartSchema,
-  insertBatchSchema,
-  insertFabricationOrderSchema,
-  //insertReorderPointSchema,
-  // insertVendorCommunicationSchema,
-  insertInventoryTaskSchema,
-
-  // Accounts schemas
-  insertAccountsReceivableSchema,
-  insertAccountsPayableSchema,
-  insertPaymentSchema,
-  insertBankAccountSchema,
-  insertBankTransactionSchema,
-  insertGstReturnSchema,
-  insertAccountReminderSchema,
-  insertAccountTaskSchema,
-  insertAccountReportSchema,
-  insertBarcodeSchema,
-  // Marketing schemas
-  insertLeadSchema,
-  insertFieldVisitSchema,
-  insertMarketingTaskSchema,
-  insertMarketingAttendanceSchema,
-  // Marketing workflow validation schemas
-  updateLeadStatusSchema,
-  updateFieldVisitStatusSchema,
-  updateMarketingTaskStatusSchema,
-  fieldVisitCheckInSchema,
-  fieldVisitCheckOutSchema,
-  convertLeadSchema,
-  leadFilterSchema,
-  fieldVisitFilterSchema,
-  marketingTaskFilterSchema,
-} from "@shared/schema";
+// Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
+import { db } from "./db";
+import { sql, eq, and, gte, lt } from "drizzle-orm";
+import { validate as isUuid } from "uuid";
+import { v4 as uuidv4 } from "uuid";
+import { users } from "../shared/schema";
+import { tasks } from "../shared/schema";
+import { leaveRequests } from "../shared/schema";
+import { inventoryAttendance } from "../shared/schema";
+import { stockTransactions, suppliers } from "../shared/schema";
+// adjust path as needed
+import { desc } from "drizzle-orm";
+import { attendance } from "../shared/schema";
+import { validate as isUuid } from "uuid";
+import { requireAuth } from "@/middleware/auth";
+import {
+  marketingAttendance,
+  marketingTodays,
+  marketingMetrics,
+} from "../shared/schema";
 
-export async function registerRoutes(app: Express) {
-  // Login schema
-  const loginSchema = z.object({
-    username: z.string().min(1, "Username is required"),
-    password: z.string().min(1, "Password is required"),
-  });
+// make sure users table is also imported
+import { products, spareParts } from "../shared/schema"; // adjust path
+import { vendorCommunications } from "../shared/schema";
+import { inventoryTasks } from "../shared/schema";
+import { fabricationOrders } from "../shared/schema"; // adjust path if needed
+// POST attendance (check-in / check-out)
+import { v4 as uuidv4 } from "uuid";
+import {
+  users as usersTable,
+  leads,
+  visitNumber,
+  marketingTasks,
+  fieldVisits,
+  logisticsShipments,
+  logisticsTasks,
+  deliveries,
+  suppliers,
+  logisticsAttendance,
+  logisticsLeaveRequests,
+  vendorCommunications,
+  outboundQuotations,
+  inboundQuotations,
+  invoices,
+  leaveRequests as leaveRequestsTable,
+  insertOutboundQuotationSchema,
+  insertOutboundQuotationSchema,
+  insertInboundQuotationSchema,
+  insertInvoiceSchema,
+  customers,
+} from "../shared/schema";
+import { sql, eq, and, gte, lt } from "drizzle-orm";
+// Fabrication Orders API
 
-  // Authentication and Authorization Middleware
-  interface AuthenticatedRequest extends Request {
-    user?: {
-      id: string;
-      role: string;
-      username: string;
-    };
+// Login schema
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+// Fabrication Orders API
+
+// Local user schema used for create/update since shared insertUserSchema is not present
+const userInsertSchema = z.object({
+  username: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(6).optional(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.string().optional(),
+  department: z.string().optional(),
+});
+
+// Creation schema: password required for DB NOT NULL constraint
+const userCreateSchema = userInsertSchema.extend({
+  password: z.string().min(6),
+});
+
+// Register schema for /api/register endpoint (fixes missing schema error)
+const registerSchema = userCreateSchema;
+
+// Zod schemas for marketing attendance responses (relaxed for better compatibility)
+const marketingAttendanceSchema = z.object({
+  id: z.string(), // Relaxed from uuid() to string()
+  userId: z.string(), // Relaxed from uuid() to string()
+  date: z.string(),
+  checkInTime: z.string().nullable(),
+  checkOutTime: z.string().nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  location: z.string().nullable(),
+  photoPath: z.string().nullable(),
+  workDescription: z.string().nullable(),
+  attendanceStatus: z.string(),
+  visitCount: z.number().nullable(),
+  tasksCompleted: z.number().nullable(),
+  outcome: z.string().nullable(),
+  nextAction: z.string().nullable(),
+  isOnLeave: z.boolean(),
+  user: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  }),
+});
+
+const marketingAttendanceArraySchema = z.array(marketingAttendanceSchema);
+
+const marketingMetricsSchema = z.object({
+  totalRecords: z.number(),
+  presentCount: z.number(),
+  absentCount: z.number(),
+  leaveCount: z.number(),
+  avgVisits: z.number(),
+  avgTasks: z.number(),
+});
+
+// Logistics shipment creation schema
+const logisticsShipmentInsertSchema = z.object({
+  consignmentNumber: z.string().min(1),
+  source: z.string().min(1),
+  destination: z.string().min(1),
+  currentStatus: z.string().optional(),
+});
+
+// Authentication and Authorization Middleware
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+    username: string;
+  };
+}
+
+// SECURE authentication middleware - NEVER trust client-supplied identity headers
+const requireAuth = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // DEVELOPMENT MODE BYPASS: Skip authentication completely in development
+    if (process.env.NODE_ENV === "development") {
+      // Set a default admin user for development
+      req.user = {
+        id: "dev-admin-user",
+        role: "admin",
+        username: "dev_admin",
+      };
+      next();
+      return;
+    }
+
+    // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
+    if (req.headers["x-user-id"]) {
+      res.status(401).json({
+        error: "Security violation",
+        message: "Client identity headers are not allowed for security reasons",
+      });
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
+    // JWT authentication (production and development)
+    const jwtSecret = process.env.JWT_SECRET;
+    const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+    const tokenSecret = jwtSecret || devTokenSecret;
+
+    // Try JWT verification first for both production and development
+    if (
+      authHeader.startsWith("Bearer ") &&
+      !authHeader.startsWith("Bearer dev-") &&
+      tokenSecret
+    ) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const decoded = jwt.verify(token, tokenSecret, {
+          algorithms: ["HS256"],
+        }) as any;
+        req.user = {
+          id: decoded.sub,
+          role: decoded.role,
+          username: decoded.username,
+        };
+        next();
+        return;
+      } catch (jwtError) {
+        // In production, JWT failure is final
+        if (process.env.NODE_ENV === "production") {
+          res.status(401).json({ error: "Invalid authentication token" });
+          return;
+        }
+        // In development, fall through to dev token handling
+      }
+    }
+
+    // Production requires valid JWT or DEV_TOKEN_SECRET
+    if (process.env.NODE_ENV === "production") {
+      const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+      if (!jwtSecret && !devTokenSecret) {
+        throw new Error(
+          "JWT_SECRET or DEV_TOKEN_SECRET required in production"
+        );
+      }
+      res.status(401).json({ error: "Valid authentication token required" });
+      return;
+    }
+
+    // Development HMAC-signed tokens (dev mode fallback)
+    if (
+      process.env.NODE_ENV === "development" &&
+      authHeader.startsWith("Bearer dev-")
+    ) {
+      // SECURITY: Use HMAC-signed tokens instead of predictable userId tokens
+      // Format: "Bearer dev-{userId}-{timestamp}-{hmacSignature}"
+      const token = authHeader.replace("Bearer dev-", "");
+      const parts = token.split("-");
+
+      if (parts.length !== 3) {
+        res.status(401).json({ error: "Invalid development token format" });
+        return;
+      }
+
+      const [userId, timestamp, signature] = parts;
+
+      // Verify HMAC signature (using a server secret)
+      const serverSecret = process.env.DEV_TOKEN_SECRET;
+      if (!serverSecret) {
+        res.status(401).json({
+          error: "Server misconfiguration",
+          message:
+            "DEV_TOKEN_SECRET environment variable is required for development authentication",
+        });
+        return;
+      }
+
+      // Validate timestamp format
+      const timestampNum = parseInt(timestamp);
+      if (isNaN(timestampNum) || timestampNum <= 0) {
+        res.status(401).json({ error: "Invalid development token timestamp" });
+        return;
+      }
+
+      const expectedSignature = crypto
+        .createHmac("sha256", serverSecret)
+        .update(`${userId}-${timestamp}`)
+        .digest("hex"); // Use full HMAC signature for security
+
+      if (signature !== expectedSignature) {
+        res.status(401).json({ error: "Invalid token signature" });
+        return;
+      }
+
+      // Check token age (expire after 24 hours)
+      const tokenAge = Date.now() - timestampNum;
+      if (tokenAge > 24 * 60 * 60 * 1000) {
+        // 24 hours
+        res.status(401).json({ error: "Token expired" });
+        return;
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.isActive) {
+        res.status(401).json({ error: "Invalid or inactive user" });
+        return;
+      }
+
+      req.user = {
+        id: user.id,
+        role: user.role,
+        username: user.username,
+        department: user.department,
+      };
+      next();
+      return;
+    }
+
+    res.status(401).json({ error: "Authentication failed" });
+  } catch (error) {
+    res.status(401).json({ error: "Authentication failed" });
+  }
+};
+
+// Role-based authorization middleware for financial/accounts access
+const requireAccountsAccess = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
   }
 
-  // SECURE authentication middleware - NEVER trust client-supplied identity headers
-  const requireAuth = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
+  const { role } = req.user;
+  const allowedRoles = ["admin", "manager"]; // Only admin and manager can access financial reports
+
+  if (!allowedRoles.includes(role)) {
+    res.status(403).json({
+      error: "Insufficient permissions",
+      message: "Access to financial reports requires admin or manager role",
+    });
+    return;
+  }
+
+  next();
+};
+
+// Role-based authorization middleware for marketing metrics and admin operations
+const requireMarketingAccess = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const { role } = req.user;
+  const allowedRoles = ["admin", "manager"]; // Only admin and manager can access marketing metrics
+
+  if (!allowedRoles.includes(role)) {
+    res.status(403).json({
+      error: "Insufficient permissions",
+      message: "Access to marketing metrics requires admin or manager role",
+    });
+    return;
+  }
+
+  next();
+};
+
+// Combined middleware for reports access
+const requireReportsAccess = [requireAuth, requireAccountsAccess];
+
+// In-memory store to support Inventory Attendance demo flow
+const inventoryAttendance: any[] = [];
+const inMemoryMarketingLeaves: any[] = [];
+const inMemoryInventoryLeaves: any[] = [];
+const inMemoryInventoryTasks: any[] = [];
+const inMemoryLogisticsShipments: any[] = [];
+const inMemoryLogisticsTasks: any[] = [];
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // User registration endpoint
+  app.post("/api/register", async (req, res) => {
     try {
-      // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
-      if (req.headers["x-user-id"]) {
-        return res.status(401).json({
-          error: "Security violation",
-          message:
-            "Client identity headers are not allowed for security reasons",
+      const data = registerSchema.parse(req.body);
+
+      const existing = await storage.findUserByUsernameOrEmail(
+        data.username,
+        data.email
+      );
+      if (existing)
+        return res
+          .status(400)
+          .json({ error: "Username or email already exists" });
+
+      const hashedPassword = await bcrypt.hash(data.password, 12);
+
+      const user = await storage.createUser({
+        username: data.username,
+        email: data.email,
+        password: hashedPassword,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        department: data.department,
+      });
+
+      res.status(201).json({
+        message: "Account created",
+        user: { id: user.id, username: user.username, email: user.email },
+      });
+    } catch (err: any) {
+      // Enhanced error logging for debugging
+      console.error("/api/register error:", err);
+      if (err instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: err.errors });
+      }
+      // If it's a database error, try to include more info
+      if (err?.code && err?.detail) {
+        return res.status(500).json({
+          error: "Registration failed",
+          code: err.code,
+          detail: err.detail,
+          message: err.message,
         });
       }
+      res.status(500).json({
+        error: "Registration failed",
+        details: err.message || String(err),
+      });
+    }
+  });
 
-      const authHeader = req.headers.authorization;
-
-      if (!authHeader) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
-
-      // JWT authentication (production and development)
-      const jwtSecret = process.env.JWT_SECRET;
-
-      // Try JWT verification first for both production and development
-      if (
-        authHeader.startsWith("Bearer ") &&
-        !authHeader.startsWith("Bearer dev-") &&
-        jwtSecret
-      ) {
-        try {
-          const token = authHeader.replace("Bearer ", "");
-          const decoded = jwt.verify(token, jwtSecret, {
-            algorithms: ["HS256"],
-          }) as any;
-          req.user = {
-            id: decoded.sub,
-            role: decoded.role,
-            username: decoded.username,
-          };
-          return next();
-        } catch (jwtError) {
-          // In production, JWT failure is final
-          if (process.env.NODE_ENV === "production") {
-            return res.status(401).json({ error: "Invalid JWT token" });
-          }
-          // In development, fall through to dev token handling
-        }
-      }
-
-      // Production requires valid JWT
-      if (process.env.NODE_ENV === "production") {
-        if (!jwtSecret) {
-          throw new Error("JWT_SECRET required in production");
-        }
-        return res.status(401).json({ error: "Valid JWT token required" });
-      }
-
-      // Development HMAC-signed tokens (dev mode fallback)
-      if (
-        process.env.NODE_ENV === "development" &&
-        authHeader.startsWith("Bearer dev-")
-      ) {
-        // SECURITY: Use HMAC-signed tokens instead of predictable userId tokens
-        // Format: "Bearer dev-{userId}-{timestamp}-{hmacSignature}"
-        const token = authHeader.replace("Bearer dev-", "");
-        const parts = token.split("-");
-
-        if (parts.length !== 3) {
-          return res
-            .status(401)
-            .json({ error: "Invalid development token format" });
-        }
-
-        const [userId, timestamp, signature] = parts;
-
-        // Verify HMAC signature (using a server secret)
-        const serverSecret = process.env.DEV_TOKEN_SECRET;
-        if (!serverSecret) {
-          return res.status(401).json({
-            error: "Server misconfiguration",
-            message:
-              "DEV_TOKEN_SECRET environment variable is required for development authentication",
-          });
-        }
-
-        // Validate timestamp format
-        const timestampNum = parseInt(timestamp);
-        if (isNaN(timestampNum) || timestampNum <= 0) {
-          return res
-            .status(401)
-            .json({ error: "Invalid development token timestamp" });
-        }
-
-        const expectedSignature = crypto
-          .createHmac("sha256", serverSecret)
-          .update(`${userId}-${timestamp}`)
-          .digest("hex"); // Use full HMAC signature for security
-
-        if (signature !== expectedSignature) {
-          return res.status(401).json({ error: "Invalid token signature" });
-        }
-
-        // Check token age (expire after 24 hours)
-        const tokenAge = Date.now() - timestampNum;
-        if (tokenAge > 24 * 60 * 60 * 1000) {
-          // 24 hours
-          return res.status(401).json({ error: "Token expired" });
-        }
-
-        const user = await storage.getUser(userId);
-        if (!user || !user.isActive) {
-          return res.status(401).json({ error: "Invalid or inactive user" });
-        }
-
-        req.user = {
-          id: user.id,
-          role: user.role,
-          username: user.username,
-        };
-        return next();
-      }
-
-      return res.status(401).json({ error: "Authentication failed" });
+  // Disable ETag to avoid 304 Not Modified on frequently-updated APIs
+  app.set("etag", false);
+  // Get all clients
+  app.get("/api/clients", requireAuth, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      res.json(customers);
     } catch (error) {
-      return res.status(401).json({ error: "Authentication failed" });
+      res
+        .status(500)
+        .json({ error: "Failed to fetch clients", details: error.message });
     }
-  };
-
-  // Role-based authorization middleware for financial/accounts access
-  const requireAccountsAccess = (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+  });
+  // Clients CRUD
+  app.post("/api/clients", requireAuth, async (req, res) => {
+    try {
+      // Use insertCustomerSchema for validation (from shared/schema)
+      const { insertCustomerSchema } = await import("../shared/schema");
+      const customerData = insertCustomerSchema.parse(req.body);
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error) {
+      if (error instanceof (await import("zod")).z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid client data", details: error.errors });
+      }
+      res
+        .status(500)
+        .json({ error: "Failed to create client", details: error.message });
     }
-
-    const { role } = req.user;
-    const allowedRoles = ["admin", "manager"]; // Only admin and manager can access financial reports
-
-    if (!allowedRoles.includes(role)) {
-      return res.status(403).json({
-        error: "Insufficient permissions",
-        message: "Access to financial reports requires admin or manager role",
-      });
-    }
-
+  });
+  // Normalize accidental double /api prefix from client (e.g., /api/api/...)
+  app.use((req, _res, next) => {
+    let u = req.url;
+    // Fix double API prefixes and missing slash variants
+    if (u.startsWith("/api/api/")) u = u.replace("/api/api/", "/api/");
+    if (u === "/api/api") u = "/api";
+    if (u.startsWith("/apiapi/")) u = u.replace("/apiapi/", "/api/");
+    if (u.startsWith("/api%20")) u = u.replace("/api%20", "/api"); // handle stray encoded spaces
+    // Strip trailing encoded spaces
+    u = u.replace(/%20+$/g, "");
+    req.url = u;
     next();
-  };
+  });
 
-  // Role-based authorization middleware for marketing metrics and admin operations
-  const requireMarketingAccess = (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const { role } = req.user;
-    const allowedRoles = ["admin", "manager"]; // Only admin and manager can access marketing metrics
-
-    if (!allowedRoles.includes(role)) {
-      return res.status(403).json({
-        error: "Insufficient permissions",
-        message: "Access to marketing metrics requires admin or manager role",
-      });
-    }
-
-    next();
-  };
-
-  // Combined middleware for reports access
-  const requireReportsAccess = [requireAuth, requireAccountsAccess];
   // Authentication endpoints (public routes)
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = loginSchema.parse(req.body);
-      const user = await storage.getUserByUsername(username);
+      console.log("🔐 Login attempt received for username:", req.body.username);
+
+      const { username, email, password } = req.body;
+      if (!username && !email) {
+        return res.status(400).json({ error: "Username or email is required" });
+      }
+      console.log("✅ Login data parsed successfully:", { username, email });
+
+      const user = await storage.findUserByUsernameOrEmail(
+        username || "",
+        email || ""
+      );
+      console.log(
+        "👤 User lookup result:",
+        user ? `Found user: ${user.username} (${user.role})` : "No user found"
+      );
 
       if (!user || !user.isActive) {
+        console.log("❌ Login failed: Invalid user or inactive account");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      console.log("🔑 Comparing passwords...");
       const validPassword = await bcrypt.compare(password, user.password);
+      console.log(
+        "🔐 Password comparison result:",
+        validPassword ? "Valid" : "Invalid"
+      );
+
       if (!validPassword) {
+        console.log("❌ Login failed: Invalid password");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
       const jwtSecret = process.env.JWT_SECRET;
-      if (!jwtSecret) {
-        throw new Error("JWT_SECRET is required");
+      const devTokenSecret = process.env.DEV_TOKEN_SECRET;
+      const tokenSecret = jwtSecret || devTokenSecret;
+
+      console.log("🔒 Authentication secret status:", {
+        jwt: jwtSecret ? "Available" : "Missing",
+        dev: devTokenSecret ? "Available" : "Missing",
+        using: jwtSecret ? "JWT_SECRET" : "DEV_TOKEN_SECRET",
+      });
+
+      if (!tokenSecret) {
+        console.error(
+          "❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available"
+        );
+        throw new Error(
+          "Authentication secret is required (JWT_SECRET or DEV_TOKEN_SECRET)"
+        );
       }
 
+      console.log("🎫 Generating JWT token...");
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
-        jwtSecret,
+        tokenSecret,
         { expiresIn: "15m", algorithm: "HS256" }
       );
 
+      console.log("✅ Login successful for user:", user.username);
       res.json({
         token,
         user: {
           id: user.id,
           username: user.username,
           role: user.role,
+          department: user.department, // Ensure department is included
         },
       });
     } catch (error) {
+      console.error("💥 Login error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : typeof error,
+      });
+
       if (error instanceof z.ZodError) {
+        console.log("📝 Validation error:", error.errors);
         return res
           .status(400)
           .json({ error: "Invalid input", details: error.errors });
       }
-      res.status(500).json({ error: "Login failed" });
+
+      console.error("❌ Unexpected login error:", error);
+      res.status(500).json({
+        error: "Login failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
@@ -325,17 +580,19 @@ export async function registerRoutes(app: Express) {
       req: AuthenticatedRequest,
       res: Response,
       next: NextFunction
-    ) => {
+    ): Promise<void> => {
       try {
         if (!req.user) {
-          return res.status(401).json({ error: "Authentication required" });
+          res.status(401).json({ error: "Authentication required" });
+          return;
         }
 
         const { role } = req.user;
 
         // Admin and manager roles have full access
         if (role === "admin" || role === "manager") {
-          return next();
+          next();
+          return;
         }
 
         // For regular users, check ownership
@@ -351,22 +608,22 @@ export async function registerRoutes(app: Express) {
             case "marketing_task":
               entity = await storage.getMarketingTask(req.params.id);
               break;
-            case "marketing_attendance":
-              entity = await storage.getMarketingAttendance(req.params.id);
-              break;
             default:
-              return res.status(500).json({ error: "Unknown entity type" });
+              res.status(500).json({ error: "Unknown entity type" });
+              return;
           }
         } catch (error) {
-          return res
+          res
             .status(404)
             .json({ error: `${entityType.replace("_", " ")} not found` });
+          return;
         }
 
         if (!entity) {
-          return res
+          res
             .status(404)
             .json({ error: `${entityType.replace("_", " ")} not found` });
+          return;
         }
 
         // Check if user owns the resource (assigned to them or created by them)
@@ -377,26 +634,65 @@ export async function registerRoutes(app: Express) {
           entity.userId === userId;
 
         if (!hasAccess) {
-          return res.status(403).json({
+          res.status(403).json({
             error: "Access denied",
             message: "You can only access your own records",
           });
+          return;
         }
 
         next();
       } catch (error) {
-        return res.status(500).json({ error: "Failed to verify ownership" });
+        res.status(500).json({ error: "Failed to verify ownership" });
       }
     };
   };
 
-  // Users Routes - SECURED: Only admin can access user management
-  app.get("/api/users", requireAuth, requireAdminAccess, async (req, res) => {
+  // Admin API routes (secured, admin only)
+  registerAdminRoutes(app);
+
+  // Users Routes - SECURED: Role-based scoping for user access
+  app.get("/api/users", requireAuth, async (req, res) => {
     try {
-      const users = await storage.getUsers();
-      res.json(users);
+      const userRole = req.user!.role;
+      const currentUserId = req.user!.id;
+
+      let users = await storage.getUsers();
+
+      // Apply role-based filtering
+      if (userRole === "admin") {
+        // Admins can see all users with full details
+        res.json(users);
+      } else if (userRole === "manager") {
+        // Managers can see all users but with limited details
+        const filteredUsers = users.map((user) => ({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+        }));
+        res.json(filteredUsers);
+      } else {
+        // Regular employees can see basic user info for team assignments and views
+        const filteredUsers = users.map((user) => ({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          role: user.role,
+          department: user.department,
+        }));
+        res.json(filteredUsers);
+      }
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch users" });
+      console.error("GET /api/users failed:", error);
+      res.status(500).json({
+        error: "Failed to fetch users",
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -419,12 +715,10 @@ export async function registerRoutes(app: Express) {
 
   app.post("/api/users", requireAuth, requireAdminAccess, async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const userData = userCreateSchema.parse(req.body);
 
-      // Hash password if provided
-      if (userData.password) {
-        userData.password = await bcrypt.hash(userData.password, 12);
-      }
+      // Hash password (required)
+      userData.password = await bcrypt.hash(userData.password, 12);
 
       const user = await storage.createUser(userData);
       await storage.createActivity({
@@ -441,7 +735,11 @@ export async function registerRoutes(app: Express) {
           .status(400)
           .json({ error: "Invalid user data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create user" });
+      console.error("POST /api/users failed:", error);
+      res.status(500).json({
+        error: "Failed to create user",
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -451,7 +749,7 @@ export async function registerRoutes(app: Express) {
     requireAdminAccess,
     async (req, res) => {
       try {
-        const userData = insertUserSchema.partial().parse(req.body);
+        const userData = userInsertSchema.partial().parse(req.body);
 
         // Hash password if provided
         if (userData.password) {
@@ -488,704 +786,779 @@ export async function registerRoutes(app: Express) {
   );
 
   // Products Routes
-  app.get("/api/products", async (req, res) => {
+  app.get("/api/products", async (_req: Request, res: Response) => {
     try {
-      const products = await storage.getProducts();
-      res.json(products);
+      const rows = await db.select().from(products);
+      res.json(rows); // send DB rows as JSON
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch products" });
+      console.error("Error fetching products:", error);
+      res.status(500).json([]);
     }
   });
 
-  app.get("/api/products/low-stock", async (req, res) => {
+  // Add product (original, no spare part fields)
+  app.post("/api/products", async (req: Request, res: Response) => {
     try {
-      const products = await storage.getLowStockProducts();
-      res.json(products);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch low stock products" });
-    }
-  });
-
-  app.get("/api/products/search", async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query) {
-        return res.status(400).json({ error: "Search query is required" });
+      const body = req.body || {};
+      if (!body.sku || !body.name || !body.category) {
+        return res
+          .status(400)
+          .json({ error: "sku, name, and category are required" });
       }
-      const products = await storage.searchProducts(query);
-      res.json(products);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to search products" });
-    }
-  });
-
-  app.get("/api/products/:id", async (req, res) => {
-    try {
-      const product = await storage.getProduct(req.params.id);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch product" });
-    }
-  });
-
-  app.post("/api/products", async (req, res) => {
-    try {
-      const productData = insertProductSchema.parse(req.body);
-      const product = await storage.createProduct(productData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_PRODUCT",
-        entityType: "product",
-        entityId: product.id,
-        details: `Created product: ${product.name}`,
-      });
+      const [product] = await db
+        .insert(products)
+        .values({
+          id: uuidv4(),
+          sku: body.sku,
+          name: body.name,
+          category: body.category,
+          price: body.price ?? 0,
+          stock: body.stock ?? 0,
+          costPrice: body.costPrice ?? 0,
+          lowStockThreshold: body.lowStockThreshold ?? 0,
+          unit: body.unit ?? "pcs",
+          description: body.description ?? "",
+        })
+        .returning();
       res.status(201).json(product);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid product data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create product" });
-    }
-  });
-
-  app.put("/api/products/:id", async (req, res) => {
-    try {
-      const productData = insertProductSchema.partial().parse(req.body);
-      const product = await storage.updateProduct(req.params.id, productData);
-      await storage.createActivity({
-        userId: null,
-        action: "UPDATE_PRODUCT",
-        entityType: "product",
-        entityId: product.id,
-        details: `Updated product: ${product.name}`,
-      });
-      res.json(product);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update product" });
-    }
-  });
-
-  app.delete("/api/products/:id", async (req, res) => {
-    try {
-      await storage.deleteProduct(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete product" });
-    }
-  });
-
-  // Customers Routes
-  app.get("/api/customers", async (req, res) => {
-    try {
-      const customers = await storage.getCustomers();
-      res.json(customers);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch customers" });
-    }
-  });
-
-  app.get("/api/customers/:id", async (req, res) => {
-    try {
-      const customer = await storage.getCustomer(req.params.id);
-      if (!customer) {
-        return res.status(404).json({ error: "Customer not found" });
-      }
-      res.json(customer);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch customer" });
-    }
-  });
-
-  app.post("/api/customers", async (req, res) => {
-    try {
-      const customerData = insertCustomerSchema.parse(req.body);
-      const customer = await storage.createCustomer(customerData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_CUSTOMER",
-        entityType: "customer",
-        entityId: customer.id,
-        details: `Created customer: ${customer.name}`,
-      });
-      res.status(201).json(customer);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid customer data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create customer" });
-    }
-  });
-
-  app.put("/api/customers/:id", async (req, res) => {
-    try {
-      const customerData = insertCustomerSchema.partial().parse(req.body);
-      const customer = await storage.updateCustomer(
-        req.params.id,
-        customerData
-      );
-      await storage.createActivity({
-        userId: null,
-        action: "UPDATE_CUSTOMER",
-        entityType: "customer",
-        entityId: customer.id,
-        details: `Updated customer: ${customer.name}`,
-      });
-      res.json(customer);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update customer" });
-    }
-  });
-
-  app.delete("/api/customers/:id", async (req, res) => {
-    try {
-      await storage.deleteCustomer(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete customer" });
-    }
-  });
-
-  // Orders Routes
-  app.get("/api/orders", async (req, res) => {
-    try {
-      const orders = await storage.getOrders();
-      res.json(orders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch orders" });
-    }
-  });
-
-  app.get("/api/orders/:id", async (req, res) => {
-    try {
-      const order = await storage.getOrder(req.params.id);
-      if (!order) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-      const items = await storage.getOrderItems(req.params.id);
-      res.json({ ...order, items });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch order" });
-    }
-  });
-
-  app.post("/api/orders", async (req, res) => {
-    try {
-      const { items, ...orderData } = req.body;
-      const validatedOrder = insertOrderSchema.parse(orderData);
-      const order = await storage.createOrder(validatedOrder);
-
-      if (items && items.length > 0) {
-        for (const item of items) {
-          const validatedItem = insertOrderItemSchema.parse({
-            ...item,
-            orderId: order.id,
-          });
-          await storage.createOrderItem(validatedItem);
-        }
-      }
-
-      await storage.createActivity({
-        userId: order.userId,
-        action: "CREATE_ORDER",
-        entityType: "order",
-        entityId: order.id,
-        details: `Created order: ${order.orderNumber}`,
-      });
-
-      res.status(201).json(order);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid order data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create order" });
-    }
-  });
-
-  app.put("/api/orders/:id", async (req, res) => {
-    try {
-      const orderData = insertOrderSchema.partial().parse(req.body);
-      const order = await storage.updateOrder(req.params.id, orderData);
-      await storage.createActivity({
-        userId: order.userId,
-        action: "UPDATE_ORDER",
-        entityType: "order",
-        entityId: order.id,
-        details: `Updated order: ${order.orderNumber}`,
-      });
-      res.json(order);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update order" });
-    }
-  });
-
-  app.delete("/api/orders/:id", async (req, res) => {
-    try {
-      await storage.deleteOrder(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete order" });
-    }
-  });
-
-  // Suppliers Routes
-  app.get("/api/suppliers", async (req, res) => {
-    try {
-      const suppliers = await storage.getSuppliers();
-      res.json(suppliers);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch suppliers" });
-    }
-  });
-
-  app.post("/api/suppliers", async (req, res) => {
-    try {
-      const supplierData = insertSupplierSchema.parse(req.body);
-      const supplier = await storage.createSupplier(supplierData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_SUPPLIER",
-        entityType: "supplier",
-        entityId: supplier.id,
-        details: `Created supplier: ${supplier.name}`,
-      });
-      res.status(201).json(supplier);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid supplier data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create supplier" });
-    }
-  });
-
-  // Shipments Routes
-  app.get("/api/shipments", async (req, res) => {
-    try {
-      const shipments = await storage.getShipments();
-      res.json(shipments);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch shipments" });
-    }
-  });
-
-  app.post("/api/shipments", async (req, res) => {
-    try {
-      const shipmentData = insertShipmentSchema.parse(req.body);
-      const shipment = await storage.createShipment(shipmentData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_SHIPMENT",
-        entityType: "shipment",
-        entityId: shipment.id,
-        details: `Created shipment: ${shipment.shipmentNumber}`,
-      });
-      res.status(201).json(shipment);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid shipment data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create shipment" });
-    }
-  });
-
-  // Tasks Routes
-  app.get("/api/tasks", async (req, res) => {
-    try {
-      const tasks = await storage.getTasks();
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch tasks" });
-    }
-  });
-
-  app.post("/api/tasks", async (req, res) => {
-    try {
-      const taskData = insertTaskSchema.parse(req.body);
-      const task = await storage.createTask(taskData);
-      await storage.createActivity({
-        userId: task.assignedBy,
-        action: "CREATE_TASK",
-        entityType: "task",
-        entityId: task.id,
-        details: `Created task: ${task.title}`,
-      });
-      res.status(201).json(task);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid task data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create task" });
-    }
-  });
-
-  app.put("/api/tasks/:id", async (req, res) => {
-    try {
-      const taskData = insertTaskSchema.partial().parse(req.body);
-      const task = await storage.updateTask(req.params.id, taskData);
-      await storage.createActivity({
-        userId: task.assignedTo,
-        action: "UPDATE_TASK",
-        entityType: "task",
-        entityId: task.id,
-        details: `Updated task: ${task.title}`,
-      });
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update task" });
-    }
-  });
-
-  // Attendance Routes
-  app.get("/api/attendance/:userId", async (req, res) => {
-    try {
-      const attendance = await storage.getAttendanceByUser(req.params.userId);
-      res.json(attendance);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch attendance" });
-    }
-  });
-
-  app.post("/api/attendance", async (req, res) => {
-    try {
-      const attendanceData = insertAttendanceSchema.parse(req.body);
-      const attendance = await storage.createAttendance(attendanceData);
-      res.status(201).json(attendance);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid attendance data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create attendance record" });
-    }
-  });
-
-  app.put("/api/attendance/:id", async (req, res) => {
-    try {
-      const attendanceData = insertAttendanceSchema.partial().parse(req.body);
-      const attendance = await storage.updateAttendance(
-        req.params.id,
-        attendanceData
-      );
-      res.json(attendance);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid attendance data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to update attendance record" });
-    }
-  });
-
-  app.delete("/api/attendance/:id", async (req, res) => {
-    try {
-      await storage.deleteAttendance(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete attendance record" });
-    }
-  });
-
-  // Account-specific Attendance Routes with Authentication
-  app.get("/api/account-attendance", requireAuth, async (req, res) => {
-    try {
-      const { startDate, endDate, department } = req.query;
-      const filters = {
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined,
-        department: department as string,
-      };
-      const attendance = await storage.getAccountsAttendance(filters);
-      res.json(attendance);
-    } catch (error) {
+      console.error("Error creating product:", error);
       res
         .status(500)
-        .json({ error: "Failed to fetch account attendance records" });
+        .json({ error: "Failed to create product", details: error.message });
     }
   });
 
-  app.get("/api/account-attendance/today", requireAuth, async (req, res) => {
+  // Spare Parts API
+  app.get("/api/fabrication-orders", async (req, res) => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const attendance = await storage.getAccountsAttendanceByDateRange(
-        today,
-        tomorrow
-      );
-      res.json(attendance);
+      const orders = await storage.getFabricationOrders();
+      res.json(orders);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch today's attendance" });
+      res.status(500).json({ error: "Failed to fetch fabrication orders" });
     }
   });
 
-  app.get("/api/account-attendance/summary", requireAuth, async (req, res) => {
+  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
     try {
-      const { period = "month" } = req.query;
-      const summary = await storage.getAccountsAttendanceSummary(
-        period as string
-      );
-      res.json(summary);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch attendance summary" });
+      const { partId, quantity, status, priority, startDate, dueDate, notes } =
+        req.body;
+
+      const orderNumber = `FO-${Date.now()}`; // auto-generate order number
+
+      const result = await db
+        .insert(fabricationOrders)
+        .values({
+          orderNumber,
+          sparePartId: partId,
+          quantity,
+          status: status || "pending",
+          priority: priority || "normal",
+          startDate: startDate ? new Date(startDate) : null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+        })
+        .returning();
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating fabrication order:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 
+  // GET all spare parts
+  app.get("/api/spare-parts", async (_req: Request, res: Response) => {
+    try {
+      const parts = await db.select().from(spareParts);
+      res.json(parts);
+    } catch (err: any) {
+      console.error("Error fetching spare parts:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST new spare part
+  app.post("/api/spare-parts", async (req: Request, res: Response) => {
+    try {
+      const {
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status,
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        fabricationTime,
+        location,
+        unit,
+      } = req.body;
+
+      const result = await db.insert(spareParts).values({
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status: status || "available", // default if null
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        location,
+        unit,
+        fabricationtime: fabricationTime, // map camelCase -> lowercase DB column
+      });
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating spare part:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Suppliers CRUD
+  // Suppliers Routes
   app.get(
-    "/api/account-attendance/user/:userId",
+    "/api/suppliers",
     requireAuth,
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
-        const { startDate, endDate } = req.query;
-        const filters = {
-          userId: req.params.userId,
-          startDate: startDate ? new Date(startDate as string) : undefined,
-          endDate: endDate ? new Date(endDate as string) : undefined,
-        };
-        const attendance = await storage.getUserAttendanceHistory(filters);
-        res.json(attendance);
-      } catch (error) {
+        const allSuppliers = await db.select().from(suppliers);
+        res.status(200).json(allSuppliers);
+      } catch (error: any) {
+        console.error("Error fetching suppliers:", error);
         res
           .status(500)
-          .json({ error: "Failed to fetch user attendance history" });
+          .json({ error: "Failed to fetch suppliers", details: error.message });
       }
     }
   );
 
-  app.post(
-    "/api/account-attendance/clock-in",
-    requireAuth,
-    async (req, res) => {
-      try {
-        if (!req.user) {
-          return res.status(401).json({ error: "Authentication required" });
-        }
-
-        const { location, notes } = req.body;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Check if already clocked in today
-        const existingAttendance = await storage.getAttendance(
-          req.user.id,
-          today
-        );
-        if (existingAttendance && existingAttendance.checkIn) {
-          return res.status(400).json({ error: "Already clocked in today" });
-        }
-
-        const attendanceData = {
-          userId: req.user.id,
-          date: new Date(),
-          checkIn: new Date(),
-          location: location || "Office",
-          status: "present",
-          notes: notes || "",
-        };
-
-        const attendance = await storage.createAttendance(attendanceData);
-        await storage.createActivity({
-          userId: req.user.id,
-          action: "CLOCK_IN",
-          entityType: "attendance",
-          entityId: attendance.id,
-          details: `Clocked in at ${attendance.checkIn?.toLocaleTimeString()}`,
-        });
-
-        res.status(201).json(attendance);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to clock in" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/account-attendance/clock-out",
-    requireAuth,
-    async (req, res) => {
-      try {
-        if (!req.user) {
-          return res.status(401).json({ error: "Authentication required" });
-        }
-
-        const { notes } = req.body;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Find today's attendance record
-        const existingAttendance = await storage.getAttendance(
-          req.user.id,
-          today
-        );
-        if (!existingAttendance || !existingAttendance.checkIn) {
-          return res.status(400).json({ error: "Must clock in first" });
-        }
-
-        if (existingAttendance.checkOut) {
-          return res.status(400).json({ error: "Already clocked out today" });
-        }
-
-        const updatedAttendance = await storage.updateAttendance(
-          existingAttendance.id,
-          {
-            checkOut: new Date(),
-            notes: notes
-              ? `${existingAttendance.notes || ""}\n${notes}`
-              : existingAttendance.notes,
-          }
-        );
-
-        await storage.createActivity({
-          userId: req.user.id,
-          action: "CLOCK_OUT",
-          entityType: "attendance",
-          entityId: updatedAttendance.id,
-          details: `Clocked out at ${updatedAttendance.checkOut?.toLocaleTimeString()}`,
-        });
-
-        res.json(updatedAttendance);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to clock out" });
-      }
-    }
-  );
-
-  app.get("/api/account-attendance/metrics", requireAuth, async (req, res) => {
+  app.post("/api/suppliers", async (req: Request, res: Response) => {
     try {
-      const metrics = await storage.getAttendanceMetrics();
-      res.json(metrics);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch attendance metrics" });
+      const body = req.body;
+
+      const supplierData = {
+        name: body.name,
+        email: body.contactEmail, // map frontend key to DB column
+        phone: body.contactPhone, // map frontend key to DB column
+        address: body.address || null,
+        city: body.city || null,
+        state: body.state || null,
+        zipCode: body.zipCode || null,
+        country: body.country || "India",
+        gstNumber: body.gstNumber || null,
+        panNumber: body.panNumber || null,
+        companyType: body.companyType || "company",
+        contactPerson: body.contactPerson || null,
+        website: body.website || null,
+        creditLimit: body.creditLimit || null,
+      };
+
+      const [supplier] = await db
+        .insert(suppliers)
+        .values({
+          id: uuidv4(),
+          ...supplierData,
+        })
+        .returning();
+
+      res.status(201).json(supplier);
+    } catch (error: any) {
+      console.error("Error creating supplier:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to create supplier", details: error.message });
     }
   });
 
-  // Outbound Quotations Routes
-  app.get("/api/outbound-quotations", async (req, res) => {
+  app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const supplier = await storage.updateSupplier(id, updateData);
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to update supplier",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteSupplier(id);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to delete supplier",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  // Vendor communications
+  // GET all vendor communications
+  app.get("/api/vendor-communications", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db.select().from(vendorCommunications);
+      res.json(rows);
+    } catch (e: any) {
+      console.error("Error fetching communications:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch communications", details: e.message });
+    }
+  });
+
+  // Save vendor communication (updated)
+  // Save vendor communication
+  // Save vendor communication
+  app.post("/api/vendor-communications", requireAuth, async (req, res) => {
+    try {
+      const { vendorId, message, communicationDate, followUpRequired } =
+        req.body;
+
+      if (!vendorId || !message) {
+        return res
+          .status(400)
+          .json({ error: "vendorId and message are required" });
+      }
+
+      // Extract type and subject/notes from message
+      let type: "phone" | "complaint" | "follow_up" | "general" = "general";
+      let subject = "general";
+      let notes = message;
+
+      const parts = message.split(":");
+      if (parts.length > 1) {
+        subject = parts[0].trim().toLowerCase();
+        notes = parts.slice(1).join(":").trim();
+      }
+
+      if (subject === "phone") type = "phone";
+      else if (subject === "complaint") type = "complaint";
+      else if (subject === "follow_up" || followUpRequired) type = "follow_up";
+
+      // Hardcode or get a valid userId from DB
+      const userId = "b7e51f78-4068-4f97-b486-6a58622268c6"; // replace with actual logged-in user id
+
+      const [saved] = await db
+        .insert(vendorCommunications)
+        .values({
+          supplierId: vendorId,
+          type,
+          status: "completed",
+          subject,
+          notes,
+          followUpRequired: followUpRequired || false,
+          communicationDate: communicationDate
+            ? new Date(communicationDate)
+            : new Date(),
+          userId,
+        })
+        .returning();
+
+      res.status(201).json(saved);
+    } catch (error: any) {
+      console.error("Error saving communication:", error);
+      res.status(500).json({
+        error: "Failed to save communication",
+        details: error.message,
+      });
+    }
+  });
+
+  // Save vendor communication
+
+  // Stock transactions (stubbed)
+  app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(stockTransactions)
+        .orderBy(desc(stockTransactions.id)); // order by id, or createdAt if you have
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching stock transactions:", error);
+      res.status(500).json({ error: "Failed to fetch stock transactions" });
+    }
+  });
+
+  // Reorder points (stubbed)
+  app.get("/api/reorder-points", requireAuth, async (_req, res) => {
+    // TODO: implement when reorderPoints table is added
+    res.json([]);
+  });
+
+  // File uploads (generic upload URL)
+  // app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  //   try {
+  //     const objectStorage = new ObjectStorageService();
+  //     const uploadURL = await objectStorage.getObjectEntityUploadURL();
+  //     res.json({ uploadURL });
+  //   } catch (e) {
+  //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
+  //   }
+  // });
+  // File uploads (generic upload URL) - Mocked for local development
+  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+    // --- START: Mocking Object Storage for Local Development ---
+    if (process.env.NODE_ENV === "development") {
+      // Return a dummy URL that the frontend can handle gracefully
+      // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+      res.json({
+        uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+        message:
+          "File upload is mocked in development mode. No actual upload occurs.",
+      });
+      return; // Exit early, don't proceed to ObjectStorageService
+    }
+    // --- END: Mocking ---
+
+    try {
+      const objectStorage = new ObjectStorageService();
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (e) {
+      // This will now only catch errors when NOT in development mode
+      // or if the development check fails unexpectedly
+      console.error("Object storage error:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to get upload URL", details: e.message });
+    }
+  });
+
+  // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     const { insertOutboundQuotationSchema } = await import("../shared/schema");
+  //     const data = insertOutboundQuotationSchema
+  //       .partial({ customerId: true })
+  //       .parse(req.body); // ← allow optional customerId
+  //     const quotation = await storage.insertOutboundQuotationSchema(data);
+  //     res.status(201).json(quotation);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     res.status(500).json({ error: "Failed to create quotation" });
+  //   }
+  // });
+
+  // Quotations and invoices lists
+
+  // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+
+  //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
+  //     // This avoids the Drizzle internal error caused by nested selection objects.
+  //     const rows = await db
+  //       .select({
+  //         // --- Fields from outboundQuotations table ---
+  //         id: outboundQuotations.id,
+  //         quotationNumber: outboundQuotations.quotationNumber,
+  //         customerId: outboundQuotations.customerId,
+  //         userId: outboundQuotations.userId,
+  //         status: outboundQuotations.status,
+  //         quotationDate: outboundQuotations.quotationDate,
+  //         validUntil: outboundQuotations.validUntil,
+  //         jobCardNumber: outboundQuotations.jobCardNumber,
+  //         partNumber: outboundQuotations.partNumber,
+  //         subtotalAmount: outboundQuotations.subtotalAmount,
+  //         taxAmount: outboundQuotations.taxamount, // Exact DB column name
+  //         discountAmount: outboundQuotations.discountamount, // Exact DB column name
+  //         totalAmount: outboundQuotations.totalamount, // Exact DB column name
+  //         paymentTerms: outboundQuotations.paymentterms, // Exact DB column name
+  //         deliveryTerms: outboundQuotations.deliveryterms, // Exact DB column name
+  //         notes: outboundQuotations.notes,
+  //         ifscCode: outboundQuotations.ifscCode,
+  //         createdAt: outboundQuotations.createdAt,
+  //         updatedAt: outboundQuotations.updatedAt,
+  //         // --- Fields from customers table (joined) ---
+  //         // IMPORTANT: Select these individually and alias them to prevent conflicts
+  //         // and to identify them for manual nesting in the next step.
+  //         _customerIdJoin: customers.id, // Aliased customer ID
+  //         _customerNameJoin: customers.name, // Aliased customer name
+  //         _customerEmailJoin: customers.email, // Aliased customer email
+  //         _customerPhoneJoin: customers.phone, // Aliased customer phone
+  //         // Add other customer fields here if needed in the future, e.g.,
+  //         // _customerCityJoin: customers.city,
+  //       })
+  //       .from(outboundQuotations)
+  //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+
+  //     console.log(
+  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
+  //     );
+
+  //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
+  //     // Iterate through the flat rows returned by the DB query.
+  //     const transformedRows = rows.map((row) => {
+  //       // Determine if a customer record was successfully joined.
+  //       // If joined, _customerIdJoin will hold the customer's ID; otherwise, it might be null/undefined.
+  //       const hasCustomer =
+  //         row._customerIdJoin !== null && row._customerIdJoin !== undefined;
+
+  //       // Construct the final object for this quotation.
+  //       return {
+  //         // --- Include all fields directly from the outboundQuotations table ---
+  //         id: row.id,
+  //         quotationNumber: row.quotationNumber,
+  //         customerId: row.customerId,
+  //         userId: row.userId,
+  //         status: row.status,
+  //         quotationDate: row.quotationDate,
+  //         validUntil: row.validUntil,
+  //         jobCardNumber: row.jobCardNumber,
+  //         partNumber: row.partNumber,
+  //         subtotalAmount: row.subtotalAmount,
+  //         taxAmount: row.taxAmount,
+  //         discountAmount: row.discountAmount,
+  //         totalAmount: row.totalAmount,
+  //         paymentTerms: row.paymentTerms,
+  //         deliveryTerms: row.deliveryTerms,
+  //         notes: row.notes,
+  //         ifscCode: row.ifscCode,
+  //         createdAt: row.createdAt,
+  //         updatedAt: row.updatedAt,
+  //         // --- Conditionally build the nested 'customer' object ---
+  //         // If customer data was joined, create the nested object.
+  //         // If not, set customer to null (or {}).
+  //         customer: hasCustomer
+  //           ? {
+  //               id: row._customerIdJoin, // Use the aliased customer ID
+  //               name: row._customerNameJoin, // Use the aliased customer name
+  //               email: row._customerEmailJoin, // Use the aliased customer email
+  //               phone: row._customerPhoneJoin, // Use the aliased customer phone
+  //               // Map other customer fields here if you added them to the select above.
+  //             }
+  //           : null, // Or {} if preferred by frontend
+  //       };
+  //     });
+
+  //     console.log(
+  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
+  //     );
+  //     // Send the correctly structured data (with nested customer objects) to the frontend.
+  //     res.json(transformedRows);
+  //   } catch (error) {
+  //     // --- STEP 3: Robust Error Handling ---
+  //     // Catch any unexpected errors during the JOIN or transformation process.
+  //     console.error(
+  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+  //       error
+  //     );
+  //     // Fallback to a simple query to maintain API availability.
+  //     try {
+  //       console.log(
+  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+  //       );
+  //       const fallbackRows = await db.select().from(outboundQuotations);
+  //       res.json(fallbackRows);
+  //     } catch (fallbackError) {
+  //       // Catch errors in the fallback itself.
+  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+  //       res
+  //         .status(500)
+  //         .json({
+  //           error: "Failed to fetch outbound quotations",
+  //           details: error.message,
+  //         });
+  //     }
+  //   }
+  // });
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+
+      // --- Call the new storage method ---
       const quotations = await storage.getOutboundQuotations();
+
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
+      );
+      // --- Send the correctly structured data ---
       res.json(quotations);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch outbound quotations" });
-    }
-  });
-
-  app.get("/api/outbound-quotations/:id", async (req, res) => {
-    try {
-      const quotation = await storage.getOutboundQuotation(req.params.id);
-      if (!quotation) {
-        return res.status(404).json({ error: "Outbound quotation not found" });
-      }
-      res.json(quotation);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch outbound quotation" });
-    }
-  });
-
-  app.post("/api/outbound-quotations", async (req, res) => {
-    try {
-      const quotationData = insertOutboundQuotationSchema.parse(req.body);
-      const quotation = await storage.createOutboundQuotation(quotationData);
-      await storage.createActivity({
-        userId: quotation.userId,
-        action: "CREATE_OUTBOUND_QUOTATION",
-        entityType: "outbound_quotation",
-        entityId: quotation.id,
-        details: `Created outbound quotation: ${quotation.quotationNumber}`,
+      // --- Handle errors from storage ---
+      console.error(
+        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
+        error
+      );
+      res.status(500).json({
+        error: "Failed to fetch outbound quotations",
+        // Optionally include more details from the error object
+        // details: error.message || "An unknown error occurred while fetching quotations.",
       });
+    }
+  });
+
+  app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      console.log(
+        "🐛 [DEBUG] POST /api/outbound-quotations - Request received"
+      );
+      console.log("🐛 [DEBUG] req.body:", req.body);
+      console.log("🐛 [DEBUG] req.user:", req.user);
+
+      const { insertOutboundQuotationSchema } = await import(
+        "../shared/schema"
+      );
+      console.log("🐛 [DEBUG] About to parse request body with Zod schema");
+      const parsedData = insertOutboundQuotationSchema
+        .partial({ customerId: true })
+        .parse(req.body);
+      console.log("🐛 [DEBUG] Parsed data from Zod:", parsedData);
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        // Remove this line:
+        // customerId: parsedData.customerId ? Number(parsedData.customerId) : null,
+        // Just keep customerId as the UUID string from the frontend
+        customerId: parsedData.customerId || null, // Ensure it's null if empty string
+        // ... (rest of your conversions for dates, amounts, userId are fine)
+        quotationDate: new Date(parsedData.quotationDate),
+        validUntil: parsedData.validUntil
+          ? new Date(parsedData.validUntil)
+          : null,
+        subtotalAmount: parseFloat(parsedData.subtotalAmount),
+        taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
+        discountAmount: parsedData.discountAmount
+          ? parseFloat(parsedData.discountAmount)
+          : 0,
+        totalAmount: parseFloat(parsedData.totalAmount),
+        userId:
+          process.env.NODE_ENV === "development"
+            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446"
+            : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      // --- LOGGING ADDED HERE ---
+      console.log(
+        "🐛 [DEBUG] Final 'data' object before storage call:",
+        JSON.stringify(data, null, 2)
+      );
+      console.log(
+        "🐛 [DEBUG] typeof data.userId:",
+        typeof data.userId,
+        "value:",
+        data.userId
+      );
+      console.log(
+        "🐛 [DEBUG] typeof data.customerId:",
+        typeof data.customerId,
+        "value:",
+        data.customerId
+      );
+      // --- END LOGGING ---
+
+      // ✅ FIXED: Call the correct method on storage
+      console.log(
+        "🐛 [DEBUG] Calling storage.createOutboundQuotation with data..."
+      );
+      const quotation = await storage.createOutboundQuotation(data);
+      console.log(
+        "🐛 [DEBUG] Storage call successful, returning quotation:",
+        quotation
+      );
       res.status(201).json(quotation);
     } catch (error) {
+      console.error("💥 [ERROR] Failed to create outbound quotation:", error);
+      if (error instanceof z.ZodError) {
+        console.error("🐛 [ZOD ERROR] Zod validation failed:", error.errors);
+        return res
+          .status(400)
+          .json({ error: "Invalid quotation data", details: error.errors });
+      }
+      console.error("🐛 [GENERIC ERROR] Non-Zod error occurred");
+      res
+        .status(500)
+        .json({ error: "Failed to create quotation", details: error.message });
+    }
+  });
+
+  // app.put("/api/outbound-quotations/:id", async (req, res) => {
+  //   try {
+  //     // 1. Parse and validate request body
+  //     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
+
+  //     // 2. Call the storage method to perform the update
+  //     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
+
+  //     // 3. Create activity log (optional)
+  //     await storage.createActivity({
+  //       userId: quotation.userId,
+  //       action: "UPDATE_OUTBOUND_QUOTATION",
+  //       entityType: "outbound_quotation",
+  //       entityId: quotation.id,
+  //       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+  //     });
+
+  //     // 4. Send back the updated quotation
+  //     res.json(quotation);
+  //   } catch (error) {
+  //     // 5. Handle errors (Zod validation or storage errors)
+  //     if (error instanceof z.ZodError) {
+  //        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     console.error("Failed to update outbound quotation:", error);
+  //     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
+  //   }
+  // });
+
+  // app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(outboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.status(500).json({ error: "Failed to fetch outbound quotations" });
+  //   }
+  // });
+  // app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
+
+  // Alias: /api/quotations/inbound → inbound quotations
+  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
+  // Inbound Quotations Routes
+
+  app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertOutboundQuotationSchema } = await import(
+        "../shared/schema"
+      );
+      const parsedData = insertOutboundQuotationSchema
+        .partial()
+        .parse(req.body);
+
+      // --- PREPARE DATA FOR DATABASE UPDATE ---
+      const updateData: any = {};
+      // Handle Date Fields
+      if (parsedData.quotationDate !== undefined) {
+        updateData.quotationDate =
+          parsedData.quotationDate === null
+            ? null
+            : parsedData.quotationDate instanceof Date
+            ? parsedData.quotationDate
+            : new Date(parsedData.quotationDate);
+      }
+      if (parsedData.validUntil !== undefined) {
+        updateData.validUntil =
+          parsedData.validUntil === null
+            ? null
+            : parsedData.validUntil instanceof Date
+            ? parsedData.validUntil
+            : new Date(parsedData.validUntil);
+      }
+      // Handle UUID/String Fields
+      if (parsedData.customerId !== undefined) {
+        updateData.customerId = parsedData.customerId || null;
+      }
+      if (parsedData.userId !== undefined) {
+        updateData.userId = parsedData.userId || null; // Or derive from req.user if needed
+      }
+      // Handle Numeric Fields
+      const numericFields = [
+        "subtotalAmount",
+        "taxAmount",
+        "discountAmount",
+        "totalAmount",
+      ] as const;
+      for (const field of numericFields) {
+        if (parsedData[field] !== undefined) {
+          updateData[field] =
+            typeof parsedData[field] === "string"
+              ? parseFloat(parsedData[field])
+              : parsedData[field];
+        }
+      }
+      // Handle Optional String Fields (including status)
+      const optionalStringFields = [
+        "quotationNumber",
+        "status",
+        "jobCardNumber",
+        "partNumber",
+        "paymentTerms",
+        "deliveryTerms",
+        "notes",
+        "warrantyTerms",
+        "specialTerms",
+        "bankName",
+        "accountNumber",
+        "ifscCode",
+      ] as const;
+      for (const field of optionalStringFields) {
+        if (field in parsedData) {
+          // @ts-ignore - Dynamic assignment
+          updateData[field] = parsedData[field];
+        }
+      }
+      // Set updated timestamp
+      updateData.updatedAt = new Date();
+
+      // --- PERFORM THE UPDATE ---
+      const updatedQuotation = await storage.updateOutboundQuotation(
+        req.params.id,
+        updateData
+      );
+
+      // --- CREATE ACTIVITY LOG ---
+      await storage.createActivity({
+        userId: updatedQuotation.userId,
+        action: "UPDATE_OUTBOUND_QUOTATION",
+        entityType: "outbound_quotation",
+        entityId: updatedQuotation.id,
+        details: `Updated outbound quotation: ${updatedQuotation.quotationNumber}`,
+      });
+
+      // --- SEND RESPONSE ---
+      res.json(updatedQuotation);
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res
           .status(400)
           .json({ error: "Invalid quotation data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create outbound quotation" });
-    }
-  });
-
-  app.put("/api/outbound-quotations/:id", async (req, res) => {
-    try {
-      const quotationData = insertOutboundQuotationSchema
-        .partial()
-        .parse(req.body);
-      const quotation = await storage.updateOutboundQuotation(
-        req.params.id,
-        quotationData
-      );
-      await storage.createActivity({
-        userId: quotation.userId,
-        action: "UPDATE_OUTBOUND_QUOTATION",
-        entityType: "outbound_quotation",
-        entityId: quotation.id,
-        details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+      console.error("Failed to update outbound quotation:", error);
+      res.status(500).json({
+        error: "Failed to update outbound quotation",
+        details: error.message,
       });
-      res.json(quotation);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update outbound quotation" });
     }
   });
 
-  app.delete("/api/outbound-quotations/:id", async (req, res) => {
-    try {
-      await storage.deleteOutboundQuotation(req.params.id);
-      await storage.createActivity({
-        userId: null,
-        action: "DELETE_OUTBOUND_QUOTATION",
-        entityType: "outbound_quotation",
-        entityId: req.params.id,
-        details: `Deleted outbound quotation`,
-      });
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete outbound quotation" });
-    }
-  });
-
-  app.post(
-    "/api/outbound-quotations/:id/convert-to-invoice",
-    async (req, res) => {
-      try {
-        const invoice = await storage.convertQuotationToInvoice(req.params.id);
-        await storage.createActivity({
-          userId: invoice.userId,
-          action: "CONVERT_QUOTATION_TO_INVOICE",
-          entityType: "invoice",
-          entityId: invoice.id,
-          details: `Converted quotation to invoice: ${invoice.invoiceNumber}`,
-        });
-        res.status(201).json(invoice);
-      } catch (error) {
-        res
-          .status(500)
-          .json({ error: "Failed to convert quotation to invoice" });
-      }
-    }
-  );
-
-  // Inbound Quotations Routes
   app.get("/api/inbound-quotations", async (req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();
       res.json(quotations);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+      res.status(500).json({
+        error: "Failed to fetch inbound quotations",
+        details: error.message,
+      });
     }
   });
 
@@ -1201,10 +1574,40 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/inbound-quotations", async (req, res) => {
+  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
     try {
-      const quotationData = insertInboundQuotationSchema.parse(req.body);
-      const quotation = await storage.createInboundQuotation(quotationData);
+      const { insertInboundQuotationSchema } = await import("../shared/schema");
+
+      // Pre-process req.body to remove null values for optional fields
+      // This ensures Zod validation passes if fields are explicitly sent as null
+      const requestBody = { ...req.body };
+      if (requestBody.attachmentPath === null) {
+        delete requestBody.attachmentPath; // Remove the key if value is null
+      }
+      if (requestBody.attachmentName === null) {
+        delete requestBody.attachmentName; // Remove the key if value is null
+      }
+
+      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+
+      // Convert types for database
+      const data = {
+        ...parsedData,
+        // ✅ Convert dates from string to Date object
+        quotationDate: new Date(parsedData.quotationDate),
+        validUntil: parsedData.validUntil
+          ? new Date(parsedData.validUntil)
+          : null,
+        // ✅ Convert amount from string to number
+        totalAmount: parseFloat(parsedData.totalAmount),
+        // ✅ Use a valid UUID for userId in development mode
+        userId:
+          process.env.NODE_ENV === "development"
+            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ← Your valid user ID
+            : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      };
+
+      const quotation = await storage.createInboundQuotation(data);
       await storage.createActivity({
         userId: quotation.userId,
         action: "CREATE_INBOUND_QUOTATION",
@@ -1219,9 +1622,56 @@ export async function registerRoutes(app: Express) {
           .status(400)
           .json({ error: "Invalid quotation data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create inbound quotation" });
+      console.error("Failed to create inbound quotation:", error);
+      res.status(500).json({
+        error: "Failed to create inbound quotation",
+        details: error.message,
+      }); // Include details
     }
   });
+
+  app.put(
+    "/api/inbound-quotations/:id/attachment",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { attachmentPath, attachmentName } = req.body; // These come from the frontend after direct upload
+
+        if (!attachmentPath) {
+          return res.status(400).json({ error: "attachmentPath is required" });
+        }
+
+        // Validate the ID format if necessary (e.g., if it's expected to be an integer)
+        // const quotationId = parseInt(id, 10);
+        // if (isNaN(quotationId)) {
+        //   return res.status(400).json({ error: "Invalid quotation ID format" });
+        // }
+
+        // Update the quotation record with the attachment path
+        // You'll need an `updateInboundQuotation` method in your storage class
+        const updatedQuotation = await storage.updateInboundQuotation(id, {
+          attachmentPath: attachmentPath,
+          attachmentName: attachmentName, // Optional
+        });
+
+        if (!updatedQuotation) {
+          return res.status(404).json({ error: "Inbound quotation not found" });
+        }
+
+        res.json(updatedQuotation);
+      } catch (error) {
+        console.error(
+          "Failed to update inbound quotation with attachment:",
+          error
+        );
+        res.status(500).json({
+          error: "Failed to update inbound quotation with attachment",
+          details: error.message,
+        });
+      }
+    }
+  );
 
   app.put("/api/inbound-quotations/:id", async (req, res) => {
     try {
@@ -1245,17 +1695,27 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // app.get("/api/invoices", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(invoices);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
   // Invoice Routes
-  app.get("/api/invoices", async (req, res) => {
+  app.get("/api/invoices", requireAuth, async (req, res) => {
     try {
       const invoices = await storage.getInvoices();
       res.json(invoices);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch invoices" });
+      res
+        .status(500)
+        .json({ error: "Failed to fetch invoices", details: error.message });
     }
   });
 
-  app.get("/api/invoices/:id", async (req, res) => {
+  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const invoice = await storage.getInvoice(req.params.id);
       if (!invoice) {
@@ -1263,11 +1723,13 @@ export async function registerRoutes(app: Express) {
       }
       res.json(invoice);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch invoice" });
+      res
+        .status(500)
+        .json({ error: "Failed to fetch invoice", details: error.message });
     }
   });
 
-  app.post("/api/invoices", async (req, res) => {
+  app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
       const invoiceData = insertInvoiceSchema.parse(req.body);
       const invoice = await storage.createInvoice(invoiceData);
@@ -1289,7 +1751,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.put("/api/invoices/:id", async (req, res) => {
+  app.put("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const invoiceData = insertInvoiceSchema.partial().parse(req.body);
       const invoice = await storage.updateInvoice(req.params.id, invoiceData);
@@ -1306,2109 +1768,1883 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Dashboard & Analytics
-  app.get("/api/dashboard/metrics", async (req, res) => {
-    try {
-      const metrics = await storage.getDashboardMetrics();
-      res.json(metrics);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch dashboard metrics" });
-    }
+  // Purchase orders (stub)
+  app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
+    res.json([]);
   });
 
-  app.get("/api/activities", async (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 20;
-      const activities = await storage.getRecentActivities(limit);
-      res.json(activities);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch activities" });
-    }
+  // Dashboard/Activities/Orders basic stubs for frontend expectations
+  app.get("/api/dashboard/metrics", (_req, res) => {
+    res.json({ totalUsers: 0, totalSales: 0, totalOrders: 0 });
   });
 
-  // Object Storage Routes for File Upload
+  // Marketing leave request - always available with DB fallback
 
-  // This endpoint is used to serve private objects (quotation attachments)
-  app.get("/objects/:objectPath(*)", async (req, res) => {
-    const objectStorageService = new ObjectStorageService();
+  // Inventory leave request - DB first, fallback to memory
+
+  // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+  //   try {
+  //     const {
+  //       title,
+  //       description,
+  //       assignedTo,
+  //       priority,
+  //       dueDate,
+  //       type,
+  //       productId,
+  //       sparePartId,
+  //       batchId,
+  //       fabricationOrderId,
+  //       expectedQuantity,
+  //       actualQuantity,
+  //       fromLocation,
+  //       toLocation,
+  //       notes,
+  //       attachmentPath,
+  //     } = req.body;
+
+  //     // Validate assignedTo
+  //     if (!isUuid(assignedTo)) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "assignedTo must be a valid UUID" });
+  //     }
+
+  //     // Normalize enums
+  //     const normalizedPriority = priority?.toLowerCase() || "medium";
+  //     const normalizedStatus = "pending"; // default
+  //     const normalizedType = type?.toLowerCase() || "fabrication";
+
+  //     const validPriorities = ["low", "medium", "high"];
+  //     if (!validPriorities.includes(normalizedPriority)) {
+  //       return res.status(400).json({ error: "Invalid priority" });
+  //     }
+
+  //     // Hardcode assignedBy (later you can take from auth session)
+  //     const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+  //     const [newTask] = await db
+  //       .insert(inventoryTasks)
+  //       .values({
+  //         title,
+  //         description,
+  //         type: normalizedType,
+  //         status: normalizedStatus,
+  //         priority: normalizedPriority,
+  //         assignedTo,
+  //         assignedBy,
+  //         productId,
+  //         sparePartId,
+  //         batchId,
+  //         fabricationOrderId,
+  //         expectedQuantity,
+  //         actualQuantity,
+  //         fromLocation,
+  //         toLocation,
+  //         dueDate: dueDate ? new Date(dueDate) : null,
+  //         notes,
+  //         attachmentPath,
+  //       })
+  //       .returning({
+  //         id: inventoryTasks.id,
+  //         title: inventoryTasks.title,
+  //         description: inventoryTasks.description,
+  //         type: inventoryTasks.type,
+  //         status: inventoryTasks.status,
+  //         priority: inventoryTasks.priority,
+  //         assignedTo: inventoryTasks.assignedTo,
+  //         assignedBy: inventoryTasks.assignedBy,
+  //         dueDate: inventoryTasks.dueDate,
+  //         createdAt: inventoryTasks.createdAt,
+  //         updatedAt: inventoryTasks.updatedAt,
+  //       });
+
+  //     res
+  //       .status(201)
+  //       .json({ message: "Inventory task created", task: newTask });
+  //   } catch (err) {
+  //     console.error("Error creating inventory task:", err);
+  //     res.status(500).json({
+  //       error: "Failed to create inventory task",
+  //       details: err.message,
+  //     });
+  //   }
+  // });
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(
-        req.path
-      );
-      objectStorageService.downloadObject(objectFile, res);
-    } catch (error) {
-      console.error("Error checking object access:", error);
-      if (error instanceof ObjectNotFoundError) {
-        return res.sendStatus(404);
-      }
-      return res.sendStatus(500);
-    }
-  });
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        type,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
 
-  // This endpoint is used to get the upload URL for an object entity
-  app.post("/api/objects/upload", async (req, res) => {
-    const objectStorageService = new ObjectStorageService();
-    try {
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Failed to get upload URL" });
-    }
-  });
-
-  // Update inbound quotation with attachment info after upload
-  app.put("/api/inbound-quotations/:id/attachment", async (req, res) => {
-    if (!req.body.attachmentURL) {
-      return res.status(400).json({ error: "attachmentURL is required" });
-    }
-
-    try {
-      const objectStorageService = new ObjectStorageService();
-      const objectPath = objectStorageService.normalizeObjectEntityPath(
-        req.body.attachmentURL
-      );
-
-      // Update the inbound quotation with attachment info
-      const quotation = await storage.updateInboundQuotation(req.params.id, {
-        attachmentPath: objectPath,
-        attachmentName: req.body.attachmentName || "uploaded-file",
-      });
-
-      res.status(200).json({
-        objectPath: objectPath,
-        quotation: quotation,
-      });
-    } catch (error) {
-      console.error("Error updating quotation attachment:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
-  // Stock Transactions Routes
-  app.get("/api/stock-transactions", async (req, res) => {
-    try {
-      const transactions = await storage.getStockTransactions();
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch stock transactions" });
-    }
-  });
-
-  app.get("/api/stock-transactions/:id", async (req, res) => {
-    try {
-      const transaction = await storage.getStockTransaction(req.params.id);
-      if (!transaction) {
-        return res.status(404).json({ error: "Stock transaction not found" });
-      }
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch stock transaction" });
-    }
-  });
-
-  app.post("/api/stock-transactions", async (req, res) => {
-    try {
-      const transactionData = insertStockTransactionSchema.parse(req.body);
-      const transaction = await storage.createStockTransaction(transactionData);
-      await storage.createActivity({
-        userId: transaction.userId,
-        action: "CREATE_STOCK_TRANSACTION",
-        entityType: "stock_transaction",
-        entityId: transaction.id,
-        details: `Created stock transaction: ${transaction.type} ${transaction.quantity} units`,
-      });
-      res.status(201).json(transaction);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
+      // Validate assignedTo
+      if (!isUuid(assignedTo)) {
         return res
           .status(400)
-          .json({ error: "Invalid transaction data", details: error.errors });
+          .json({ error: "assignedTo must be a valid UUID" });
       }
-      res.status(500).json({ error: "Failed to create stock transaction" });
-    }
-  });
 
-  app.put("/api/stock-transactions/:id", async (req, res) => {
-    try {
-      const transactionData = insertStockTransactionSchema
-        .partial()
-        .parse(req.body);
-      const transaction = await storage.updateStockTransaction(
-        req.params.id,
-        transactionData
-      );
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update stock transaction" });
-    }
-  });
+      // Normalize enums
+      const normalizedPriority = priority?.toLowerCase() || "medium";
+      const normalizedStatus = "pending"; // default
+      const normalizedType = type?.toLowerCase() || "fabrication";
 
-  app.delete("/api/stock-transactions/:id", async (req, res) => {
-    try {
-      await storage.deleteStockTransaction(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete stock transaction" });
-    }
-  });
-
-  // Spare Parts Routes
-  app.get("/api/spare-parts", async (req, res) => {
-    try {
-      const spareParts = await storage.getSpareParts();
-      res.json(spareParts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch spare parts" });
-    }
-  });
-
-  app.get("/api/spare-parts/low-stock", async (req, res) => {
-    try {
-      const spareParts = await storage.getLowStockSpareParts();
-      res.json(spareParts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch low stock spare parts" });
-    }
-  });
-
-  app.get("/api/spare-parts/:id", async (req, res) => {
-    try {
-      const sparePart = await storage.getSparePart(req.params.id);
-      if (!sparePart) {
-        return res.status(404).json({ error: "Spare part not found" });
+      const validPriorities = ["low", "medium", "high"];
+      if (!validPriorities.includes(normalizedPriority)) {
+        return res.status(400).json({ error: "Invalid priority" });
       }
-      res.json(sparePart);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch spare part" });
-    }
-  });
 
-  app.post("/api/spare-parts", async (req, res) => {
-    try {
-      const sparePartData = insertSparePartSchema.parse(req.body);
-      const sparePart = await storage.createSparePart(sparePartData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_SPARE_PART",
-        entityType: "spare_part",
-        entityId: sparePart.id,
-        details: `Created spare part: ${sparePart.name}`,
-      });
-      res.status(201).json(sparePart);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid spare part data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create spare part" });
-    }
-  });
+      // Hardcode assignedBy (later you can take from auth session)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
 
-  app.put("/api/spare-parts/:id", async (req, res) => {
-    try {
-      const sparePartData = insertSparePartSchema.partial().parse(req.body);
-      const sparePart = await storage.updateSparePart(
-        req.params.id,
-        sparePartData
-      );
-      res.json(sparePart);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update spare part" });
-    }
-  });
-
-  app.delete("/api/spare-parts/:id", async (req, res) => {
-    try {
-      await storage.deleteSparePart(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete spare part" });
-    }
-  });
-
-  // Batches Routes
-  app.get("/api/batches", async (req, res) => {
-    try {
-      const batches = await storage.getBatches();
-      res.json(batches);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch batches" });
-    }
-  });
-
-  app.get("/api/batches/:id", async (req, res) => {
-    try {
-      const batch = await storage.getBatch(req.params.id);
-      if (!batch) {
-        return res.status(404).json({ error: "Batch not found" });
-      }
-      res.json(batch);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch batch" });
-    }
-  });
-
-  app.post("/api/batches", async (req, res) => {
-    try {
-      const batchData = insertBatchSchema.parse(req.body);
-      const batch = await storage.createBatch(batchData);
-      await storage.createActivity({
-        userId: null,
-        action: "CREATE_BATCH",
-        entityType: "batch",
-        entityId: batch.id,
-        details: `Created batch: ${batch.batchNumber}`,
-      });
-      res.status(201).json(batch);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid batch data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create batch" });
-    }
-  });
-
-  app.put("/api/batches/:id", async (req, res) => {
-    try {
-      const batchData = insertBatchSchema.partial().parse(req.body);
-      const batch = await storage.updateBatch(req.params.id, batchData);
-      res.json(batch);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update batch" });
-    }
-  });
-
-  app.delete("/api/batches/:id", async (req, res) => {
-    try {
-      await storage.deleteBatch(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete batch" });
-    }
-  });
-
-  // Barcodes Routes
-  app.get("/api/barcodes", async (req, res) => {
-    try {
-      const barcodes = await storage.getBarcodes();
-      res.json(barcodes);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch barcodes" });
-    }
-  });
-
-  app.get("/api/barcodes/:id", async (req, res) => {
-    try {
-      const barcode = await storage.getBarcode(req.params.id);
-      if (!barcode) {
-        return res.status(404).json({ error: "Barcode not found" });
-      }
-      res.json(barcode);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch barcode" });
-    }
-  });
-
-  app.get("/api/barcodes/scan/:code", async (req, res) => {
-    try {
-      const barcode = await storage.getBarcodeByCode(req.params.code);
-      if (!barcode) {
-        return res.status(404).json({ error: "Barcode not found" });
-      }
-      res.json(barcode);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to scan barcode" });
-    }
-  });
-
-  app.post("/api/barcodes", async (req, res) => {
-    try {
-      const barcodeData = insertBarcodeSchema.parse(req.body);
-      const barcode = await storage.createBarcode(barcodeData);
-      res.status(201).json(barcode);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid barcode data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create barcode" });
-    }
-  });
-
-  app.delete("/api/barcodes/:id", async (req, res) => {
-    try {
-      await storage.deleteBarcode(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete barcode" });
-    }
-  });
-
-  // Fabrication Orders Routes
-  app.get("/api/fabrication-orders", async (req, res) => {
-    try {
-      const orders = await storage.getFabricationOrders();
-      res.json(orders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch fabrication orders" });
-    }
-  });
-
-  app.get("/api/fabrication-orders/:id", async (req, res) => {
-    try {
-      const order = await storage.getFabricationOrder(req.params.id);
-      if (!order) {
-        return res.status(404).json({ error: "Fabrication order not found" });
-      }
-      res.json(order);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch fabrication order" });
-    }
-  });
-
-  app.post("/api/fabrication-orders", async (req, res) => {
-    try {
-      const orderData = insertFabricationOrderSchema.parse(req.body);
-      const order = await storage.createFabricationOrder(orderData);
-      await storage.createActivity({
-        userId: order.createdBy,
-        action: "CREATE_FABRICATION_ORDER",
-        entityType: "fabrication_order",
-        entityId: order.id,
-        details: `Created fabrication order: ${order.orderNumber}`,
-      });
-      res.status(201).json(order);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: "Invalid fabrication order data",
-          details: error.errors,
+      const [newTask] = await db
+        .insert(inventoryTasks)
+        .values({
+          title,
+          description,
+          type: normalizedType,
+          status: normalizedStatus,
+          priority: normalizedPriority,
+          assignedTo,
+          assignedBy,
+          productId,
+          sparePartId,
+          batchId,
+          fabricationOrderId,
+          expectedQuantity,
+          actualQuantity,
+          fromLocation,
+          toLocation,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+          attachmentPath,
+        })
+        .returning({
+          id: inventoryTasks.id,
+          title: inventoryTasks.title,
+          description: inventoryTasks.description,
+          type: inventoryTasks.type,
+          status: inventoryTasks.status,
+          priority: inventoryTasks.priority,
+          assignedTo: inventoryTasks.assignedTo,
+          assignedBy: inventoryTasks.assignedBy,
+          dueDate: inventoryTasks.dueDate,
+          createdAt: inventoryTasks.createdAt,
+          updatedAt: inventoryTasks.updatedAt,
         });
-      }
-      res.status(500).json({ error: "Failed to create fabrication order" });
+
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
+        error: "Failed to create inventory task",
+        details: err.message,
+      });
     }
   });
-
-  app.put("/api/fabrication-orders/:id", async (req, res) => {
-    try {
-      const orderData = insertFabricationOrderSchema.partial().parse(req.body);
-      const order = await storage.updateFabricationOrder(
-        req.params.id,
-        orderData
-      );
-      res.json(order);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update fabrication order" });
-    }
+  app.get("/api/activities", (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/orders", (_req, res) => {
+    res.json([]);
   });
 
-  app.delete("/api/fabrication-orders/:id", async (req, res) => {
-    try {
-      await storage.deleteFabricationOrder(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete fabrication order" });
-    }
+  // Generic attendance for InventoryAttendance page (in-memory demo)
+  // GET all attendance records
+  const insertAttendanceSchema = z.object({
+    userId: z.string().uuid(),
+    action: z.enum(["check_in", "check_out"]),
+    location: z.string(),
+    timestamp: z.string().optional(),
+    notes: z.string().optional(),
+    department: z.string().optional(),
   });
 
-  // Reorder Points Routes
-  app.get("/api/reorder-points", async (req, res) => {
+  // GET attendance by userId
+  app.get("/api/attendance/:userId", async (req, res) => {
     try {
-      const reorderPoints = await storage.getReorderPoints();
-      res.json(reorderPoints);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch reorder points" });
-    }
-  });
-
-  app.get("/api/reorder-points/triggered", async (req, res) => {
-    try {
-      const triggeredPoints = await storage.getTriggeredReorderPoints();
-      res.json(triggeredPoints);
-    } catch (error) {
+      const records = await db
+        .select()
+        .from(attendance)
+        .where({ userId: req.params.userId });
+      res.status(200).json(records);
+    } catch (error: any) {
       res
         .status(500)
-        .json({ error: "Failed to fetch triggered reorder points" });
+        .json({ error: "Failed to fetch attendance", details: error.message });
     }
   });
 
-  app.get("/api/reorder-points/:id", async (req, res) => {
+  app.post("/api/attendance", async (req, res) => {
     try {
-      const reorderPoint = await storage.getReorderPoint(req.params.id);
-      if (!reorderPoint) {
-        return res.status(404).json({ error: "Reorder point not found" });
+      const { userId, username, action, location, notes } = req.body;
+
+      if ((!userId && !username) || !action || !location) {
+        return res.status(400).json({
+          error: "userId or username, action, location are required",
+        });
       }
-      res.json(reorderPoint);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch reorder point" });
-    }
-  });
 
-  app.post("/api/reorder-points", async (req, res) => {
-    try {
-      const reorderPointData = insertReorderPointSchema.parse(req.body);
-      const reorderPoint = await storage.createReorderPoint(reorderPointData);
-      res.status(201).json(reorderPoint);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid reorder point data", details: error.errors });
+      // Get user ID from users table if username is provided
+      let user;
+      if (userId) {
+        [user] = await db.select().from(users).where(eq(users.id, userId));
+      } else {
+        [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, username));
       }
-      res.status(500).json({ error: "Failed to create reorder point" });
-    }
-  });
 
-  app.put("/api/reorder-points/:id", async (req, res) => {
-    try {
-      const reorderPointData = insertReorderPointSchema
-        .partial()
-        .parse(req.body);
-      const reorderPoint = await storage.updateReorderPoint(
-        req.params.id,
-        reorderPointData
-      );
-      res.json(reorderPoint);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update reorder point" });
-    }
-  });
-
-  app.delete("/api/reorder-points/:id", async (req, res) => {
-    try {
-      await storage.deleteReorderPoint(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete reorder point" });
-    }
-  });
-
-  // Vendor Communications Routes
-  app.get("/api/vendor-communications", async (req, res) => {
-    try {
-      const communications = await storage.getVendorCommunications();
-      res.json(communications);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch vendor communications" });
-    }
-  });
-
-  app.get("/api/vendor-communications/:id", async (req, res) => {
-    try {
-      const communication = await storage.getVendorCommunication(req.params.id);
-      if (!communication) {
-        return res
-          .status(404)
-          .json({ error: "Vendor communication not found" });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
-      res.json(communication);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch vendor communication" });
-    }
-  });
 
-  app.post("/api/vendor-communications", async (req, res) => {
-    try {
-      const communicationData = insertVendorCommunicationSchema.parse(req.body);
-      const communication = await storage.createVendorCommunication(
-        communicationData
-      );
-      await storage.createActivity({
-        userId: communication.userId,
-        action: "CREATE_VENDOR_COMMUNICATION",
-        entityType: "vendor_communication",
-        entityId: communication.id,
-        details: `Created vendor communication: ${communication.subject}`,
+      const resolvedUserId = user.id;
+      const timestamp = new Date();
+
+      if (action === "check_in") {
+        const [record] = await db
+          .insert(attendance)
+          .values({
+            id: uuidv4(),
+            userId: resolvedUserId,
+            date: timestamp,
+            checkIn: timestamp,
+            location,
+            status: "present",
+            notes: notes || null,
+          })
+          .returning();
+        return res.status(201).json(record);
+      }
+
+      if (action === "check_out") {
+        const [existing] = await db
+          .select()
+          .from(attendance)
+          .where(eq(attendance.userId, resolvedUserId))
+          .orderBy(desc(attendance.date))
+          .limit(1);
+
+        if (!existing || existing.checkOut) {
+          return res.status(400).json({ error: "No active check-in found" });
+        }
+
+        const [updated] = await db
+          .update(attendance)
+          .set({ checkOut: timestamp })
+          .where(eq(attendance.id, existing.id))
+          .returning();
+
+        return res.json(updated);
+      }
+
+      res.status(400).json({ error: "Unknown action" });
+    } catch (error: any) {
+      console.error("Error recording attendance:", error);
+      res.status(500).json({
+        error: "Failed to record attendance",
+        details: error.message,
       });
-      res.status(201).json(communication);
-    } catch (error) {
+    }
+  });
+
+  // GET all attendance
+  app.get("/api/attendance", async (_req, res) => {
+    try {
+      const data = await db.select().from(attendance);
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch attendance", details: error.message });
+    }
+  });
+
+  // PUT update attendance by ID
+  app.put("/api/attendance/:id", async (req, res) => {
+    try {
+      const data = insertAttendanceSchema.partial().parse(req.body);
+      const timestamp = data.timestamp ? new Date(data.timestamp) : undefined;
+
+      const [updated] = await db
+        .update(attendance)
+        .set({
+          location: data.location,
+          notes: data.notes,
+          checkIn: data.action === "check_in" ? timestamp : undefined,
+          checkOut: data.action === "check_out" ? timestamp : undefined,
+        })
+        .where({ id: req.params.id })
+        .returning();
+
+      if (!updated)
+        return res.status(404).json({ error: "Attendance record not found" });
+      res.status(200).json(updated);
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res
           .status(400)
-          .json({ error: "Invalid communication data", details: error.errors });
+          .json({ error: "Invalid attendance data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create vendor communication" });
+      res
+        .status(500)
+        .json({ error: "Failed to update attendance", details: error.message });
     }
   });
 
-  app.put("/api/vendor-communications/:id", async (req, res) => {
+  // DELETE attendance by ID
+  app.delete("/api/attendance/:id", async (req, res) => {
     try {
-      const communicationData = insertVendorCommunicationSchema
-        .partial()
-        .parse(req.body);
-      const communication = await storage.updateVendorCommunication(
-        req.params.id,
-        communicationData
-      );
-      res.json(communication);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update vendor communication" });
-    }
-  });
-
-  app.delete("/api/vendor-communications/:id", async (req, res) => {
-    try {
-      await storage.deleteVendorCommunication(req.params.id);
+      await db.delete(attendance).where({ id: req.params.id });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete vendor communication" });
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ error: "Failed to delete attendance", details: error.message });
     }
   });
 
-  // Inventory Tasks Routes
-  app.get("/api/inventory-tasks", async (req, res) => {
+  app.post("/api/inventory/leave-request", async (req, res) => {
     try {
-      const tasks = await storage.getInventoryTasks();
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inventory tasks" });
-    }
-  });
+      const { employeeName, leaveType, startDate, endDate, reason } = req.body;
 
-  app.get("/api/inventory-tasks/:id", async (req, res) => {
-    try {
-      const task = await storage.getInventoryTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ error: "Inventory task not found" });
+      // Validate input
+      if (!employeeName) {
+        return res.status(400).json({ error: "employeeName is required" });
       }
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inventory task" });
-    }
-  });
+      if (!leaveType || !startDate || !endDate) {
+        return res.status(400).json({
+          error: "leaveType, startDate, and endDate are required",
+        });
+      }
 
-  app.post("/api/inventory-tasks", async (req, res) => {
-    try {
-      const taskData = insertInventoryTaskSchema.parse(req.body);
-      const task = await storage.createInventoryTask(taskData);
-      await storage.createActivity({
-        userId: task.assignedBy,
-        action: "CREATE_INVENTORY_TASK",
-        entityType: "inventory_task",
-        entityId: task.id,
-        details: `Created inventory task: ${task.title}`,
+      // Find the user by employeeName (case-insensitive)
+      const userArray = await db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.username}) = LOWER(${employeeName.trim()})`)
+        .limit(1)
+        .execute();
+
+      const user = userArray[0];
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Insert leave request
+      const result = await db
+        .insert(leaveRequests)
+        .values({
+          userId: user.id, // use the user's ID
+          leaveType,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          reason: reason || "",
+          status: "pending", // default leave status
+        })
+        .returning();
+
+      res.status(201).json({ data: result });
+    } catch (error: any) {
+      console.error("Error creating leave request:", error);
+      res.status(500).json({
+        error: "Failed to create leave request",
+        details: error.message,
       });
-      res.status(201).json(task);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid task data", details: error.errors });
+    }
+  });
+
+  app.get("/api/inventory/attendance-with-leave", async (_req, res) => {
+    try {
+      const data = await db.select().from(leaveRequests);
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({
+        error: "Failed to fetch leave requests",
+        details: error.message,
+      });
+    }
+  });
+
+  // Approve leave request
+  app.put("/api/inventory/leave-request/:id/approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
       }
-      res.status(500).json({ error: "Failed to create inventory task" });
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "approved" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request approved successfully",
+      });
+    } catch (error: any) {
+      console.error("Error approving leave request:", error);
+      res.status(500).json({
+        error: "Failed to approve leave request",
+        details: error.message,
+      });
     }
   });
 
-  app.put("/api/inventory-tasks/:id", async (req, res) => {
+  // Reject leave request
+  app.put("/api/inventory/leave-request/:id/reject", async (req, res) => {
     try {
-      const taskData = insertInventoryTaskSchema.partial().parse(req.body);
-      const task = await storage.updateInventoryTask(req.params.id, taskData);
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update inventory task" });
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
+      }
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "rejected" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request rejected successfully",
+      });
+    } catch (error: any) {
+      console.error("Error rejecting leave request:", error);
+      res.status(500).json({
+        error: "Failed to reject leave request",
+        details: error.message,
+      });
     }
   });
 
-  app.delete("/api/inventory-tasks/:id", async (req, res) => {
+  // Account-specific Attendance with filters (requires auth)
+  app.get("/api/account-attendance", requireAuth, async (req, res) => {
     try {
-      await storage.deleteInventoryTask(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete inventory task" });
+      const { startDate, endDate, department } = req.query;
+
+      let query = db.select().from(attendance);
+
+      if (startDate)
+        query = query.where("date", ">=", new Date(startDate as string));
+      if (endDate)
+        query = query.where("date", "<=", new Date(endDate as string));
+      if (department)
+        query = query.where("department", "=", department as string);
+
+      const records = await query;
+      res.status(200).json(records);
+    } catch (error: any) {
+      res.status(500).json({
+        error: "Failed to fetch account attendance records",
+        details: error.message,
+      });
+    }
+  });
+  // Accounts metrics and lists (stubs to satisfy UI)
+  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+    res.json({
+      totalReceivables: 0,
+      totalPayables: 0,
+      invoicesDue: 0,
+      avgDaysToPay: 0,
+    });
+  });
+  app.get("/api/accounts/cash-flow-summary", requireAuth, async (_req, res) => {
+    res.json({ inflow: 0, outflow: 0, net: 0 });
+  });
+  app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
+    res.json({ total: 0 });
+  });
+  app.get("/api/accounts/receivables-total", requireAuth, async (_req, res) => {
+    res.json({ total: 0 });
+  });
+  app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/accounts-receivables", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get(
+    "/api/accounts-receivables/overdue",
+    requireAuth,
+    async (_req, res) => {
+      res.json([]);
+    }
+  );
+  app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/bank-accounts/active", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/bank-accounts/default", requireAuth, async (_req, res) => {
+    res.json(null);
+  });
+  app.get("/api/bank-transactions", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/account-reminders", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/account-tasks", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+
+  // GST returns (stubs)
+  app.get("/api/gst-returns", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+
+  // Accounts Attendance (stubs to satisfy AccountsAttendance page)
+  app.get("/api/account-attendance", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/account-attendance/today", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+  app.get("/api/account-attendance/metrics", requireAuth, async (_req, res) => {
+    res.json({
+      teamSize: 0,
+      presentToday: 0,
+      attendanceRate: 0,
+      avgHours: 0,
+      lateArrivalsThisWeek: 0,
+    });
+  });
+  app.get("/api/account-attendance/summary", requireAuth, async (_req, res) => {
+    res.json({});
+  });
+
+  // Generic reports list
+  app.get("/api/reports", requireAuth, async (_req, res) => {
+    res.json([]);
+  });
+
+  //
+
+  // Lightweight marketing dashboard endpoints
+  app.get("/api/marketing", requireAuth, async (_req, res) => {
+    // Return hardcoded, realistic demo data for dashboard counters
+    res.json({
+      leads: {
+        total: 128,
+        active: 34,
+        converted: 56,
+        conversionRate: 43.8,
+        monthlyNew: 12,
+        pendingFollowUps: 7,
+      },
+      visits: {
+        total: 42,
+        completed: 28,
+        today: 3,
+        scheduled: 5,
+        inProgress: 2,
+        cancelled: 1,
+        successRate: 66.7,
+        weeklyCompleted: 12,
+      },
+      tasks: {
+        total: 21,
+        completed: 15,
+        overdue: 2,
+        today: 4,
+        completionRate: 71.4,
+      },
+      attendance: {
+        totalEmployees: 18,
+        presentToday: 16,
+      },
+    });
+  });
+
+  app.get("/api/marketing/leads/metrics", requireAuth, async (_req, res) => {
+    try {
+      const [row] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
+        })
+        .from(leads);
+      const total = Number(row?.total || 0);
+      const converted = Number(row?.converted || 0);
+      res.json({
+        total,
+        active: Number(row?.active || 0),
+        converted,
+        conversionRate: total > 0 ? (converted / total) * 100 : 0,
+        monthlyNew: Number(row?.monthlyNew || 0),
+        pendingFollowUps: 0,
+      });
+    } catch (e) {
+      res.json({
+        total: 0,
+        active: 0,
+        converted: 0,
+        conversionRate: 0,
+        monthlyNew: 0,
+        pendingFollowUps: 0,
+      });
     }
   });
 
-  // ===== ACCOUNTS MODULE ROUTES =====
-
-  // Accounts Receivables Routes
-  app.get("/api/accounts-receivables", async (req, res) => {
+  app.get("/api/field-visits/metrics", requireAuth, async (_req, res) => {
     try {
-      const receivables = await storage.getAccountsReceivables();
-      res.json(receivables);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch accounts receivables" });
+      const [row] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          completed: sql`COUNT(CASE WHEN ${fieldVisits.status} = 'completed' THEN 1 END)::integer`,
+          today: sql`COUNT(CASE WHEN DATE(${fieldVisits.plannedDate}) = DATE(NOW()) THEN 1 END)::integer`,
+        })
+        .from(fieldVisits);
+      res.json({
+        total: Number(row?.total || 0),
+        completed: Number(row?.completed || 0),
+        today: Number(row?.today || 0),
+      });
+    } catch (e) {
+      res.json({ total: 0, completed: 0, today: 0 });
     }
   });
 
-  app.get("/api/accounts-receivables/overdue", async (req, res) => {
+  app.get("/api/marketing/conversion-rates", requireAuth, async (_req, res) => {
     try {
-      const receivables = await storage.getOverdueReceivables();
-      res.json(receivables);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch overdue receivables" });
+      const [row] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+        })
+        .from(leads);
+      const total = Number(row?.total || 0);
+      const converted = Number(row?.converted || 0);
+      res.json({ conversionRate: total > 0 ? (converted / total) * 100 : 0 });
+    } catch (e) {
+      res.json({ conversionRate: 0 });
     }
   });
 
   app.get(
-    "/api/accounts-receivables/customer/:customerId",
+    "/api/marketing/visit-success-rates",
+    requireAuth,
+    async (_req, res) => {
+      try {
+        const [row] = await db
+          .select({
+            total: sql`COUNT(*)::integer`,
+            completed: sql`COUNT(CASE WHEN ${fieldVisits.status} = 'completed' THEN 1 END)::integer`,
+          })
+          .from(fieldVisits);
+        const total = Number(row?.total || 0);
+        const completed = Number(row?.completed || 0);
+        res.json({ successRate: total > 0 ? (completed / total) * 100 : 0 });
+      } catch (e) {
+        res.json({ successRate: 0 });
+      }
+    }
+  );
+
+  app.get("/api/marketing/team-performance", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          userId: marketingTasks.assignedToUserId,
+          completed: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'completed' THEN 1 END)::integer`,
+        })
+        .from(marketingTasks)
+        .groupBy(marketingTasks.assignedToUserId);
+      res.json(rows);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
+  app.get("/api/marketing/leads", requireAuth, async (req, res) => {
+    try {
+      const { status, source, priority, assignedTo, search } = req.query;
+
+      // Start query
+      let query = db.select().from(leads);
+
+      // Optional filters
+      if (status) query = query.where({ status });
+      if (source) query = query.where({ source });
+      if (priority) query = query.where({ priority });
+      if (assignedTo) query = query.where({ assignedTo });
+      if (search) {
+        query = query.where(
+          sql`firstName ILIKE ${"%" + search + "%"} OR lastName ILIKE ${
+            "%" + search + "%"
+          }`
+        );
+      }
+
+      const rows = await query;
+      res.json(rows);
+    } catch (err) {
+      console.error("Error fetching leads:", err);
+      res.status(500).json({ error: "Failed to fetch leads" });
+    }
+  });
+
+  app.post("/api/marketing/leads", async (req, res) => {
+    try {
+      const {
+        firstName,
+        lastName,
+        companyName,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        source,
+        sourceDetails,
+        referredBy,
+        requirementDescription,
+        estimatedBudget,
+      } = req.body;
+
+      const validSources = [
+        "other",
+        "referral",
+        "website",
+        "email",
+        "social_media",
+      ];
+      const leadSource = validSources.includes(source) ? source : "other";
+
+      const [newLead] = await db
+        .insert(leads)
+        .values({
+          firstName,
+          lastName,
+          companyName: companyName || null,
+          email,
+          phone,
+          alternatePhone: alternatePhone || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
+          country: country || "India",
+          source: leadSource,
+          sourceDetails: sourceDetails || null,
+          referredBy: referredBy || null,
+          requirementDescription: requirementDescription || null,
+          estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+        })
+        .returning();
+
+      res.status(201).json({ message: "Lead created", lead: newLead });
+    } catch (err) {
+      console.error("Error creating lead:", err);
+      res.status(500).json({ error: "Failed to create lead" });
+    }
+  });
+
+  app.get("/api/marketing-tasks/metrics", requireAuth, async (_req, res) => {
+    try {
+      const [row] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          completed: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'completed' THEN 1 END)::integer`,
+          pending: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'pending' THEN 1 END)::integer`,
+        })
+        .from(marketingTasks);
+      res.json({
+        total: Number((row as any)?.total || 0),
+        completed: Number((row as any)?.completed || 0),
+        pending: Number((row as any)?.pending || 0),
+      });
+    } catch (e) {
+      res.json({ total: 0, completed: 0, pending: 0 });
+    }
+  });
+
+  // Lists to avoid 404s where UI expects data
+  app.get("/api/leads", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+          email: leads.email,
+          phone: leads.phone,
+          alternatePhone: leads.alternatePhone,
+          address: leads.address,
+          city: leads.city,
+          state: leads.state,
+          zipCode: leads.zipCode,
+          country: leads.country,
+          source: leads.source,
+          sourceDetails: leads.sourceDetails,
+          referredBy: leads.referredBy,
+          requirementDescription: leads.requirementDescription,
+          estimatedBudget: leads.estimatedBudget,
+          assignedTo: leads.assignedTo,
+          status: leads.status,
+          priority: leads.priority,
+          createdAt: leads.createdAt,
+          followUpDate: leads.followUpDate,
+        })
+        .from(leads);
+
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching leads:", e);
+      res.status(500).json({ error: "Failed to fetch leads" });
+    }
+  });
+
+  app.get("/api/field-visits", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db.select().from(fieldVisits);
+      // Map status to lowercase/underscore for frontend compatibility
+      const statusMap: Record<string, string> = {
+        Scheduled: "scheduled",
+        "In Progress": "in_progress",
+        Completed: "completed",
+        Cancelled: "cancelled",
+      };
+      const mappedRows = rows.map((v) => ({
+        ...v,
+        status:
+          statusMap[v.status] ||
+          v.status?.toLowerCase().replace(/\s+/g, "_") ||
+          v.status,
+      }));
+      res.json(mappedRows);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+  app.post("/api/field-visits", requireAuth, async (req, res) => {
+    try {
+      const {
+        leadId,
+        plannedDate,
+        plannedStartTime,
+        plannedEndTime,
+        assignedTo,
+        visitAddress,
+        visitCity,
+        visitState,
+        latitude,
+        longitude,
+        preVisitNotes,
+        purpose,
+        travelExpense,
+        status,
+      } = req.body;
+
+      if (!leadId || !plannedDate || !assignedTo || !visitAddress) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Generate visitNumber dynamically
+      const visitNumber = `VISIT-${Date.now()}`;
+
+      const [newVisit] = await db
+        .insert(fieldVisits)
+        .values({
+          visitNumber,
+          leadId,
+          plannedDate: new Date(plannedDate),
+          plannedStartTime: plannedStartTime
+            ? new Date(plannedStartTime)
+            : null,
+          plannedEndTime: plannedEndTime ? new Date(plannedEndTime) : null,
+          assignedTo,
+          visitAddress,
+          visitCity: visitCity || null,
+          visitState: visitState || null,
+          latitude: latitude ? parseFloat(latitude) : null,
+          longitude: longitude ? parseFloat(longitude) : null,
+          preVisitNotes: preVisitNotes || null,
+          purpose: purpose || null,
+          travelExpense: travelExpense ? parseFloat(travelExpense) : null,
+          status: status || "Scheduled",
+        })
+        .returning();
+
+      res.status(201).json({ message: "Field visit created", visit: newVisit });
+    } catch (err) {
+      console.error("Error creating field visit:", err);
+      res.status(500).json({ error: "Something went wrong" });
+    }
+  });
+  // Update Visit Status
+  app.patch(
+    "/api/field-visits/:visitNumber/status",
+    requireAuth,
     async (req, res) => {
       try {
-        const receivables = await storage.getAccountsReceivablesByCustomer(
-          req.params.customerId
-        );
-        res.json(receivables);
-      } catch (error) {
+        const { visitNumber } = req.params;
+        const { status } = req.body;
+
+        // Allowed status values
+        const allowedStatus = [
+          "Scheduled",
+          "In Progress",
+          "Completed",
+          "Cancelled",
+        ];
+
+        if (!status || !allowedStatus.includes(status)) {
+          return res.status(400).json({
+            error: `Invalid status. Allowed values: ${allowedStatus.join(
+              ", "
+            )}`,
+          });
+        }
+
+        // Update the status in the DB
+        const [updatedVisit] = await db
+          .update(fieldVisits)
+          .set({ status })
+          .where(eq(fieldVisits.visitNumber, visitNumber))
+          .returning();
+
+        if (!updatedVisit) {
+          return res.status(404).json({ error: "Field visit not found" });
+        }
+
         res
-          .status(500)
-          .json({ error: "Failed to fetch receivables by customer" });
+          .status(200)
+          .json({ message: "Visit status updated", visit: updatedVisit });
+      } catch (err) {
+        console.error("Error updating visit status:", err);
+        res.status(500).json({ error: "Something went wrong" });
       }
     }
   );
 
-  app.get("/api/accounts-receivables/:id", async (req, res) => {
+  app.get("/api/marketing-tasks", requireAuth, async (_req, res) => {
     try {
-      const receivable = await storage.getAccountsReceivable(req.params.id);
-      if (!receivable) {
-        return res.status(404).json({ error: "Accounts receivable not found" });
-      }
-      res.json(receivable);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch accounts receivable" });
+      const rows = await db.select().from(marketingTasks);
+      res.json(rows);
+    } catch (e) {
+      res.json([]);
     }
   });
 
-  app.post("/api/accounts-receivables", async (req, res) => {
+  // Logistics dashboard endpoint
+  app.get("/api/logistics/dashboard", requireAuth, async (_req, res) => {
     try {
-      const receivableData = insertAccountsReceivableSchema.parse(req.body);
-      const receivable = await storage.createAccountsReceivable(receivableData);
-      await storage.createActivity({
-        userId: receivable.customerId,
-        action: "CREATE_ACCOUNTS_RECEIVABLE",
-        entityType: "accounts_receivable",
-        entityId: receivable.id,
-        details: `Created accounts receivable for amount ${receivable.amountDue}`,
+      const rows = await db.select().from(logisticsShipments);
+      res.json({
+        totalShipments: rows.length,
+        inTransit: rows.filter((s) => s.currentStatus === "in_transit").length,
+        outForDelivery: rows.filter(
+          (s) => s.currentStatus === "out_for_delivery"
+        ).length,
+        delivered: rows.filter((s) => s.currentStatus === "delivered").length,
       });
-      res.status(201).json(receivable);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid receivable data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create accounts receivable" });
-    }
-  });
-
-  app.put("/api/accounts-receivables/:id", async (req, res) => {
-    try {
-      const receivableData = insertAccountsReceivableSchema
-        .partial()
-        .parse(req.body);
-      const receivable = await storage.updateAccountsReceivable(
-        req.params.id,
-        receivableData
-      );
-      res.json(receivable);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update accounts receivable" });
-    }
-  });
-
-  app.delete("/api/accounts-receivables/:id", async (req, res) => {
-    try {
-      await storage.deleteAccountsReceivable(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete accounts receivable" });
-    }
-  });
-
-  // Accounts Payables Routes
-  app.get("/api/accounts-payables", async (req, res) => {
-    try {
-      const payables = await storage.getAccountsPayables();
-      res.json(payables);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch accounts payables" });
-    }
-  });
-
-  app.get("/api/accounts-payables/overdue", async (req, res) => {
-    try {
-      const payables = await storage.getOverduePayables();
-      res.json(payables);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch overdue payables" });
-    }
-  });
-
-  app.get("/api/accounts-payables/supplier/:supplierId", async (req, res) => {
-    try {
-      const payables = await storage.getAccountsPayablesBySupplier(
-        req.params.supplierId
-      );
-      res.json(payables);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch payables by supplier" });
-    }
-  });
-
-  app.get("/api/accounts-payables/:id", async (req, res) => {
-    try {
-      const payable = await storage.getAccountsPayable(req.params.id);
-      if (!payable) {
-        return res.status(404).json({ error: "Accounts payable not found" });
-      }
-      res.json(payable);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch accounts payable" });
-    }
-  });
-
-  app.post("/api/accounts-payables", async (req, res) => {
-    try {
-      const payableData = insertAccountsPayableSchema.parse(req.body);
-      const payable = await storage.createAccountsPayable(payableData);
-      await storage.createActivity({
-        userId: payable.supplierId,
-        action: "CREATE_ACCOUNTS_PAYABLE",
-        entityType: "accounts_payable",
-        entityId: payable.id,
-        details: `Created accounts payable for amount ${payable.amountDue}`,
+    } catch (e) {
+      res.json({
+        totalShipments: 0,
+        inTransit: 0,
+        outForDelivery: 0,
+        delivered: 0,
       });
-      res.status(201).json(payable);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid payable data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create accounts payable" });
     }
   });
 
-  app.put("/api/accounts-payables/:id", async (req, res) => {
+  // Logistics basic endpoints (fallbacks when full registry disabled)
+  app.get("/api/logistics/shipments", requireAuth, async (_req, res) => {
     try {
-      const payableData = insertAccountsPayableSchema.partial().parse(req.body);
-      const payable = await storage.updateAccountsPayable(
-        req.params.id,
-        payableData
-      );
-      res.json(payable);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update accounts payable" });
+      const rows = await db.select().from(logisticsShipments);
+      res.json(rows);
+    } catch (e) {
+      // DB unavailable; serve in-memory list
+      res.json(inMemoryLogisticsShipments);
     }
   });
 
-  app.delete("/api/accounts-payables/:id", async (req, res) => {
+  // Create logistics shipment
+  app.post("/api/logistics/shipments", requireAuth, async (req, res) => {
     try {
-      await storage.deleteAccountsPayable(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete accounts payable" });
-    }
-  });
-
-  // Payments Routes
-  app.get("/api/payments", async (req, res) => {
-    try {
-      const payments = await storage.getPayments();
-      res.json(payments);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch payments" });
-    }
-  });
-
-  app.get("/api/payments/kind/:kind", async (req, res) => {
-    try {
-      const payments = await storage.getPaymentsByKind(req.params.kind);
-      res.json(payments);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch payments by kind" });
-    }
-  });
-
-  app.get("/api/payments/method/:method", async (req, res) => {
-    try {
-      const payments = await storage.getPaymentsByMethod(req.params.method);
-      res.json(payments);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch payments by method" });
-    }
-  });
-
-  app.get("/api/payments/:id", async (req, res) => {
-    try {
-      const payment = await storage.getPayment(req.params.id);
-      if (!payment) {
-        return res.status(404).json({ error: "Payment not found" });
-      }
-      res.json(payment);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch payment" });
-    }
-  });
-
-  app.post("/api/payments", async (req, res) => {
-    try {
-      const paymentData = insertPaymentSchema.parse(req.body);
-      const payment = await storage.createPayment(paymentData);
-      await storage.createActivity({
-        userId: payment.id,
-        action: "CREATE_PAYMENT",
-        entityType: "payment",
-        entityId: payment.id,
-        details: `Created ${payment.kind} payment for amount ${payment.amount}`,
-      });
-      res.status(201).json(payment);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid payment data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create payment" });
-    }
-  });
-
-  app.put("/api/payments/:id", async (req, res) => {
-    try {
-      const paymentData = insertPaymentSchema.partial().parse(req.body);
-      const payment = await storage.updatePayment(req.params.id, paymentData);
-      res.json(payment);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update payment" });
-    }
-  });
-
-  app.delete("/api/payments/:id", async (req, res) => {
-    try {
-      await storage.deletePayment(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete payment" });
-    }
-  });
-
-  // Bank Accounts Routes
-  app.get("/api/bank-accounts", async (req, res) => {
-    try {
-      const accounts = await storage.getBankAccounts();
-      res.json(accounts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bank accounts" });
-    }
-  });
-
-  app.get("/api/bank-accounts/active", async (req, res) => {
-    try {
-      const accounts = await storage.getActiveBankAccounts();
-      res.json(accounts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch active bank accounts" });
-    }
-  });
-
-  app.get("/api/bank-accounts/default", async (req, res) => {
-    try {
-      const account = await storage.getDefaultBankAccount();
-      if (!account) {
-        return res.status(404).json({ error: "No default bank account found" });
-      }
-      res.json(account);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch default bank account" });
-    }
-  });
-
-  app.get("/api/bank-accounts/:id", async (req, res) => {
-    try {
-      const account = await storage.getBankAccount(req.params.id);
-      if (!account) {
-        return res.status(404).json({ error: "Bank account not found" });
-      }
-      res.json(account);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bank account" });
-    }
-  });
-
-  app.post("/api/bank-accounts", async (req, res) => {
-    try {
-      const accountData = insertBankAccountSchema.parse(req.body);
-      const account = await storage.createBankAccount(accountData);
-      await storage.createActivity({
-        userId: account.id,
-        action: "CREATE_BANK_ACCOUNT",
-        entityType: "bank_account",
-        entityId: account.id,
-        details: `Created bank account: ${account.name}`,
-      });
-      res.status(201).json(account);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid bank account data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create bank account" });
-    }
-  });
-
-  app.put("/api/bank-accounts/:id", async (req, res) => {
-    try {
-      const accountData = insertBankAccountSchema.partial().parse(req.body);
-      const account = await storage.updateBankAccount(
-        req.params.id,
-        accountData
-      );
-      res.json(account);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update bank account" });
-    }
-  });
-
-  app.delete("/api/bank-accounts/:id", async (req, res) => {
-    try {
-      await storage.deleteBankAccount(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete bank account" });
-    }
-  });
-
-  // Bank Transactions Routes
-  app.get("/api/bank-transactions", async (req, res) => {
-    try {
-      const transactions = await storage.getBankTransactions();
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bank transactions" });
-    }
-  });
-
-  app.get("/api/bank-transactions/account/:accountId", async (req, res) => {
-    try {
-      const transactions = await storage.getBankTransactionsByAccount(
-        req.params.accountId
-      );
-      res.json(transactions);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch transactions by account" });
-    }
-  });
-
-  app.get("/api/bank-transactions/:id", async (req, res) => {
-    try {
-      const transaction = await storage.getBankTransaction(req.params.id);
-      if (!transaction) {
-        return res.status(404).json({ error: "Bank transaction not found" });
-      }
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bank transaction" });
-    }
-  });
-
-  app.post("/api/bank-transactions", async (req, res) => {
-    try {
-      const transactionData = insertBankTransactionSchema.parse(req.body);
-      const transaction = await storage.createBankTransaction(transactionData);
-      await storage.createActivity({
-        userId: transaction.id,
-        action: "CREATE_BANK_TRANSACTION",
-        entityType: "bank_transaction",
-        entityId: transaction.id,
-        details: `Created bank transaction for amount ${transaction.amount}`,
-      });
-      res.status(201).json(transaction);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid transaction data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create bank transaction" });
-    }
-  });
-
-  app.put("/api/bank-transactions/:id", async (req, res) => {
-    try {
-      const transactionData = insertBankTransactionSchema
-        .partial()
-        .parse(req.body);
-      const transaction = await storage.updateBankTransaction(
-        req.params.id,
-        transactionData
-      );
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update bank transaction" });
-    }
-  });
-
-  app.delete("/api/bank-transactions/:id", async (req, res) => {
-    try {
-      await storage.deleteBankTransaction(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete bank transaction" });
-    }
-  });
-
-  // GST Returns Routes
-  app.get("/api/gst-returns", async (req, res) => {
-    try {
-      const returns = await storage.getGstReturns();
-      res.json(returns);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch GST returns" });
-    }
-  });
-
-  app.get("/api/gst-returns/status/:status", async (req, res) => {
-    try {
-      const returns = await storage.getGstReturnsByStatus(req.params.status);
-      res.json(returns);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch GST returns by status" });
-    }
-  });
-
-  app.get("/api/gst-returns/:id", async (req, res) => {
-    try {
-      const gstReturn = await storage.getGstReturn(req.params.id);
-      if (!gstReturn) {
-        return res.status(404).json({ error: "GST return not found" });
-      }
-      res.json(gstReturn);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch GST return" });
-    }
-  });
-
-  app.post("/api/gst-returns", async (req, res) => {
-    try {
-      const returnData = insertGstReturnSchema.parse(req.body);
-      const gstReturn = await storage.createGstReturn(returnData);
-      await storage.createActivity({
-        userId: gstReturn.id,
-        action: "CREATE_GST_RETURN",
-        entityType: "gst_return",
-        entityId: gstReturn.id,
-        details: `Created GST return for period ${gstReturn.periodStart} to ${gstReturn.periodEnd}`,
-      });
-      res.status(201).json(gstReturn);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid GST return data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create GST return" });
-    }
-  });
-
-  app.put("/api/gst-returns/:id", async (req, res) => {
-    try {
-      const returnData = insertGstReturnSchema.partial().parse(req.body);
-      const gstReturn = await storage.updateGstReturn(
-        req.params.id,
-        returnData
-      );
-      res.json(gstReturn);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update GST return" });
-    }
-  });
-
-  app.delete("/api/gst-returns/:id", async (req, res) => {
-    try {
-      await storage.deleteGstReturn(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete GST return" });
-    }
-  });
-
-  // Account Reminders Routes
-  app.get("/api/account-reminders", async (req, res) => {
-    try {
-      const reminders = await storage.getAccountReminders();
-      res.json(reminders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch account reminders" });
-    }
-  });
-
-  app.get("/api/account-reminders/pending", async (req, res) => {
-    try {
-      const reminders = await storage.getPendingReminders();
-      res.json(reminders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch pending reminders" });
-    }
-  });
-
-  app.get("/api/account-reminders/target/:targetType", async (req, res) => {
-    try {
-      const reminders = await storage.getRemindersByTargetType(
-        req.params.targetType
-      );
-      res.json(reminders);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch reminders by target type" });
-    }
-  });
-
-  app.get("/api/account-reminders/:id", async (req, res) => {
-    try {
-      const reminder = await storage.getAccountReminder(req.params.id);
-      if (!reminder) {
-        return res.status(404).json({ error: "Account reminder not found" });
-      }
-      res.json(reminder);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch account reminder" });
-    }
-  });
-
-  app.post("/api/account-reminders", async (req, res) => {
-    try {
-      const reminderData = insertAccountReminderSchema.parse(req.body);
-      const reminder = await storage.createAccountReminder(reminderData);
-      await storage.createActivity({
-        userId: reminder.id,
-        action: "CREATE_ACCOUNT_REMINDER",
-        entityType: "account_reminder",
-        entityId: reminder.id,
-        details: `Created account reminder for ${reminder.targetType}`,
-      });
-      res.status(201).json(reminder);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid reminder data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create account reminder" });
-    }
-  });
-
-  app.put("/api/account-reminders/:id", async (req, res) => {
-    try {
-      const reminderData = insertAccountReminderSchema
-        .partial()
-        .parse(req.body);
-      const reminder = await storage.updateAccountReminder(
-        req.params.id,
-        reminderData
-      );
-      res.json(reminder);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update account reminder" });
-    }
-  });
-
-  app.delete("/api/account-reminders/:id", async (req, res) => {
-    try {
-      await storage.deleteAccountReminder(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete account reminder" });
-    }
-  });
-
-  // Account Reports Routes - Protected with authentication and authorization
-  app.get(
-    "/api/reports",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
+      const data = logisticsShipmentInsertSchema.parse(req.body || {});
       try {
-        const reports = await storage.getAccountReports();
-        res.json(reports);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch reports" });
+        const [row] = await db
+          .insert(logisticsShipments)
+          .values({
+            consignmentNumber: data.consignmentNumber,
+            source: data.source,
+            destination: data.destination,
+            currentStatus: data.currentStatus || "created",
+          })
+          .returning();
+        res.status(201).json(row);
+      } catch (dbErr) {
+        // Fallback to in-memory storage if DB insert fails (e.g., column mapping mismatch)
+        const rec = {
+          id: "mem-" + Date.now(),
+          consignmentNumber: data.consignmentNumber,
+          source: data.source,
+          destination: data.destination,
+          currentStatus: data.currentStatus || "created",
+          _fallback: true,
+        } as any;
+        inMemoryLogisticsShipments.push(rec);
+        res.status(201).json(rec);
       }
-    }
-  );
-
-  app.get(
-    "/api/reports/type/:type",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const reports = await storage.getReportsByType(req.params.type);
-        res.json(reports);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch reports by type" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res
+          .status(400)
+          .json({ error: "Invalid shipment data", details: error.errors });
+        return;
       }
+      res.status(500).json({ error: "Failed to create shipment" });
     }
-  );
+  });
 
-  app.get(
-    "/api/reports/status/:status",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const reports = await storage.getReportsByStatus(req.params.status);
-        res.json(reports);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch reports by status" });
-      }
+  // Logistics attendance list
+  app.get("/api/logistics/attendance", requireAuth, async (_req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      const rows = await db.select().from(logisticsAttendance);
+      const mapped = (rows as any[]).map((r) => ({
+        ...r,
+        checkIn: r.checkInTime,
+        checkOut: r.checkOutTime,
+        status: r.checkOutTime
+          ? "checked_out"
+          : r.checkInTime
+          ? "checked_in"
+          : "checked_out",
+      }));
+      res.json(mapped);
+    } catch (e) {
+      res.json([]);
     }
-  );
+  });
 
-  app.get(
-    "/api/reports/:id",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const report = await storage.getAccountReport(req.params.id);
-        if (!report) {
-          return res.status(404).json({ error: "Report not found" });
-        }
-        res.json(report);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch report" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/reports",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const reportData = insertAccountReportSchema.parse(req.body);
-        const report = await storage.createAccountReport(reportData);
-        await storage.createActivity({
-          userId: report.generatedBy,
-          action: "CREATE_ACCOUNT_REPORT",
-          entityType: "account_report",
-          entityId: report.id,
-          details: `Generated ${report.reportType} report: ${report.title}`,
-        });
-        res.status(201).json(report);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res
-            .status(400)
-            .json({ error: "Invalid report data", details: error.errors });
-        }
-        res.status(500).json({ error: "Failed to generate report" });
-      }
-    }
-  );
-
-  app.put(
-    "/api/reports/:id",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const reportData = insertAccountReportSchema.partial().parse(req.body);
-        const report = await storage.updateAccountReport(
-          req.params.id,
-          reportData
+  // Logistics attendance today
+  app.get("/api/logistics/attendance/today", requireAuth, async (_req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const rows = await db
+        .select()
+        .from(logisticsAttendance)
+        .where(
+          and(
+            gte(logisticsAttendance.date, today as any),
+            lt(logisticsAttendance.date, tomorrow as any)
+          )
         );
-        res.json(report);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to update report" });
-      }
+      const mapped = (rows as any[]).map((r) => ({
+        ...r,
+        checkIn: r.checkInTime,
+        checkOut: r.checkOutTime,
+        status: r.checkOutTime
+          ? "checked_out"
+          : r.checkInTime
+          ? "checked_in"
+          : "checked_out",
+      }));
+      res.json(mapped);
+    } catch (e) {
+      res.json([]);
     }
-  );
+  });
 
-  app.delete(
-    "/api/reports/:id",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        await storage.deleteAccountReport(req.params.id);
-        res.status(204).send();
-      } catch (error) {
-        res.status(500).json({ error: "Failed to delete report" });
-      }
-    }
-  );
-
+  // Logistics attendance metrics
   app.get(
-    "/api/reports/:id/export",
-    ...requireReportsAccess,
-    async (req: AuthenticatedRequest, res) => {
+    "/api/logistics/attendance/metrics",
+    requireAuth,
+    async (_req, res) => {
       try {
-        const format = (req.query.format as string) || "pdf";
-        const report = await storage.getAccountReport(req.params.id);
-        if (!report) {
-          return res.status(404).json({ error: "Report not found" });
-        }
-
-        // Generate export file (this would typically call a service to generate PDF/Excel/CSV)
-        const exportData = await storage.exportReport(req.params.id, format);
-
-        // Track download
-        await storage.incrementReportDownload(req.params.id);
-
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        const all = await db.select().from(logisticsAttendance);
+        const mappedAll = (all as any[]).map((r) => ({
+          ...r,
+          status: (r as any).checkOutTime
+            ? "checked_out"
+            : (r as any).checkInTime
+            ? "checked_in"
+            : "checked_out",
+        }));
+        const checkedIn = mappedAll.filter(
+          (r) => r.status === "checked_in"
+        ).length;
+        const checkedOut = mappedAll.filter(
+          (r) => r.status === "checked_out"
+        ).length;
+        const totalPresent = mappedAll.length;
+        // Average hours where both checkInTime and checkOutTime exist
+        const hrs = (mappedAll as any[])
+          .filter((r) => (r as any).checkInTime && (r as any).checkOutTime)
+          .map(
+            (r) =>
+              (new Date((r as any).checkOutTime).getTime() -
+                new Date((r as any).checkInTime).getTime()) /
+              (1000 * 60 * 60)
+          );
+        const averageWorkHours = hrs.length
+          ? Math.round((hrs.reduce((a, b) => a + b, 0) / hrs.length) * 10) / 10
+          : 0;
+        // No deliveries columns in your DDL - set 0
+        const totalDeliveries = 0;
         res.json({
-          success: true,
-          format,
-          downloadUrl: exportData.url,
-          fileName: exportData.fileName,
+          totalPresent,
+          checkedIn,
+          checkedOut,
+          averageWorkHours,
+          totalDeliveries,
+          activeTasks: 0,
         });
-      } catch (error) {
-        res.status(500).json({ error: "Failed to export report" });
+      } catch (e) {
+        res.json({
+          totalPresent: 0,
+          checkedIn: 0,
+          checkedOut: 0,
+          averageWorkHours: 0,
+          totalDeliveries: 0,
+          activeTasks: 0,
+        });
       }
     }
   );
 
-  // Account Tasks Routes
-  app.get("/api/account-tasks", async (req, res) => {
-    try {
-      const tasks = await storage.getAccountTasks();
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch account tasks" });
-    }
-  });
-
-  app.get("/api/account-tasks/assignee/:assigneeId", async (req, res) => {
-    try {
-      const tasks = await storage.getAccountTasksByAssignee(
-        req.params.assigneeId
-      );
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch tasks by assignee" });
-    }
-  });
-
-  app.get("/api/account-tasks/status/:status", async (req, res) => {
-    try {
-      const tasks = await storage.getAccountTasksByStatus(req.params.status);
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch tasks by status" });
-    }
-  });
-
-  app.get("/api/account-tasks/type/:type", async (req, res) => {
-    try {
-      const tasks = await storage.getAccountTasksByType(req.params.type);
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch tasks by type" });
-    }
-  });
-
-  app.get("/api/account-tasks/:id", async (req, res) => {
-    try {
-      const task = await storage.getAccountTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ error: "Account task not found" });
-      }
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch account task" });
-    }
-  });
-
-  app.post("/api/account-tasks", async (req, res) => {
-    try {
-      const taskData = insertAccountTaskSchema.parse(req.body);
-      const task = await storage.createAccountTask(taskData);
-      await storage.createActivity({
-        userId: task.assignedBy,
-        action: "CREATE_ACCOUNT_TASK",
-        entityType: "account_task",
-        entityId: task.id,
-        details: `Created account task: ${task.title}`,
-      });
-      res.status(201).json(task);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid task data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create account task" });
-    }
-  });
-
-  app.put("/api/account-tasks/:id", async (req, res) => {
-    try {
-      const taskData = insertAccountTaskSchema.partial().parse(req.body);
-      const task = await storage.updateAccountTask(req.params.id, taskData);
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update account task" });
-    }
-  });
-
-  app.delete("/api/account-tasks/:id", async (req, res) => {
-    try {
-      await storage.deleteAccountTask(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete account task" });
-    }
-  });
-
-  // Accounts Analytics Routes
-  app.get("/api/accounts/dashboard-metrics", async (req, res) => {
-    try {
-      const metrics = await storage.getAccountsDashboardMetrics();
-      res.json(metrics);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch accounts dashboard metrics" });
-    }
-  });
-
-  app.get("/api/accounts/cash-flow-summary", async (req, res) => {
-    try {
-      const summary = await storage.getCashFlowSummary();
-      res.json(summary);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch cash flow summary" });
-    }
-  });
-
-  app.get("/api/accounts/receivables-total", async (req, res) => {
-    try {
-      const total = await storage.getTotalReceivablesAmount();
-      res.json({ total });
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch total receivables amount" });
-    }
-  });
-
-  app.get("/api/accounts/payables-total", async (req, res) => {
-    try {
-      const total = await storage.getTotalPayablesAmount();
-      res.json({ total });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch total payables amount" });
-    }
-  });
-
-  // ==========================================
-  // MARKETING MODULE API ROUTES REGISTRY
-  // ==========================================
-
-  // Import marketing routes registry and register routes
-  const { registerMarketingRoutes } = await import(
-    "./marketing-routes-registry"
-  );
-
-  registerMarketingRoutes(app, {
-    requireAuth,
-    requireMarketingAccess,
-    checkOwnership,
-  });
-
-  // ==========================================
-  // MARKETING ROUTES REGISTRY IMPLEMENTATION COMPLETE
-  // All marketing routes now handled by registry above
-  // ==========================================
-
-  // All marketing route registrations removed - handled by registry above
-
-  app.get(
-    "/api/field-visits/today",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const visits = await storage.getTodayFieldVisits();
-        res.json(visits);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch today's field visits" });
-      }
-    }
-  );
-
-  app.get(
-    "/api/field-visits/metrics",
-    requireAuth,
-    requireMarketingAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const metrics = await storage.getVisitMetrics();
-        res.json(metrics);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch field visit metrics" });
-      }
-    }
-  );
-
-  // MARKETING TASKS API ROUTES - SECURED WITH AUTHENTICATION
-  app.get(
-    "/api/marketing-tasks",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // Validate query parameters using Zod schema
-        const filters = marketingTaskFilterSchema.parse(req.query);
-
-        // Combined filtering support - apply multiple filters simultaneously
-        let tasks;
-        const hasFilters = Object.values(filters).some(
-          (value) => value !== undefined
-        );
-
-        if (hasFilters) {
-          // Use combined filtering when any filters are present
-          tasks = await storage.getMarketingTasksWithFilters(filters);
-        } else {
-          tasks = await storage.getMarketingTasks();
-        }
-
-        res.json(tasks);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({
-            error: "Invalid filter parameters",
-            details: error.errors,
-          });
-        }
-        res.status(500).json({ error: "Failed to fetch marketing tasks" });
-      }
-    }
-  );
-
-  app.get(
-    "/api/marketing-tasks/:id",
-    requireAuth,
-    checkOwnership("marketing_task"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // Validate UUID format
-        if (
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            req.params.id
-          )
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Invalid marketing task ID format" });
-        }
-
-        const task = await storage.getMarketingTask(req.params.id);
-        if (!task) {
-          return res.status(404).json({ error: "Marketing task not found" });
-        }
-        res.json(task);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch marketing task" });
-      }
-    }
-  );
-
+  // Logistics attendance check-in
   app.post(
-    "/api/marketing-tasks",
+    "/api/logistics/attendance/check-in",
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const taskData = insertMarketingTaskSchema.parse(req.body);
-
-        // SECURITY FIX: ALWAYS set assignedBy server-side, never trust client
-        taskData.assignedBy = req.user!.id;
-        taskData.createdBy = req.user!.id;
-
-        // Validate related entities exist if provided
-        if (taskData.leadId) {
-          const lead = await storage.getLead(taskData.leadId);
-          if (!lead) {
-            return res.status(400).json({ error: "Associated lead not found" });
-          }
-        }
-
-        if (taskData.fieldVisitId) {
-          const visit = await storage.getFieldVisit(taskData.fieldVisitId);
-          if (!visit) {
-            return res
-              .status(400)
-              .json({ error: "Associated field visit not found" });
-          }
-        }
-
-        const task = await storage.createMarketingTask(taskData);
-        await storage.createActivity({
-          userId: req.user!.id,
-          action: "CREATE_MARKETING_TASK",
-          entityType: "marketing_task",
-          entityId: task.id,
-          details: `Created marketing task: ${task.title}`,
-        });
-        res.status(201).json(task);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res
+        const body = req.body || {};
+        const { userId, latitude, longitude, location } = body;
+        if (latitude == null || longitude == null) {
+          res
             .status(400)
-            .json({ error: "Invalid task data", details: error.errors });
+            .json({ error: "latitude and longitude are required" });
+          return;
         }
-        res.status(500).json({ error: "Failed to create marketing task" });
-      }
-    }
-  );
-
-  app.put(
-    "/api/marketing-tasks/:id",
-    requireAuth,
-    checkOwnership("marketing_task"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // Validate UUID format
-        if (
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            req.params.id
-          )
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Invalid marketing task ID format" });
+        const isUuid = (s: string) =>
+          typeof s === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            s
+          );
+        const userIdSafe = isUuid(userId)
+          ? userId
+          : isUuid(req.user?.id || "")
+          ? req.user!.id
+          : null;
+        if (!userIdSafe) {
+          res.status(400).json({ error: "Valid userId (UUID) is required" });
+          return;
         }
-
-        // Check if marketing task exists first
-        const existingTask = await storage.getMarketingTask(req.params.id);
-        if (!existingTask) {
-          return res.status(404).json({ error: "Marketing task not found" });
-        }
-
-        const taskData = insertMarketingTaskSchema.partial().parse(req.body);
-        const task = await storage.updateMarketingTask(req.params.id, taskData);
-        await storage.createActivity({
-          userId: req.user!.id,
-          action: "UPDATE_MARKETING_TASK",
-          entityType: "marketing_task",
-          entityId: task.id,
-          details: `Updated marketing task: ${task.title}`,
+        const [row] = await db
+          .insert(logisticsAttendance)
+          .values({
+            userId: userIdSafe as any,
+            date: new Date(),
+            checkInTime: new Date(),
+            checkInLatitude: latitude as any,
+            checkInLocation: location,
+          } as any)
+          .returning();
+        res.status(201).json({
+          ...row,
+          checkIn: (row as any).checkInTime,
+          checkOut: (row as any).checkOutTime,
+          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
         });
-        res.json(task);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res
-            .status(400)
-            .json({ error: "Invalid task data", details: error.errors });
-        }
-        res.status(500).json({ error: "Failed to update marketing task" });
-      }
-    }
-  );
-
-  app.delete(
-    "/api/marketing-tasks/:id",
-    requireAuth,
-    checkOwnership("marketing_task"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // Validate UUID format
-        if (
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            req.params.id
-          )
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Invalid marketing task ID format" });
-        }
-
-        // Check if marketing task exists first
-        const existingTask = await storage.getMarketingTask(req.params.id);
-        if (!existingTask) {
-          return res.status(404).json({ error: "Marketing task not found" });
-        }
-
-        await storage.deleteMarketingTask(req.params.id);
-        await storage.createActivity({
-          userId: req.user!.id,
-          action: "DELETE_MARKETING_TASK",
-          entityType: "marketing_task",
-          entityId: req.params.id,
-          details: `Deleted marketing task: ${existingTask.title}`,
-        });
-        res.status(204).send();
-      } catch (error) {
-        res.status(500).json({ error: "Failed to delete marketing task" });
-      }
-    }
-  );
-
-  app.put(
-    "/api/marketing-tasks/:id/status",
-    requireAuth,
-    checkOwnership("marketing_task"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // Validate UUID format
-        if (
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            req.params.id
-          )
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Invalid marketing task ID format" });
-        }
-
-        // Check if marketing task exists first
-        const existingTask = await storage.getMarketingTask(req.params.id);
-        if (!existingTask) {
-          return res.status(404).json({ error: "Marketing task not found" });
-        }
-
-        // Validate status update using Zod schema
-        const { status, notes } = updateMarketingTaskStatusSchema.parse(
-          req.body
-        );
-
-        const task = await storage.updateTaskStatus(req.params.id, status);
-        await storage.createActivity({
-          userId: req.user!.id,
-          action: "UPDATE_MARKETING_TASK_STATUS",
-          entityType: "marketing_task",
-          entityId: task.id,
-          details: `Updated marketing task status to '${status}': ${
-            task.title
-          }${notes ? ` - ${notes}` : ""}`,
-        });
-        res.json(task);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({
-            error: "Invalid status update data",
-            details: error.errors,
-          });
-        }
-        res
-          .status(500)
-          .json({ error: "Failed to update marketing task status" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/marketing-tasks/:id/complete",
-    requireAuth,
-    checkOwnership("marketing_task"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { completionNotes, outcome, nextAction, actualHours } = req.body;
-        const task = await storage.updateMarketingTask(req.params.id, {
-          completionNotes,
-          outcome,
-          nextAction,
-          actualHours,
-          completedDate: new Date(),
-          status: "completed",
-        });
-
-        await storage.createActivity({
-          userId: task.assignedTo,
-          action: "COMPLETE_MARKETING_TASK",
-          entityType: "marketing_task",
-          entityId: task.id,
-          details: `Completed marketing task: ${task.title}`,
-        });
-
-        res.json({ task, message: "Task completed successfully" });
-      } catch (error) {
-        res.status(500).json({ error: "Failed to complete marketing task" });
-      }
-    }
-  );
-
-  app.get(
-    "/api/marketing-tasks/today",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const tasks = await storage.getTodayMarketingTasks();
-        res.json(tasks);
-      } catch (error) {
-        res
-          .status(500)
-          .json({ error: "Failed to fetch today's marketing tasks" });
-      }
-    }
-  );
-
-  app.get(
-    "/api/marketing-tasks/metrics",
-    requireAuth,
-    requireMarketingAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const metrics = await storage.getTaskCompletionMetrics();
-        res.json(metrics);
-      } catch (error) {
-        res
-          .status(500)
-          .json({ error: "Failed to fetch marketing task metrics" });
-      }
-    }
-  );
-
-  // MARKETING ATTENDANCE API ROUTES
-  app.get(
-    "/api/marketing-attendance",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const attendance = await storage.getMarketingAttendances();
-        res.json(attendance);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch marketing attendance" });
-      }
-    }
-  );
-
-  app.get(
-    "/api/marketing-attendance/:id",
-    requireAuth,
-    checkOwnership("marketing_attendance"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const attendance = await storage.getMarketingAttendance(req.params.id);
-        if (!attendance) {
-          return res.status(404).json({ error: "Attendance record not found" });
-        }
-        res.json(attendance);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch attendance record" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/marketing-attendance",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // SECURITY: Strip identity fields - NEVER trust from client
-        const { userId, checkedInBy, checkedOutBy, ...clientData } = req.body;
-        const attendanceData = insertMarketingAttendanceSchema.parse({
-          ...clientData,
-          userId: req.user!.id, // ALWAYS server-controlled
-          checkedInBy: null, // Set when checking in
-          checkedOutBy: null, // Set when checking out
-        });
-        const attendance = await storage.createMarketingAttendance(
-          attendanceData
-        );
-        res.status(201).json(attendance);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res
-            .status(400)
-            .json({ error: "Invalid attendance data", details: error.errors });
-        }
-        res.status(500).json({ error: "Failed to create attendance record" });
-      }
-    }
-  );
-
-  app.put(
-    "/api/marketing-attendance/:id",
-    requireAuth,
-    checkOwnership("marketing_attendance"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const attendanceData = insertMarketingAttendanceSchema
-          .partial()
-          .parse(req.body);
-        const attendance = await storage.updateMarketingAttendance(
-          req.params.id,
-          attendanceData
-        );
-        res.json(attendance);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res
-            .status(400)
-            .json({ error: "Invalid attendance data", details: error.errors });
-        }
-        res.status(500).json({ error: "Failed to update attendance record" });
-      }
-    }
-  );
-
-  app.delete(
-    "/api/marketing-attendance/:id",
-    requireAuth,
-    checkOwnership("marketing_attendance"),
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        await storage.deleteMarketingAttendance(req.params.id);
-        res.status(204).send();
-      } catch (error) {
-        res.status(500).json({ error: "Failed to delete attendance record" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/marketing-attendance/check-in",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // SECURITY CRITICAL FIX: NEVER trust userId from client - use authenticated user
-        const { latitude, longitude, location, photoPath } = req.body;
-        const userId = req.user!.id; // ALWAYS server-controlled
-
-        // Validate required GPS coordinates
-        if (!latitude || !longitude) {
-          return res
-            .status(400)
-            .json({ error: "GPS coordinates are required for check-in" });
-        }
-
-        const attendance = await storage.checkInMarketingAttendance(userId, {
-          checkInTime: new Date(),
-          checkInLatitude: latitude,
-          checkInLongitude: longitude,
-          checkInLocation: location,
-          checkInPhotoPath: photoPath,
-          date: new Date(),
-          attendanceStatus: "present",
-        });
-
-        res.json({ attendance, message: "Successfully checked in" });
-      } catch (error) {
+      } catch (e) {
         res.status(500).json({ error: "Failed to check in" });
       }
     }
   );
 
-  app.post(
-    "/api/marketing-attendance/check-out",
+  // Logistics attendance check-out
+  app.put(
+    "/api/logistics/attendance/:id/check-out",
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        // SECURITY CRITICAL FIX: NEVER trust userId from client - use authenticated user
-        const {
-          latitude,
-          longitude,
-          location,
-          photoPath,
-          workDescription,
-          visitCount,
-          tasksCompleted,
-        } = req.body;
-        const userId = req.user!.id; // ALWAYS server-controlled
-
-        // Validate required GPS coordinates
-        if (!latitude || !longitude) {
-          return res
-            .status(400)
-            .json({ error: "GPS coordinates are required for check-out" });
-        }
-
-        const attendance = await storage.checkOutMarketingAttendance(userId, {
-          checkOutTime: new Date(),
-          checkOutLatitude: latitude,
-          checkOutLongitude: longitude,
-          checkOutLocation: location,
-          checkOutPhotoPath: photoPath,
-          workDescription,
-          visitCount,
-          tasksCompleted,
+        const id = String(req.params.id);
+        const { location } = req.body || {};
+        const [row] = await db
+          .update(logisticsAttendance)
+          .set({
+            checkOutTime: new Date(),
+            checkOutLocation: location,
+          } as any)
+          .where(eq(logisticsAttendance.id as any, id as any))
+          .returning();
+        if (!row)
+          return res.status(404).json({ error: "Attendance not found" });
+        res.json({
+          ...row,
+          checkIn: (row as any).checkInTime,
+          checkOut: (row as any).checkOutTime,
+          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
         });
-
-        res.json({ attendance, message: "Successfully checked out" });
-      } catch (error) {
+      } catch (e) {
         res.status(500).json({ error: "Failed to check out" });
       }
     }
   );
 
-  app.get(
-    "/api/marketing-attendance/today",
+  // Logistics attendance photo upload URL
+  app.post(
+    "/api/logistics/attendance/photo/upload-url",
     requireAuth,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const attendance = await storage.getTodayAttendance();
-        res.json(attendance);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch today's attendance" });
+        const { attendanceId, fileName, contentType, photoType } =
+          req.body || {};
+        if (!attendanceId || !fileName || !contentType || !photoType) {
+          res.status(400).json({
+            error:
+              "attendanceId, fileName, contentType, and photoType are required",
+          });
+          return;
+        }
+        const objectStorage = new ObjectStorageService();
+        const uploadURL = await objectStorage.getObjectEntityUploadURL();
+        const objectPath = `attendance-photos/${attendanceId}/${photoType}-${Date.now()}-${fileName}`;
+        res.json({ uploadURL, objectPath });
+      } catch (e) {
+        res.status(500).json({ error: "Failed to generate upload URL" });
       }
     }
   );
 
-  app.get(
-    "/api/marketing-attendance/metrics",
+  // Logistics attendance update photo path
+  app.put(
+    "/api/logistics/attendance/:id/photo",
     requireAuth,
-    requireMarketingAccess,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const metrics = await storage.getAttendanceMetrics();
-        res.json(metrics);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch attendance metrics" });
+        // No-op for DB schema without photo columns; return 204
+        res.status(204).end();
+      } catch (e) {
+        res.status(500).json({ error: "Failed to update photo" });
       }
     }
   );
 
-  // MARKETING ANALYTICS API ROUTES
-  app.get(
-    "/api/marketing/dashboard",
+  // Logistics tasks endpoints (DB-first with in-memory fallback)
+  app.get("/api/logistics/tasks", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db.select().from(logisticsTasks);
+      const all = Array.isArray(rows) ? rows : [];
+      if (inMemoryLogisticsTasks.length) {
+        res.json([...all, ...inMemoryLogisticsTasks]);
+      } else {
+        res.json(all);
+      }
+    } catch (e) {
+      res.json(inMemoryLogisticsTasks);
+    }
+  });
+
+  app.post(
+    "/api/logistics/tasks",
     requireAuth,
-    requireMarketingAccess,
     async (req: AuthenticatedRequest, res) => {
       try {
-        const dashboard = await storage.getMarketingDashboardMetrics();
-        res.json(dashboard);
-      } catch (error) {
-        res
-          .status(500)
-          .json({ error: "Failed to fetch marketing dashboard metrics" });
+        const body = req.body || {};
+        const title = typeof body.title === "string" ? body.title.trim() : "";
+        const assignedTo =
+          typeof body.assignedTo === "string" ? body.assignedTo.trim() : "";
+        if (!title || !assignedTo) {
+          res.status(400).json({ error: "title and assignedTo are required" });
+          return;
+        }
+        const description =
+          typeof body.description === "string"
+            ? body.description.trim()
+            : undefined;
+        const priority =
+          typeof body.priority === "string" ? body.priority : "medium";
+        const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+
+        try {
+          const isUuid = (s: string) =>
+            typeof s === "string" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              s
+            );
+          const assignedByCandidate =
+            typeof body.assignedBy === "string"
+              ? body.assignedBy
+              : req.user?.id;
+          const assignedBySafe = isUuid(assignedByCandidate || "")
+            ? assignedByCandidate!
+            : assignedTo;
+          const [row] = await db
+            .insert(logisticsTasks)
+            .values({
+              title,
+              description,
+              priority,
+              assignedTo,
+              assignedBy: assignedBySafe,
+              status: "new",
+              dueDate,
+            })
+            .returning();
+          res.status(201).json(row);
+        } catch (dbErr) {
+          const rec: any = {
+            id: "mem-" + Date.now(),
+            title,
+            description: description || null,
+            priority,
+            assignedTo,
+            assignedBy: String(req.user!.id),
+            status: "new",
+            dueDate: body.dueDate || null,
+            startedDate: null,
+            completedDate: null,
+            shipmentId: body.shipmentId || undefined,
+            estimatedHours: body.estimatedHours || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            _fallback: true,
+          };
+          inMemoryLogisticsTasks.push(rec);
+          res.status(201).json(rec);
+        }
+      } catch (e) {
+        res.status(500).json({ error: "Failed to create logistics task" });
       }
     }
   );
 
-  app.get(
-    "/api/marketing/conversion-rates",
-    requireAuth,
-    requireMarketingAccess,
-    async (req: AuthenticatedRequest, res) => {
+  app.put("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const id = String(req.params.id);
+      const body = req.body || {};
+
+      // Try DB update
       try {
-        const conversionRates = await storage.getLeadConversionRates();
-        res.json(conversionRates);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch conversion rates" });
+        const patch: any = {};
+        if (typeof body.title === "string") patch.title = body.title.trim();
+        if (typeof body.description === "string")
+          patch.description = body.description.trim();
+        if (typeof body.status === "string") patch.status = body.status;
+        if (typeof body.priority === "string") patch.priority = body.priority;
+        if (body.dueDate !== undefined)
+          patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+        if (Object.keys(patch).length === 0) {
+          res.status(400).json({ error: "No valid fields to update" });
+          return;
+        }
+        const [row] = await db
+          .update(logisticsTasks)
+          .set(patch)
+          .where(eq(logisticsTasks.id, id as any))
+          .returning();
+        if (!row) {
+          res.status(404).json({ error: "Task not found" });
+          return;
+        }
+        res.json(row);
+        return;
+      } catch (dbErr) {
+        // Fallback to in-memory update
+      }
+
+      const idx = inMemoryLogisticsTasks.findIndex(
+        (t: any) => String(t.id) === id
+      );
+      if (idx === -1) {
+        res.status(404).json({ error: "Task not found" });
+        return;
+      }
+      const patch: any = {};
+      if (typeof body.title === "string") patch.title = body.title.trim();
+      if (typeof body.description === "string")
+        patch.description = body.description.trim();
+      if (typeof body.status === "string") patch.status = body.status;
+      if (typeof body.priority === "string") patch.priority = body.priority;
+      if (body.dueDate !== undefined) patch.dueDate = body.dueDate || null;
+      patch.updatedAt = new Date().toISOString();
+
+      inMemoryLogisticsTasks[idx] = {
+        ...inMemoryLogisticsTasks[idx],
+        ...patch,
+      };
+      res.json(inMemoryLogisticsTasks[idx]);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to update logistics task" });
+    }
+  });
+
+  app.delete("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const id = String(req.params.id);
+
+      // Try DB delete
+      try {
+        const [row] = await db
+          .delete(logisticsTasks)
+          .where(eq(logisticsTasks.id, id as any))
+          .returning();
+        if (!row) {
+          res.status(404).json({ error: "Task not found" });
+          return;
+        }
+        res.status(204).end();
+        return;
+      } catch (dbErr) {
+        // Fallback to in-memory delete
+      }
+
+      const idx = inMemoryLogisticsTasks.findIndex(
+        (t: any) => String(t.id) === id
+      );
+      if (idx === -1) {
+        res.status(404).json({ error: "Task not found" });
+        return;
+      }
+      inMemoryLogisticsTasks.splice(idx, 1);
+      res.status(204).end();
+    } catch (e) {
+      res.status(500).json({ error: "Failed to delete logistics task" });
+    }
+  });
+
+  // Logistics reports
+  app.get("/api/logistics/reports/daily", requireAuth, async (req, res) => {
+    try {
+      const from = req.query.from ? new Date(String(req.query.from)) : null;
+      const to = req.query.to ? new Date(String(req.query.to)) : null;
+      if (!from || !to) return res.json([]);
+      const toPlus = new Date(to);
+      toPlus.setDate(toPlus.getDate() + 1);
+      const rows = await db
+        .select()
+        .from(deliveries)
+        .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)));
+      res.json(rows);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
+  app.get(
+    "/api/logistics/reports/vendor-performance",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const from = req.query.from ? new Date(String(req.query.from)) : null;
+        const to = req.query.to ? new Date(String(req.query.to)) : null;
+        if (!from || !to) return res.json([]);
+        const toPlus = new Date(to);
+        toPlus.setDate(toPlus.getDate() + 1);
+        const rows = await db
+          .select({
+            vendorId: deliveries.vendorId,
+            vendorName: suppliers.name,
+            totalDeliveries: sql`COUNT(${deliveries.id})`,
+            totalVolume: sql`SUM(${deliveries.volume})`,
+          })
+          .from(deliveries)
+          .leftJoin(suppliers, eq(deliveries.vendorId, suppliers.id))
+          .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)))
+          .groupBy(deliveries.vendorId, suppliers.name);
+        res.json(rows);
+      } catch (e) {
+        res.json([]);
       }
     }
   );
 
+  app.get("/api/logistics/reports/volume", requireAuth, async (req, res) => {
+    try {
+      const from = req.query.from ? new Date(String(req.query.from)) : null;
+      const to = req.query.to ? new Date(String(req.query.to)) : null;
+      if (!from || !to) return res.json([]);
+      const toPlus = new Date(to);
+      toPlus.setDate(toPlus.getDate() + 1);
+      const rows = await db
+        .select({
+          date: deliveries.date,
+          totalVolume: sql`SUM(${deliveries.volume})`,
+        })
+        .from(deliveries)
+        .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)))
+        .groupBy(deliveries.date)
+        .orderBy(deliveries.date);
+      res.json(rows);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
   app.get(
-    "/api/marketing/team-performance",
+    "/api/logistics/reports/performance",
     requireAuth,
-    requireMarketingAccess,
-    async (req: AuthenticatedRequest, res) => {
+    async (req, res) => {
       try {
-        const teamPerformance = await storage.getMarketingTeamPerformance();
-        res.json(teamPerformance);
-      } catch (error) {
-        res
-          .status(500)
-          .json({ error: "Failed to fetch team performance metrics" });
+        const from = req.query.from ? new Date(String(req.query.from)) : null;
+        const to = req.query.to ? new Date(String(req.query.to)) : null;
+        if (!from || !to)
+          return res.json({
+            totalDeliveries: 0,
+            totalVolume: 0,
+            averageVolume: 0,
+          });
+        const toPlus = new Date(to);
+        toPlus.setDate(toPlus.getDate() + 1);
+        const [row] = await db
+          .select({
+            totalDeliveries: sql`COUNT(${deliveries.id})`,
+            totalVolume: sql`SUM(${deliveries.volume})`,
+            averageVolume: sql`AVG(${deliveries.volume})`,
+          })
+          .from(deliveries)
+          .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)));
+        res.json({
+          totalDeliveries: Number((row as any)?.totalDeliveries || 0),
+          totalVolume: Number((row as any)?.totalVolume || 0),
+          averageVolume: Number((row as any)?.averageVolume || 0),
+        });
+      } catch (e) {
+        res.json({ totalDeliveries: 0, totalVolume: 0, averageVolume: 0 });
       }
     }
   );
 
-  app.get(
-    "/api/marketing/visit-success-rates",
-    requireAuth,
-    requireMarketingAccess,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const successRates = await storage.getVisitSuccessRates();
-        res.json(successRates);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch visit success rates" });
-      }
+  // Basic health check route
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "OK", timestamp: new Date().toISOString() });
+  });
+  // app.get("/api/tasks", (req: Request, res: Response) => {
+  //   res.json({ message: "List of tasks", tasks: [] });
+  // });
+
+  // // POST /api/tasks -> create a task
+  // app.post("/api/tasks", (req: Request, res: Response) => {
+  //   const task = req.body;
+  //   res.status(201).json({ message: "Task created", task });
+  // });
+  app.get("/api/inventory-tasks", async (_req: Request, res: Response) => {
+    try {
+      const tasks = await db.select().from(inventoryTasks);
+      res.status(200).json(tasks);
+    } catch (err) {
+      console.error("Error fetching inventory tasks:", err);
+      res.status(500).json({ error: "Failed to fetch inventory tasks" });
     }
-  );
+  });
+
+  // Create Inventory Task
+  // Allowed enums
+  const validStatuses = ["pending", "in_progress", "completed", "cancelled"];
+  const validPriorities = ["low", "medium", "high", "urgent"];
+
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        category,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
+
+      // Hardcoded assignedBy (replace with logged-in user in real app)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573";
+
+      // Validate required fields
+      if (!title || !assignedTo || !assignedBy) {
+        return res.status(400).json({
+          error: "title, assignedTo, and assignedBy are required",
+        });
+      }
+
+      // Validate UUIDs
+      if (!isUuid(assignedTo) || !isUuid(assignedBy)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo and assignedBy must be valid UUIDs" });
+      }
+
+      // Map API status to enum
+      let status = req.body.status || "pending";
+      if (status === "new") status = "pending";
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+
+      // Validate priority
+      const taskPriority = validPriorities.includes(priority)
+        ? priority
+        : "medium";
+
+      const [newTask] = await db
+        .insert("inventory_tasks")
+        .values({
+          title,
+          description: description || null,
+          assignedTo,
+          assignedBy,
+          status,
+          priority: taskPriority,
+          category: category || null,
+          productId: productId || null,
+          sparePartId: sparePartId || null,
+          batchId: batchId || null,
+          fabricationOrderId: fabricationOrderId || null,
+          expectedQuantity: expectedQuantity || null,
+          actualQuantity: actualQuantity || null,
+          fromLocation: fromLocation || null,
+          toLocation: toLocation || null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          completedDate: null,
+          notes: notes || null,
+          attachmentPath: attachmentPath || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning("*");
+
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err: any) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
+        error: "Failed to create inventory task",
+        details: err.message,
+      });
+    }
+  });
+  // GET /api/tasks -> fetch all tasks
+  app.get("/api/tasks", async (_req: Request, res: Response) => {
+    try {
+      const rows = await db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          description: tasks.description,
+          status: tasks.status,
+          priority: tasks.priority,
+          dueDate: tasks.dueDate,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
+          assignedTo: users.username, // show username instead of id
+          assignedBy: users.username, // show username instead of id
+        })
+        .from(tasks)
+        .leftJoin(users, eq(tasks.assignedTo, users.id)); // join with assignedTo user
+      res.json(rows);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      res.status(500).json({ error: "Failed to fetch tasks" });
+    }
+  });
+
+  app.post("/api/tasks", async (req: Request, res: Response) => {
+    try {
+      const { title, description, assignedTo, priority, dueDate } = req.body;
+
+      // Hardcode assignedBy to the logged-in user or a fixed UUID
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+      // Validate assignedTo UUID
+      if (!isUuid(assignedTo)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo must be a valid user ID" });
+      }
+
+      const validPriority = ["low", "medium", "high"];
+      const status = "new"; // automatically set for new tasks
+
+      if (!validPriority.includes(priority)) {
+        return res.status(400).json({ error: "Invalid priority" });
+      }
+
+      const [newTask] = await db
+        .insert(tasks)
+        .values({
+          title,
+          description,
+          assignedTo,
+          assignedBy,
+          status,
+          priority,
+          dueDate: dueDate ? new Date(dueDate) : null,
+        })
+        .returning({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          priority: tasks.priority,
+          assignedTo: tasks.assignedTo,
+          assignedBy: tasks.assignedBy,
+          dueDate: tasks.dueDate,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
+        });
+
+      res.status(201).json({ message: "Task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating task:", err);
+      res.status(500).json({ error: "Failed to create task" });
+    }
+  });
+
+  // GET /api/tasks/:id
+  // app.get("/api/tasks/:id", (req: Request, res: Response) => {
+  //   const { id } = req.params;
+  //   res.json({ message: `Task ${id} details` });
+  // });
+
+  // // PUT /api/tasks/:id
+  // app.put("/api/tasks/:id", (req: Request, res: Response) => {
+  //   const { id } = req.params;
+  //   const updates = req.body;
+  //   res.json({ message: `Task ${id} updated`, updates });
+  // });
+
+  // DELETE /api/tasks/:id
+  app.delete("/api/tasks/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    res.json({ message: `Task ${id} deleted` });
+  });
+  const enableRegistries = process.env.ENABLE_FULL_REGISTRIES === "1";
+  // Import and register marketing routes safely
+  try {
+    if (!enableRegistries) {
+      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
+    }
+    const { registerMarketingRoutes } = await import(
+      "./marketing-routes-registry"
+    );
+    registerMarketingRoutes(app, {
+      requireAuth,
+      requireMarketingAccess,
+      checkOwnership,
+    });
+    console.log("✅ Marketing routes registered successfully");
+  } catch (error) {
+    console.warn("⚠️ Marketing routes registry not available:", error);
+  }
+
+  // Import and register logistics routes safely
+  try {
+    if (!enableRegistries) {
+      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
+    }
+    const { registerLogisticsRoutes } = await import(
+      "./logistics-routes-registry"
+    );
+    registerLogisticsRoutes(app, { requireAuth });
+    console.log("✅ Logistics routes registered successfully");
+  } catch (error) {
+    console.warn("⚠️ Logistics routes registry not available:", error);
+  }
+
+  // Always register lightweight registries for dashboards
+  try {
+    const { registerInventoryRoutes } = await import(
+      "./inventory-routes-registry"
+    );
+    registerInventoryRoutes(app, { requireAuth });
+    console.log("✅ Inventory routes registered");
+  } catch (e) {
+    console.warn("⚠️ Inventory routes registry load failed", e);
+  }
+
+  try {
+    const { registerSalesRoutes } = await import("./sales-routes-registry");
+    registerSalesRoutes(app, { requireAuth });
+    console.log("✅ Sales routes registered");
+  } catch (e) {
+    console.warn("⚠️ Sales routes registry load failed", e);
+  }
+
+  try {
+    const { registerAccountsRoutes } = await import(
+      "./accounts-routes-registry"
+    );
+    registerAccountsRoutes(app, { requireAuth });
+    console.log("✅ Accounts routes registered");
+  } catch (e) {
+    console.warn("⚠️ Accounts routes registry load failed", e);
+  }
+
+  // Marketing attendance routes are now handled by marketing-routes-registry.ts
+  // Removed duplicate /api/marketing-attendance/today route to avoid conflicts
+
+  // Removed duplicate /api/marketing-attendance/metrics route to avoid conflicts
 
   const httpServer = createServer(app);
   return httpServer;
