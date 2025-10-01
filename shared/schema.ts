@@ -730,8 +730,15 @@ export const insertInvoiceSchema = z.object({
     .enum(["draft", "sent", "paid", "overdue", "cancelled"])
     .optional()
     .default("draft"),
-  invoiceDate: z.date("Invoice date is required"),
-  dueDate: z.date("Due date is required"),
+  invoiceDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+  dueDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+
   subtotalAmount: z.number().min(0, "Subtotal must be positive").optional(),
   cgstRate: z.number().min(0).max(100).optional().default(0),
   cgstAmount: z.number().min(0).optional().default(0),
