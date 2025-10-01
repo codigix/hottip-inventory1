@@ -203,6 +203,16 @@ class Storage {
       throw error;
     }
   }
+
+  async getOutboundQuotation(
+    id: string
+  ): Promise<OutboundQuotation | undefined> {
+    const [row] = await db
+      .select()
+      .from(outboundQuotations)
+      .where(eq(outboundQuotations.id, id));
+    return row;
+  }
   // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
 

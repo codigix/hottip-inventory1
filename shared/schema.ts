@@ -9,6 +9,7 @@ import {
   text,
   uuid,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 import { decimal } from "drizzle-orm/pg-core";
@@ -385,6 +386,12 @@ export const outboundQuotations = pgTable("outbound_quotations", {
   paymentTerms: text("paymentterms"),
   deliveryTerms: text("deliveryterms"),
   notes: text("notes"),
+  // New fields for detailed quotation
+  projectIncharge: text("projectincharge"),
+  moldDetails: jsonb("molddetails"), // Array of mold/part details
+  quotationItems: jsonb("quotationitems"), // Array of quotation line items
+  bankingDetails: text("bankingdetails"),
+  termsConditions: text("termsconditions"),
 });
 
 // =====================
@@ -631,14 +638,46 @@ export const insertOutboundQuotationSchema = z.object({
     .default("draft"),
   deliveryTerms: z.string().optional(),
   paymentTerms: z.string().optional(),
-  warrantyTerms: z.string().optional(),
-  specialTerms: z.string().optional(),
+  bankingDetails: z.string().optional(),
+  termsConditions: z.string().optional(),
   notes: z.string().optional(),
   jobCardNumber: z.string().optional(),
   partNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  accountNumber: z.string().optional(),
-  ifscCode: z.string().optional(),
+  // New fields
+  projectIncharge: z.string().optional(),
+  moldDetails: z
+    .array(
+      z.object({
+        no: z.number(),
+        partName: z.string(),
+        mouldNo: z.string(),
+        plasticMaterial: z.string(),
+        colourChange: z.string(),
+        mfi: z.string(),
+        wallThickness: z.string(),
+        noOfCavity: z.number(),
+        gfPercent: z.string(),
+        mfPercent: z.string(),
+        partWeight: z.number(),
+        systemSuggested: z.string(),
+        noOfDrops: z.number(),
+        trialDate: z.string().optional(),
+      })
+    )
+    .optional(),
+  quotationItems: z
+    .array(
+      z.object({
+        no: z.number(),
+        partName: z.string(),
+        partDescription: z.string(),
+        uom: z.string(),
+        qty: z.number(),
+        unitPrice: z.number(),
+        amount: z.number(),
+      })
+    )
+    .optional(),
 });
 export const insertInboundQuotationSchema = z.object({
   // ✅ Use UUID for senderId
