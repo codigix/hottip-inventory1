@@ -62,8 +62,6 @@ import {
   insertBankAccountSchema,
   bank_transactions,
   insertBankTransactionSchema,
-  account_reminders,
-  insertAccountReminderSchema,
 } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
@@ -2515,112 +2513,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   app.get("/api/account-reminders", requireAuth, async (_req, res) => {
-    try {
-      const reminders = await db.select().from(account_reminders);
-      res.json(reminders);
-    } catch (error) {
-      console.error("Error fetching account reminders:", error);
-      res.status(500).json({ error: "Failed to fetch account reminders" });
-    }
+    res.json([]);
   });
-
-  app.post("/api/account-reminders", requireAuth, async (req, res) => {
-    try {
-      const data = insertAccountReminderSchema.parse(req.body);
-      // Convert string dates to Date objects for Drizzle
-      const insertData = {
-        ...data,
-        dueDate: new Date(data.dueDate),
-        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
-        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
-      };
-      const newReminder = await db
-        .insert(account_reminders)
-        .values(insertData)
-        .returning();
-      res.status(201).json(newReminder[0]);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid input", details: error.errors });
-      }
-      console.error("Error creating account reminder:", error);
-      res.status(500).json({ error: "Failed to create account reminder" });
-    }
-  });
-
-  // PUT /api/account-reminders/:id (edit)
-  app.put("/api/account-reminders/:id", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const data = insertAccountReminderSchema.parse(req.body);
-      const updateData = {
-        ...data,
-        dueDate: new Date(data.dueDate),
-        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
-        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
-      };
-      const updated = await db
-        .update(account_reminders)
-        .set(updateData)
-        .where(eq(account_reminders.id, id))
-        .returning();
-      if (updated.length === 0) {
-        return res.status(404).json({ error: "Reminder not found" });
-      }
-      res.json(updated[0]);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid input", details: error.errors });
-      }
-      console.error("Error updating account reminder:", error);
-      res.status(500).json({ error: "Failed to update account reminder" });
-    }
-  });
-
-  // DELETE /api/account-reminders/:id
-  app.delete("/api/account-reminders/:id", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await db
-        .delete(account_reminders)
-        .where(eq(account_reminders.id, id))
-        .returning();
-      if (deleted.length === 0) {
-        return res.status(404).json({ error: "Reminder not found" });
-      }
-      res.json({ message: "Reminder deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting account reminder:", error);
-      res.status(500).json({ error: "Failed to delete account reminder" });
-    }
-  });
-
-  // POST /api/account-reminders/:id/send (mark as sent)
-  app.post("/api/account-reminders/:id/send", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updated = await db
-        .update(account_reminders)
-        .set({
-          status: "sent",
-          lastSentAt: new Date(),
-        })
-        .where(eq(account_reminders.id, id))
-        .returning();
-      if (updated.length === 0) {
-        return res.status(404).json({ error: "Reminder not found" });
-      }
-      res.json(updated[0]);
-    } catch (error) {
-      console.error("Error sending account reminder:", error);
-      res.status(500).json({ error: "Failed to send account reminder" });
-    }
-  });
-
   app.get("/api/account-tasks", requireAuth, async (_req, res) => {
     res.json([]);
   });
