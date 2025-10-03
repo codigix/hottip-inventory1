@@ -567,7 +567,13 @@ export const accountsPayables = pgTable("accounts_payables", {
   supplierId: uuid("supplierId")
     .notNull()
     .references(() => suppliers.id),
-  amountDue: numeric("amountDue", { precision: 10, scale: 2 }),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default(0),
+  dueDate: timestamp("duedate").notNull(),
+  notes: text("notes"),
+  status: accountsReceivableStatus("status").notNull().default("pending"),
+  createdAt: timestamp("createdat").defaultNow().notNull(),
+  updatedAt: timestamp("updatedat").defaultNow().notNull(),
 });
 
 // =====================
@@ -869,12 +875,14 @@ export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
 export type AccountsPayable = typeof accountsPayables.$inferSelect;
 export type InsertAccountsPayable = typeof accountsPayables.$inferInsert;
 
-// Outbound Quotation schema
+// Accounts Payable schema
 export const insertAccountsPayableSchema = z.object({
   poId: z.string().uuid().optional(),
   inboundQuotationId: z.string().uuid().optional(),
   supplierId: z.string().uuid(),
   amountDue: z.number().positive(),
+  dueDate: z.string(),
+  notes: z.string().optional(),
 });
 export const insertGstReturnSchema = z.object({
   returnPeriod: z.string(),

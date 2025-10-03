@@ -1805,12 +1805,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(purchaseOrder);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid purchase order data",
-            details: error.errors,
-          });
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
       }
       res.status(500).json({
         error: "Failed to create purchase order",
@@ -1830,12 +1828,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(purchaseOrder);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid purchase order data",
-            details: error.errors,
-          });
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
       }
       res.status(500).json({
         error: "Failed to update purchase order",
@@ -2346,26 +2342,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Accounts metrics and lists (stubs to satisfy UI)
-  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
-    res.json({
-      totalReceivables: 0,
-      totalPayables: 0,
-      invoicesDue: 0,
-      avgDaysToPay: 0,
-    });
-  });
+  // app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+  //   res.json({
+  //     totalReceivables: 0,
+  //     totalPayables: 0,
+  //     invoicesDue: 0,
+  //     avgDaysToPay: 0,
+  //   });
+  // });
   app.get("/api/accounts/cash-flow-summary", requireAuth, async (_req, res) => {
     res.json({ inflow: 0, outflow: 0, net: 0 });
   });
-  app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
-  app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
+  // app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
+  //   res.json({ total: 0 });
+  // });
+  // app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
   app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
     res.json([]);
   });

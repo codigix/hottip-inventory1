@@ -250,6 +250,12 @@ export function registerAccountsRoutes(
           inboundQuotationId: accountsPayables.inboundQuotationId,
           supplierId: accountsPayables.supplierId,
           amountDue: accountsPayables.amountDue,
+          amountPaid: accountsPayables.amountPaid,
+          dueDate: accountsPayables.dueDate,
+          notes: accountsPayables.notes,
+          status: accountsPayables.status,
+          createdAt: accountsPayables.createdAt,
+          updatedAt: accountsPayables.updatedAt,
           supplier: {
             id: suppliers.id,
             name: suppliers.name,
@@ -268,6 +274,40 @@ export function registerAccountsRoutes(
     }
   });
 
+  // Get overdue payables
+  app.get("/api/accounts-payables/overdue", requireAuth, async (req, res) => {
+    try {
+      const overduePayables = await db
+        .select()
+        .from(accountsPayables)
+        .where(
+          sql`${accountsPayables.dueDate} < NOW() AND ${accountsPayables.status} != 'paid'`
+        );
+
+      res.json(overduePayables);
+    } catch (error) {
+      console.error("Error fetching overdue payables:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get payables total
+  app.get("/api/accounts/payables-total", requireAuth, async (req, res) => {
+    try {
+      const result = await db
+        .select({
+          total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
+        })
+        .from(accountsPayables)
+        .where(sql`${accountsPayables.status} != 'paid'`);
+
+      res.json({ total: result[0]?.total || 0 });
+    } catch (error) {
+      console.error("Error fetching payables total:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Create new payable
   app.post("/api/accounts-payables", requireAuth, async (req, res) => {
     try {
@@ -280,6 +320,10 @@ export function registerAccountsRoutes(
           inboundQuotationId: validatedData.inboundQuotationId || null,
           supplierId: validatedData.supplierId,
           amountDue: validatedData.amountDue.toString(),
+          dueDate: validatedData.dueDate
+            ? new Date(validatedData.dueDate)
+            : null,
+          notes: validatedData.notes,
         })
         .returning();
 
@@ -338,4 +382,61 @@ export function registerAccountsRoutes(
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Record payment for payable
+  app.post(
+    "/api/accounts-payables/:id/payment",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { amount, notes } = req.body;
+
+        if (!amount || isNaN(parseFloat(amount))) {
+          return res.status(400).json({ message: "Valid amount is required" });
+        }
+
+        // Get current payable
+        const current = await db
+          .select()
+          .from(accountsPayables)
+          .where(eq(accountsPayables.id, id))
+          .limit(1);
+
+        if (current.length === 0) {
+          return res.status(404).json({ message: "Payable not found" });
+        }
+
+        const payable = current[0];
+        const newAmountPaid =
+          parseFloat(payable.amountPaid || 0) + parseFloat(amount);
+        const remainingAmount = parseFloat(payable.amountDue) - newAmountPaid;
+
+        let newStatus = "partial";
+        if (remainingAmount <= 0) {
+          newStatus = "paid";
+        } else if (remainingAmount < parseFloat(payable.amountDue)) {
+          newStatus = "partial";
+        }
+
+        const updated = await db
+          .update(accountsPayables)
+          .set({
+            amountPaid: newAmountPaid,
+            status: newStatus,
+            notes: notes
+              ? `${payable.notes || ""}\nPayment: ${amount} (${notes})`
+              : payable.notes,
+            updatedAt: new Date(),
+          })
+          .where(eq(accountsPayables.id, id))
+          .returning();
+
+        res.json(updated[0]);
+      } catch (error) {
+        console.error("Error recording payment:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
 }
