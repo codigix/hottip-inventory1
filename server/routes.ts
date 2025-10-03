@@ -2462,8 +2462,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           date: bank_transactions.date,
           type: bank_transactions.type,
           amount: bank_transactions.amount,
-          description: bank_transactions.description,
-          reference: bank_transactions.reference,
           bankAccount: {
             id: bank_accounts.id,
             name: bank_accounts.name,
@@ -2476,7 +2474,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bank_accounts,
           eq(bank_transactions.bankAccountId, bank_accounts.id)
         );
-      res.json(transactions);
+      // Add default empty strings for description and reference until DB migration is run
+      const transactionsWithDefaults = transactions.map((t) => ({
+        ...t,
+        description: "",
+        reference: "",
+      }));
+      res.json(transactionsWithDefaults);
     } catch (error) {
       console.error("Error fetching bank transactions:", error);
       res.status(500).json({ error: "Failed to fetch bank transactions" });
@@ -2486,9 +2490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertBankTransactionSchema.parse(req.body);
       // Parse date string to Date object for timestamp
+      const { date, amount, type, bankAccountId } = data;
       const transactionData = {
-        ...data,
-        date: new Date(data.date),
+        date: new Date(date),
+        amount,
+        type,
+        bankAccountId,
       };
       const newTransaction = await db
         .insert(bank_transactions)

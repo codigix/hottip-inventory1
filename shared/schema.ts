@@ -945,6 +945,8 @@ export const insertBankTransactionSchema = z.object({
   amount: z.coerce.number(),
   type: z.enum(["credit", "debit"]),
   bankAccountId: z.string().uuid(),
+  description: z.string().optional(),
+  reference: z.string().optional(),
 });
 export const insertAccountReminderSchema = z.object({
   reminderDate: z.string(),
