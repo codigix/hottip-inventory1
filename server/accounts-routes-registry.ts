@@ -1,8 +1,18 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "./db";
-import { accountsReceivables, customers, invoices } from "../shared/schema";
+import {
+  accountsReceivables,
+  customers,
+  invoices,
+  accountsPayables,
+  suppliers,
+  inboundQuotations,
+} from "../shared/schema";
 import { eq, sql, gte, lt } from "drizzle-orm";
-import { insertAccountsReceivableSchema } from "../shared/schema";
+import {
+  insertAccountsReceivableSchema,
+  insertAccountsPayableSchema,
+} from "../shared/schema";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -229,4 +239,103 @@ export function registerAccountsRoutes(
       }
     }
   );
+
+  // Get all accounts payables
+  app.get("/api/accounts-payables", requireAuth, async (req, res) => {
+    try {
+      const payables = await db
+        .select({
+          id: accountsPayables.id,
+          poId: accountsPayables.poId,
+          inboundQuotationId: accountsPayables.inboundQuotationId,
+          supplierId: accountsPayables.supplierId,
+          amountDue: accountsPayables.amountDue,
+          supplier: {
+            id: suppliers.id,
+            name: suppliers.name,
+            email: suppliers.email,
+            phone: suppliers.phone,
+          },
+        })
+        .from(accountsPayables)
+        .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+        .orderBy(accountsPayables.id);
+
+      res.json(payables);
+    } catch (error) {
+      console.error("Error fetching payables:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create new payable
+  app.post("/api/accounts-payables", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertAccountsPayableSchema.parse(req.body);
+
+      const payable = await db
+        .insert(accountsPayables)
+        .values({
+          poId: validatedData.poId || null,
+          inboundQuotationId: validatedData.inboundQuotationId || null,
+          supplierId: validatedData.supplierId,
+          amountDue: validatedData.amountDue.toString(),
+        })
+        .returning();
+
+      res.status(201).json(payable[0]);
+    } catch (error) {
+      console.error("Error creating payable:", error);
+      res.status(400).json({ message: "Invalid data" });
+    }
+  });
+
+  // Update payable
+  app.put("/api/accounts-payables/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertAccountsPayableSchema.parse(req.body);
+
+      const payable = await db
+        .update(accountsPayables)
+        .set({
+          poId: validatedData.poId || null,
+          inboundQuotationId: validatedData.inboundQuotationId || null,
+          supplierId: validatedData.supplierId,
+          amountDue: validatedData.amountDue.toString(),
+        })
+        .where(eq(accountsPayables.id, id))
+        .returning();
+
+      if (payable.length === 0) {
+        return res.status(404).json({ message: "Payable not found" });
+      }
+
+      res.json(payable[0]);
+    } catch (error) {
+      console.error("Error updating payable:", error);
+      res.status(400).json({ message: "Invalid data" });
+    }
+  });
+
+  // Delete payable
+  app.delete("/api/accounts-payables/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await db
+        .delete(accountsPayables)
+        .where(eq(accountsPayables.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Payable not found" });
+      }
+
+      res.json({ message: "Payable deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting payable:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 }

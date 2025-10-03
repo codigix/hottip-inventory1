@@ -1433,14 +1433,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Alias: /api/quotations/inbound → inbound quotations
-  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(inboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
+  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+    try {
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch inbound quotations",
+        details: error.message,
+      });
+    }
+  });
   // Inbound Quotations Routes
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {

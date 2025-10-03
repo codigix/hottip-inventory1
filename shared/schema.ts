@@ -558,6 +558,21 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 });
 
 // =====================
+// ACCOUNTS PAYABLES
+// =====================
+export const accountsPayables = pgTable("accounts_payables", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  poId: uuid("poId"),
+  inboundQuotationId: uuid("inboundQuotationId").references(
+    () => inboundQuotations.id
+  ),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }),
+});
+
+// =====================
 // VENDOR COMMUNICATIONS
 export const communicationType = pgEnum("communication_type", [
   "general",
@@ -814,11 +829,16 @@ export const insertAccountsReceivableSchema = z.object({
 
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
 export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
+
+export type AccountsPayable = typeof accountsPayables.$inferSelect;
+export type InsertAccountsPayable = typeof accountsPayables.$inferInsert;
+
 // Outbound Quotation schema
 export const insertAccountsPayableSchema = z.object({
-  date: z.string(),
-  amount: z.number(),
-  supplierId: z.string(),
+  poId: z.string().uuid().optional(),
+  inboundQuotationId: z.string().uuid().optional(),
+  supplierId: z.string().uuid(),
+  amountDue: z.number().positive(),
 });
 export const insertGstReturnSchema = z.object({
   returnPeriod: z.string(),
