@@ -412,21 +412,19 @@ const quotationStatus = pgEnum("quotation_status", [
   "rejected",
 ]);
 export const inboundQuotations = pgTable("inbound_quotations", {
-  id: uuid("id").defaultRandom().primaryKey(), // ✅ Matches DB: uuid, default gen_random_uuid()
-  quotationNumber: text("quotationNumber").notNull(), // ✅ Matches DB: text
-  quotationRef: text("quotationRef"), // ✅ Matches DB: text
-  senderId: uuid("senderId")
-    .notNull()
-    .references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
-  senderType: text("senderType").notNull().default("supplier"), // ✅ Matches DB: text
-  userId: uuid("userId")
-    .notNull()
-    .references(() => users.id), // ✅ Matches DB: uuid, references users
-  status: quotationStatus("status").notNull().default("received"), // ✅ Matches DB: enum type
-  quotationDate: timestamp("quotationDate").notNull(), // ✅ Matches DB: timestamp without time zone
-  validUntil: timestamp("validUntil"), // ✅ Matches DB: timestamp without time zone
-  subject: text("subject"), // ✅ Matches DB: text
-  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }), // ✅ Matches DB: numeric(10,2)
+  id: serial("id").primaryKey(), // Matches migration: serial
+  quotationNumber: varchar("quotationNumber", { length: 50 }).notNull(), // Matches DB column
+  quotationDate: timestamp("quotationDate").notNull(), // Matches DB column
+  validUntil: timestamp("validUntil"), // Matches DB column
+  subject: text("subject"), // Matches DB column
+  totalAmount: numeric("totalAmount").notNull(), // Matches DB column
+  status: varchar("status", { length: 20 }).notNull().default("received"), // Matches DB column
+  notes: text("notes"), // Matches DB column
+  attachmentPath: text("attachmentPath"), // Matches DB column
+  attachmentName: text("attachmentName"), // Matches DB column
+  senderId: uuid("senderId").references(() => users.id), // Matches DB column
+  senderType: varchar("senderType", { length: 20 }).notNull().default("vendor"), // Matches DB column
+  createdAt: timestamp("createdAt").defaultNow(), // Matches DB column
 });
 
 // =====================
@@ -570,6 +568,44 @@ export const accountsPayables = pgTable("accounts_payables", {
     .notNull()
     .references(() => suppliers.id),
   amountDue: numeric("amountDue", { precision: 10, scale: 2 }),
+});
+
+// =====================
+// PURCHASE ORDERS
+// =====================
+export const orderStatus = pgEnum("order_status", [
+  "pending",
+  "approved",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  poNumber: text("poNumber").notNull(),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id),
+  status: orderStatus("status").notNull().default("pending"),
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
+});
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+
+export const insertPurchaseOrderSchema = z.object({
+  poNumber: z.string().min(1, "PO number is required"),
+  supplierId: z.string().uuid("Invalid supplier ID"),
+  userId: z.string().uuid("Invalid user ID"),
+  status: z
+    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .optional()
+    .default("pending"),
+  totalAmount: z.number().positive().optional(),
 });
 
 // =====================

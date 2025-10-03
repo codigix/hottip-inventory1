@@ -134,7 +134,7 @@ export default function AccountsReceivables() {
   const createForm = useForm<ReceivableFormData>({
     resolver: zodResolver(receivableFormSchema),
     defaultValues: {
-      invoiceId: "",
+      invoiceId: "none",
       customerId: "",
       amountDue: "",
       dueDate: "",
@@ -156,15 +156,20 @@ export default function AccountsReceivables() {
 
   // Mutations
   const createReceivableMutation = useMutation({
-    mutationFn: (data: ReceivableFormData) =>
-      apiRequest("/accounts-receivables", {
+    mutationFn: (data: ReceivableFormData) => {
+      const payload: any = {
+        customerId: data.customerId,
+        amountDue: parseFloat(data.amountDue),
+        dueDate: new Date(data.dueDate).toISOString(),
+        notes: data.notes,
+      };
+      if (data.invoiceId && data.invoiceId !== "none")
+        payload.invoiceId = data.invoiceId;
+      return apiRequest("/accounts-receivables", {
         method: "POST",
-        body: JSON.stringify({
-          ...data,
-          amountDue: parseFloat(data.amountDue),
-          dueDate: new Date(data.dueDate).toISOString(),
-        }),
-      }),
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
       queryClient.invalidateQueries({
@@ -190,15 +195,20 @@ export default function AccountsReceivables() {
   });
 
   const updateReceivableMutation = useMutation({
-    mutationFn: ({ id, ...data }: ReceivableFormData & { id: string }) =>
-      apiRequest(`/accounts-receivables/${id}`, {
+    mutationFn: ({ id, ...data }: ReceivableFormData & { id: string }) => {
+      const payload: any = {
+        customerId: data.customerId,
+        amountDue: parseFloat(data.amountDue),
+        dueDate: new Date(data.dueDate).toISOString(),
+        notes: data.notes,
+      };
+      if (data.invoiceId && data.invoiceId !== "none")
+        payload.invoiceId = data.invoiceId;
+      return apiRequest(`/accounts-receivables/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          ...data,
-          amountDue: parseFloat(data.amountDue),
-          dueDate: new Date(data.dueDate).toISOString(),
-        }),
-      }),
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
       queryClient.invalidateQueries({
@@ -301,7 +311,7 @@ export default function AccountsReceivables() {
   const handleEdit = (receivable: AccountsReceivable) => {
     setSelectedReceivable(receivable);
     editForm.reset({
-      invoiceId: receivable.invoiceId,
+      invoiceId: receivable.invoiceId || "none",
       customerId: receivable.customerId,
       amountDue: receivable.amountDue.toString(),
       dueDate: receivable.dueDate.split("T")[0],
@@ -347,7 +357,8 @@ export default function AccountsReceivables() {
     (receivable: AccountsReceivable & { customer?: any; invoice?: any }) => {
       const customerName = receivable.customer?.name || "Unknown Customer";
       const invoiceNumber =
-        receivable.invoice?.number || receivable.invoiceId || "Unknown Invoice";
+        receivable.invoice?.number ||
+        (receivable.invoiceId ? receivable.invoiceId : "No Invoice");
       const matchesSearch =
         customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase());
@@ -433,7 +444,7 @@ export default function AccountsReceivables() {
                   name="invoiceId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invoice</FormLabel>
+                      <FormLabel>Invoice (Optional)</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
@@ -444,6 +455,7 @@ export default function AccountsReceivables() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="none">No Invoice</SelectItem>
                           {invoices.map((invoice: any) => (
                             <SelectItem key={invoice.id} value={invoice.id}>
                               {invoice.number} - ₹{invoice.total}
@@ -829,7 +841,7 @@ export default function AccountsReceivables() {
                 name="invoiceId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Invoice</FormLabel>
+                    <FormLabel>Invoice (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -837,6 +849,7 @@ export default function AccountsReceivables() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="none">No Invoice</SelectItem>
                         {invoices.map((invoice: any) => (
                           <SelectItem key={invoice.id} value={invoice.id}>
                             {invoice.number} - ₹{invoice.total}

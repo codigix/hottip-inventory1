@@ -1769,9 +1769,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Purchase orders (stub)
+  // Purchase orders
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const purchaseOrders = await storage.getPurchaseOrders();
+      res.json(purchaseOrders);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase orders",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const purchaseOrder = await storage.getPurchaseOrder(req.params.id);
+      if (!purchaseOrder) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      res.json(purchaseOrder);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.post("/api/purchase-orders", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.parse(req.body);
+      const purchaseOrder = await storage.createPurchaseOrder(parsedData);
+      res.status(201).json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid purchase order data",
+            details: error.errors,
+          });
+      }
+      res.status(500).json({
+        error: "Failed to create purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.put("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.partial().parse(req.body);
+      const purchaseOrder = await storage.updatePurchaseOrder(
+        req.params.id,
+        parsedData
+      );
+      res.json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid purchase order data",
+            details: error.errors,
+          });
+      }
+      res.status(500).json({
+        error: "Failed to update purchase order",
+        details: error.message,
+      });
+    }
   });
 
   // Dashboard/Activities/Orders basic stubs for frontend expectations
