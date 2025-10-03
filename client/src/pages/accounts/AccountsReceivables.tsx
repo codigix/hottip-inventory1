@@ -161,6 +161,7 @@ export default function AccountsReceivables() {
         method: "POST",
         body: JSON.stringify({
           ...data,
+          amountDue: parseFloat(data.amountDue),
           dueDate: new Date(data.dueDate).toISOString(),
         }),
       }),
@@ -194,6 +195,7 @@ export default function AccountsReceivables() {
         method: "PUT",
         body: JSON.stringify({
           ...data,
+          amountDue: parseFloat(data.amountDue),
           dueDate: new Date(data.dueDate).toISOString(),
         }),
       }),

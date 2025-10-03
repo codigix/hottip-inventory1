@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+﻿import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
@@ -2296,16 +2296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
     res.json([]);
   });
-  app.get("/api/accounts-receivables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get(
-    "/api/accounts-receivables/overdue",
-    requireAuth,
-    async (_req, res) => {
-      res.json([]);
-    }
-  );
   app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
     res.json([]);
   });

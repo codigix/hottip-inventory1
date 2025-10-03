@@ -798,9 +798,18 @@ export const insertSupplierSchema = z.object({
 export const insertAccountsReceivableSchema = z.object({
   invoiceId: z.string().uuid().optional(),
   customerId: z.string().uuid(),
-  amountDue: z.string().min(1, "Amount due is required"),
+  amountDue: z.number().positive("Amount due must be positive"),
+  amountPaid: z
+    .number()
+    .min(0, "Amount paid cannot be negative")
+    .optional()
+    .default(0),
   dueDate: z.string().min(1, "Due date is required"),
   notes: z.string().optional(),
+  status: z
+    .enum(["pending", "partial", "paid", "overdue"])
+    .optional()
+    .default("pending"),
 });
 
 export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
