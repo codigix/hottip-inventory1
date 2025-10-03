@@ -59,11 +59,12 @@ export default function InventoryAttendance() {
     queryKey: ["/inventory/attendance-with-leave"],
     queryFn: async () => apiRequest("GET", "/inventory/attendance-with-leave"),
   });
-
+  const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL;
   const [employees, setEmployees] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/users")
+    fetch(`${BASE_URL}/api/users`)
       .then((res) => res.json())
       .then((data) => setEmployees(data))
       .catch((err) => console.error(err));

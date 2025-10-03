@@ -26,6 +26,7 @@ import { LOGISTICS_SHIPMENT_STATUSES } from "@shared/schema";
 // Import components
 import StatusWorkflowPanel from "@/components/logistics/StatusWorkflowPanel";
 import ShipmentTable from "@/components/logistics/ShipmentTable";
+const BASE_URL =import.meta.env.VITE_API_BASE_URL
 
 export default function StatusWorkflow() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -35,7 +36,7 @@ export default function StatusWorkflow() {
  const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
   queryKey: ["/logistics/shipments"],
   queryFn: async () => {
-    const res = await fetch("http://localhost:5000/api/logistics/shipments");
+    const res = await fetch(`${BASE_URL}/logistics/shipments`);
     if (!res.ok) throw new Error("Failed to fetch shipments");
     const data = await res.json();
 
