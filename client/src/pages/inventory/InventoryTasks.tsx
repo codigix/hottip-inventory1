@@ -62,7 +62,7 @@ export default function InventoryTasks() {
 
   const [employees, setEmployees] = useState<any[]>([]);
   useEffect(() => {
-    fetch("http://localhost:5000/api/users")
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/users`)
       .then((res) => res.json())
       .then((data) => setEmployees(data))
       .catch((err) => console.error(err));
