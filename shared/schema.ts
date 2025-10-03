@@ -531,6 +531,33 @@ export const customers = pgTable("customers", {
 });
 
 // =====================
+// ACCOUNTS RECEIVABLES
+// =====================
+export const accountsReceivableStatus = pgEnum("accounts_receivable_status", [
+  "pending",
+  "partial",
+  "paid",
+  "overdue",
+]);
+
+export const accountsReceivables = pgTable("accounts_receivables", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceId: uuid("invoiceId")
+    .references(() => invoices.id)
+    .default(null),
+  customerId: uuid("customerId")
+    .references(() => customers.id)
+    .notNull(),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default(0),
+  dueDate: timestamp("dueDate").notNull(),
+  notes: text("notes"),
+  status: accountsReceivableStatus("status").notNull().default("pending"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
 // VENDOR COMMUNICATIONS
 export const communicationType = pgEnum("communication_type", [
   "general",
@@ -769,10 +796,15 @@ export const insertSupplierSchema = z.object({
   address: z.string().optional(),
 });
 export const insertAccountsReceivableSchema = z.object({
-  date: z.string(),
-  amount: z.number(),
-  customerId: z.string(),
+  invoiceId: z.string().uuid().optional(),
+  customerId: z.string().uuid(),
+  amountDue: z.string().min(1, "Amount due is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  notes: z.string().optional(),
 });
+
+export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
+export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
 // Outbound Quotation schema
 export const insertAccountsPayableSchema = z.object({
   date: z.string(),

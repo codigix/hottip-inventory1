@@ -20,8 +20,6 @@ import { stockTransactions, suppliers } from "../shared/schema";
 // adjust path as needed
 import { desc } from "drizzle-orm";
 import { attendance } from "../shared/schema";
-import { validate as isUuid } from "uuid";
-import { requireAuth } from "@/middleware/auth";
 import {
   marketingAttendance,
   marketingTodays,

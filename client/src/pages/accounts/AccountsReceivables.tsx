@@ -7,19 +7,71 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Plus, Search, Filter, Eye, Edit, Trash2, CreditCard, ExternalLink } from "lucide-react";
+import {
+  DollarSign,
+  TrendingUp,
+  AlertTriangle,
+  Clock,
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  Trash2,
+  CreditCard,
+  ExternalLink,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertAccountsReceivableSchema, type AccountsReceivable, type InsertAccountsReceivable } from "@shared/schema";
+import {
+  insertAccountsReceivableSchema,
+  type AccountsReceivable,
+  type InsertAccountsReceivable,
+} from "@shared/schema";
 
 // Schemas - Use shared schemas from drizzle-zod
 const receivableFormSchema = insertAccountsReceivableSchema.extend({
@@ -37,7 +89,8 @@ type PaymentFormData = z.infer<typeof paymentFormSchema>;
 
 // Status styling
 const statusStyles = {
-  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  pending:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   partial: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   overdue: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
@@ -45,12 +98,14 @@ const statusStyles = {
 
 export default function AccountsReceivables() {
   const { toast } = useToast();
-  const [selectedReceivable, setSelectedReceivable] = useState<AccountsReceivable | null>(null);
+  const [selectedReceivable, setSelectedReceivable] =
+    useState<AccountsReceivable | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [receivableToDelete, setReceivableToDelete] = useState<AccountsReceivable | null>(null);
+  const [receivableToDelete, setReceivableToDelete] =
+    useState<AccountsReceivable | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -106,20 +161,30 @@ export default function AccountsReceivables() {
         method: "POST",
         body: JSON.stringify({
           ...data,
-          amountDue: parseFloat(data.amountDue),
           dueDate: new Date(data.dueDate).toISOString(),
         }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
-      toast({ title: "Success", description: "Receivable created successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-receivables/overdue"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts/receivables-total"],
+      });
+      toast({
+        title: "Success",
+        description: "Receivable created successfully",
+      });
       setIsCreateOpen(false);
       createForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create receivable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create receivable",
+        variant: "destructive",
+      });
     },
   });
 
@@ -129,20 +194,30 @@ export default function AccountsReceivables() {
         method: "PUT",
         body: JSON.stringify({
           ...data,
-          amountDue: parseFloat(data.amountDue),
           dueDate: new Date(data.dueDate).toISOString(),
         }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
-      toast({ title: "Success", description: "Receivable updated successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-receivables/overdue"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts/receivables-total"],
+      });
+      toast({
+        title: "Success",
+        description: "Receivable updated successfully",
+      });
       setIsEditOpen(false);
       setSelectedReceivable(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update receivable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update receivable",
+        variant: "destructive",
+      });
     },
   });
 
@@ -151,38 +226,61 @@ export default function AccountsReceivables() {
       apiRequest(`/accounts-receivables/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
-      toast({ title: "Success", description: "Receivable deleted successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-receivables/overdue"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts/receivables-total"],
+      });
+      toast({
+        title: "Success",
+        description: "Receivable deleted successfully",
+      });
       setIsDeleteOpen(false);
       setReceivableToDelete(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete receivable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to delete receivable",
+        variant: "destructive",
+      });
     },
   });
 
   // Payment record mutation
   const recordPaymentMutation = useMutation({
-    mutationFn: ({ id, amount, notes }: { id: string; amount: number; notes?: string }) =>
+    mutationFn: ({
+      id,
+      amount,
+      notes,
+    }: {
+      id: string;
+      amount: number;
+      notes?: string;
+    }) =>
       apiRequest(`/accounts-receivables/${id}/payment`, {
         method: "POST",
         body: JSON.stringify({ amount, notes }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-receivables/overdue"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts/receivables-total"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-receivables/overdue"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts/receivables-total"],
+      });
       toast({ title: "Success", description: "Payment recorded successfully" });
       setIsPaymentOpen(false);
       setSelectedReceivable(null);
       paymentForm.reset();
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error?.message || "Failed to record payment", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to record payment",
+        variant: "destructive",
       });
     },
   });
@@ -204,7 +302,7 @@ export default function AccountsReceivables() {
       invoiceId: receivable.invoiceId,
       customerId: receivable.customerId,
       amountDue: receivable.amountDue.toString(),
-      dueDate: receivable.dueDate.split('T')[0],
+      dueDate: receivable.dueDate.split("T")[0],
       notes: receivable.notes || "",
     });
     setIsEditOpen(true);
@@ -212,7 +310,8 @@ export default function AccountsReceivables() {
 
   const handleRecordPayment = (receivable: AccountsReceivable) => {
     setSelectedReceivable(receivable);
-    const remainingAmount = parseFloat(receivable.amountDue) - parseFloat(receivable.amountPaid);
+    const remainingAmount =
+      parseFloat(receivable.amountDue) - parseFloat(receivable.amountPaid);
     paymentForm.reset({
       amount: remainingAmount.toString(),
       notes: "",
@@ -242,27 +341,42 @@ export default function AccountsReceivables() {
   };
 
   // Filtered data with robust fallbacks
-  const filteredReceivables = (receivables as AccountsReceivable[]).filter((receivable: AccountsReceivable & { customer?: any; invoice?: any }) => {
-    const customerName = receivable.customer?.name || 'Unknown Customer';
-    const invoiceNumber = receivable.invoice?.number || receivable.invoiceId || 'Unknown Invoice';
-    const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || receivable.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredReceivables = (receivables as AccountsReceivable[]).filter(
+    (receivable: AccountsReceivable & { customer?: any; invoice?: any }) => {
+      const customerName = receivable.customer?.name || "Unknown Customer";
+      const invoiceNumber =
+        receivable.invoice?.number || receivable.invoiceId || "Unknown Invoice";
+      const matchesSearch =
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || receivable.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    }
+  );
 
   // Calculate metrics
   const totalAmount = totalReceivables?.total || 0;
-  const overdueAmount = overdueReceivables.reduce((sum: number, r: any) => sum + parseFloat(r.amountDue - r.amountPaid), 0);
+  const overdueAmount = overdueReceivables.reduce(
+    (sum: number, r: any) => sum + parseFloat(r.amountDue - r.amountPaid),
+    0
+  );
   const avgPaymentDays = 28; // TODO: Calculate from actual data
-  const collectionRate = receivables.length > 0 ? 
-    ((receivables.filter((r: any) => r.status === 'paid').length / receivables.length) * 100) : 0;
+  const collectionRate =
+    receivables.length > 0
+      ? (receivables.filter((r: any) => r.status === "paid").length /
+          receivables.length) *
+        100
+      : 0;
 
   return (
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1
+            className="text-3xl font-bold text-foreground"
+            data-testid="page-title"
+          >
             Accounts Receivables
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -281,14 +395,20 @@ export default function AccountsReceivables() {
               <DialogTitle>Create New Receivable</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+              <form
+                onSubmit={createForm.handleSubmit(handleCreateSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={createForm.control}
                   name="customerId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-customer">
                             <SelectValue placeholder="Select customer" />
@@ -312,7 +432,10 @@ export default function AccountsReceivables() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Invoice</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-invoice">
                             <SelectValue placeholder="Select invoice" />
@@ -397,7 +520,9 @@ export default function AccountsReceivables() {
                     disabled={createReceivableMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createReceivableMutation.isPending ? "Creating..." : "Create"}
+                    {createReceivableMutation.isPending
+                      ? "Creating..."
+                      : "Create"}
                   </Button>
                 </div>
               </form>
@@ -410,11 +535,16 @@ export default function AccountsReceivables() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Total Receivables</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Total Receivables
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-total-receivables">
+            <div
+              className="text-2xl font-bold"
+              data-testid="metric-total-receivables"
+            >
               ₹{totalAmount.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -429,7 +559,10 @@ export default function AccountsReceivables() {
             <AlertTriangle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600" data-testid="metric-overdue-amount">
+            <div
+              className="text-2xl font-bold text-orange-600"
+              data-testid="metric-overdue-amount"
+            >
               ₹{overdueAmount.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -440,7 +573,9 @@ export default function AccountsReceivables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Avg. Payment Days</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Avg. Payment Days
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -453,14 +588,21 @@ export default function AccountsReceivables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Collection Rate</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Collection Rate
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="metric-collection-rate">
+            <div
+              className="text-2xl font-bold text-green-600"
+              data-testid="metric-collection-rate"
+            >
               {collectionRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">Payment completion rate</p>
+            <p className="text-xs text-muted-foreground">
+              Payment completion rate
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -482,7 +624,10 @@ export default function AccountsReceivables() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32" data-testid="select-status-filter">
+                <SelectTrigger
+                  className="w-32"
+                  data-testid="select-status-filter"
+                >
                   <Filter className="h-4 w-4 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
@@ -527,23 +672,33 @@ export default function AccountsReceivables() {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       <div className="text-muted-foreground">
-                        {searchTerm || statusFilter !== "all" 
-                          ? "No receivables match your filters" 
+                        {searchTerm || statusFilter !== "all"
+                          ? "No receivables match your filters"
                           : "No receivables found. Create your first one!"}
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredReceivables.map((receivable) => {
-                    const customerName = receivable.customer?.name || 'Unknown Customer';
-                    const invoiceNumber = receivable.invoice?.number || receivable.invoiceId || 'Unknown Invoice';
-                    const remainingAmount = parseFloat(receivable.amountDue) - parseFloat(receivable.amountPaid);
-                    const canRecordPayment = remainingAmount > 0 && receivable.status !== 'paid';
-                    
+                    const customerName =
+                      receivable.customer?.name || "Unknown Customer";
+                    const invoiceNumber =
+                      receivable.invoice?.number ||
+                      receivable.invoiceId ||
+                      "Unknown Invoice";
+                    const remainingAmount =
+                      parseFloat(receivable.amountDue) -
+                      parseFloat(receivable.amountPaid);
+                    const canRecordPayment =
+                      remainingAmount > 0 && receivable.status !== "paid";
+
                     return (
-                      <TableRow key={receivable.id} data-testid={`row-receivable-${receivable.id}`}>
+                      <TableRow
+                        key={receivable.id}
+                        data-testid={`row-receivable-${receivable.id}`}
+                      >
                         <TableCell className="font-light">
-                          <Link 
+                          <Link
                             href={`/sales/clients/${receivable.customerId}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
                             data-testid={`link-customer-${receivable.id}`}
@@ -553,7 +708,7 @@ export default function AccountsReceivables() {
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <Link 
+                          <Link
                             href={`/sales/invoices/${receivable.invoiceId}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
                             data-testid={`link-invoice-${receivable.id}`}
@@ -562,18 +717,28 @@ export default function AccountsReceivables() {
                             <ExternalLink className="h-3 w-3" />
                           </Link>
                         </TableCell>
-                        <TableCell data-testid={`text-amount-due-${receivable.id}`}>
+                        <TableCell
+                          data-testid={`text-amount-due-${receivable.id}`}
+                        >
                           ₹{parseFloat(receivable.amountDue).toLocaleString()}
                         </TableCell>
-                        <TableCell data-testid={`text-amount-paid-${receivable.id}`}>
+                        <TableCell
+                          data-testid={`text-amount-paid-${receivable.id}`}
+                        >
                           ₹{parseFloat(receivable.amountPaid).toLocaleString()}
                         </TableCell>
-                        <TableCell data-testid={`text-due-date-${receivable.id}`}>
+                        <TableCell
+                          data-testid={`text-due-date-${receivable.id}`}
+                        >
                           {new Date(receivable.dueDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            className={statusStyles[receivable.status as keyof typeof statusStyles]}
+                          <Badge
+                            className={
+                              statusStyles[
+                                receivable.status as keyof typeof statusStyles
+                              ]
+                            }
                             data-testid={`badge-status-${receivable.id}`}
                           >
                             {receivable.status}
@@ -629,7 +794,10 @@ export default function AccountsReceivables() {
             <DialogTitle>Edit Receivable</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleEditSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="customerId"
@@ -703,10 +871,7 @@ export default function AccountsReceivables() {
                   <FormItem>
                     <FormLabel>Due Date</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="date"
-                      />
+                      <Input {...field} type="date" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -719,10 +884,7 @@ export default function AccountsReceivables() {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Additional notes"
-                      />
+                      <Textarea {...field} placeholder="Additional notes" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -740,7 +902,9 @@ export default function AccountsReceivables() {
                   type="submit"
                   disabled={updateReceivableMutation.isPending}
                 >
-                  {updateReceivableMutation.isPending ? "Updating..." : "Update"}
+                  {updateReceivableMutation.isPending
+                    ? "Updating..."
+                    : "Update"}
                 </Button>
               </div>
             </form>
@@ -759,27 +923,41 @@ export default function AccountsReceivables() {
               <div className="text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-light">{selectedReceivable.customer?.name || 'Unknown Customer'}</span>
+                  <span className="font-light">
+                    {selectedReceivable.customer?.name || "Unknown Customer"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount Due:</span>
-                  <span className="font-light">₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}</span>
+                  <span className="font-light">
+                    ₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Paid So Far:</span>
-                  <span className="font-light">₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}</span>
+                  <span className="font-light">
+                    ₹
+                    {parseFloat(selectedReceivable.amountPaid).toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t pt-1">
                   <span className="text-muted-foreground">Remaining:</span>
                   <span className="font-bold text-primary">
-                    ₹{(parseFloat(selectedReceivable.amountDue) - parseFloat(selectedReceivable.amountPaid)).toLocaleString()}
+                    ₹
+                    {(
+                      parseFloat(selectedReceivable.amountDue) -
+                      parseFloat(selectedReceivable.amountPaid)
+                    ).toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
           )}
           <Form {...paymentForm}>
-            <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+            <form
+              onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={paymentForm.control}
                 name="amount"
@@ -830,7 +1008,9 @@ export default function AccountsReceivables() {
                   disabled={recordPaymentMutation.isPending}
                   data-testid="button-submit-payment"
                 >
-                  {recordPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+                  {recordPaymentMutation.isPending
+                    ? "Recording..."
+                    : "Record Payment"}
                 </Button>
               </div>
             </form>
@@ -844,13 +1024,25 @@ export default function AccountsReceivables() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Receivable</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this receivable? This action cannot be undone.
+              Are you sure you want to delete this receivable? This action
+              cannot be undone.
               {receivableToDelete && (
                 <div className="mt-2 p-3 bg-muted rounded-lg text-sm">
                   <div className="space-y-1">
-                    <div><strong>Customer:</strong> {receivableToDelete.customer?.name || 'Unknown Customer'}</div>
-                    <div><strong>Invoice:</strong> {receivableToDelete.invoice?.number || 'Unknown Invoice'}</div>
-                    <div><strong>Amount:</strong> ₹{parseFloat(receivableToDelete.amountDue).toLocaleString()}</div>
+                    <div>
+                      <strong>Customer:</strong>{" "}
+                      {receivableToDelete.customer?.name || "Unknown Customer"}
+                    </div>
+                    <div>
+                      <strong>Invoice:</strong>{" "}
+                      {receivableToDelete.invoice?.number || "Unknown Invoice"}
+                    </div>
+                    <div>
+                      <strong>Amount:</strong> ₹
+                      {parseFloat(
+                        receivableToDelete.amountDue
+                      ).toLocaleString()}
+                    </div>
                   </div>
                 </div>
               )}
