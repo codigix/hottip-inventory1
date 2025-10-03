@@ -57,7 +57,12 @@ import {
   insertInvoiceSchema,
   customers,
 } from "../shared/schema";
-import { bank_accounts, insertBankAccountSchema } from "../shared/schema";
+import {
+  bank_accounts,
+  insertBankAccountSchema,
+  bank_transactions,
+  insertBankTransactionSchema,
+} from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
 
@@ -2409,8 +2414,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch default bank account" });
     }
   });
+  app.put("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertBankAccountSchema.parse(req.body);
+      const updatedAccount = await db
+        .update(bank_accounts)
+        .set(data)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (updatedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json(updatedAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error updating bank account:", error);
+      res.status(500).json({ error: "Failed to update bank account" });
+    }
+  });
+  app.delete("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletedAccount = await db
+        .delete(bank_accounts)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (deletedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json({ message: "Bank account deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting bank account:", error);
+      res.status(500).json({ error: "Failed to delete bank account" });
+    }
+  });
   app.get("/api/bank-transactions", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const transactions = await db
+        .select({
+          id: bank_transactions.id,
+          bankAccountId: bank_transactions.bankAccountId,
+          date: bank_transactions.date,
+          type: bank_transactions.type,
+          amount: bank_transactions.amount,
+          description: bank_transactions.description,
+          reference: bank_transactions.reference,
+          bankAccount: {
+            id: bank_accounts.id,
+            name: bank_accounts.name,
+            bankName: bank_accounts.bankName,
+            accountNumberMasked: bank_accounts.accountNumberMasked,
+          },
+        })
+        .from(bank_transactions)
+        .leftJoin(
+          bank_accounts,
+          eq(bank_transactions.bankAccountId, bank_accounts.id)
+        );
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching bank transactions:", error);
+      res.status(500).json({ error: "Failed to fetch bank transactions" });
+    }
+  });
+  app.post("/api/bank-transactions", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankTransactionSchema.parse(req.body);
+      // Parse date string to Date object for timestamp
+      const transactionData = {
+        ...data,
+        date: new Date(data.date),
+      };
+      const newTransaction = await db
+        .insert(bank_transactions)
+        .values(transactionData)
+        .returning();
+      res.status(201).json(newTransaction[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank transaction:", error);
+      res.status(500).json({ error: "Failed to create bank transaction" });
+    }
   });
   app.get("/api/account-reminders", requireAuth, async (_req, res) => {
     res.json([]);

@@ -941,11 +941,10 @@ export const insertBankAccountSchema = z.object({
   openingBalance: z.coerce.number().optional(),
 });
 export const insertBankTransactionSchema = z.object({
-  transactionDate: z.string(),
-  amount: z.number(),
-  transactionType: z.enum(["credit", "debit"]),
-  accountId: z.string(),
-  description: z.string().optional(),
+  date: z.string(),
+  amount: z.coerce.number(),
+  type: z.enum(["credit", "debit"]),
+  bankAccountId: z.string().uuid(),
 });
 export const insertAccountReminderSchema = z.object({
   reminderDate: z.string(),
@@ -1359,6 +1358,10 @@ export const attendance = pgTable("attendance", {
 // =====================
 // BANK ACCOUNTS
 // =====================
+export const bankTransactionType = pgEnum("bank_transaction_type", [
+  "credit",
+  "debit",
+]);
 export const bank_accounts = pgTable("bank_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -1367,4 +1370,13 @@ export const bank_accounts = pgTable("bank_accounts", {
   ifsc: text("ifsc").notNull(),
   upiId: text("upiId"),
   openingBalance: numeric("openingBalance", { precision: 10, scale: 2 }),
+});
+export const bank_transactions = pgTable("bank_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankAccountId: uuid("bankAccountId")
+    .notNull()
+    .references(() => bank_accounts.id),
+  date: timestamp("date").notNull(),
+  type: bankTransactionType("type").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }),
 });
