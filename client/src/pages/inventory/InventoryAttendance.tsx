@@ -74,6 +74,7 @@ export default function InventoryAttendance() {
   const [employees, setEmployees] = useState<any[]>([]);
 
   useEffect(() => {
+    console.log("BASE_URL:", BASE_URL);
     fetch(`${BASE_URL}/api/users`)
       .then((res) => res.json())
       .then((data) => setEmployees(data))

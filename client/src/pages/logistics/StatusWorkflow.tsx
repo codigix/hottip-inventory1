@@ -35,7 +35,7 @@ export default function StatusWorkflow() {
  const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
   queryKey: ["/logistics/shipments"],
   queryFn: async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logistics/shipments`);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_UR|| "http://localhost:5000/api"}/logistics/shipments`);
     if (!res.ok) throw new Error("Failed to fetch shipments");
     const data = await res.json();
 
