@@ -6,14 +6,62 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, TrendingDown, AlertTriangle, Clock, Plus, Search, Filter, ExternalLink, Edit, Trash2, DollarSign } from "lucide-react";
+import {
+  CreditCard,
+  TrendingDown,
+  AlertTriangle,
+  Clock,
+  Plus,
+  Search,
+  Filter,
+  ExternalLink,
+  Edit,
+  Trash2,
+  DollarSign,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "wouter";
@@ -40,7 +88,8 @@ type PaymentFormData = z.infer<typeof paymentFormSchema>;
 
 // Status styling
 const statusStyles = {
-  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  pending:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   partial: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   overdue: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
@@ -48,7 +97,8 @@ const statusStyles = {
 
 export default function AccountsPayables() {
   const { toast } = useToast();
-  const [selectedPayable, setSelectedPayable] = useState<AccountsPayable | null>(null);
+  const [selectedPayable, setSelectedPayable] =
+    useState<AccountsPayable | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -59,7 +109,7 @@ export default function AccountsPayables() {
   // Data fetching
   const { data: payables = [], isLoading: payablesLoading } = useQuery({
     queryKey: ["/accounts-payables"],
-  }) as { data: AccountsPayable[], isLoading: boolean };
+  }) as { data: AccountsPayable[]; isLoading: boolean };
 
   const { data: overduePayables = [] } = useQuery({
     queryKey: ["/accounts-payables/overdue"],
@@ -102,55 +152,79 @@ export default function AccountsPayables() {
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       amount: "",
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       notes: "",
     },
   });
 
   // Mutations
   const createPayableMutation = useMutation({
-    mutationFn: (data: PayableFormData) =>
-      apiRequest("/accounts-payables", {
+    mutationFn: (data: PayableFormData) => {
+      const payload: any = {
+        supplierId: data.supplierId,
+        amountDue: parseFloat(data.amountDue),
+        dueDate: new Date(data.dueDate).toISOString(),
+        notes: data.notes,
+      };
+      if (data.poId && data.poId !== "none") payload.poId = data.poId;
+      if (data.inboundQuotationId && data.inboundQuotationId !== "none")
+        payload.inboundQuotationId = data.inboundQuotationId;
+      return apiRequest("/accounts-payables", {
         method: "POST",
-        body: JSON.stringify({
-          ...data,
-          amountDue: parseFloat(data.amountDue),
-          dueDate: new Date(data.dueDate).toISOString(),
-        }),
-      }),
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-payables/overdue"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable created successfully" });
       setIsCreateOpen(false);
       createForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create payable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create payable",
+        variant: "destructive",
+      });
     },
   });
 
   const updatePayableMutation = useMutation({
-    mutationFn: ({ id, ...data }: PayableFormData & { id: string }) =>
-      apiRequest(`/accounts-payables/${id}`, {
+    mutationFn: ({ id, ...data }: PayableFormData & { id: string }) => {
+      const payload: any = {
+        supplierId: data.supplierId,
+        amountDue: parseFloat(data.amountDue),
+        dueDate: new Date(data.dueDate).toISOString(),
+        notes: data.notes,
+      };
+      if (data.poId && data.poId !== "none") payload.poId = data.poId;
+      if (data.inboundQuotationId && data.inboundQuotationId !== "none")
+        payload.inboundQuotationId = data.inboundQuotationId;
+      return apiRequest(`/accounts-payables/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          ...data,
-          amountDue: parseFloat(data.amountDue),
-          dueDate: new Date(data.dueDate).toISOString(),
-        }),
-      }),
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-payables/overdue"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable updated successfully" });
       setIsEditOpen(false);
       setSelectedPayable(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update payable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update payable",
+        variant: "destructive",
+      });
     },
   });
 
@@ -166,7 +240,9 @@ export default function AccountsPayables() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-payables/overdue"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payment recorded successfully" });
       setIsPaymentOpen(false);
@@ -174,7 +250,11 @@ export default function AccountsPayables() {
       paymentForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to record payment", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to record payment",
+        variant: "destructive",
+      });
     },
   });
 
@@ -183,14 +263,20 @@ export default function AccountsPayables() {
       apiRequest(`/accounts-payables/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
-      queryClient.invalidateQueries({ queryKey: ["/accounts-payables/overdue"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/accounts-payables/overdue"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/accounts/payables-total"] });
       toast({ title: "Success", description: "Payable deleted successfully" });
       setIsDeleteOpen(false);
       setSelectedPayable(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete payable", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to delete payable",
+        variant: "destructive",
+      });
     },
   });
 
@@ -218,18 +304,19 @@ export default function AccountsPayables() {
       poId: payable.poId || "",
       inboundQuotationId: payable.inboundQuotationId || "",
       amountDue: payable.amountDue.toString(),
-      dueDate: payable.dueDate.split('T')[0],
+      dueDate: payable.dueDate.split("T")[0],
       notes: payable.notes || "",
     });
     setIsEditOpen(true);
   };
 
   const handleRecordPayment = (payable: AccountsPayable) => {
-    const remainingAmount = parseFloat(payable.amountDue) - parseFloat(payable.amountPaid);
+    const remainingAmount =
+      parseFloat(payable.amountDue) - parseFloat(payable.amountPaid);
     setSelectedPayable(payable);
     paymentForm.reset({
       amount: remainingAmount.toString(),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       notes: "",
     });
     setIsPaymentOpen(true);
@@ -248,29 +335,47 @@ export default function AccountsPayables() {
 
   // Filtered data
   const filteredPayables = payables.filter((payable: AccountsPayable) => {
-    const supplierName = suppliers.find((s: any) => s.id === payable.supplierId)?.name || "Unknown Supplier";
-    const poNumber = purchaseOrders.find((po: any) => po.id === payable.poId)?.number || "";
-    const quotationNumber = inboundQuotations.find((q: any) => q.id === payable.inboundQuotationId)?.number || "";
-    
-    const matchesSearch = supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         quotationNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || payable.status === statusFilter;
+    const supplierName =
+      suppliers.find((s: any) => s.id === payable.supplierId)?.name ||
+      "Unknown Supplier";
+    const poNumber =
+      purchaseOrders.find((po: any) => po.id === payable.poId)?.number || "";
+    const quotationNumber =
+      inboundQuotations.find((q: any) => q.id === payable.inboundQuotationId)
+        ?.number || "";
+
+    const matchesSearch =
+      supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      quotationNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || payable.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   // Calculate metrics
   const totalAmount = totalPayables?.total || 0;
-  const overdueAmount = overduePayables.reduce((sum: number, p: AccountsPayable) => sum + (parseFloat(p.amountDue) - parseFloat(p.amountPaid)), 0);
+  const overdueAmount = overduePayables.reduce(
+    (sum: number, p: AccountsPayable) =>
+      sum + (parseFloat(p.amountDue) - parseFloat(p.amountPaid)),
+    0
+  );
   const avgPaymentDays = 42; // TODO: Calculate from actual data
-  const paymentRate = payables.length > 0 ? 
-    ((payables.filter((p: AccountsPayable) => p.status === 'paid').length / payables.length) * 100) : 0;
+  const paymentRate =
+    payables.length > 0
+      ? (payables.filter((p: AccountsPayable) => p.status === "paid").length /
+          payables.length) *
+        100
+      : 0;
 
   return (
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1
+            className="text-3xl font-bold text-foreground"
+            data-testid="page-title"
+          >
             Accounts Payables
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -292,14 +397,20 @@ export default function AccountsPayables() {
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+              <form
+                onSubmit={createForm.handleSubmit(handleCreateSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={createForm.control}
                   name="supplierId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Supplier</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-supplier">
                             <SelectValue placeholder="Select supplier" />
@@ -323,7 +434,10 @@ export default function AccountsPayables() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Purchase Order (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-po">
                             <SelectValue placeholder="Select PO" />
@@ -348,7 +462,10 @@ export default function AccountsPayables() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Inbound Quotation (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-quotation">
                             <SelectValue placeholder="Select quotation" />
@@ -451,7 +568,10 @@ export default function AccountsPayables() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-total-payables">
+            <div
+              className="text-2xl font-bold"
+              data-testid="metric-total-payables"
+            >
               ₹{totalAmount.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -466,7 +586,10 @@ export default function AccountsPayables() {
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600" data-testid="metric-overdue-amount">
+            <div
+              className="text-2xl font-bold text-red-600"
+              data-testid="metric-overdue-amount"
+            >
               ₹{overdueAmount.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -477,7 +600,9 @@ export default function AccountsPayables() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Avg. Payment Days</CardTitle>
+            <CardTitle className="text-sm font-light">
+              Avg. Payment Days
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -494,7 +619,10 @@ export default function AccountsPayables() {
             <TrendingDown className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600" data-testid="metric-payment-rate">
+            <div
+              className="text-2xl font-bold text-blue-600"
+              data-testid="metric-payment-rate"
+            >
               {paymentRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">On-time payments</p>
@@ -519,7 +647,10 @@ export default function AccountsPayables() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32" data-testid="select-status-filter">
+                <SelectTrigger
+                  className="w-32"
+                  data-testid="select-status-filter"
+                >
                   <Filter className="h-4 w-4 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
@@ -564,49 +695,81 @@ export default function AccountsPayables() {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       <div className="text-muted-foreground">
-                        {searchTerm || statusFilter !== "all" 
-                          ? "No payables match your filters" 
+                        {searchTerm || statusFilter !== "all"
+                          ? "No payables match your filters"
                           : "No payables found. Create your first one!"}
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPayables.map((payable: AccountsPayable) => {
-                    const supplier = suppliers.find((s: any) => s.id === payable.supplierId);
-                    const po = purchaseOrders.find((po: any) => po.id === payable.poId);
-                    const quotation = inboundQuotations.find((q: any) => q.id === payable.inboundQuotationId);
-                    const remainingAmount = parseFloat(payable.amountDue) - parseFloat(payable.amountPaid);
-                    
+                    const supplier = suppliers.find(
+                      (s: any) => s.id === payable.supplierId
+                    );
+                    const po = purchaseOrders.find(
+                      (po: any) => po.id === payable.poId
+                    );
+                    const quotation = inboundQuotations.find(
+                      (q: any) => q.id === payable.inboundQuotationId
+                    );
+                    const remainingAmount =
+                      parseFloat(payable.amountDue) -
+                      parseFloat(payable.amountPaid);
+
                     return (
-                      <TableRow key={payable.id} data-testid={`row-payable-${payable.id}`}>
+                      <TableRow
+                        key={payable.id}
+                        data-testid={`row-payable-${payable.id}`}
+                      >
                         <TableCell className="font-light">
-                          <Link href={`/sales/suppliers/${payable.supplierId}`} className="hover:underline flex items-center">
+                          <Link
+                            href={`/sales/suppliers/${payable.supplierId}`}
+                            className="hover:underline flex items-center"
+                          >
                             {supplier?.name || "Unknown Supplier"}
                             <ExternalLink className="h-3 w-3 ml-1" />
                           </Link>
                         </TableCell>
                         <TableCell>
                           {po ? (
-                            <Link href={`/sales/purchase-orders/${payable.poId}`} className="hover:underline flex items-center">
+                            <Link
+                              href={`/sales/purchase-orders/${payable.poId}`}
+                              className="hover:underline flex items-center"
+                            >
                               PO: {po.number}
                               <ExternalLink className="h-3 w-3 ml-1" />
                             </Link>
                           ) : quotation ? (
-                            <Link href={`/sales/quotations/inbound/${payable.inboundQuotationId}`} className="hover:underline flex items-center">
+                            <Link
+                              href={`/sales/quotations/inbound/${payable.inboundQuotationId}`}
+                              className="hover:underline flex items-center"
+                            >
                               QT: {quotation.number}
                               <ExternalLink className="h-3 w-3 ml-1" />
                             </Link>
                           ) : (
-                            <span className="text-muted-foreground">No PO/Quotation</span>
+                            <span className="text-muted-foreground">
+                              No PO/Quotation
+                            </span>
                           )}
                         </TableCell>
-                        <TableCell>₹{parseFloat(payable.amountDue).toLocaleString()}</TableCell>
-                        <TableCell>₹{parseFloat(payable.amountPaid).toLocaleString()}</TableCell>
+                        <TableCell>
+                          ₹{parseFloat(payable.amountDue).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          ₹{parseFloat(payable.amountPaid).toLocaleString()}
+                        </TableCell>
                         <TableCell>
                           {new Date(payable.dueDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusStyles[payable.status as keyof typeof statusStyles]}>
+                          <Badge
+                            className={
+                              statusStyles[
+                                payable.status as keyof typeof statusStyles
+                              ]
+                            }
+                          >
                             {payable.status}
                           </Badge>
                         </TableCell>
@@ -660,7 +823,10 @@ export default function AccountsPayables() {
             </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleEditSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="supplierId"
@@ -710,10 +876,7 @@ export default function AccountsPayables() {
                   <FormItem>
                     <FormLabel>Due Date</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="date"
-                      />
+                      <Input {...field} type="date" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -726,10 +889,7 @@ export default function AccountsPayables() {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Additional notes"
-                      />
+                      <Textarea {...field} placeholder="Additional notes" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -767,21 +927,32 @@ export default function AccountsPayables() {
           {selectedPayable && (
             <div className="mb-4 p-4 bg-muted rounded-lg">
               <p className="text-sm">
-                <strong>Supplier:</strong> {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown"}
+                <strong>Supplier:</strong>{" "}
+                {suppliers.find((s: any) => s.id === selectedPayable.supplierId)
+                  ?.name || "Unknown"}
               </p>
               <p className="text-sm">
-                <strong>Amount Due:</strong> ₹{parseFloat(selectedPayable.amountDue).toLocaleString()}
+                <strong>Amount Due:</strong> ₹
+                {parseFloat(selectedPayable.amountDue).toLocaleString()}
               </p>
               <p className="text-sm">
-                <strong>Already Paid:</strong> ₹{parseFloat(selectedPayable.amountPaid).toLocaleString()}
+                <strong>Already Paid:</strong> ₹
+                {parseFloat(selectedPayable.amountPaid).toLocaleString()}
               </p>
               <p className="text-sm">
-                <strong>Remaining:</strong> ₹{(parseFloat(selectedPayable.amountDue) - parseFloat(selectedPayable.amountPaid)).toLocaleString()}
+                <strong>Remaining:</strong> ₹
+                {(
+                  parseFloat(selectedPayable.amountDue) -
+                  parseFloat(selectedPayable.amountPaid)
+                ).toLocaleString()}
               </p>
             </div>
           )}
           <Form {...paymentForm}>
-            <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+            <form
+              onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={paymentForm.control}
                 name="amount"
@@ -848,7 +1019,9 @@ export default function AccountsPayables() {
                   disabled={recordPaymentMutation.isPending}
                   data-testid="button-record-payment"
                 >
-                  {recordPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+                  {recordPaymentMutation.isPending
+                    ? "Recording..."
+                    : "Record Payment"}
                 </Button>
               </div>
             </form>
@@ -862,21 +1035,28 @@ export default function AccountsPayables() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Payable</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this payable? This action cannot be undone.
+              Are you sure you want to delete this payable? This action cannot
+              be undone.
               {selectedPayable && (
                 <div className="mt-2 p-2 bg-muted rounded">
                   <p className="text-sm">
-                    <strong>Supplier:</strong> {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown"}
+                    <strong>Supplier:</strong>{" "}
+                    {suppliers.find(
+                      (s: any) => s.id === selectedPayable.supplierId
+                    )?.name || "Unknown"}
                   </p>
                   <p className="text-sm">
-                    <strong>Amount:</strong> ₹{parseFloat(selectedPayable.amountDue).toLocaleString()}
+                    <strong>Amount:</strong> ₹
+                    {parseFloat(selectedPayable.amountDue).toLocaleString()}
                   </p>
                 </div>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deletePayableMutation.isPending}

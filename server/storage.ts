@@ -39,6 +39,7 @@ import {
   outboundQuotations,
   inboundQuotations,
   invoices,
+  purchaseOrders,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -49,6 +50,8 @@ export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -232,7 +235,16 @@ class Storage {
 
   // Add other CRUD methods if needed
   async getInboundQuotations(): Promise<InboundQuotation[]> {
-    return await db.select().from(inboundQuotations); // ✅ Remove orderBy clause
+    return await db
+      .select({
+        id: inboundQuotations.id,
+        number: inboundQuotations.quotationNumber,
+        senderId: inboundQuotations.senderId,
+        quotationDate: inboundQuotations.quotationDate,
+        validUntil: inboundQuotations.validUntil,
+        total: inboundQuotations.totalAmount,
+      })
+      .from(inboundQuotations);
   }
 
   async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
@@ -259,6 +271,83 @@ class Storage {
     if (!row) {
       throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
     }
+    return row;
+  }
+
+  // Purchase Orders CRUD
+  async getPurchaseOrders(): Promise<PurchaseOrder[]> {
+    return await db
+      .select({
+        id: purchaseOrders.id,
+        number: purchaseOrders.poNumber,
+        supplierId: purchaseOrders.supplierId,
+        userId: purchaseOrders.userId,
+        status: purchaseOrders.status,
+        total: purchaseOrders.totalAmount,
+        supplier: {
+          id: suppliers.id,
+          name: suppliers.name,
+          email: suppliers.email,
+          phone: suppliers.phone,
+        },
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(users, eq(purchaseOrders.userId, users.id))
+      .orderBy(purchaseOrders.poNumber);
+  }
+
+  async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    const [row] = await db
+      .select({
+        id: purchaseOrders.id,
+        poNumber: purchaseOrders.poNumber,
+        supplierId: purchaseOrders.supplierId,
+        userId: purchaseOrders.userId,
+        status: purchaseOrders.status,
+        totalAmount: purchaseOrders.totalAmount,
+        supplier: {
+          id: suppliers.id,
+          name: suppliers.name,
+          email: suppliers.email,
+          phone: suppliers.phone,
+        },
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(users, eq(purchaseOrders.userId, users.id))
+      .where(eq(purchaseOrders.id, id));
+    return row;
+  }
+
+  async createPurchaseOrder(
+    insertPO: InsertPurchaseOrder
+  ): Promise<PurchaseOrder> {
+    const [row] = await db.insert(purchaseOrders).values(insertPO).returning();
+    return row;
+  }
+
+  async updatePurchaseOrder(
+    id: string,
+    update: Partial<InsertPurchaseOrder>
+  ): Promise<PurchaseOrder> {
+    const [row] = await db
+      .update(purchaseOrders)
+      .set(update)
+      .where(eq(purchaseOrders.id, id))
+      .returning();
     return row;
   }
 
