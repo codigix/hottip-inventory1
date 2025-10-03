@@ -6,24 +6,40 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { jsPDF } from "jspdf";
+// Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, gte, lt, desc } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
 import { tasks } from "../shared/schema";
+import { leaveRequests } from "../shared/schema";
+import { inventoryAttendance } from "../shared/schema";
+import { stockTransactions, suppliers } from "../shared/schema";
+// adjust path as needed
+import { desc } from "drizzle-orm";
+import { attendance } from "../shared/schema";
+import { validate as isUuid } from "uuid";
 import { requireAuth } from "@/middleware/auth";
-import { generateOutboundQuotationPdf } from "./utils/pdfGenerator";
-import { Readable } from "stream";
+import {
+  marketingAttendance,
+  marketingTodays,
+  marketingMetrics,
+} from "../shared/schema";
 
+// make sure users table is also imported
+import { products, spareParts } from "../shared/schema"; // adjust path
+import { vendorCommunications } from "../shared/schema";
+import { inventoryTasks } from "../shared/schema";
+import { fabricationOrders } from "../shared/schema"; // adjust path if needed
+// POST attendance (check-in / check-out)
+import { v4 as uuidv4 } from "uuid";
 import {
   users as usersTable,
   leads,
   visitNumber,
   marketingTasks,
   fieldVisits,
-  marketingAttendance,
   logisticsShipments,
   logisticsTasks,
   deliveries,
@@ -37,8 +53,11 @@ import {
   leaveRequests as leaveRequestsTable,
   insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
+  insertInvoiceSchema,
   customers,
-} from "@shared/schema";
+} from "../shared/schema";
+import { sql, eq, and, gte, lt } from "drizzle-orm";
+// Fabrication Orders API
 
 // Login schema
 const loginSchema = z.object({
@@ -65,6 +84,42 @@ const userCreateSchema = userInsertSchema.extend({
 
 // Register schema for /api/register endpoint (fixes missing schema error)
 const registerSchema = userCreateSchema;
+
+// Zod schemas for marketing attendance responses (relaxed for better compatibility)
+const marketingAttendanceSchema = z.object({
+  id: z.string(), // Relaxed from uuid() to string()
+  userId: z.string(), // Relaxed from uuid() to string()
+  date: z.string(),
+  checkInTime: z.string().nullable(),
+  checkOutTime: z.string().nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  location: z.string().nullable(),
+  photoPath: z.string().nullable(),
+  workDescription: z.string().nullable(),
+  attendanceStatus: z.string(),
+  visitCount: z.number().nullable(),
+  tasksCompleted: z.number().nullable(),
+  outcome: z.string().nullable(),
+  nextAction: z.string().nullable(),
+  isOnLeave: z.boolean(),
+  user: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  }),
+});
+
+const marketingAttendanceArraySchema = z.array(marketingAttendanceSchema);
+
+const marketingMetricsSchema = z.object({
+  totalRecords: z.number(),
+  presentCount: z.number(),
+  absentCount: z.number(),
+  leaveCount: z.number(),
+  avgVisits: z.number(),
+  avgTasks: z.number(),
+});
 
 // Logistics shipment creation schema
 const logisticsShipmentInsertSchema = z.object({
@@ -370,7 +425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/clients", requireAuth, async (req, res) => {
     try {
       // Use insertCustomerSchema for validation (from shared/schema)
-      const { insertCustomerSchema } = await import("@shared/schema");
+      const { insertCustomerSchema } = await import("../shared/schema");
       const customerData = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
@@ -550,9 +605,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               break;
             case "marketing_task":
               entity = await storage.getMarketingTask(req.params.id);
-              break;
-            case "marketingAttendance":
-              entity = await storage.getMarketingAttendance(req.params.id);
               break;
             default:
               res.status(500).json({ error: "Unknown entity type" });
@@ -742,6 +794,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add product (original, no spare part fields)
+  app.post("/api/products", async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      if (!body.sku || !body.name || !body.category) {
+        return res
+          .status(400)
+          .json({ error: "sku, name, and category are required" });
+      }
+      const [product] = await db
+        .insert(products)
+        .values({
+          id: uuidv4(),
+          sku: body.sku,
+          name: body.name,
+          category: body.category,
+          price: body.price ?? 0,
+          stock: body.stock ?? 0,
+          costPrice: body.costPrice ?? 0,
+          lowStockThreshold: body.lowStockThreshold ?? 0,
+          unit: body.unit ?? "pcs",
+          description: body.description ?? "",
+        })
+        .returning();
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to create product", details: error.message });
+    }
+  });
+
+  // Spare Parts API
+  app.get("/api/fabrication-orders", async (req, res) => {
+    try {
+      const orders = await storage.getFabricationOrders();
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fabrication orders" });
+    }
+  });
+
+  app.post("/api/fabrication-orders", async (req: Request, res: Response) => {
+    try {
+      const { partId, quantity, status, priority, startDate, dueDate, notes } =
+        req.body;
+
+      const orderNumber = `FO-${Date.now()}`; // auto-generate order number
+
+      const result = await db
+        .insert(fabricationOrders)
+        .values({
+          orderNumber,
+          sparePartId: partId,
+          quantity,
+          status: status || "pending",
+          priority: priority || "normal",
+          startDate: startDate ? new Date(startDate) : null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+        })
+        .returning();
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating fabrication order:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET all spare parts
+  app.get("/api/spare-parts", async (_req: Request, res: Response) => {
+    try {
+      const parts = await db.select().from(spareParts);
+      res.json(parts);
+    } catch (err: any) {
+      console.error("Error fetching spare parts:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST new spare part
+  app.post("/api/spare-parts", async (req: Request, res: Response) => {
+    try {
+      const {
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status,
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        fabricationTime,
+        location,
+        unit,
+      } = req.body;
+
+      const result = await db.insert(spareParts).values({
+        partNumber,
+        name,
+        description,
+        specifications,
+        type,
+        status: status || "available", // default if null
+        stock,
+        minStock,
+        maxStock,
+        unitCost,
+        location,
+        unit,
+        fabricationtime: fabricationTime, // map camelCase -> lowercase DB column
+      });
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Error creating spare part:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Suppliers CRUD
   // Suppliers Routes
   app.get(
@@ -855,105 +1031,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json([]);
   });
 
-  // Inventory tasks (in-memory for now)
-  app.get("/api/inventory-tasks", requireAuth, async (_req, res) => {
-    try {
-      // Return most recent first
-      const rows = [...inMemoryInventoryTasks].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  // Create inventory task
-  app.post(
-    "/api/inventory-tasks",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const body = req.body || {};
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        if (!title) {
-          res.status(400).json({ error: "title is required" });
-          return;
-        }
-        const description =
-          typeof body.description === "string" ? body.description.trim() : "";
-        const assignedTo =
-          typeof body.assignedTo === "string" ? body.assignedTo.trim() : "";
-        const priority =
-          typeof body.priority === "string" ? body.priority : "medium";
-        const category =
-          typeof body.category === "string" ? body.category : "general";
-        const dueDate = body.dueDate
-          ? new Date(body.dueDate).toISOString()
-          : new Date().toISOString();
-
-        const rec = {
-          id: "task-" + Date.now(),
-          title,
-          description,
-          assignedTo,
-          status: "new",
-          priority,
-          dueDate,
-          category,
-          createdAt: new Date().toISOString(),
-          createdBy: req.user?.id || null,
-          notes: "",
-          timeSpent: null,
-          completedAt: null,
-        };
-
-        inMemoryInventoryTasks.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to create task" });
-      }
-    }
-  );
-
-  // Update inventory task status/details
-  app.put(
-    "/api/inventory-tasks/:id",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const id = String(req.params.id);
-        const idx = inMemoryInventoryTasks.findIndex(
-          (t) => String(t.id) === id
-        );
-        if (idx === -1) {
-          res.status(404).json({ error: "Task not found" });
-          return;
-        }
-        const body = req.body || {};
-        const patch: any = {};
-        if (typeof body.status === "string") patch.status = body.status;
-        if (typeof body.notes === "string") patch.notes = body.notes;
-        if (body.timeSpent != null && !Number.isNaN(Number(body.timeSpent)))
-          patch.timeSpent = Number(body.timeSpent);
-        if (body.completedAt != null)
-          patch.completedAt = body.completedAt
-            ? new Date(body.completedAt).toISOString()
-            : null;
-        patch.updatedAt = new Date().toISOString();
-
-        inMemoryInventoryTasks[idx] = {
-          ...inMemoryInventoryTasks[idx],
-          ...patch,
-        };
-        res.json(inMemoryInventoryTasks[idx]);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to update task" });
-      }
-    }
-  );
-
   // File uploads (generic upload URL)
   // app.post("/api/objects/upload", requireAuth, async (_req, res) => {
   //   try {
@@ -995,7 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
-  //     const { insertOutboundQuotationSchema } = await import("@shared/schema");
+  //     const { insertOutboundQuotationSchema } = await import("../shared/schema");
   //     const data = insertOutboundQuotationSchema
   //       .partial({ customerId: true })
   //       .parse(req.body); // ← allow optional customerId
@@ -1013,6 +1090,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Quotations and invoices lists
 
+  // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+  //   try {
+  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+
+  //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
+  //     // This avoids the Drizzle internal error caused by nested selection objects.
+  //     const rows = await db
+  //       .select({
+  //         // --- Fields from outboundQuotations table ---
+  //         id: outboundQuotations.id,
+  //         quotationNumber: outboundQuotations.quotationNumber,
+  //         customerId: outboundQuotations.customerId,
+  //         userId: outboundQuotations.userId,
+  //         status: outboundQuotations.status,
+  //         quotationDate: outboundQuotations.quotationDate,
+  //         validUntil: outboundQuotations.validUntil,
+  //         jobCardNumber: outboundQuotations.jobCardNumber,
+  //         partNumber: outboundQuotations.partNumber,
+  //         subtotalAmount: outboundQuotations.subtotalAmount,
+  //         taxAmount: outboundQuotations.taxamount, // Exact DB column name
+  //         discountAmount: outboundQuotations.discountamount, // Exact DB column name
+  //         totalAmount: outboundQuotations.totalamount, // Exact DB column name
+  //         paymentTerms: outboundQuotations.paymentterms, // Exact DB column name
+  //         deliveryTerms: outboundQuotations.deliveryterms, // Exact DB column name
+  //         notes: outboundQuotations.notes,
+  //         ifscCode: outboundQuotations.ifscCode,
+  //         createdAt: outboundQuotations.createdAt,
+  //         updatedAt: outboundQuotations.updatedAt,
+  //         // --- Fields from customers table (joined) ---
+  //         // IMPORTANT: Select these individually and alias them to prevent conflicts
+  //         // and to identify them for manual nesting in the next step.
+  //         _customerIdJoin: customers.id, // Aliased customer ID
+  //         _customerNameJoin: customers.name, // Aliased customer name
+  //         _customerEmailJoin: customers.email, // Aliased customer email
+  //         _customerPhoneJoin: customers.phone, // Aliased customer phone
+  //         // Add other customer fields here if needed in the future, e.g.,
+  //         // _customerCityJoin: customers.city,
+  //       })
+  //       .from(outboundQuotations)
+  //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+
+  //     console.log(
+  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
+  //     );
+
+  //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
+  //     // Iterate through the flat rows returned by the DB query.
+  //     const transformedRows = rows.map((row) => {
+  //       // Determine if a customer record was successfully joined.
+  //       // If joined, _customerIdJoin will hold the customer's ID; otherwise, it might be null/undefined.
+  //       const hasCustomer =
+  //         row._customerIdJoin !== null && row._customerIdJoin !== undefined;
+
+  //       // Construct the final object for this quotation.
+  //       return {
+  //         // --- Include all fields directly from the outboundQuotations table ---
+  //         id: row.id,
+  //         quotationNumber: row.quotationNumber,
+  //         customerId: row.customerId,
+  //         userId: row.userId,
+  //         status: row.status,
+  //         quotationDate: row.quotationDate,
+  //         validUntil: row.validUntil,
+  //         jobCardNumber: row.jobCardNumber,
+  //         partNumber: row.partNumber,
+  //         subtotalAmount: row.subtotalAmount,
+  //         taxAmount: row.taxAmount,
+  //         discountAmount: row.discountAmount,
+  //         totalAmount: row.totalAmount,
+  //         paymentTerms: row.paymentTerms,
+  //         deliveryTerms: row.deliveryTerms,
+  //         notes: row.notes,
+  //         ifscCode: row.ifscCode,
+  //         createdAt: row.createdAt,
+  //         updatedAt: row.updatedAt,
+  //         // --- Conditionally build the nested 'customer' object ---
+  //         // If customer data was joined, create the nested object.
+  //         // If not, set customer to null (or {}).
+  //         customer: hasCustomer
+  //           ? {
+  //               id: row._customerIdJoin, // Use the aliased customer ID
+  //               name: row._customerNameJoin, // Use the aliased customer name
+  //               email: row._customerEmailJoin, // Use the aliased customer email
+  //               phone: row._customerPhoneJoin, // Use the aliased customer phone
+  //               // Map other customer fields here if you added them to the select above.
+  //             }
+  //           : null, // Or {} if preferred by frontend
+  //       };
+  //     });
+
+  //     console.log(
+  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
+  //     );
+  //     // Send the correctly structured data (with nested customer objects) to the frontend.
+  //     res.json(transformedRows);
+  //   } catch (error) {
+  //     // --- STEP 3: Robust Error Handling ---
+  //     // Catch any unexpected errors during the JOIN or transformation process.
+  //     console.error(
+  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+  //       error
+  //     );
+  //     // Fallback to a simple query to maintain API availability.
+  //     try {
+  //       console.log(
+  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+  //       );
+  //       const fallbackRows = await db.select().from(outboundQuotations);
+  //       res.json(fallbackRows);
+  //     } catch (fallbackError) {
+  //       // Catch errors in the fallback itself.
+  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+  //       res
+  //         .status(500)
+  //         .json({
+  //           error: "Failed to fetch outbound quotations",
+  //           details: error.message,
+  //         });
+  //     }
+  //   }
+  // });
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
+    try {
+      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+
+      // --- Call the new storage method ---
+      const quotations = await storage.getOutboundQuotations();
+
+      console.log(
+        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
+      );
+      // --- Send the correctly structured data ---
+      res.json(quotations);
+    } catch (error) {
+      // --- Handle errors from storage ---
+      console.error(
+        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
+        error
+      );
+      res.status(500).json({
+        error: "Failed to fetch outbound quotations",
+        // Optionally include more details from the error object
+        // details: error.message || "An unknown error occurred while fetching quotations.",
+      });
+    }
+  });
+
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log(
@@ -1021,7 +1245,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🐛 [DEBUG] req.body:", req.body);
       console.log("🐛 [DEBUG] req.user:", req.user);
 
-      const { insertOutboundQuotationSchema } = await import("@shared/schema");
+      const { insertOutboundQuotationSchema } = await import(
+        "../shared/schema"
+      );
       console.log("🐛 [DEBUG] About to parse request body with Zod schema");
       const parsedData = insertOutboundQuotationSchema
         .partial({ customerId: true })
@@ -1096,52 +1322,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-    try {
-      console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+  // app.put("/api/outbound-quotations/:id", async (req, res) => {
+  //   try {
+  //     // 1. Parse and validate request body
+  //     const quotationData = insertOutboundQuotationSchema.partial().parse(req.body);
 
-      // --- STEP 1: Perform LEFT JOIN with flattened selection ---
-      // Select fields individually from both tables to avoid Drizzle nesting error
-      const rows = await db
-        .select({
-          // --- Fields from outboundQuotations ---
-          id: outboundQuotations.id,
-          quotationNumber: outboundQuotations.quotationNumber,
-          customerId: outboundQuotations.customerId,
-          userId: outboundQuotations.userId,
-          status: outboundQuotations.status,
-          quotationDate: outboundQuotations.quotationDate,
-          validUntil: outboundQuotations.validUntil,
-          jobCardNumber: outboundQuotations.jobCardNumber,
-          partNumber: outboundQuotations.partNumber,
-          subtotalAmount: outboundQuotations.subtotalAmount,
-          taxAmount: outboundQuotations.taxamount, // DB column name
-          discountAmount: outboundQuotations.discountamount, // DB column name
-          totalAmount: outboundQuotations.totalamount, // DB column name
-          paymentTerms: outboundQuotations.paymentterms, // DB column name
-          deliveryTerms: outboundQuotations.deliveryterms, // DB column name
-          notes: outboundQuotations.notes,
-          ifscCode: outboundQuotations.ifscCode,
-          createdAt: outboundQuotations.createdAt,
-          updatedAt: outboundQuotations.updatedAt,
-          // --- Fields from customers (joined table) ---
-          // Aliased to prevent conflicts and identify for nesting
-          customerId_join: customers.id, // Alias for customer ID
-          customerName_join: customers.name,
-          customerEmail_join: customers.email,
-          customerPhone_join: customers.phone,
-          // Add other customer fields if needed later
-        })
-        .from(outboundQuotations)
-        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+  //     // 2. Call the storage method to perform the update
+  //     const quotation = await storage.updateOutboundQuotation(req.params.id, quotationData);
 
-      console.log(`🐛 [DEBUG] Fetched ${rows.length} raw rows from DB`);
+  //     // 3. Create activity log (optional)
+  //     await storage.createActivity({
+  //       userId: quotation.userId,
+  //       action: "UPDATE_OUTBOUND_QUOTATION",
+  //       entityType: "outbound_quotation",
+  //       entityId: quotation.id,
+  //       details: `Updated outbound quotation: ${quotation.quotationNumber}`,
+  //     });
 
-      // --- STEP 2: Transform flat result into nested structure ---
-      const transformedRows = rows.map((row) => {
-        // Check if customer data was joined (customerId_join will be non-null)
-        const hasCustomer =
-          row.customerId_join !== null && row.customerId_join !== undefined;
+  //     // 4. Send back the updated quotation
+  //     res.json(quotation);
+  //   } catch (error) {
+  //     // 5. Handle errors (Zod validation or storage errors)
+  //     if (error instanceof z.ZodError) {
+  //        return res.status(400).json({ error: "Invalid quotation data", details: error.errors });
+  //     }
+  //     console.error("Failed to update outbound quotation:", error);
+  //     res.status(500).json({ error: "Failed to update outbound quotation", details: error.message }); // Include error details
+  //   }
+  // });
 
         return {
           // --- Spread outboundQuotations fields ---
@@ -1177,36 +1385,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      console.log(
-        `🐛 [DEBUG] Transformed ${transformedRows.length} rows for response`
-      );
-      res.json(transformedRows);
-    } catch (error) {
-      // --- STEP 3: Robust Error Handling ---
-      console.error(
-        "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
-        error
-      );
-      // Fallback to simple fetch to maintain API availability
-      try {
-        console.log(
-          "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
-        );
-        const fallbackRows = await db.select().from(outboundQuotations);
-        res.json(fallbackRows);
-      } catch (fallbackError) {
-        console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
-        res.status(500).json({
-          error: "Failed to fetch outbound quotations",
-          details: error.message,
-        });
-      }
-    }
-  });
+  // Alias: /api/quotations/inbound → inbound quotations
+  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+  //   try {
+  //     const rows = await db.select().from(inboundQuotations);
+  //     res.json(rows);
+  //   } catch (e) {
+  //     res.json([]);
+  //   }
+  // });
+  // Inbound Quotations Routes
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
     try {
-      const { insertOutboundQuotationSchema } = await import("@shared/schema");
+      const { insertOutboundQuotationSchema } = await import(
+        "../shared/schema"
+      );
       const parsedData = insertOutboundQuotationSchema
         .partial()
         .parse(req.body);
@@ -1307,106 +1501,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/outbound-quotations/:id/pdf", requireAuth, async (req, res) => {
-    try {
-      console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Request received`
-      );
-
-      // Get the quotation data with customer details
-      const quotation = await storage.getOutboundQuotation(req.params.id);
-      if (!quotation) {
-        console.warn(
-          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Quotation not found`
-        );
-        return res.status(404).json({ error: "Quotation not found" });
-      }
-
-      // If customer ID exists but customer details aren't populated, fetch them
-      if (quotation.customerId && !quotation.customer) {
-        try {
-          const customer = await storage.getCustomer(quotation.customerId);
-          if (customer) {
-            quotation.customer = customer;
-          }
-        } catch (err) {
-          console.warn(
-            `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Could not fetch customer details:`,
-            err
-          );
-          // Continue without customer details rather than failing
-        }
-      }
-
-      // Fetch quotation items if they exist
-      try {
-        if (!quotation.items) {
-          const items = await storage.getOutboundQuotationItems(quotation.id);
-          if (items && items.length > 0) {
-            quotation.items = items;
-          }
-        }
-      } catch (err) {
-        console.warn(
-          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Could not fetch quotation items:`,
-          err
-        );
-        // Continue without items rather than failing
-      }
-
-      console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Generating PDF...`
-      );
-      const pdfStream = await generateOutboundQuotationPdf(quotation);
-
-      // Set appropriate headers for PDF download
-      const filename = `Quotation_${quotation.quotationNumber}.pdf`;
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${filename}"`
-      );
-
-      // Pipe the PDF stream to the response
-      console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Sending PDF response`
-      );
-      pdfStream.pipe(res);
-
-      // Handle stream events
-      pdfStream.on("end", () => {
-        console.log(
-          `🐛 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - PDF stream completed successfully`
-        );
-      });
-
-      pdfStream.on("error", (err) => {
-        console.error(
-          `💥 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Error in PDF stream:`,
-          err
-        );
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: "Failed to generate quotation PDF",
-            details: err.message,
-          });
-        }
-      });
-    } catch (error) {
-      console.error(
-        `💥 [ROUTE] GET /api/outbound-quotations/${req.params.id}/pdf - Error generating PDF:`,
-        error
-      );
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: "Failed to generate quotation PDF",
-          details: error.message,
-        });
-      }
-    }
-  });
-
-  // Inbound Quotations Routes
   app.get("/api/inbound-quotations", async (req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();
@@ -1433,7 +1527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
     try {
-      const { insertInboundQuotationSchema } = await import("@shared/schema");
+      const { insertInboundQuotationSchema } = await import("../shared/schema");
 
       // Pre-process req.body to remove null values for optional fields
       // This ensures Zod validation passes if fields are explicitly sent as null
@@ -1710,59 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Marketing leave request - always available with DB fallback
-  app.post(
-    "/api/marketing-attendance/leave-request",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { leaveType, startDate, endDate, reason } = req.body || {};
-        if (!leaveType || !startDate || !endDate || !reason) {
-          res.status(400).json({ error: "Missing required fields" });
-          return;
-        }
-        // Try DB insert first
-        try {
-          const userIdVal = Number(req.user!.id);
-          const [row] = await db
-            .insert(leaveRequestsTable)
-            .values({
-              userId: Number.isFinite(userIdVal) ? userIdVal : null,
-              leaveType,
-              startDate: new Date(startDate),
-              endDate: new Date(endDate),
-              reason,
-              status: "pending",
-            })
-            .returning();
-          res.status(201).json(row);
-          return;
-        } catch (dbErr) {
-          // Fall through to in-memory fallback
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Leave request DB insert failed, using in-memory fallback:",
-            dbErr
-          );
-        }
 
-        const rec = {
-          id: "mem-" + Date.now(),
-          userId: req.user!.id,
-          leaveType,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
-          reason,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          _fallback: true,
-        };
-        inMemoryMarketingLeaves.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to submit leave request" });
-      }
-    }
-  );
   // Inventory leave request - DB first, fallback to memory
   app.post(
     "/api/inventory/leave-request",
@@ -1799,26 +1841,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
 
-        const rec = {
-          id: "mem-" + Date.now(),
-          employeeName,
-          userId: req.user!.id,
-          leaveType,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
-          reason,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          _fallback: true,
-        };
-        inMemoryInventoryLeaves.push(rec);
-        res.status(201).json(rec);
-      } catch (e) {
-        res.status(500).json({ error: "Failed to submit leave request" });
-      }
-    }
-  );
+  // app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+  //   try {
+  //     const {
+  //       title,
+  //       description,
+  //       assignedTo,
+  //       priority,
+  //       dueDate,
+  //       type,
+  //       productId,
+  //       sparePartId,
+  //       batchId,
+  //       fabricationOrderId,
+  //       expectedQuantity,
+  //       actualQuantity,
+  //       fromLocation,
+  //       toLocation,
+  //       notes,
+  //       attachmentPath,
+  //     } = req.body;
 
+  //     // Validate assignedTo
+  //     if (!isUuid(assignedTo)) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "assignedTo must be a valid UUID" });
+  //     }
+
+  //     // Normalize enums
+  //     const normalizedPriority = priority?.toLowerCase() || "medium";
+  //     const normalizedStatus = "pending"; // default
+  //     const normalizedType = type?.toLowerCase() || "fabrication";
+
+  //     const validPriorities = ["low", "medium", "high"];
+  //     if (!validPriorities.includes(normalizedPriority)) {
+  //       return res.status(400).json({ error: "Invalid priority" });
+  //     }
+
+  //     // Hardcode assignedBy (later you can take from auth session)
+  //     const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+  //     const [newTask] = await db
+  //       .insert(inventoryTasks)
+  //       .values({
+  //         title,
+  //         description,
+  //         type: normalizedType,
+  //         status: normalizedStatus,
+  //         priority: normalizedPriority,
+  //         assignedTo,
+  //         assignedBy,
+  //         productId,
+  //         sparePartId,
+  //         batchId,
+  //         fabricationOrderId,
+  //         expectedQuantity,
+  //         actualQuantity,
+  //         fromLocation,
+  //         toLocation,
+  //         dueDate: dueDate ? new Date(dueDate) : null,
+  //         notes,
+  //         attachmentPath,
+  //       })
+  //       .returning({
+  //         id: inventoryTasks.id,
+  //         title: inventoryTasks.title,
+  //         description: inventoryTasks.description,
+  //         type: inventoryTasks.type,
+  //         status: inventoryTasks.status,
+  //         priority: inventoryTasks.priority,
+  //         assignedTo: inventoryTasks.assignedTo,
+  //         assignedBy: inventoryTasks.assignedBy,
+  //         dueDate: inventoryTasks.dueDate,
+  //         createdAt: inventoryTasks.createdAt,
+  //         updatedAt: inventoryTasks.updatedAt,
+  //       });
+
+  //     res
+  //       .status(201)
+  //       .json({ message: "Inventory task created", task: newTask });
+  //   } catch (err) {
+  //     console.error("Error creating inventory task:", err);
+  //     res.status(500).json({
+  //       error: "Failed to create inventory task",
+  //       details: err.message,
+  //     });
+  //   }
+  // });
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        type,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
+
+      // Validate assignedTo
+      if (!isUuid(assignedTo)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo must be a valid UUID" });
+      }
+
+      // Normalize enums
+      const normalizedPriority = priority?.toLowerCase() || "medium";
+      const normalizedStatus = "pending"; // default
+      const normalizedType = type?.toLowerCase() || "fabrication";
+
+      const validPriorities = ["low", "medium", "high"];
+      if (!validPriorities.includes(normalizedPriority)) {
+        return res.status(400).json({ error: "Invalid priority" });
+      }
+
+      // Hardcode assignedBy (later you can take from auth session)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
+
+      const [newTask] = await db
+        .insert(inventoryTasks)
+        .values({
+          title,
+          description,
+          type: normalizedType,
+          status: normalizedStatus,
+          priority: normalizedPriority,
+          assignedTo,
+          assignedBy,
+          productId,
+          sparePartId,
+          batchId,
+          fabricationOrderId,
+          expectedQuantity,
+          actualQuantity,
+          fromLocation,
+          toLocation,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          notes,
+          attachmentPath,
+        })
+        .returning({
+          id: inventoryTasks.id,
+          title: inventoryTasks.title,
+          description: inventoryTasks.description,
+          type: inventoryTasks.type,
+          status: inventoryTasks.status,
+          priority: inventoryTasks.priority,
+          assignedTo: inventoryTasks.assignedTo,
+          assignedBy: inventoryTasks.assignedBy,
+          dueDate: inventoryTasks.dueDate,
+          createdAt: inventoryTasks.createdAt,
+          updatedAt: inventoryTasks.updatedAt,
+        });
+
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
+        error: "Failed to create inventory task",
+        details: err.message,
+      });
+    }
+  });
   app.get("/api/activities", (_req, res) => {
     res.json([]);
   });
@@ -1852,33 +2050,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST attendance (check-in / check-out)
   app.post("/api/attendance", async (req, res) => {
     try {
       const { userId, username, action, location, notes } = req.body;
 
-      // Must have either userId or username, plus action and location
       if ((!userId && !username) || !action || !location) {
-        return res
-          .status(400)
-          .json({ error: "userId or username, action, location are required" });
+        return res.status(400).json({
+          error: "userId or username, action, location are required",
+        });
       }
 
-      // 1️⃣ Get user from database if userId not provided
-      let user = null;
+      // Get user ID from users table if username is provided
+      let user;
       if (userId) {
-        [user] = await db.select().from(users).where({ id: userId });
+        [user] = await db.select().from(users).where(eq(users.id, userId));
       } else {
-        [user] = await db.select().from(users).where({ username });
+        [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, username));
       }
 
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      const resolvedUserId = user.id; // Always use ID internally
-
-      // 2️⃣ Determine timestamps
+      const resolvedUserId = user.id;
       const timestamp = new Date();
 
       if (action === "check_in") {
@@ -1901,8 +2098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [existing] = await db
           .select()
           .from(attendance)
-          .where({ userId: resolvedUserId })
-          .orderBy("date", "desc")
+          .where(eq(attendance.userId, resolvedUserId))
+          .orderBy(desc(attendance.date))
           .limit(1);
 
         if (!existing || existing.checkOut) {
@@ -1912,7 +2109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [updated] = await db
           .update(attendance)
           .set({ checkOut: timestamp })
-          .where({ id: existing.id })
+          .where(eq(attendance.id, existing.id))
           .returning();
 
         return res.json(updated);
@@ -1921,9 +2118,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: "Unknown action" });
     } catch (error: any) {
       console.error("Error recording attendance:", error);
+      res.status(500).json({
+        error: "Failed to record attendance",
+        details: error.message,
+      });
+    }
+  });
+
+  // GET all attendance
+  app.get("/api/attendance", async (_req, res) => {
+    try {
+      const data = await db.select().from(attendance);
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error);
       res
         .status(500)
-        .json({ error: "Failed to record attendance", details: error.message });
+        .json({ error: "Failed to fetch attendance", details: error.message });
     }
   });
 
@@ -1968,6 +2179,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ error: "Failed to delete attendance", details: error.message });
+    }
+  });
+
+  app.post("/api/inventory/leave-request", async (req, res) => {
+    try {
+      const { employeeName, leaveType, startDate, endDate, reason } = req.body;
+
+      // Validate input
+      if (!employeeName) {
+        return res.status(400).json({ error: "employeeName is required" });
+      }
+      if (!leaveType || !startDate || !endDate) {
+        return res.status(400).json({
+          error: "leaveType, startDate, and endDate are required",
+        });
+      }
+
+      // Find the user by employeeName (case-insensitive)
+      const userArray = await db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.username}) = LOWER(${employeeName.trim()})`)
+        .limit(1)
+        .execute();
+
+      const user = userArray[0];
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Insert leave request
+      const result = await db
+        .insert(leaveRequests)
+        .values({
+          userId: user.id, // use the user's ID
+          leaveType,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          reason: reason || "",
+          status: "pending", // default leave status
+        })
+        .returning();
+
+      res.status(201).json({ data: result });
+    } catch (error: any) {
+      console.error("Error creating leave request:", error);
+      res.status(500).json({
+        error: "Failed to create leave request",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/inventory/attendance-with-leave", async (_req, res) => {
+    try {
+      const data = await db.select().from(leaveRequests);
+      res.json({ data });
+    } catch (error: any) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({
+        error: "Failed to fetch leave requests",
+        details: error.message,
+      });
+    }
+  });
+
+  // Approve leave request
+  app.put("/api/inventory/leave-request/:id/approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
+      }
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "approved" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request approved successfully",
+      });
+    } catch (error: any) {
+      console.error("Error approving leave request:", error);
+      res.status(500).json({
+        error: "Failed to approve leave request",
+        details: error.message,
+      });
+    }
+  });
+
+  // Reject leave request
+  app.put("/api/inventory/leave-request/:id/reject", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!isUuid(id)) {
+        return res.status(400).json({ error: "Invalid leave request ID" });
+      }
+
+      const result = await db
+        .update(leaveRequests)
+        .set({ status: "rejected" })
+        .where(eq(leaveRequests.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      res.json({
+        data: result[0],
+        message: "Leave request rejected successfully",
+      });
+    } catch (error: any) {
+      console.error("Error rejecting leave request:", error);
+      res.status(500).json({
+        error: "Failed to reject leave request",
+        details: error.message,
+      });
     }
   });
 
@@ -3102,7 +3441,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   const task = req.body;
   //   res.status(201).json({ message: "Task created", task });
   // });
+  app.get("/api/inventory-tasks", async (_req: Request, res: Response) => {
+    try {
+      const tasks = await db.select().from(inventoryTasks);
+      res.status(200).json(tasks);
+    } catch (err) {
+      console.error("Error fetching inventory tasks:", err);
+      res.status(500).json({ error: "Failed to fetch inventory tasks" });
+    }
+  });
 
+  // Create Inventory Task
+  // Allowed enums
+  const validStatuses = ["pending", "in_progress", "completed", "cancelled"];
+  const validPriorities = ["low", "medium", "high", "urgent"];
+
+  app.post("/api/inventory-tasks", async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        assignedTo,
+        priority,
+        dueDate,
+        category,
+        productId,
+        sparePartId,
+        batchId,
+        fabricationOrderId,
+        expectedQuantity,
+        actualQuantity,
+        fromLocation,
+        toLocation,
+        notes,
+        attachmentPath,
+      } = req.body;
+
+      // Hardcoded assignedBy (replace with logged-in user in real app)
+      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573";
+
+      // Validate required fields
+      if (!title || !assignedTo || !assignedBy) {
+        return res.status(400).json({
+          error: "title, assignedTo, and assignedBy are required",
+        });
+      }
+
+      // Validate UUIDs
+      if (!isUuid(assignedTo) || !isUuid(assignedBy)) {
+        return res
+          .status(400)
+          .json({ error: "assignedTo and assignedBy must be valid UUIDs" });
+      }
+
+      // Map API status to enum
+      let status = req.body.status || "pending";
+      if (status === "new") status = "pending";
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+
+      // Validate priority
+      const taskPriority = validPriorities.includes(priority)
+        ? priority
+        : "medium";
+
+      const [newTask] = await db
+        .insert("inventory_tasks")
+        .values({
+          title,
+          description: description || null,
+          assignedTo,
+          assignedBy,
+          status,
+          priority: taskPriority,
+          category: category || null,
+          productId: productId || null,
+          sparePartId: sparePartId || null,
+          batchId: batchId || null,
+          fabricationOrderId: fabricationOrderId || null,
+          expectedQuantity: expectedQuantity || null,
+          actualQuantity: actualQuantity || null,
+          fromLocation: fromLocation || null,
+          toLocation: toLocation || null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          completedDate: null,
+          notes: notes || null,
+          attachmentPath: attachmentPath || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning("*");
+
+      res
+        .status(201)
+        .json({ message: "Inventory task created", task: newTask });
+    } catch (err: any) {
+      console.error("Error creating inventory task:", err);
+      res.status(500).json({
+        error: "Failed to create inventory task",
+        details: err.message,
+      });
+    }
+  });
   // GET /api/tasks -> fetch all tasks
   app.get("/api/tasks", async (_req: Request, res: Response) => {
     try {
@@ -3214,350 +3655,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("✅ Marketing routes registered successfully");
   } catch (error) {
     console.warn("⚠️ Marketing routes registry not available:", error);
-
-    // Fallback minimal Marketing Attendance routes (ensures UI works)
-    const objectStorage = new ObjectStorageService();
-
-    // List all attendance (basic, no filtering)
-
-    // Today's attendance
-
-    // Attendance metrics
-
-    // Check-in
-    app.get("/api/marketing-attendance", requireAuth, async (_req, res) => {
-      try {
-        const rows = await db.select().from(marketingAttendance);
-        res.json(rows);
-      } catch (e) {
-        console.error("Error fetching attendance:", e);
-        res.status(500).json({ error: "Failed to fetch attendance record", details:e.message });
-      }
-    });
-
-    // 📌 INSERT attendance record (Check-in)
-    app.post(
-      "/api/marketing-attendance",
-      requireAuth,
-      async (req: Request, res: Response) => {
-        try {
-          const { userId, checkInLocation, checkInLatitude } = req.body;
-
-          const [row] = await db
-            .insert(marketingAttendance)
-            .values({
-              userId,
-              date: new Date(),
-              checkInTime: new Date(),
-              checkInLocation,
-              checkInLatitude,
-            })
-            .returning();
-
-          res.status(201).json(row);
-        } catch (e) {
-          console.error("Error inserting attendance:", e);
-          res.status(500).json({ error: "Failed to insert attendance record" });
-        }
-      }
-    );
-    // app.get(
-    //   "/marketing-attendance/today",
-    //   requireAuth,
-    //   async (req, res) => {
-    //     try {
-    //       const userId = req.user.id; // 👈 from auth middleware
-
-    //       const today = new Date();
-    //       today.setHours(0, 0, 0, 0);
-
-    //       const tomorrow = new Date(today);
-    //       tomorrow.setDate(today.getDate() + 1);
-
-    //       const rows = await db
-    //         .select()
-    //         .from(marketingAttendance)
-    //         .where("userId", "=", userId)
-    //         .andWhere("date", ">=", today)
-    //         .andWhere("date", "<", tomorrow);
-
-    //       res.json(rows);
-    //     } catch (e) {
-    //       console.error("Error fetching today's attendance:", e);
-    //       res.status(500).json({ error: "Failed to fetch today's attendance" });
-    //     }
-    //   }
-    // );
-
-    // 📌 UPDATE attendance record (Check-out)
-
-   app.get("/api/marketing-attendance/today", requireAuth, async (req, res) => {
-  try {
-    console.log("🐛 [ROUTE] GET /api/marketing-attendance/today - Request received for user ID:", req.user?.id);
-
-    // --- STEP 1: Get the authenticated user's ID ---
-    const userId = req.user?.id;
-    if (!userId) {
-      console.warn("🐛 [ROUTE] GET /api/marketing-attendance/today - User ID not found in request");
-      return res.status(401).json({ error: "Unauthorized: User ID not found" });
-    }
-
-    // --- STEP 2: Calculate date range for today ---
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
-
-    // --- STEP 3: Perform LEFT JOIN with FLAT field selection ---
-    // This avoids the Drizzle internal error caused by nested selection objects.
-    const rows = await db
-      .select({
-        // --- Fields from marketingAttendance table ---
-        id: marketingAttendance.id,
-        quotationNumber: marketingAttendance.quotationNumber,
-        customerId: marketingAttendance.customerId,
-        userId: marketingAttendance.userId,
-        status: marketingAttendance.status,
-        quotationDate: marketingAttendance.quotationDate,
-        validUntil: marketingAttendance.validUntil,
-        jobCardNumber: marketingAttendance.jobCardNumber,
-        partNumber: marketingAttendance.partNumber,
-        subtotalAmount: marketingAttendance.subtotalAmount,
-        taxAmount: marketingAttendance.taxamount, // Note the column name from DB schema
-        discountAmount: marketingAttendance.discountamount, // Note the column name from DB schema
-        totalAmount: marketingAttendance.totalamount, // Note the column name from DB schema
-        paymentTerms: marketingAttendance.paymentterms, // Note the column name from DB schema
-        deliveryTerms: marketingAttendance.deliveryterms, // Note the column name from DB schema
-        notes: marketingAttendance.notes,
-        bankName: marketingAttendance.bankName,
-        accountNumber: marketingAttendance.accountNumber,
-        ifscCode: marketingAttendance.ifscCode,
-        warrantyTerms: marketingAttendance.warrantyTerms,
-        specialTerms: marketingAttendance.specialTerms,
-        createdAt: marketingAttendance.createdAt,
-        updatedAt: marketingAttendance.updatedAt,
-        // --- Fields from users table (joined) ---
-        // IMPORTANT: Select these individually and alias them to prevent conflicts
-        // and to identify them for manual nesting in the next step.
-        _userIdJoin: users.id,        // Aliased user ID
-        _userNameJoin: users.name,    // Aliased user name
-        _userEmailJoin: users.email,  // Aliased user email
-        _userPhoneJoin: users.phone, // Aliased user phone
-        // Add other user fields if needed by the frontend later
-        // _userDepartmentJoin: users.department,
-        // _userRoleJoin: users.role,
-        // ...
-      })
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id)) // Join condition
-      .where(and(
-        eq(marketingAttendance.userId, userId), // Filter by user ID
-        gte(marketingAttendance.quotationDate, today), // Filter by date range start
-        lt(marketingAttendance.quotationDate, tomorrow) // Filter by date range end
-      ));
-
-    console.log(`🐛 [ROUTE] GET /api/marketing-attendance/today - Fetched ${rows.length} raw rows with join (flat approach)`);
-
-    // --- STEP 4: Transform the Result ---
-    // Drizzle returns an array like [{ marketingAttendance: {...}, users: {...} }, ...].
-    // We need to flatten this to match MarketingAttendance type with a nested 'user' property.
-    const transformedRows = rows.map(row => {
-      // Check if user data was joined (userId_join will be non-null if user exists)
-      const hasUser = row._userIdJoin !== null && row._userIdJoin !== undefined;
-
-      return {
-        // Spread all fields from the 'marketingAttendance' object (marketingAttendance fields)
-        ...row.marketingAttendance,
-        // Conditionally create the nested 'user' object
-        user: hasUser ? {
-          id: row._userIdJoin,       // Use the aliased user ID
-          name: row._userNameJoin,    // Use the aliased user name
-          email: row._userEmailJoin,  // Use the aliased user email
-          phone: row._userPhoneJoin, // Use the aliased user phone
-          // Map other user fields as needed
-        } : null // Or {} if preferred
-      };
-    });
-
-    console.log(`🐛 [ROUTE] GET /api/marketing-attendance/today - Transformed ${transformedRows.length} rows`);
-    res.json(transformedRows);
-  } catch (error) {
-    console.error("💥 [ROUTE] GET /api/marketing-attendance/today - Error fetching today's attendance:", error);
-    // Fallback to simple fetch to maintain API availability.
-    try {
-        console.log("🐛 [ROUTE] GET /api/marketing-attendance/today - Falling back to simple fetch...");
-        const fallbackRows = await db.select().from(marketingAttendance);
-        res.json(fallbackRows);
-    } catch (fallbackError) {
-        console.error("💥 [ROUTE] GET /api/marketing-attendance/today - Fallback fetch also failed:", fallbackError);
-        res.status(500).json({ error: "Failed to fetch today's attendance", details: error.message });
-    }
-  }
-});
-    app.put(
-      "/api/marketing-attendance/:id/checkout",
-      requireAuth,
-      async (req: Request, res: Response) => {
-        try {
-          const { id } = req.params;
-          const { checkOutLocation } = req.body;
-
-          const [row] = await db
-            .update(marketingAttendance)
-            .set({
-              checkOutTime: new Date(),
-              checkOutLocation,
-            })
-            .where(sql`${marketingAttendance.id} = ${id}`)
-            .returning();
-
-          res.json(row);
-        } catch (e) {
-          console.error("Error updating attendance:", e);
-          res.status(500).json({ error: "Failed to update attendance record" });
-        }
-      }
-    );
-
-    // 📌 METRICS (total, checked-in, checked-out)
-    // app.get(
-    //   "/api/marketing-attendance/metrics",
-    //   requireAuth,
-    //   async (_req, res) => {
-    //     try {
-    //       const [row] = await db
-    //         .select({
-    //           total: sql`COUNT(*)::integer`,
-    //           checkedIn: sql`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
-    //           checkedOut: sql`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
-    //         })
-    //         .from(marketingAttendance);
-
-    //       res.json({
-    //         total: Number((row as any)?.total || 0),
-    //         checkedIn: Number((row as any)?.checkedIn || 0),
-    //         checkedOut: Number((row as any)?.checkedOut || 0),
-    //       });
-    //     } catch (e) {
-    //       console.error("Error fetching attendance metrics:", e);
-    //       res.status(500).json({ error: "Failed to fetch attendance metrics" });
-    //     }
-    //   }
-    // );
-    app.get(
-      "/api/marketing-attendance/metrics",
-      requireAuth,
-      async (_req, res) => {
-        try {
-          console.log(
-            "🐛 [ROUTE] GET /api/marketing-attendance/metrics - Request received"
-          );
-
-          // --- STEP 1: Perform the database query using correct Drizzle syntax ---
-          const [row] = await db
-            .select({
-              total: sql<number>`COUNT(*)::integer`,
-              checkedIn: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkInTime} IS NOT NULL THEN 1 END)::integer`,
-              checkedOut: sql<number>`COUNT(CASE WHEN ${marketingAttendance.checkOutTime} IS NOT NULL THEN 1 END)::integer`,
-            })
-            .from(marketingAttendance);
-
-          // --- STEP 2: Safely extract metrics from the query result ---
-          const metrics = {
-            total: Number((row as any)?.total || 0),
-            checkedIn: Number((row as any)?.checkedIn || 0),
-            checkedOut: Number((row as any)?.checkedOut || 0),
-          };
-
-          console.log(
-            "🐛 [ROUTE] GET /api/marketing-attendance/metrics - Fetched metrics:",
-            metrics
-          );
-          res.json(metrics);
-        } catch (error) {
-          console.error(
-            "💥 [ROUTE] GET /api/marketing-attendance/metrics - Error fetching metrics:",
-            error
-          );
-          // Fallback to default metrics on error to keep UI functional
-          res.json({ total: 0, checkedIn: 0, checkedOut: 0 });
-        }
-      }
-    );
-    // Photo upload URL generation
-    app.post(
-      "/api/marketing-attendance/photo/upload-url",
-      requireAuth,
-      async (req: AuthenticatedRequest, res) => {
-        try {
-          const { attendanceId, fileName, contentType, photoType } =
-            req.body || {};
-          if (!attendanceId || !fileName || !contentType || !photoType) {
-            res.status(400).json({
-              error:
-                "attendanceId, fileName, contentType, and photoType are required",
-            });
-            return;
-          }
-
-          const attendance = await storage.getMarketingAttendance(attendanceId);
-          if (!attendance) {
-            res.status(404).json({ error: "Attendance record not found" });
-            return;
-          }
-          if (attendance.userId !== req.user!.id) {
-            res.status(403).json({
-              error: "Not authorized to upload photo for this record",
-            });
-            return;
-          }
-
-          const objectPath = `marketing-attendance-photos/${attendanceId}/${photoType}-${Date.now()}-${fileName}`;
-          const uploadURL = await objectStorage.getObjectEntityUploadURL();
-          res.json({ uploadURL, objectPath });
-        } catch (e) {
-          res.status(500).json({ error: "Failed to generate upload URL" });
-        }
-      }
-    );
-
-    // Leave request creation (basic)
-    try {
-      const { db } = await import("./db");
-      const { leaveRequests } = await import("@shared/schema");
-      app.post(
-        "/api/marketing-attendance/leave-request",
-        requireAuth,
-        async (req: AuthenticatedRequest, res) => {
-          try {
-            const { leaveType, startDate, endDate, reason } = req.body || {};
-            if (!leaveType || !startDate || !endDate || !reason) {
-              res.status(400).json({ error: "Missing required fields" });
-              return;
-            }
-            const [record] = await db
-              .insert(leaveRequests)
-              .values({
-                userId: req.user!.id,
-                leaveType,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
-                reason,
-                status: "pending",
-              })
-              .returning();
-            res.status(201).json(record);
-          } catch (e) {
-            res.status(500).json({ error: "Failed to submit leave request" });
-          }
-        }
-      );
-    } catch (_e) {
-      // If db/schema imports fail, skip leave-request endpoint
-      console.warn(
-        "⚠️ Leave request endpoint not available (db/schema import failed)"
-      );
-    }
   }
 
   // Import and register logistics routes safely
@@ -3602,6 +3699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (e) {
     console.warn("⚠️ Accounts routes registry load failed", e);
   }
+
+  // Marketing attendance routes are now handled by marketing-routes-registry.ts
+  // Removed duplicate /api/marketing-attendance/today route to avoid conflicts
+
+  // Removed duplicate /api/marketing-attendance/metrics route to avoid conflicts
 
   const httpServer = createServer(app);
   return httpServer;

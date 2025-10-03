@@ -1,27 +1,57 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, FileText, User, AlertCircle, CheckCircle, Send } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  FileText,
+  User,
+  AlertCircle,
+  CheckCircle,
+  Send,
+} from "lucide-react";
 import { format, addDays, differenceInDays } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface LeaveRequest {
   id?: string;
-  leaveType: 'sick' | 'vacation' | 'personal' | 'emergency' | 'training' | 'other';
+  leaveType:
+    | "sick"
+    | "vacation"
+    | "personal"
+    | "emergency"
+    | "training"
+    | "other";
   startDate: Date;
   endDate: Date;
   reason: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  status?: "pending" | "approved" | "rejected" | "cancelled";
   totalDays?: number;
 }
 
@@ -46,12 +76,42 @@ interface LeaveRequestFormProps {
 }
 
 const leaveTypes = [
-  { value: 'sick', label: 'Sick Leave', description: 'Medical illness or health issues', color: 'bg-red-100 text-red-800' },
-  { value: 'vacation', label: 'Vacation Leave', description: 'Planned time off for rest and recreation', color: 'bg-blue-100 text-blue-800' },
-  { value: 'personal', label: 'Personal Leave', description: 'Personal matters or family obligations', color: 'bg-purple-100 text-purple-800' },
-  { value: 'emergency', label: 'Emergency Leave', description: 'Unexpected urgent situations', color: 'bg-orange-100 text-orange-800' },
-  { value: 'training', label: 'Training Leave', description: 'Professional development or training', color: 'bg-green-100 text-green-800' },
-  { value: 'other', label: 'Other', description: 'Other types of leave', color: 'bg-gray-100 text-gray-800' }
+  {
+    value: "sick",
+    label: "Sick Leave",
+    description: "Medical illness or health issues",
+    color: "bg-red-100 text-red-800",
+  },
+  {
+    value: "vacation",
+    label: "Vacation Leave",
+    description: "Planned time off for rest and recreation",
+    color: "bg-blue-100 text-blue-800",
+  },
+  {
+    value: "personal",
+    label: "Personal Leave",
+    description: "Personal matters or family obligations",
+    color: "bg-purple-100 text-purple-800",
+  },
+  {
+    value: "emergency",
+    label: "Emergency Leave",
+    description: "Unexpected urgent situations",
+    color: "bg-orange-100 text-orange-800",
+  },
+  {
+    value: "training",
+    label: "Training Leave",
+    description: "Professional development or training",
+    color: "bg-green-100 text-green-800",
+  },
+  {
+    value: "other",
+    label: "Other",
+    description: "Other types of leave",
+    color: "bg-gray-100 text-gray-800",
+  },
 ];
 
 export default function LeaveRequestForm({
@@ -62,12 +122,12 @@ export default function LeaveRequestForm({
   leaveBalance,
   isLoading = false,
   userId,
-  userName
+  userName,
 }: LeaveRequestFormProps) {
-  const [leaveType, setLeaveType] = useState<string>('');
+  const [leaveType, setLeaveType] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form when modal opens/closes or when editing existing request
@@ -79,10 +139,10 @@ export default function LeaveRequestForm({
         setEndDate(new Date(existingRequest.endDate));
         setReason(existingRequest.reason);
       } else {
-        setLeaveType('');
+        setLeaveType("");
         setStartDate(undefined);
         setEndDate(undefined);
-        setReason('');
+        setReason("");
       }
       setErrors({});
     }
@@ -99,26 +159,21 @@ export default function LeaveRequestForm({
     const newErrors: Record<string, string> = {};
 
     if (!leaveType) {
-      newErrors.leaveType = 'Please select a leave type';
+      newErrors.leaveType = "Please select a leave type";
     }
 
     if (!startDate) {
-      newErrors.startDate = 'Please select a start date';
+      newErrors.startDate = "Please select a start date";
     }
 
     if (!endDate) {
-      newErrors.endDate = 'Please select an end date';
+      newErrors.endDate = "Please select an end date";
     }
 
     if (startDate && endDate && startDate > endDate) {
-      newErrors.endDate = 'End date must be after start date';
+      newErrors.endDate = "End date must be after start date";
     }
-
-    if (!reason.trim()) {
-      newErrors.reason = 'Please provide a reason for leave';
-    } else if (reason.trim().length < 10) {
-      newErrors.reason = 'Please provide a more detailed reason (minimum 10 characters)';
-    }
+    // No validation for reason field - it can be empty or any length
 
     // Check if user has sufficient leave balance
     if (leaveBalance && startDate && endDate) {
@@ -129,11 +184,12 @@ export default function LeaveRequestForm({
     }
 
     // Check if start date is in the past (except for sick leave)
-    if (startDate && leaveType !== 'sick' && leaveType !== 'emergency') {
+    if (startDate && leaveType !== "sick" && leaveType !== "emergency") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (startDate < today) {
-        newErrors.startDate = 'Start date cannot be in the past for this leave type';
+        newErrors.startDate =
+          "Start date cannot be in the past for this leave type";
       }
     }
 
@@ -147,28 +203,28 @@ export default function LeaveRequestForm({
 
     const leaveRequest: LeaveRequest = {
       id: existingRequest?.id,
-      leaveType: leaveType as LeaveRequest['leaveType'],
+      leaveType: leaveType as LeaveRequest["leaveType"],
       startDate: startDate!,
       endDate: endDate!,
       reason: reason.trim(),
-      totalDays: getTotalDays()
+      totalDays: getTotalDays(),
     };
 
     onSubmit(leaveRequest);
   };
 
   // Get selected leave type details
-  const selectedLeaveType = leaveTypes.find(type => type.value === leaveType);
+  const selectedLeaveType = leaveTypes.find((type) => type.value === leaveType);
 
   // Get leave balance for specific type
   const getLeaveTypeBalance = (type: string): number => {
     if (!leaveBalance) return 0;
     switch (type) {
-      case 'sick':
+      case "sick":
         return leaveBalance.sickLeave || 0;
-      case 'vacation':
+      case "vacation":
         return leaveBalance.vacationLeave || 0;
-      case 'personal':
+      case "personal":
         return leaveBalance.personalLeave || 0;
       default:
         return leaveBalance.remainingLeave || 0;
@@ -181,10 +237,14 @@ export default function LeaveRequestForm({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5 text-blue-500" />
-            <span>{existingRequest ? 'Edit Leave Request' : 'Request Leave'}</span>
+            <span>
+              {existingRequest ? "Edit Leave Request" : "Request Leave"}
+            </span>
           </DialogTitle>
           <DialogDescription>
-            {userName ? `Submit leave request for ${userName}` : 'Submit your leave request for approval'}
+            {userName
+              ? `Submit leave request for ${userName}`
+              : "Submit your leave request for approval"}
           </DialogDescription>
         </DialogHeader>
 
@@ -202,25 +262,37 @@ export default function LeaveRequestForm({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <p className="text-muted-foreground">Total Leave</p>
-                    <p className="font-bold text-green-600" data-testid="total-leave-balance">
+                    <p
+                      className="font-bold text-green-600"
+                      data-testid="total-leave-balance"
+                    >
                       {leaveBalance.totalLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
                     <p className="text-muted-foreground">Used</p>
-                    <p className="font-bold text-blue-600" data-testid="used-leave-balance">
+                    <p
+                      className="font-bold text-blue-600"
+                      data-testid="used-leave-balance"
+                    >
                       {leaveBalance.usedLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-orange-50 rounded-lg">
                     <p className="text-muted-foreground">Remaining</p>
-                    <p className="font-bold text-orange-600" data-testid="remaining-leave-balance">
+                    <p
+                      className="font-bold text-orange-600"
+                      data-testid="remaining-leave-balance"
+                    >
                       {leaveBalance.remainingLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-purple-50 rounded-lg">
                     <p className="text-muted-foreground">This Request</p>
-                    <p className="font-bold text-purple-600" data-testid="request-days">
+                    <p
+                      className="font-bold text-purple-600"
+                      data-testid="request-days"
+                    >
                       {getTotalDays()} days
                     </p>
                   </div>
@@ -253,7 +325,10 @@ export default function LeaveRequestForm({
                   </SelectContent>
                 </Select>
                 {errors.leaveType && (
-                  <p className="text-sm text-red-600 mt-1" data-testid="error-leave-type">
+                  <p
+                    className="text-sm text-red-600 mt-1"
+                    data-testid="error-leave-type"
+                  >
                     {errors.leaveType}
                   </p>
                 )}
@@ -287,7 +362,9 @@ export default function LeaveRequestForm({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="start-date" className="text-sm font-light">Start Date</Label>
+                  <Label htmlFor="start-date" className="text-sm font-light">
+                    Start Date
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -296,7 +373,9 @@ export default function LeaveRequestForm({
                         data-testid="button-start-date"
                       >
                         <Calendar className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, "PPP") : "Select start date"}
+                        {startDate
+                          ? format(startDate, "PPP")
+                          : "Select start date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -309,14 +388,19 @@ export default function LeaveRequestForm({
                     </PopoverContent>
                   </Popover>
                   {errors.startDate && (
-                    <p className="text-sm text-red-600 mt-1" data-testid="error-start-date">
+                    <p
+                      className="text-sm text-red-600 mt-1"
+                      data-testid="error-start-date"
+                    >
                       {errors.startDate}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <Label htmlFor="end-date" className="text-sm font-light">End Date</Label>
+                  <Label htmlFor="end-date" className="text-sm font-light">
+                    End Date
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -333,13 +417,18 @@ export default function LeaveRequestForm({
                         mode="single"
                         selected={endDate}
                         onSelect={setEndDate}
-                        disabled={(date) => startDate ? date < startDate : false}
+                        disabled={(date) =>
+                          startDate ? date < startDate : false
+                        }
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                   {errors.endDate && (
-                    <p className="text-sm text-red-600 mt-1" data-testid="error-end-date">
+                    <p
+                      className="text-sm text-red-600 mt-1"
+                      data-testid="error-end-date"
+                    >
                       {errors.endDate}
                     </p>
                   )}
@@ -352,11 +441,12 @@ export default function LeaveRequestForm({
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-light">Total Duration:</span>
                     <Badge variant="secondary" data-testid="total-duration">
-                      {getTotalDays()} {getTotalDays() === 1 ? 'day' : 'days'}
+                      {getTotalDays()} {getTotalDays() === 1 ? "day" : "days"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    From {format(startDate, "MMM dd")} to {format(endDate, "MMM dd, yyyy")}
+                    From {format(startDate, "MMM dd")} to{" "}
+                    {format(endDate, "MMM dd, yyyy")}
                   </p>
                 </div>
               )}
@@ -382,7 +472,10 @@ export default function LeaveRequestForm({
               />
               <div className="flex justify-between items-center mt-2">
                 {errors.reason && (
-                  <p className="text-sm text-red-600" data-testid="error-reason">
+                  <p
+                    className="text-sm text-red-600"
+                    data-testid="error-reason"
+                  >
                     {errors.reason}
                   </p>
                 )}
@@ -426,15 +519,22 @@ export default function LeaveRequestForm({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Dates:</span>
                   <span className="font-light">
-                    {format(startDate, "MMM dd")} - {format(endDate, "MMM dd, yyyy")}
+                    {format(startDate, "MMM dd")} -{" "}
+                    {format(endDate, "MMM dd, yyyy")}
                   </span>
                 </div>
                 {leaveBalance && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Remaining Balance:</span>
-                    <span className={`font-light ${
-                      leaveBalance.remainingLeave - getTotalDays() < 0 ? 'text-red-600' : 'text-green-600'
-                    }`}>
+                    <span className="text-muted-foreground">
+                      Remaining Balance:
+                    </span>
+                    <span
+                      className={`font-light ${
+                        leaveBalance.remainingLeave - getTotalDays() < 0
+                          ? "text-red-600"
+                          : "text-green-600"
+                      }`}
+                    >
                       {leaveBalance.remainingLeave - getTotalDays()} days
                     </span>
                   </div>
@@ -469,7 +569,7 @@ export default function LeaveRequestForm({
               ) : (
                 <>
                   <Send className="h-4 w-4 mr-2" />
-                  {existingRequest ? 'Update Request' : 'Submit Request'}
+                  {existingRequest ? "Update Request" : "Submit Request"}
                 </>
               )}
             </Button>

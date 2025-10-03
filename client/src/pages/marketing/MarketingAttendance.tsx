@@ -982,8 +982,9 @@ import {
   Play,
 } from "lucide-react";
 import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
+
 import { useToast } from "@/hooks/use-toast";
+import { marketingAttendance, leaveRequests } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1037,6 +1038,17 @@ interface AttendanceWithUser extends MarketingAttendance {
   };
 };
 
+// API response interface - matches backend response
+interface ApiAttendanceMetrics {
+  totalRecords: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  avgVisits: number;
+  avgTasks: number;
+}
+
+// Frontend display interface
 interface AttendanceMetrics {
   totalEmployees: number;
   presentToday: number;
@@ -1100,156 +1112,134 @@ export default function MarketingAttendance() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Auto-refresh interval (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-today"], // FIXED: Removed /api/
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-      });
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [queryClient]);
-
-  // Fetch today's attendance - FIXED: Removed /api/ from query key
+  // API Queries
   const {
     data: todayAttendance = [],
     isLoading: attendanceLoading,
     error: attendanceError,
-  } = useQuery<AttendanceWithUser[]>({
-    queryKey: ["marketing-attendance-today"], // FIXED: Removed /api/
-    queryFn: async () => {
-      const res = await fetch("/api/marketing-attendance/today");
-      if (!res.ok) throw new Error("Failed to fetch today's attendance");
-      return res.json();
-    },
+  } = useQuery({
+    queryKey: ["marketing-attendance", "today"],
+    queryFn: marketingAttendance.getToday,
   });
 
-  // Fetch all attendance records for calendar view - FIXED: Removed /api/ from query key
-  const { data: allAttendance = [] } = useQuery<AttendanceWithUser[]>({
-    queryKey: ["marketing-attendance"], // FIXED: Removed /api/
-    queryFn: async () => {
-      const res = await fetch("/api/marketing-attendance");
-      if (!res.ok) throw new Error("Failed to fetch attendance records");
-      return res.json();
-    },
-    meta: { errorMessage: "Failed to load attendance records" },
+  const { data: allAttendance = [] } = useQuery({
+    queryKey: ["marketing-attendance", "all"],
+    queryFn: marketingAttendance.getAll,
   });
 
-  // Fetch attendance metrics - FIXED: Removed /api/ from query key
   const { data: metrics, isLoading: metricsLoading } =
-    useQuery<AttendanceMetrics>({
-      queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-      queryFn: async () => {
-        const res = await fetch("/api/marketing-attendance/metrics");
-        if (!res.ok) throw new Error("Failed to fetch attendance metrics");
-        return res.json();
-      },
-      meta: { errorMessage: "Failed to load attendance metrics" },
+    useQuery<ApiAttendanceMetrics>({
+      queryKey: ["marketing-attendance", "metrics"],
+      queryFn: marketingAttendance.getMetrics,
     });
 
-  // Fetch users for team management - FIXED: Removed /api/ from query key
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["users"], // FIXED: Removed /api/
-    queryFn: async () => {
-      const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Failed to fetch users");
-      return res.json();
-    },
-    meta: { errorMessage: "Failed to load users" },
+  const { data: leaveRequestsData = [], error: leaveRequestsError } = useQuery({
+    queryKey: ["leave-requests"],
+    queryFn: leaveRequests.getAll,
+    retry: 1, // Only retry once for leave requests
+    retryOnMount: false, // Don't retry on component mount
   });
 
-  // Fetch leave balance (mock data for now)
-  const leaveBalance: LeaveBalance = {
-    totalLeave: 30,
-    usedLeave: 12,
-    remainingLeave: 18,
-    sickLeave: 8,
-    vacationLeave: 15,
-    personalLeave: 7,
-  };
+  // Mock users for now - in a real app, this would come from an API
+  const users: User[] = [
+    {
+      id: "dev-admin-user",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      role: "admin",
+    },
+    {
+      id: "dev-employee-1",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+      role: "employee",
+    },
+    {
+      id: "dev-employee-2",
+      firstName: "Bob",
+      lastName: "Johnson",
+      email: "bob@example.com",
+      role: "employee",
+    },
+  ];
 
-  // Check-in mutation - FIXED: Remove automatic modal handling, let modals control flow
+  // Calculate leave balance from leave requests
+  const leaveBalance: LeaveBalance = useMemo(() => {
+    const totalLeave = 30; // This would come from user profile in a real app
+
+    // Debug logging
+    console.log(
+      "leaveRequestsData:",
+      leaveRequestsData,
+      "Type:",
+      typeof leaveRequestsData,
+      "IsArray:",
+      Array.isArray(leaveRequestsData)
+    );
+    if (leaveRequestsError) {
+      console.log("leaveRequestsError:", leaveRequestsError);
+    }
+
+    // Ensure leaveRequestsData is always an array
+    const safeLeaveRequestsData = Array.isArray(leaveRequestsData)
+      ? leaveRequestsData
+      : [];
+    const usedLeave = safeLeaveRequestsData
+      .filter((req) => req.status === "approved" && req.totalDays)
+      .reduce((sum, req) => sum + (req.totalDays || 0), 0);
+
+    return {
+      totalLeave,
+      usedLeave,
+      remainingLeave: totalLeave - usedLeave,
+      sickLeave: 8,
+      vacationLeave: 15,
+      personalLeave: 7,
+    };
+  }, [leaveRequestsData]);
+
+  // Check-in mutation
   const checkInMutation = useMutation({
-    mutationFn: (data: {
-      userId?: string;
-      latitude: number;
-      longitude: number;
-      location?: string;
-      photoPath?: string;
-      workDescription?: string;
-    }) =>
-      apiRequest("/api/marketing-attendance/check-in", {
-        method: "POST",
-        body: data,
-      }),
+    mutationFn: marketingAttendance.checkIn,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-today"], // FIXED: Removed /api/
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-      });
+      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
       toast({ title: "Successfully checked in!" });
-      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      // Error handling is now done in handleCheckInSubmit
       console.error("Check-in mutation error:", error);
+      toast({
+        title: "Check-in failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
-  // Check-out mutation - FIXED: Remove automatic modal handling, let modals control flow
+  // Check-out mutation
   const checkOutMutation = useMutation({
-    mutationFn: (data: {
-      userId?: string;
-      latitude: number;
-      longitude: number;
-      location?: string;
-      photoPath?: string;
-      workDescription?: string;
-      visitCount?: number;
-      tasksCompleted?: number;
-      outcome?: string;
-      nextAction?: string;
-    }) =>
-      apiRequest("/api/marketing-attendance/check-out", {
-        method: "POST",
-        body: data,
-      }),
+    mutationFn: marketingAttendance.checkOut,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-today"], // FIXED: Removed /api/
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-      });
+      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
       toast({ title: "Successfully checked out!" });
-      // Modal closing is now handled by the modal itself
     },
     onError: (error: any) => {
-      // Error handling is now done in handleCheckOutSubmit
       console.error("Check-out mutation error:", error);
+      toast({
+        title: "Check-out failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   // Leave request submission mutation
   const leaveRequestMutation = useMutation({
-    mutationFn: (leaveRequest: LeaveRequest) =>
-      apiRequest("/api/marketing-attendance/leave-request", {
-        method: "POST",
-        body: leaveRequest,
-      }),
+    mutationFn: (data: Omit<LeaveRequest, "id" | "status">) =>
+      leaveRequests.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance"], // FIXED: Removed /api/
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-      });
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       toast({ title: "Leave request submitted successfully!" });
       setLeaveRequestModalOpen(false);
     },
@@ -1356,6 +1346,157 @@ export default function MarketingAttendance() {
     leaveRequestMutation.mutate(leaveRequest);
   };
 
+  // Export utility functions
+  const downloadCSV = (data: string, filename: string) => {
+    const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Monthly Report
+  const handleExportMonthly = () => {
+    const currentDate = new Date();
+    const monthName = currentDate.toLocaleString("default", {
+      month: "long",
+      year: "numeric",
+    });
+
+    const csvData = [
+      ["Monthly Attendance Report", monthName],
+      [""],
+      ["Metric", "Value"],
+      ["Total Employees", displayMetrics.totalEmployees.toString()],
+      ["Present Today", displayMetrics.presentToday.toString()],
+      ["Absent Today", displayMetrics.absentToday.toString()],
+      ["Late Today", displayMetrics.lateToday.toString()],
+      ["On Leave Today", displayMetrics.onLeaveToday.toString()],
+      ["Attendance Rate", `${displayMetrics.attendanceRate.toFixed(1)}%`],
+      ["Average Work Hours", displayMetrics.averageWorkHours.toString()],
+      [""],
+      ["Monthly Statistics"],
+      ["Total Days", displayMetrics.monthlyStats.totalDays.toString()],
+      ["Present Days", displayMetrics.monthlyStats.presentDays.toString()],
+      ["Absent Days", displayMetrics.monthlyStats.absentDays.toString()],
+      ["Leave Days", displayMetrics.monthlyStats.leaveDays.toString()],
+    ];
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `monthly-attendance-report-${currentDate.getFullYear()}-${(
+      currentDate.getMonth() + 1
+    )
+      .toString()
+      .padStart(2, "0")}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Monthly report exported successfully!" });
+  };
+
+  // Export Team Summary
+  const handleExportTeam = () => {
+    const currentDate = new Date();
+    const dateStr = currentDate.toISOString().split("T")[0];
+
+    const csvData = [
+      ["Team Attendance Summary", dateStr],
+      [""],
+      ["Employee", "Status", "Check In", "Check Out", "On Leave"],
+    ];
+
+    // Add attendance data
+    todayAttendance.forEach((record) => {
+      csvData.push([
+        record.user
+          ? `${record.user.firstName} ${record.user.lastName}`
+          : "Unknown",
+        record.attendanceStatus || "N/A",
+        record.checkInTime
+          ? new Date(record.checkInTime).toLocaleTimeString()
+          : "N/A",
+        record.checkOutTime
+          ? new Date(record.checkOutTime).toLocaleTimeString()
+          : "N/A",
+        record.isOnLeave ? "Yes" : "No",
+      ]);
+    });
+
+    // Add summary
+    csvData.push([""]);
+    csvData.push(["Summary"]);
+    csvData.push(["Total Employees", displayMetrics.totalEmployees.toString()]);
+    csvData.push(["Present", displayMetrics.presentToday.toString()]);
+    csvData.push(["Absent", displayMetrics.absentToday.toString()]);
+    csvData.push(["On Leave", displayMetrics.onLeaveToday.toString()]);
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `team-summary-${dateStr}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Team summary exported successfully!" });
+  };
+
+  // Export Attendance Log
+  const handleExportAttendanceLog = () => {
+    const currentDate = new Date();
+    const dateStr = currentDate.toISOString().split("T")[0];
+
+    const csvData = [
+      ["Attendance Log", dateStr],
+      [""],
+      [
+        "Date",
+        "Employee",
+        "Check In Time",
+        "Check Out Time",
+        "Status",
+        "Location",
+        "Work Hours",
+        "On Leave",
+      ],
+    ];
+
+    // Add all attendance records
+    allAttendance.forEach((record) => {
+      const checkInTime = record.checkInTime
+        ? new Date(record.checkInTime)
+        : null;
+      const checkOutTime = record.checkOutTime
+        ? new Date(record.checkOutTime)
+        : null;
+
+      let workHours = "N/A";
+      if (checkInTime && checkOutTime) {
+        const hours =
+          (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+        workHours = hours.toFixed(2);
+      }
+
+      csvData.push([
+        record.date || dateStr,
+        record.user
+          ? `${record.user.firstName} ${record.user.lastName}`
+          : "Unknown",
+        checkInTime ? checkInTime.toLocaleTimeString() : "N/A",
+        checkOutTime ? checkOutTime.toLocaleTimeString() : "N/A",
+        record.attendanceStatus || "N/A",
+        "N/A", // Location data not available in current schema
+        workHours,
+        record.isOnLeave ? "Yes" : "No",
+      ]);
+    });
+
+    const csvContent = csvData.map((row) => row.join(",")).join("\n");
+    const filename = `attendance-log-${dateStr}.csv`;
+
+    downloadCSV(csvContent, filename);
+    toast({ title: "Attendance log exported successfully!" });
+  };
+
   // Get attendance status counts
   const statusCounts = useMemo(() => {
     const counts = todayAttendance.reduce(
@@ -1374,16 +1515,20 @@ export default function MarketingAttendance() {
     return counts;
   }, [todayAttendance]);
 
-  // Default metrics if loading
-  const displayMetrics: AttendanceMetrics = metrics || {
-    totalEmployees: users.length,
-    presentToday: statusCounts.present,
-    absentToday: statusCounts.absent,
-    lateToday: statusCounts.late,
-    onLeaveToday: statusCounts.on_leave,
+  // Default metrics if loading - map API response to expected format
+  const displayMetrics: AttendanceMetrics = {
+    totalEmployees: metrics?.totalRecords || users.length,
+    presentToday: metrics?.presentCount || statusCounts.present,
+    absentToday: metrics?.absentCount || statusCounts.absent,
+    lateToday: statusCounts.late, // API doesn't track late separately yet
+    onLeaveToday: metrics?.leaveCount || statusCounts.on_leave,
     averageWorkHours: 8.5,
     attendanceRate:
-      users.length > 0 ? (statusCounts.present / users.length) * 100 : 0,
+      (metrics?.totalRecords || users.length) > 0
+        ? ((metrics?.presentCount || statusCounts.present) /
+            (metrics?.totalRecords || users.length)) *
+          100
+        : 0,
     monthlyStats: {
       totalDays: 22,
       presentDays: 18,
@@ -1427,11 +1572,10 @@ export default function MarketingAttendance() {
             variant="outline"
             onClick={() => {
               queryClient.invalidateQueries({
-                queryKey: ["marketing-attendance-today"], // FIXED: Removed /api/
+                queryKey: ["marketing-attendance"],
               });
-              queryClient.invalidateQueries({
-                queryKey: ["marketing-attendance-metrics"], // FIXED: Removed /api/
-              });
+              queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+              toast({ title: "Data refreshed successfully" });
             }}
             data-testid="button-refresh"
           >
@@ -1492,9 +1636,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.presentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.presentToday / users.length) *
+                        (displayMetrics.presentToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -1518,9 +1663,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.absentToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.absentToday / users.length) *
+                        (displayMetrics.absentToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -1544,9 +1690,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.lateToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.lateToday / users.length) *
+                        (displayMetrics.lateToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -1568,9 +1715,10 @@ export default function MarketingAttendance() {
                   {displayMetrics.onLeaveToday}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {users.length > 0
+                  {displayMetrics.totalEmployees > 0
                     ? `${(
-                        (displayMetrics.onLeaveToday / users.length) *
+                        (displayMetrics.onLeaveToday /
+                          displayMetrics.totalEmployees) *
                         100
                       ).toFixed(1)}%`
                     : "0%"}{" "}
@@ -1873,15 +2021,27 @@ export default function MarketingAttendance() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
-                <Button variant="outline" data-testid="export-monthly">
+                <Button
+                  variant="outline"
+                  data-testid="export-monthly"
+                  onClick={handleExportMonthly}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Monthly Report
                 </Button>
-                <Button variant="outline" data-testid="export-team">
+                <Button
+                  variant="outline"
+                  data-testid="export-team"
+                  onClick={handleExportTeam}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Team Summary
                 </Button>
-                <Button variant="outline" data-testid="export-attendance">
+                <Button
+                  variant="outline"
+                  data-testid="export-attendance"
+                  onClick={handleExportAttendanceLog}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Attendance Log
                 </Button>

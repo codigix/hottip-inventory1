@@ -23,7 +23,7 @@ async function throwIfResNotOk(res: Response) {
 }
 
 // Generic API request
-// Overloaded apiRequest supporting both (url, options) and (method, url, body)
+// Overloaded apiRequest supporting both (url, options) and (method, url, body, options)
 export async function apiRequest<T = any>(
   arg1: string,
   arg2?:
@@ -32,23 +32,23 @@ export async function apiRequest<T = any>(
         method?: string;
         body?: any;
         headers?: Record<string, string>;
-        responseType?: "json" | "blob" | "text"; // Add responseType option
+        responseType?: string;
       },
   arg3?: any,
-  arg4?: { responseType?: "json" | "blob" | "text" } // Add responseType as 4th param for legacy style
+  arg4?: { responseType?: string }
 ): Promise<T> {
   let method = "GET";
   let url: string;
   let body: any;
   let headers: Record<string, string> = {};
-  let responseType: "json" | "blob" | "text" = "json"; // Default to JSON
+  let responseType: string | undefined;
 
   if (typeof arg2 === "string") {
-    // Legacy style: apiRequest("POST", "/path", data, { responseType: 'blob' })
+    // Legacy style: apiRequest("POST", "/path", data, options)
     method = arg1.toUpperCase();
     url = arg2;
     body = arg3;
-    if (arg4?.responseType) {
+    if (arg4) {
       responseType = arg4.responseType;
     }
   } else {
@@ -58,9 +58,7 @@ export async function apiRequest<T = any>(
     method = (options.method || "GET").toUpperCase();
     body = options.body;
     headers = options.headers || {};
-    if (options.responseType) {
-      responseType = options.responseType;
-    }
+    responseType = options.responseType;
   }
 
   const res = await fetch(`${BASE_URL}${url}`, {
@@ -79,14 +77,11 @@ export async function apiRequest<T = any>(
 
   await throwIfResNotOk(res);
 
-  // Return the appropriate response format based on responseType
   if (responseType === "blob") {
-    return res.blob() as Promise<T>;
-  } else if (responseType === "text") {
-    return res.text() as Promise<T>;
-  } else {
-    return res.json() as Promise<T>;
+    return res.blob() as any;
   }
+
+  return res.json();
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
