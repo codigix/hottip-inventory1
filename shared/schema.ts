@@ -577,6 +577,36 @@ export const accountsPayables = pgTable("accounts_payables", {
 });
 
 // =====================
+// GST RETURNS
+// =====================
+export const gstReturnStatus = pgEnum("gst_return_status", [
+  "draft",
+  "filed",
+  "paid",
+  "reconciled",
+]);
+
+export const gstReturnFrequency = pgEnum("gst_return_frequency", [
+  "monthly",
+  "quarterly",
+]);
+
+export const gstReturns = pgTable("gst_returns", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  periodStart: timestamp("periodStart").notNull(),
+  periodEnd: timestamp("periodEnd").notNull(),
+  frequency: gstReturnFrequency("frequency").notNull().default("quarterly"),
+  outputTax: numeric("outputTax", { precision: 10, scale: 2 }).notNull(),
+  inputTax: numeric("inputTax", { precision: 10, scale: 2 }).notNull(),
+  liability: numeric("liability", { precision: 10, scale: 2 }).notNull(),
+  status: gstReturnStatus("status").notNull().default("draft"),
+  notes: text("notes"),
+  filedAt: timestamp("filedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
 // PURCHASE ORDERS
 // =====================
 export const orderStatus = pgEnum("order_status", [
@@ -875,6 +905,24 @@ export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
 export type AccountsPayable = typeof accountsPayables.$inferSelect;
 export type InsertAccountsPayable = typeof accountsPayables.$inferInsert;
 
+export type GstReturn = typeof gstReturns.$inferSelect;
+export type InsertGstReturn = typeof gstReturns.$inferInsert;
+
+// GST Return schema
+export const insertGstReturnSchema = z.object({
+  periodStart: z.string().min(1, "Period start date is required"),
+  periodEnd: z.string().min(1, "Period end date is required"),
+  frequency: z.enum(["monthly", "quarterly"]).optional().default("quarterly"),
+  outputTax: z.coerce.number().min(0, "Output tax must be non-negative"),
+  inputTax: z.coerce.number().min(0, "Input tax must be non-negative"),
+  liability: z.coerce.number().min(0, "Liability must be non-negative"),
+  status: z
+    .enum(["draft", "filed", "paid", "reconciled"])
+    .optional()
+    .default("draft"),
+  notes: z.string().optional(),
+});
+
 // Accounts Payable schema
 export const insertAccountsPayableSchema = z.object({
   poId: z.string().uuid().optional(),
@@ -883,11 +931,6 @@ export const insertAccountsPayableSchema = z.object({
   amountDue: z.number().positive(),
   dueDate: z.string(),
   notes: z.string().optional(),
-});
-export const insertGstReturnSchema = z.object({
-  returnPeriod: z.string(),
-  gstAmount: z.number(),
-  invoiceIds: z.array(z.string()),
 });
 export const insertBankAccountSchema = z.object({
   accountName: z.string(),

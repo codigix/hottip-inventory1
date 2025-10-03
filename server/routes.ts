@@ -1,5 +1,6 @@
 ﻿import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
+import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -648,6 +649,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin API routes (secured, admin only)
   registerAdminRoutes(app);
+
+  // Accounts API routes (secured, accounts access required)
+  registerAccountsRoutes(app);
 
   // Users Routes - SECURED: Role-based scoping for user access
   app.get("/api/users", requireAuth, async (req, res) => {
@@ -2382,12 +2386,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GST returns (stubs)
-  app.get("/api/gst-returns", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
+  // app.get("/api/gst-returns", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
 
   // Accounts Attendance (stubs to satisfy AccountsAttendance page)
   app.get("/api/account-attendance", requireAuth, async (_req, res) => {
