@@ -6,20 +6,77 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardList, Users, CheckCircle2, Clock, AlertTriangle, Play, Plus, Search, Filter, Eye, Edit, Trash2, User, CalendarDays, Flag, FileText } from "lucide-react";
+import {
+  ClipboardList,
+  Users,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Play,
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  Trash2,
+  User,
+  CalendarDays,
+  Flag,
+  FileText,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertAccountTaskSchema, type AccountTask, type InsertAccountTask } from "@shared/schema";
+import {
+  insertAccountTaskSchema,
+  type AccountTask,
+  type InsertAccountTask,
+} from "@shared/schema";
 
 // Schemas - Use shared schemas from drizzle-zod with proper validation
 const taskFormSchema = insertAccountTaskSchema.extend({
@@ -36,7 +93,8 @@ type CompleteTaskFormData = z.infer<typeof completeTaskSchema>;
 // Status styling
 const statusStyles = {
   open: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  in_progress: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  in_progress:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   done: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 };
 
@@ -48,8 +106,10 @@ const priorityStyles = {
 };
 
 const typeStyles = {
-  reconcile: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  send_reminder: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  reconcile:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  send_reminder:
+    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   file_gst: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
@@ -108,45 +168,56 @@ export default function AccountsTasks() {
 
   // Calculate metrics from actual data
   const tasksArray = Array.isArray(accountTasks) ? accountTasks : [];
-  
+
   const totalTasks = tasksArray.length;
-  const openTasks = tasksArray.filter((t: any) => t.status === 'open').length;
-  const inProgressTasks = tasksArray.filter((t: any) => t.status === 'in_progress').length;
-  const completedTasks = tasksArray.filter((t: any) => t.status === 'done').length;
-  
+  const openTasks = tasksArray.filter((t: any) => t.status === "open").length;
+  const inProgressTasks = tasksArray.filter(
+    (t: any) => t.status === "in_progress"
+  ).length;
+  const completedTasks = tasksArray.filter(
+    (t: any) => t.status === "done"
+  ).length;
+
   // Calculate overdue tasks
   const overdueTasks = tasksArray.filter((t: any) => {
-    if (!t.dueDate || t.status === 'done') return false;
+    if (!t.dueDate || t.status === "done") return false;
     const today = new Date();
     const dueDate = new Date(t.dueDate);
     return dueDate < today;
   }).length;
-  
+
   // Calculate current month metrics
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const tasksThisMonth = tasksArray.filter((t: any) => {
     const taskDate = new Date(t.createdAt);
-    return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
+    return (
+      taskDate.getMonth() === currentMonth &&
+      taskDate.getFullYear() === currentYear
+    );
   }).length;
-  
+
   const completedThisMonth = tasksArray.filter((t: any) => {
-    if (t.status !== 'done' || !t.completedDate) return false;
+    if (t.status !== "done" || !t.completedDate) return false;
     const completedDate = new Date(t.completedDate);
-    return completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear;
+    return (
+      completedDate.getMonth() === currentMonth &&
+      completedDate.getFullYear() === currentYear
+    );
   }).length;
-  
-  const completionRate = totalTasks > 0 ? (completedTasks / totalTasks * 100) : 0;
+
+  const completionRate =
+    totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   // Mutations
   const createTaskMutation = useMutation({
     mutationFn: (data: TaskFormData) =>
       apiRequest("/account-tasks", {
         method: "POST",
-        body: JSON.stringify({
+        body: {
           ...data,
           dueDate: data.dueDate ? data.dueDate.toISOString() : null,
-        }),
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
@@ -155,7 +226,11 @@ export default function AccountsTasks() {
       createForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create task", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create task",
+        variant: "destructive",
+      });
     },
   });
 
@@ -163,10 +238,10 @@ export default function AccountsTasks() {
     mutationFn: ({ id, ...data }: TaskFormData & { id: string }) =>
       apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
+        body: {
           ...data,
           dueDate: data.dueDate ? data.dueDate.toISOString() : null,
-        }),
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
@@ -175,7 +250,11 @@ export default function AccountsTasks() {
       setSelectedTask(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update task",
+        variant: "destructive",
+      });
     },
   });
 
@@ -183,11 +262,13 @@ export default function AccountsTasks() {
     mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
       apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
+        body: {
           status: "done",
           completedDate: new Date().toISOString(),
-          notes: notes ? `${selectedTask?.notes || ''}\n\nCompletion Notes: ${notes}` : selectedTask?.notes,
-        }),
+          notes: notes
+            ? `${selectedTask?.notes || ""}\n\nCompletion Notes: ${notes}`
+            : selectedTask?.notes,
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
@@ -197,7 +278,11 @@ export default function AccountsTasks() {
       completeForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to complete task", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to complete task",
+        variant: "destructive",
+      });
     },
   });
 
@@ -205,16 +290,20 @@ export default function AccountsTasks() {
     mutationFn: (id: string) =>
       apiRequest(`/account-tasks/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
+        body: {
           status: "in_progress",
-        }),
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-tasks"] });
       toast({ title: "Success", description: "Task started successfully" });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to start task", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to start task",
+        variant: "destructive",
+      });
     },
   });
 
@@ -228,7 +317,11 @@ export default function AccountsTasks() {
       setTaskToDelete(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete task", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
+        variant: "destructive",
+      });
     },
   });
 
@@ -299,19 +392,20 @@ export default function AccountsTasks() {
   // Filtered data
   const getFilteredTasks = () => {
     let filtered = tasksArray;
-    
+
     // Apply active tab filter
     if (activeTab !== "all") {
       filtered = filtered.filter((task: any) => task.status === activeTab);
     }
-    
+
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((task: any) => {
-        const assigneeName = task.assignee?.firstName && task.assignee?.lastName 
-          ? `${task.assignee.firstName} ${task.assignee.lastName}`
-          : 'Unknown User';
-        
+        const assigneeName =
+          task.assignee?.firstName && task.assignee?.lastName
+            ? `${task.assignee.firstName} ${task.assignee.lastName}`
+            : "Unknown User";
+
         return (
           task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -319,31 +413,35 @@ export default function AccountsTasks() {
         );
       });
     }
-    
+
     // Apply additional filters
     if (statusFilter !== "all") {
       filtered = filtered.filter((task: any) => task.status === statusFilter);
     }
-    
+
     if (priorityFilter !== "all") {
-      filtered = filtered.filter((task: any) => task.priority === priorityFilter);
+      filtered = filtered.filter(
+        (task: any) => task.priority === priorityFilter
+      );
     }
-    
+
     if (typeFilter !== "all") {
       filtered = filtered.filter((task: any) => task.type === typeFilter);
     }
-    
+
     if (assigneeFilter !== "all") {
-      filtered = filtered.filter((task: any) => task.assignedTo === assigneeFilter);
+      filtered = filtered.filter(
+        (task: any) => task.assignedTo === assigneeFilter
+      );
     }
-    
+
     return filtered;
   };
 
   const filteredTasks = getFilteredTasks();
 
   const isTaskOverdue = (task: any) => {
-    if (!task.dueDate || task.status === 'done') return false;
+    if (!task.dueDate || task.status === "done") return false;
     return new Date(task.dueDate) < new Date();
   };
 
@@ -351,7 +449,10 @@ export default function AccountsTasks() {
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1
+            className="text-3xl font-bold text-foreground"
+            data-testid="page-title"
+          >
             Accounts Tasks
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -373,7 +474,10 @@ export default function AccountsTasks() {
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+              <form
+                onSubmit={createForm.handleSubmit(handleCreateSubmit)}
+                className="space-y-4"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={createForm.control}
@@ -398,16 +502,25 @@ export default function AccountsTasks() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Task Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-task-type">
                               <SelectValue placeholder="Select task type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="reconcile">Account Reconciliation</SelectItem>
-                            <SelectItem value="send_reminder">Send Reminder</SelectItem>
-                            <SelectItem value="file_gst">File GST Return</SelectItem>
+                            <SelectItem value="reconcile">
+                              Account Reconciliation
+                            </SelectItem>
+                            <SelectItem value="send_reminder">
+                              Send Reminder
+                            </SelectItem>
+                            <SelectItem value="file_gst">
+                              File GST Return
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -440,7 +553,10 @@ export default function AccountsTasks() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Assign To *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-assignee">
                               <SelectValue placeholder="Select assignee" />
@@ -449,7 +565,8 @@ export default function AccountsTasks() {
                           <SelectContent>
                             {users.map((user: any) => (
                               <SelectItem key={user.id} value={user.id}>
-                                {user.firstName} {user.lastName} ({user.department || 'General'})
+                                {user.firstName} {user.lastName} (
+                                {user.department || "General"})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -464,7 +581,10 @@ export default function AccountsTasks() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Priority</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-priority">
                               <SelectValue placeholder="Select priority" />
@@ -491,8 +611,18 @@ export default function AccountsTasks() {
                           <Input
                             {...field}
                             type="date"
-                            value={field.value ? field.value.toISOString().split('T')[0] : ''}
-                            onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            value={
+                              field.value
+                                ? field.value.toISOString().split("T")[0]
+                                : ""
+                            }
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value
+                                  ? new Date(e.target.value)
+                                  : undefined
+                              )
+                            }
                             data-testid="input-due-date"
                           />
                         </FormControl>
@@ -569,7 +699,9 @@ export default function AccountsTasks() {
                     disabled={createTaskMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                    {createTaskMutation.isPending
+                      ? "Creating..."
+                      : "Create Task"}
                   </Button>
                 </div>
               </form>
@@ -586,7 +718,12 @@ export default function AccountsTasks() {
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-total-tasks">{totalTasks}</div>
+            <div
+              className="text-2xl font-bold"
+              data-testid="metric-total-tasks"
+            >
+              {totalTasks}
+            </div>
             <p className="text-xs text-muted-foreground">
               {tasksThisMonth} created this month
             </p>
@@ -599,7 +736,10 @@ export default function AccountsTasks() {
             <Play className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600" data-testid="metric-in-progress">
+            <div
+              className="text-2xl font-bold text-blue-600"
+              data-testid="metric-in-progress"
+            >
               {inProgressTasks}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -614,7 +754,10 @@ export default function AccountsTasks() {
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="metric-completed">
+            <div
+              className="text-2xl font-bold text-green-600"
+              data-testid="metric-completed"
+            >
               {completedTasks}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -629,7 +772,10 @@ export default function AccountsTasks() {
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600" data-testid="metric-overdue">
+            <div
+              className="text-2xl font-bold text-red-600"
+              data-testid="metric-overdue"
+            >
               {overdueTasks}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -656,8 +802,14 @@ export default function AccountsTasks() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-32" data-testid="select-priority-filter">
+                <Select
+                  value={priorityFilter}
+                  onValueChange={setPriorityFilter}
+                >
+                  <SelectTrigger
+                    className="w-32"
+                    data-testid="select-priority-filter"
+                  >
                     <Flag className="h-4 w-4 mr-1" />
                     <SelectValue />
                   </SelectTrigger>
@@ -670,7 +822,10 @@ export default function AccountsTasks() {
                   </SelectContent>
                 </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-type-filter">
+                  <SelectTrigger
+                    className="w-40"
+                    data-testid="select-type-filter"
+                  >
                     <FileText className="h-4 w-4 mr-1" />
                     <SelectValue />
                   </SelectTrigger>
@@ -681,8 +836,14 @@ export default function AccountsTasks() {
                     <SelectItem value="file_gst">File GST</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-assignee-filter">
+                <Select
+                  value={assigneeFilter}
+                  onValueChange={setAssigneeFilter}
+                >
+                  <SelectTrigger
+                    className="w-40"
+                    data-testid="select-assignee-filter"
+                  >
                     <User className="h-4 w-4 mr-1" />
                     <SelectValue />
                   </SelectTrigger>
@@ -700,7 +861,11 @@ export default function AccountsTasks() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-4"
+          >
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all" data-testid="tab-all">
                 All Tasks ({totalTasks})
@@ -747,7 +912,11 @@ export default function AccountsTasks() {
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
                           <div className="text-muted-foreground">
-                            {searchTerm || statusFilter !== "all" || priorityFilter !== "all" || typeFilter !== "all" || assigneeFilter !== "all"
+                            {searchTerm ||
+                            statusFilter !== "all" ||
+                            priorityFilter !== "all" ||
+                            typeFilter !== "all" ||
+                            assigneeFilter !== "all"
                               ? "No tasks match your filters"
                               : "No tasks found. Create your first task!"}
                           </div>
@@ -755,16 +924,26 @@ export default function AccountsTasks() {
                       </TableRow>
                     ) : (
                       filteredTasks.map((task: any) => {
-                        const assigneeName = task.assignee?.firstName && task.assignee?.lastName
-                          ? `${task.assignee.firstName} ${task.assignee.lastName}`
-                          : 'Unknown User';
+                        const assigneeName =
+                          task.assignee?.firstName && task.assignee?.lastName
+                            ? `${task.assignee.firstName} ${task.assignee.lastName}`
+                            : "Unknown User";
                         const isOverdue = isTaskOverdue(task);
-                        
+
                         return (
-                          <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
+                          <TableRow
+                            key={task.id}
+                            data-testid={`row-task-${task.id}`}
+                          >
                             <TableCell className="font-light">
                               <div className="flex flex-col space-y-1">
-                                <span className={isOverdue ? "text-red-600 font-semibold" : ""}>
+                                <span
+                                  className={
+                                    isOverdue
+                                      ? "text-red-600 font-semibold"
+                                      : ""
+                                  }
+                                >
                                   {task.title}
                                   {isOverdue && (
                                     <AlertTriangle className="inline h-4 w-4 ml-1 text-red-500" />
@@ -778,12 +957,16 @@ export default function AccountsTasks() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge 
-                                variant="secondary" 
-                                className={typeStyles[task.type as keyof typeof typeStyles]}
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  typeStyles[
+                                    task.type as keyof typeof typeStyles
+                                  ]
+                                }
                                 data-testid={`badge-type-${task.id}`}
                               >
-                                {task.type.replace('_', ' ').toUpperCase()}
+                                {task.type.replace("_", " ").toUpperCase()}
                               </Badge>
                             </TableCell>
                             <TableCell data-testid={`text-assignee-${task.id}`}>
@@ -793,9 +976,13 @@ export default function AccountsTasks() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge 
-                                variant="secondary" 
-                                className={priorityStyles[task.priority as keyof typeof priorityStyles]}
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  priorityStyles[
+                                    task.priority as keyof typeof priorityStyles
+                                  ]
+                                }
                                 data-testid={`badge-priority-${task.id}`}
                               >
                                 {task.priority.toUpperCase()}
@@ -805,21 +992,35 @@ export default function AccountsTasks() {
                               {task.dueDate ? (
                                 <div className="flex items-center space-x-2">
                                   <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                                  <span className={isOverdue ? "text-red-600 font-semibold" : ""}>
-                                    {new Date(task.dueDate).toLocaleDateString()}
+                                  <span
+                                    className={
+                                      isOverdue
+                                        ? "text-red-600 font-semibold"
+                                        : ""
+                                    }
+                                  >
+                                    {new Date(
+                                      task.dueDate
+                                    ).toLocaleDateString()}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">No due date</span>
+                                <span className="text-muted-foreground">
+                                  No due date
+                                </span>
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge 
-                                variant="secondary" 
-                                className={statusStyles[task.status as keyof typeof statusStyles]}
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  statusStyles[
+                                    task.status as keyof typeof statusStyles
+                                  ]
+                                }
                                 data-testid={`badge-status-${task.id}`}
                               >
-                                {task.status.replace('_', ' ').toUpperCase()}
+                                {task.status.replace("_", " ").toUpperCase()}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -840,7 +1041,7 @@ export default function AccountsTasks() {
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                {task.status === 'open' && (
+                                {task.status === "open" && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -850,7 +1051,8 @@ export default function AccountsTasks() {
                                     <Play className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {(task.status === 'in_progress' || task.status === 'open') && (
+                                {(task.status === "in_progress" ||
+                                  task.status === "open") && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -892,7 +1094,10 @@ export default function AccountsTasks() {
             </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleEditSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
@@ -917,16 +1122,25 @@ export default function AccountsTasks() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Task Type *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-type">
                             <SelectValue placeholder="Select task type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="reconcile">Account Reconciliation</SelectItem>
-                          <SelectItem value="send_reminder">Send Reminder</SelectItem>
-                          <SelectItem value="file_gst">File GST Return</SelectItem>
+                          <SelectItem value="reconcile">
+                            Account Reconciliation
+                          </SelectItem>
+                          <SelectItem value="send_reminder">
+                            Send Reminder
+                          </SelectItem>
+                          <SelectItem value="file_gst">
+                            File GST Return
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -959,7 +1173,10 @@ export default function AccountsTasks() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assign To *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-assignee">
                             <SelectValue placeholder="Select assignee" />
@@ -983,7 +1200,10 @@ export default function AccountsTasks() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-status">
                             <SelectValue placeholder="Select status" />
@@ -991,7 +1211,9 @@ export default function AccountsTasks() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="in_progress">
+                            In Progress
+                          </SelectItem>
                           <SelectItem value="done">Completed</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1005,7 +1227,10 @@ export default function AccountsTasks() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Priority</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-priority">
                             <SelectValue placeholder="Select priority" />
@@ -1032,8 +1257,18 @@ export default function AccountsTasks() {
                         <Input
                           {...field}
                           type="date"
-                          value={field.value ? field.value.toISOString().split('T')[0] : ''}
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                          value={
+                            field.value
+                              ? field.value.toISOString().split("T")[0]
+                              : ""
+                          }
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value
+                                ? new Date(e.target.value)
+                                : undefined
+                            )
+                          }
                           data-testid="input-edit-due-date"
                         />
                       </FormControl>
@@ -1096,41 +1331,60 @@ export default function AccountsTasks() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-light">Title</Label>
-                  <p className="text-sm" data-testid="view-task-title">{selectedTask.title}</p>
+                  <p className="text-sm" data-testid="view-task-title">
+                    {selectedTask.title}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm font-light">Type</Label>
-                  <Badge className={typeStyles[selectedTask.type as keyof typeof typeStyles]}>
-                    {selectedTask.type.replace('_', ' ').toUpperCase()}
+                  <Badge
+                    className={
+                      typeStyles[selectedTask.type as keyof typeof typeStyles]
+                    }
+                  >
+                    {selectedTask.type.replace("_", " ").toUpperCase()}
                   </Badge>
                 </div>
               </div>
               {selectedTask.description && (
                 <div>
                   <Label className="text-sm font-light">Description</Label>
-                  <p className="text-sm" data-testid="view-task-description">{selectedTask.description}</p>
+                  <p className="text-sm" data-testid="view-task-description">
+                    {selectedTask.description}
+                  </p>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-light">Status</Label>
-                  <Badge className={statusStyles[selectedTask.status as keyof typeof statusStyles]}>
-                    {selectedTask.status.replace('_', ' ').toUpperCase()}
+                  <Badge
+                    className={
+                      statusStyles[
+                        selectedTask.status as keyof typeof statusStyles
+                      ]
+                    }
+                  >
+                    {selectedTask.status.replace("_", " ").toUpperCase()}
                   </Badge>
                 </div>
                 <div>
                   <Label className="text-sm font-light">Priority</Label>
-                  <Badge className={priorityStyles[selectedTask.priority as keyof typeof priorityStyles]}>
+                  <Badge
+                    className={
+                      priorityStyles[
+                        selectedTask.priority as keyof typeof priorityStyles
+                      ]
+                    }
+                  >
                     {selectedTask.priority.toUpperCase()}
                   </Badge>
                 </div>
                 <div>
                   <Label className="text-sm font-light">Due Date</Label>
                   <p className="text-sm" data-testid="view-due-date">
-                    {selectedTask.dueDate 
+                    {selectedTask.dueDate
                       ? new Date(selectedTask.dueDate).toLocaleDateString()
-                      : 'No due date set'
-                    }
+                      : "No due date set"}
                   </p>
                 </div>
               </div>
@@ -1145,7 +1399,9 @@ export default function AccountsTasks() {
                   <div>
                     <Label className="text-sm font-light">Completed</Label>
                     <p className="text-sm" data-testid="view-completed-date">
-                      {new Date(selectedTask.completedDate).toLocaleDateString()}
+                      {new Date(
+                        selectedTask.completedDate
+                      ).toLocaleDateString()}
                     </p>
                   </div>
                 )}
@@ -1153,23 +1409,42 @@ export default function AccountsTasks() {
               {selectedTask.relatedType && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-light">Related Entity Type</Label>
-                    <p className="text-sm" data-testid="view-related-type">{selectedTask.relatedType}</p>
+                    <Label className="text-sm font-light">
+                      Related Entity Type
+                    </Label>
+                    <p className="text-sm" data-testid="view-related-type">
+                      {selectedTask.relatedType}
+                    </p>
                   </div>
                   <div>
-                    <Label className="text-sm font-light">Related Entity ID</Label>
-                    <p className="text-sm font-mono text-xs" data-testid="view-related-id">{selectedTask.relatedId}</p>
+                    <Label className="text-sm font-light">
+                      Related Entity ID
+                    </Label>
+                    <p
+                      className="text-sm font-mono text-xs"
+                      data-testid="view-related-id"
+                    >
+                      {selectedTask.relatedId}
+                    </p>
                   </div>
                 </div>
               )}
               {selectedTask.notes && (
                 <div>
                   <Label className="text-sm font-light">Notes</Label>
-                  <p className="text-sm whitespace-pre-wrap" data-testid="view-task-notes">{selectedTask.notes}</p>
+                  <p
+                    className="text-sm whitespace-pre-wrap"
+                    data-testid="view-task-notes"
+                  >
+                    {selectedTask.notes}
+                  </p>
                 </div>
               )}
               <div className="flex justify-end">
-                <Button onClick={() => setIsViewOpen(false)} data-testid="button-close-view">
+                <Button
+                  onClick={() => setIsViewOpen(false)}
+                  data-testid="button-close-view"
+                >
                   Close
                 </Button>
               </div>
@@ -1188,7 +1463,10 @@ export default function AccountsTasks() {
             </DialogDescription>
           </DialogHeader>
           <Form {...completeForm}>
-            <form onSubmit={completeForm.handleSubmit(handleCompleteSubmit)} className="space-y-4">
+            <form
+              onSubmit={completeForm.handleSubmit(handleCompleteSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={completeForm.control}
                 name="notes"
@@ -1221,7 +1499,9 @@ export default function AccountsTasks() {
                   disabled={completeTaskMutation.isPending}
                   data-testid="button-submit-complete"
                 >
-                  {completeTaskMutation.isPending ? "Completing..." : "Mark Complete"}
+                  {completeTaskMutation.isPending
+                    ? "Completing..."
+                    : "Mark Complete"}
                 </Button>
               </div>
             </form>
@@ -1235,11 +1515,14 @@ export default function AccountsTasks() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Task</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this task? This action cannot be undone.
+              Are you sure you want to delete this task? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 hover:bg-red-700"
