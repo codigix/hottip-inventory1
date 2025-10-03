@@ -1,4 +1,3 @@
-// shared/schema.ts
 import {
   pgTable,
   serial,
@@ -10,34 +9,38 @@ import {
   text,
   uuid,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
+
 import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// USERS table definition (inline, since ./users is missing)
+// =====================
+// USERS
+export const userRole = pgEnum("user_role", ["employee", "admin"]);
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  role: userRole("role").default("employee").notNull(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  department: text("department"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt")
+    .default(sql`now()`)
+    .notNull(),
+});
+
 // =====================
 // FABRICATION ORDERS
 // =====================
-export const fabricationOrderStatusEnum = pgEnum("fabrication_order_status", [
-  "pending",
-  "in_progress",
-  "completed",
-  "cancelled",
-]);
-export const fabricationOrders = pgTable("fabrication_orders", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  partId: uuid("part_id")
-    .notNull()
-    .references(() => spareParts.id),
-  quantity: integer("quantity").notNull().default(1),
-  status: fabricationOrderStatusEnum("status").notNull().default("pending"),
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertFabricationOrderSchema = z.object({
   partId: z.string().uuid(),
@@ -50,6 +53,105 @@ export const insertFabricationOrderSchema = z.object({
   assignedTo: z.string().uuid().optional(),
   notes: z.string().optional(),
 });
+
+export const spare_part_type = pgEnum("spare_part_type", [
+  "component",
+  "assembly",
+]);
+export const spare_part_status = pgEnum("spare_part_status", [
+  "available",
+  "unavailable",
+]);
+
+export const spareParts = pgTable("spare_parts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partNumber: text("partNumber").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  specifications: text("specifications"),
+  type: spare_part_type("type").notNull().default("component"),
+  status: spare_part_status("status").notNull().default("available"),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("minStock").notNull().default(0),
+  maxStock: integer("maxStock").notNull().default(100),
+  unitCost: numeric("unitCost", 10, 2),
+  location: text("location"),
+  unit: text("unit"),
+  fabricationtime: integer("fabricationtime"), // integer type now
+});
+
+// Enums
+export const inventoryTaskStatus = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+export const taskPriority = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+export const inventoryTaskType = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Maintenance",
+  "Inspection",
+]);
+
+export const inventoryTasks = pgTable("inventory_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: inventoryTaskType("type").notNull(),
+  status: inventoryTaskStatus("status").notNull().default("pending"),
+  priority: taskPriority("priority").notNull().default("medium"),
+  assignedTo: uuid("assignedTo").notNull(),
+  assignedBy: uuid("assignedBy").notNull(),
+  productId: uuid("productId"),
+  sparePartId: uuid("sparePartId"),
+  batchId: uuid("batchId"),
+  fabricationOrderId: uuid("fabricationOrderId"),
+  expectedQuantity: integer("expectedQuantity"),
+  actualQuantity: integer("actualQuantity"),
+  fromLocation: text("fromLocation"),
+  toLocation: text("toLocation"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Enums
+export const fabricationOrderStatus = pgEnum("fabrication_order_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+
+export const fabricationOrderPriority = pgEnum("fabrication_order_priority", [
+  "low",
+  "normal",
+  "high",
+]);
+
+// Table definition
+export const fabricationOrders = pgTable("fabrication_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderNumber: text("orderNumber").notNull(),
+  sparePartId: uuid("sparePartId").notNull(),
+  quantity: integer("quantity").notNull(),
+  status: fabricationOrderStatus("status").notNull().default("pending"),
+  priority: fabricationOrderPriority("priority").notNull().default("normal"),
+  startDate: timestamp("startDate"),
+  dueDate: timestamp("dueDate"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
 // =====================
 // ADMIN SETTINGS
 // =====================
@@ -85,27 +187,7 @@ export const insertAdminBackupSchema = z.object({
   size: z.coerce.number().optional(),
   filePath: z.string().optional(),
 });
-// USERS table definition (inline, since ./users is missing)
-// =====================
-// USERS
-export const userRole = pgEnum("user_role", ["employee", "admin"]);
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull(),
-  email: text("email").notNull(),
-  password: text("password").notNull(),
-  role: userRole("role").default("employee").notNull(),
-  firstName: text("firstName").notNull(),
-  lastName: text("lastName").notNull(),
-  department: text("department"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt")
-    .default(sql`now()`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt")
-    .default(sql`now()`)
-    .notNull(),
-});
+// shared/schema.ts
 // =====================
 // (Removed duplicate userRole and users exports)
 // =====================
@@ -180,44 +262,75 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // });
 
 export const marketingAttendance = pgTable("marketing_attendance", {
-  id: uuid("id").defaultRandom().primaryKey(), // ✅ UUID primary key
-  userId: uuid("userId")
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("userId").notNull(),
+  date: timestamp("date").notNull(),
+  checkInTime: timestamp("checkInTime"),
+  checkOutTime: timestamp("checkOutTime"),
+  checkInLocation: text("checkInLocation"),
+  checkOutLocation: text("checkOutLocation"),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+  // Additional fields used by storage methods
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  location: text("location"),
+  photoPath: text("photoPath"),
+  workDescription: text("workDescription"),
+  attendanceStatus: text("attendanceStatus").default("present"),
+  visitCount: integer("visitCount"),
+  tasksCompleted: integer("tasksCompleted"),
+  outcome: text("outcome"),
+  nextAction: text("nextAction"),
+  isOnLeave: boolean("isOnLeave").default(false),
+});
+export const marketingTodays = pgTable("marketing_todays", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userid: uuid("userid")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // ✅ UUID FK, NOT NULL
-  date: timestamp("date").notNull(), // ✅ Timestamp, NOT NULL
-  checkInTime: timestamp("checkInTime"), // ✅ Timestamp
-  checkOutTime: timestamp("checkOutTime"), // ✅ Timestamp
-  checkInLocation: text("checkInLocation"), // ✅ Text
-  checkOutLocation: text("checkOutLocation"), // ✅ Text
-  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision
-  // Remove or comment out the line below since the column doesn't exist in DB
-  // checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }), // ❌ Column does not exist
-  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision
-  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }), // ✅ Numeric with precision (assuming this exists)
-  photoPath: text("photoPath"), // ✅ Text
-  workDescription: text("workDescription"), // ✅ Text
-  visitCount: integer("visitCount"), // ✅ Integer
-  tasksCompleted: integer("tasksCompleted"), // ✅ Integer
-  outcome: text("outcome"), // ✅ Text
-  nextAction: text("nextAction"), // ✅ Text
-  attendanceStatus: text("attendanceStatus").default("present"), // ✅ Text with default
-  createdAt: timestamp("createdAt").defaultNow(), // ✅ Timestamp with default
-  updatedAt: timestamp("updatedAt").defaultNow(), // ✅ Timestamp with default
+    .references(() => users.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  checkintime: timestamp("checkintime"),
+  checkouttime: timestamp("checkouttime"),
+  latitude: numeric("latitude", 10, 7),
+  longitude: numeric("longitude", 10, 7),
+  location: text("location"),
+  photopath: text("photopath"),
+  workdescription: text("workdescription"),
+  attendancestatus: text("attendancestatus").default("present"),
+  visitcount: integer("visitcount"),
+  taskscompleted: integer("taskscompleted"),
+  outcome: text("outcome"),
+  nextaction: text("nextaction"),
+  isonleave: boolean("isonleave").default(false),
 });
 
+// New Table: Marketing_Metrics
+export const marketingMetrics = pgTable("marketing_metrics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  totalRecords: integer("totalRecords").default(0),
+  presentCount: integer("presentCount").default(0),
+  absentCount: integer("absentCount").default(0),
+  leaveCount: integer("leaveCount").default(0),
+  avgVisits: numeric("avgVisits", 10, 2).default(0),
+  avgTasks: numeric("avgTasks", 10, 2).default(0),
+  recordedAt: timestamp("recordedAt").defaultNow(),
+});
 // =====================
 // LEAVE REQUESTS
 // =====================
 export const leaveRequests = pgTable("leave_requests", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("userId").notNull(),
-  leave_type: text("leave_type").notNull(),
-  start_date: timestamp("start_date").notNull(),
-  end_date: timestamp("end_date").notNull(),
-  reason: text("reason"),
+  leaveType: text("leave_type").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: text("reason").notNull(),
   status: text("status").default("pending"),
+  totalDays: integer("total_days"),
 });
-
 // =====================
 // FIELD VISITS
 // =====================
@@ -299,6 +412,12 @@ export const outboundQuotations = pgTable("outbound_quotations", {
   paymentTerms: text("paymentterms"),
   deliveryTerms: text("deliveryterms"),
   notes: text("notes"),
+  // New fields for detailed quotation
+  projectIncharge: text("projectincharge"),
+  moldDetails: jsonb("molddetails"), // Array of mold/part details
+  quotationItems: jsonb("quotationitems"), // Array of quotation line items
+  bankingDetails: text("bankingdetails"),
+  termsConditions: text("termsconditions"),
 });
 
 // =====================
@@ -339,48 +458,35 @@ export const inboundQuotations = pgTable("inbound_quotations", {
 // =====================
 // INVOICES
 // =====================
-// export const invoices = pgTable("invoices", {
-//   id: serial("id").primaryKey(),
-//   customerId: integer("customer_id").references(() => customers.id),
-//   invoiceNumber: varchar("invoice_number", { length: 50 }),
-//   totalAmount: numeric("total_amount"),
-//   status: varchar("status", { length: 20 }),
-//   issuedAt: timestamp("issued_at").defaultNow(),
-// });
 export const invoiceStatus = pgEnum("invoice_status", [
   "draft",
   "sent",
   "paid",
   "overdue",
+  "cancelled",
 ]);
-
 export const invoices = pgTable("invoices", {
-  id: uuid("id").defaultRandom().primaryKey(), // ✅ UUID primary key
-  invoiceNumber: text("invoiceNumber").notNull().unique(), // ✅ Unique constraint
-  quotationId: uuid("quotationId").references(() => outboundQuotations.id), // ✅ UUID FK
-  customerId: uuid("customerId")
-    .notNull()
-    .references(() => customers.id), // ✅ UUID FK, NOT NULL
-  userId: uuid("userId")
-    .notNull()
-    .references(() => users.id), // ✅ UUID FK, NOT NULL
-  status: invoiceStatus("status").notNull().default("draft"), // ✅ Enum, NOT NULL
-  invoiceDate: timestamp("invoiceDate").notNull().defaultNow(), // ✅ Timestamp, NOT NULL
-  dueDate: timestamp("dueDate").notNull(), // ✅ Timestamp, NOT NULL
-  subtotalAmount: numeric("subtotalAmount", { precision: 10, scale: 2 }), // ✅ Numeric with precision
-  taxAmount: numeric("taxamount", { precision: 10, scale: 2 }), // ✅ Fixed column name
-  discountAmount: numeric("discountamount", { precision: 10, scale: 2 }), // ✅ Fixed column name
-  totalAmount: numeric("totalamount", { precision: 10, scale: 2 }).notNull(), // ✅ Fixed column name, NOT NULL
-  paymentTerms: text("paymentterms"), // ✅ Fixed column name
-  deliveryTerms: text("deliveryterms"), // ✅ Fixed column name
-  notes: text("notes"), // ✅ OK - matches DB
-  jobCardNumber: text("jobCardNumber"), // ✅ OK - matches DB
-  partNumber: text("partNumber"), // ✅ OK - matches DB
-  bankName: text("bankName"), // ✅ OK - matches DB
-  accountNumber: text("accountNumber"), // ✅ OK - matches DB
-  ifscCode: text("ifscCode"), // ✅ OK - matches DB
-  createdAt: timestamp("createdAt").defaultNow(), // ✅ OK - matches DB
-  updatedAt: timestamp("updatedAt").defaultNow(), // ✅ OK - matches DB
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceNumber: text("invoiceNumber").notNull(),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  customerId: uuid("customerId").references(() => customers.id),
+  userId: uuid("userId").references(() => users.id),
+  status: invoiceStatus("status").notNull().default("draft"),
+  invoiceDate: timestamp("invoiceDate").notNull(),
+  dueDate: timestamp("dueDate").notNull(),
+  subtotalAmount: numeric("subtotalAmount", { precision: 10, scale: 2 }),
+  cgstRate: numeric("cgstRate", { precision: 5, scale: 2 }).default(0),
+  cgstAmount: numeric("cgstAmount", { precision: 10, scale: 2 }).default(0),
+  sgstRate: numeric("sgstRate", { precision: 5, scale: 2 }).default(0),
+  sgstAmount: numeric("sgstAmount", { precision: 10, scale: 2 }).default(0),
+  igstRate: numeric("igstRate", { precision: 5, scale: 2 }).default(0),
+  igstAmount: numeric("igstAmount", { precision: 10, scale: 2 }).default(0),
+  discountAmount: numeric("discountAmount", {
+    precision: 10,
+    scale: 2,
+  }).default(0),
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
+  balanceAmount: numeric("balanceAmount", { precision: 10, scale: 2 }),
 });
 
 // =====================
@@ -402,21 +508,6 @@ export const products = pgTable("products", {
 // =====================
 // SPARE PARTS
 // =====================
-export const spareParts = pgTable("spare_parts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  partNumber: text("part_number").notNull().unique(),
-  name: text("name").notNull(),
-  type: text("type"),
-  status: text("status"),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").default(0),
-  fabricationTime: integer("fabrication_time"),
-  location: text("location"),
-  unit: text("unit"),
-  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).default(0),
-  specifications: text("specifications"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // =====================
 // SUPPLIERS
@@ -440,14 +531,28 @@ export const suppliers = pgTable("suppliers", {
   // createdAt is not a column in your DB table, so it's omitted
 });
 
+export const inventory_task_type = pgEnum("inventory_task_type", [
+  "Fabrication",
+  "Inspection",
+  "Maintenance",
+]);
+export const inventory_task_status = pgEnum("inventory_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
+
 // =====================
 // CUSTOMERS
 // =====================
 export const customers = pgTable("customers", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   email: varchar("email", { length: 100 }),
   phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  gstNumber: varchar("gstNumber", { length: 20 }),
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
@@ -583,14 +688,46 @@ export const insertOutboundQuotationSchema = z.object({
     .default("draft"),
   deliveryTerms: z.string().optional(),
   paymentTerms: z.string().optional(),
-  warrantyTerms: z.string().optional(),
-  specialTerms: z.string().optional(),
+  bankingDetails: z.string().optional(),
+  termsConditions: z.string().optional(),
   notes: z.string().optional(),
   jobCardNumber: z.string().optional(),
   partNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  accountNumber: z.string().optional(),
-  ifscCode: z.string().optional(),
+  // New fields
+  projectIncharge: z.string().optional(),
+  moldDetails: z
+    .array(
+      z.object({
+        no: z.number(),
+        partName: z.string(),
+        mouldNo: z.string(),
+        plasticMaterial: z.string(),
+        colourChange: z.string(),
+        mfi: z.string(),
+        wallThickness: z.string(),
+        noOfCavity: z.number(),
+        gfPercent: z.string(),
+        mfPercent: z.string(),
+        partWeight: z.number(),
+        systemSuggested: z.string(),
+        noOfDrops: z.number(),
+        trialDate: z.string().optional(),
+      })
+    )
+    .optional(),
+  quotationItems: z
+    .array(
+      z.object({
+        no: z.number(),
+        partName: z.string(),
+        partDescription: z.string(),
+        uom: z.string(),
+        qty: z.number(),
+        unitPrice: z.number(),
+        amount: z.number(),
+      })
+    )
+    .optional(),
 });
 export const insertInboundQuotationSchema = z.object({
   // ✅ Use UUID for senderId
@@ -625,24 +762,32 @@ export const insertInboundQuotationSchema = z.object({
 
 export const insertInvoiceSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),
-  quotationId: z.string().uuid().optional(), // UUID string
-  customerId: z.string().uuid(), // UUID string, required
-  userId: z.string().uuid(), // UUID string, required
-  status: z.enum(["draft", "sent", "paid", "overdue"]).default("draft"),
-  invoiceDate: z.string().or(z.date()), // Accept string or Date
-  dueDate: z.string().or(z.date()), // Accept string or Date
-  subtotalAmount: z.string().min(1, "Subtotal amount is required"),
-  taxAmount: z.string().optional(),
-  discountAmount: z.string().optional(),
-  totalAmount: z.string().min(1, "Total amount is required"),
-  paymentTerms: z.string().optional(),
-  deliveryTerms: z.string().optional(),
-  notes: z.string().optional(),
-  jobCardNumber: z.string().optional(),
-  partNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  accountNumber: z.string().optional(),
-  ifscCode: z.string().optional(),
+  quotationId: z.string().uuid().optional(),
+  customerId: z.string().uuid("Customer is required"),
+  userId: z.string().uuid("User is required"),
+  status: z
+    .enum(["draft", "sent", "paid", "overdue", "cancelled"])
+    .optional()
+    .default("draft"),
+  invoiceDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+  dueDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+
+  subtotalAmount: z.number().min(0, "Subtotal must be positive").optional(),
+  cgstRate: z.number().min(0).max(100).optional().default(0),
+  cgstAmount: z.number().min(0).optional().default(0),
+  sgstRate: z.number().min(0).max(100).optional().default(0),
+  sgstAmount: z.number().min(0).optional().default(0),
+  igstRate: z.number().min(0).max(100).optional().default(0),
+  igstAmount: z.number().min(0).optional().default(0),
+  discountAmount: z.number().min(0).optional().default(0),
+  totalAmount: z.number().min(0, "Total amount is required"),
+  balanceAmount: z.number().min(0).optional(),
 });
 
 export const insertCustomerSchema = z.object({
@@ -650,6 +795,7 @@ export const insertCustomerSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  gstNumber: z.string().optional(),
 });
 
 // Customer schema
@@ -820,6 +966,22 @@ export const insertMarketingAttendanceSchema = z.object({
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),
+});
+
+export const insertLeaveRequestSchema = z.object({
+  userId: z.any(),
+  leaveType: z.enum([
+    "sick",
+    "vacation",
+    "personal",
+    "emergency",
+    "training",
+    "other",
+  ]),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  reason: z.string(),
+  totalDays: z.number().optional(),
 });
 
 export const updateLeadStatusSchema = z.object({

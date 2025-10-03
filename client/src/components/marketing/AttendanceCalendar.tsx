@@ -126,12 +126,10 @@ export default function AttendanceCalendar({
     const grouped: Record<string, AttendanceWithUser[]> = {};
 
     filteredAttendance.forEach((record) => {
+      // Skip records without a valid date
       if (!record.date) return;
-      const recordDate =
-        record.date instanceof Date ? record.date : new Date(record.date);
-      if (Number.isNaN(recordDate.getTime())) return;
 
-      const dateKey = format(recordDate, "yyyy-MM-dd");
+      const dateKey = format(new Date(record.date), "yyyy-MM-dd");
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }

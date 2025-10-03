@@ -1,6 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
+import { validate as isUuid } from "uuid";
+import { db } from "./db";
+import { sql, eq, and, gte, lt, desc, isNull } from "drizzle-orm";
 import {
   insertLeadSchema,
   updateLeadSchema,
@@ -17,6 +20,9 @@ import {
   fieldVisitFilterSchema,
   marketingTaskFilterSchema,
   attendancePhotoUploadSchema,
+  insertLeaveRequestSchema,
+  marketingTodays,
+  users,
 } from "@shared/schema";
 import { ObjectStorageService } from "./objectStorage";
 
@@ -1334,13 +1340,63 @@ export const deleteMarketingAttendance = async (
   }
 };
 
+// export const checkInMarketingAttendance = async (
+//   req: AuthenticatedRequest,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { latitude, longitude, location, photoPath, workDescription } =
+//       req.body;
+//     const userId = req.user?.id;
+
+//     // Validate UUID
+//     if (!userId || !isUuid(userId)) {
+//       return res.status(400).json({ error: "Invalid or missing user ID" });
+//     }
+
+//     // Validate GPS coordinates
+//     if (latitude === undefined || longitude === undefined) {
+//       return res
+//         .status(400)
+//         .json({ error: "GPS coordinates are required for check-in" });
+//     }
+
+//     // Insert into marketingTodays table
+//     const attendance = await db
+//       .insert(marketingTodays)
+//       .values({
+//         userId, // matches table column
+//         date: new Date(),
+//         checkInTime: new Date(),
+//         latitude,
+//         longitude,
+//         location: location || null,
+//         photoPath: photoPath || null,
+//         workDescription: workDescription || null,
+//         attendanceStatus: "present",
+//         visitCount: 0,
+//         tasksCompleted: 0,
+//         isOnLeave: false,
+//       })
+//       .returning();
+
+//     res.json({ attendance, message: "Successfully checked in" });
+//   } catch (error) {
+//     console.error("Check-in error:", error);
+//     res.status(500).json({ error: "Failed to check in", details: error });
+//   }
+// };
+
 export const checkInMarketingAttendance = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { latitude, longitude, location, photoPath } = req.body;
-    const userId = req.user!.id;
+    const { latitude, longitude, location, photoPath, workDescription } =
+      req.body;
+
+    // Hardcoded user ID for testing
+    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2"; // replace with an existing user ID from your DB
 
     if (!latitude || !longitude) {
       res
@@ -1349,86 +1405,378 @@ export const checkInMarketingAttendance = async (
       return;
     }
 
-    const attendance = await storage.checkInMarketingAttendance(userId, {
-      checkInTime: new Date(),
-      checkInLatitude: latitude,
-      checkInLongitude: longitude,
-      checkInLocation: location,
-      checkInPhotoPath: photoPath,
-      date: new Date(),
-      attendanceStatus: "present",
-    });
+    const attendance = await db
+      .insert(marketingTodays)
+      .values({
+        userid, // lowercase column in DB
+        date: new Date(),
+        checkintime: new Date(), // lowercase column in DB
+        latitude,
+        longitude,
+        location,
+        photopath: photoPath || null,
+        workdescription: workDescription || null,
+        attendancestatus: "present",
+        visitcount: 0,
+        taskscompleted: 0,
+        isonleave: false,
+      })
+      .returning();
 
     res.json({ attendance, message: "Successfully checked in" });
   } catch (error) {
-    res.status(500).json({ error: "Failed to check in" });
+    console.error("Check-in error:", error);
+    res.status(500).json({ error: "Failed to check in", details: error });
   }
 };
 
 export const checkOutMarketingAttendance = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
-    const {
-      latitude,
-      longitude,
-      location,
-      photoPath,
-      workDescription,
-      visitCount,
-      tasksCompleted,
-    } = req.body;
-    const userId = req.user!.id;
+    const { latitude, longitude, location } = req.body;
 
     if (!latitude || !longitude) {
-      res
+      return res
         .status(400)
-        .json({ error: "GPS coordinates are required for check-out" });
-      return;
+        .json({ error: "GPS coordinates required for check-out" });
     }
 
-    const attendance = await storage.checkOutMarketingAttendance(userId, {
-      checkOutTime: new Date(),
-      checkOutLatitude: latitude,
-      checkOutLongitude: longitude,
-      checkOutLocation: location,
-      checkOutPhotoPath: photoPath,
-      workDescription,
-      visitCount,
-      tasksCompleted,
-    });
+    // Hardcoded userId for testing
+    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2";
 
-    res.json({ attendance, message: "Successfully checked out" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to check out" });
+    const today = new Date();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    );
+
+    // Get today's active check-in
+    const activeAttendances = await db
+      .select()
+      .from(marketingTodays)
+      .where(
+        and(
+          eq(marketingTodays.userid, userid), // lowercase column
+          gte(marketingTodays.date, startOfDay),
+          lt(marketingTodays.date, endOfDay),
+          isNull(marketingTodays.checkouttime) // lowercase column
+        )
+      );
+
+    if (activeAttendances.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No active check-in found for today" });
+    }
+
+    const activeAttendance = activeAttendances[0];
+
+    // Only update defined values
+    const updateData: any = { checkouttime: new Date() }; // lowercase
+    if (location) updateData.checkoutlocation = location; // lowercase
+
+    const updatedAttendance = await db
+      .update(marketingTodays)
+      .set(updateData)
+      .where(eq(marketingTodays.id, activeAttendance.id))
+      .returning();
+
+    res.json({
+      attendance: updatedAttendance[0],
+      message: "Successfully checked out",
+    });
+  } catch (error: any) {
+    console.error("Check-out error:", error);
+    res.status(500).json({
+      error: "Failed to check out",
+      details: {
+        message: error.message,
+        stack: error.stack,
+      },
+    });
   }
 };
+
+// export const checkOutMarketingAttendance = async (
+//   req: AuthenticatedRequest,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const {
+//       userId: requestUserId,
+//       latitude,
+//       longitude,
+//       location,
+//       photoPath,
+//       workDescription,
+//       visitCount,
+//       tasksCompleted,
+//       outcome,
+//       nextAction,
+//     } = req.body;
+//     const authenticatedUserId = req.user!.id;
+
+//     // Use authenticated user if no userId provided, otherwise check authorization
+//     const targetUserId = requestUserId || authenticatedUserId;
+
+//     if (requestUserId && requestUserId !== authenticatedUserId) {
+//       // Only allow checking out own attendance unless admin
+//       // For now, restrict to self-checkout
+//       res.status(403).json({ error: "Can only check out your own attendance" });
+//       return;
+//     }
+
+//     if (!latitude || !longitude) {
+//       res
+//         .status(400)
+//         .json({ error: "GPS coordinates are required for check-out" });
+//       return;
+//     }
+
+//     // Find active check-in for the user (no check-out time)
+//     const todayAttendances = await storage.getTodayMarketingAttendance();
+//     const activeCheckIn = todayAttendances.find(
+//       (att) => att.userId === targetUserId && !att.checkOutTime
+//     );
+
+//     if (!activeCheckIn) {
+//       res.status(400).json({ error: "No active check-in found for check-out" });
+//       return;
+//     }
+
+//     const attendance = await storage.checkOutMarketingAttendanceById(
+//       activeCheckIn.id,
+//       {
+//         checkOutTime: new Date(),
+//         checkOutLocation: location,
+//       }
+//     );
+
+//     res.json({ id: attendance.id, message: "Successfully checked out" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to check out" });
+//   }
+// };
+
+// export const getTodayMarketingAttendance = async (
+//   req: AuthenticatedRequest,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     // Disable ETag for this route
+//     res.set("Cache-Control", "no-cache");
+
+//     // Get today's date range (current date in local timezone)
+//     const today = new Date();
+//     const startOfDay = new Date(
+//       today.getFullYear(),
+//       today.getMonth(),
+//       today.getDate(),
+//       0,
+//       0,
+//       0,
+//       0
+//     );
+//     const endOfDay = new Date(
+//       today.getFullYear(),
+//       today.getMonth(),
+//       today.getDate() + 1,
+//       0,
+//       0,
+//       0,
+//       0
+//     );
+
+//     console.log(
+//       `🔍 [Registry] Querying marketing attendance for date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`
+//     );
+
+//     // Query using Drizzle ORM with proper join and error handling
+//     const rows = await db
+//       .select({
+//         id: marketingTodays.id,
+//         userId: marketingTodays.userId,
+//         date: marketingTodays.date,
+//         checkInTime: marketingTodays.checkInTime,
+//         checkOutTime: marketingTodays.checkOutTime,
+//         latitude: marketingTodays.latitude,
+//         longitude: marketingTodays.longitude,
+//         location: marketingTodays.location,
+//         photoPath: marketingTodays.photoPath,
+//         workDescription: marketingTodays.workDescription,
+//         attendanceStatus: marketingTodays.attendanceStatus,
+//         visitCount: marketingTodays.visitCount,
+//         tasksCompleted: marketingTodays.tasksCompleted,
+//         outcome: marketingTodays.outcome,
+//         nextAction: marketingTodays.nextAction,
+//         isOnLeave: marketingTodays.isOnLeave,
+//         // User fields with null handling
+//         userId_user: users.id,
+//         userFirstName: users.firstName,
+//         userLastName: users.lastName,
+//         userEmail: users.email,
+//       })
+//       .from(marketingTodays)
+//       .leftJoin(users, eq(marketingTodays.userId, users.id))
+//       .where(
+//         and(
+//           gte(marketingTodays.date, startOfDay),
+//           lt(marketingTodays.date, endOfDay),
+//           // Apply user-based scoping
+//           req.user!.role === "admin" || req.user!.role === "manager"
+//             ? undefined
+//             : eq(marketingTodays.userId, req.user!.id)
+//         )
+//       )
+//       .orderBy(desc(marketingTodays.date));
+
+//     console.log(
+//       `📊 [Registry] Found ${rows.length} marketing attendance records for today`
+//     );
+
+//     // Transform the data to match the expected response structure
+//     const attendance = rows.map((row) => ({
+//       id: row.id,
+//       userId: row.userId,
+//       date: row.date?.toISOString() || new Date().toISOString(),
+//       checkInTime: row.checkInTime?.toISOString() || null,
+//       checkOutTime: row.checkOutTime?.toISOString() || null,
+//       latitude: row.latitude ? parseFloat(String(row.latitude)) : null,
+//       longitude: row.longitude ? parseFloat(String(row.longitude)) : null,
+//       location: row.location || null,
+//       photoPath: row.photoPath || null,
+//       workDescription: row.workDescription || null,
+//       attendanceStatus: row.attendanceStatus || "present",
+//       visitCount: row.visitCount || null,
+//       tasksCompleted: row.tasksCompleted || null,
+//       outcome: row.outcome || null,
+//       nextAction: row.nextAction || null,
+//       isOnLeave: row.isOnLeave || false,
+//       user: {
+//         id: row.userId_user || row.userId || "",
+//         name:
+//           row.userFirstName && row.userLastName
+//             ? `${row.userFirstName} ${row.userLastName}`
+//             : "Unknown User",
+//         email: row.userEmail || "",
+//       },
+//     }));
+
+//     res.json(attendance);
+//   } catch (error: any) {
+//     console.error(
+//       "❌ [Registry] GET /api/marketing-attendance/today error:",
+//       error
+//     );
+//     console.error("Error stack:", error.stack);
+
+//     // Return empty array instead of 500 error for better UX
+//     res.json([]);
+//   }
+// };
 
 export const getTodayMarketingAttendance = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    // SECURITY: Apply user-based scoping for today's marketing attendance
-    const filterOptions: any = {};
+    // Disable cache for this route
+    res.set("Cache-Control", "no-cache");
 
-    if (req.user!.role === "admin" || req.user!.role === "manager") {
-      // Admins and managers can see all today's marketing attendance
-    } else {
-      // Regular employees can only see their own today's marketing attendance
-      filterOptions.userScope = {
-        userId: req.user!.id,
-        showOnlyUserAttendance: true,
-      };
-    }
-
-    const attendance = await storage.getTodayMarketingAttendance(
-      Object.keys(filterOptions).length > 0 ? filterOptions : undefined
+    // Set today's date range
+    const today = new Date();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
     );
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    );
+
+    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
+    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+
+    // Build query
+    const rows = await db
+      .select({
+        id: marketingTodays.id,
+        userId: marketingTodays.userid, // match DB column
+        date: marketingTodays.date,
+        checkInTime: marketingTodays.checkintime,
+        checkOutTime: marketingTodays.checkouttime,
+        latitude: marketingTodays.latitude,
+        longitude: marketingTodays.longitude,
+        location: marketingTodays.location,
+        photoPath: marketingTodays.photopath,
+        workDescription: marketingTodays.workdescription,
+        attendanceStatus: marketingTodays.attendancestatus,
+        visitCount: marketingTodays.visitcount,
+        tasksCompleted: marketingTodays.taskscompleted,
+        outcome: marketingTodays.outcome,
+        nextAction: marketingTodays.nextaction,
+        isOnLeave: marketingTodays.isonleave,
+        // User fields
+        userId_user: users.id,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userEmail: users.email,
+      })
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(
+        and(
+          gte(marketingTodays.date, startOfDay),
+          lt(marketingTodays.date, endOfDay),
+          eq(marketingTodays.userid, testUserId)
+        )
+      )
+      .orderBy(desc(marketingTodays.date));
+
+    // Format response
+    const attendance = rows.map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      date: row.date?.toISOString() || new Date().toISOString(),
+      checkInTime: row.checkInTime?.toISOString() || null,
+      checkOutTime: row.checkOutTime?.toISOString() || null,
+      latitude: row.latitude ? parseFloat(String(row.latitude)) : null,
+      longitude: row.longitude ? parseFloat(String(row.longitude)) : null,
+      location: row.location || null,
+      photoPath: row.photoPath || null,
+      workDescription: row.workDescription || null,
+      attendanceStatus: row.attendanceStatus || "present",
+      visitCount: row.visitCount ?? 0,
+      tasksCompleted: row.tasksCompleted ?? 0,
+      outcome: row.outcome || null,
+      nextAction: row.nextAction || null,
+      isOnLeave: row.isOnLeave ?? false,
+      user: {
+        id: row.userId_user || "",
+        name:
+          row.userFirstName && row.userLastName
+            ? `${row.userFirstName} ${row.userLastName}`
+            : "Unknown User",
+        email: row.userEmail || "",
+      },
+    }));
+
     res.json(attendance);
-  } catch (error) {
-    res.status(500).json({ error.message: "Failed to fetch today's attendance",details: error.message});
+  } catch (error: any) {
+    console.error("❌ GET /api/marketing-attendance/today error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch attendance", details: error.message });
   }
 };
 
@@ -1437,25 +1785,63 @@ export const getMarketingAttendanceMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
-    // SECURITY: Apply user-based scoping for marketing attendance metrics
-    const metricsOptions: any = {};
+    // Disable ETag for this route
+    res.set("Cache-Control", "no-cache");
 
-    if (req.user!.role === "admin" || req.user!.role === "manager") {
-      // Admins and managers can see all marketing attendance metrics
-    } else {
-      // Regular employees can only see metrics for their own marketing attendance
-      metricsOptions.userScope = {
-        userId: req.user!.id,
-        showOnlyUserAttendance: true,
-      };
+    console.log("🔍 [Registry] Querying marketing attendance metrics...");
+
+    // Build query with user-based scoping
+    let query = db
+      .select({
+        totalRecords: sql<number>`COUNT(*)`,
+        presentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendancestatus} = 'present' THEN 1 END)`,
+        absentCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.attendancestatus} = 'absent' THEN 1 END)`,
+        leaveCount: sql<number>`COUNT(CASE WHEN ${marketingTodays.isonleave} = true THEN 1 END)`,
+        avgVisits: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.visitcount}, 0)), 0)`,
+        avgTasks: sql<number>`COALESCE(AVG(NULLIF(${marketingTodays.taskscompleted}, 0)), 0)`,
+      })
+      .from(marketingTodays);
+
+    // Apply user-based scoping for non-admin users
+    if (req.user!.role !== "admin" && req.user!.role !== "manager") {
+      query = query.where(eq(marketingTodays.userid, req.user!.id));
     }
 
-    const metrics = await storage.getMarketingAttendanceMetrics(
-      Object.keys(metricsOptions).length > 0 ? metricsOptions : undefined
-    );
+    const result = await query;
+    const row = result[0];
+
+    console.log("📊 [Registry] Raw metrics result:", row);
+
+    // Build metrics object with safe number conversion
+    const metrics = {
+      totalRecords: Number(row?.totalRecords ?? 0),
+      presentCount: Number(row?.presentCount ?? 0),
+      absentCount: Number(row?.absentCount ?? 0),
+      leaveCount: Number(row?.leaveCount ?? 0),
+      avgVisits: Math.round(Number(row?.avgVisits ?? 0) * 100) / 100, // Round to 2 decimal places
+      avgTasks: Math.round(Number(row?.avgTasks ?? 0) * 100) / 100, // Round to 2 decimal places
+    };
+
+    console.log("📈 [Registry] Processed metrics:", metrics);
     res.json(metrics);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch attendance metrics" });
+  } catch (error: any) {
+    console.error(
+      "❌ [Registry] GET /api/marketing-attendance/metrics error:",
+      error
+    );
+    console.error("Error stack:", error.stack);
+
+    // Return default metrics instead of 500 error for better UX
+    const defaultMetrics = {
+      totalRecords: 0,
+      presentCount: 0,
+      absentCount: 0,
+      leaveCount: 0,
+      avgVisits: 0,
+      avgTasks: 0,
+    };
+
+    res.json(defaultMetrics);
   }
 };
 
@@ -1514,6 +1900,202 @@ export const generateMarketingAttendancePhotoUploadUrl = async (
       error
     );
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+};
+
+// ==========================================
+// LEAVE REQUEST HANDLERS
+// ==========================================
+
+export const getLeaveRequests = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    // Admin can see all, users see their own
+    const leaveRequests =
+      req.user!.role === "admin"
+        ? await storage.getLeaveRequests()
+        : await storage.getLeaveRequestsByUser(req.user!.id);
+
+    res.json(leaveRequests);
+  } catch (error) {
+    console.error("Get leave requests error:", error);
+    res.status(500).json({ error: "Failed to fetch leave requests" });
+  }
+};
+
+export const getLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const leaveRequest = await storage.getLeaveRequest(id);
+
+    if (!leaveRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only see their own requests unless admin
+    if (req.user!.role !== "admin" && leaveRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to view this leave request" });
+      return;
+    }
+
+    res.json(leaveRequest);
+  } catch (error) {
+    console.error("Get leave request error:", error);
+    res.status(500).json({ error: "Failed to fetch leave request" });
+  }
+};
+
+export const createLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
+    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+
+    const requestData = {
+      ...req.body,
+      userId: testUserId, // Always use the hardcoded user
+    };
+
+    const validatedData = insertLeaveRequestSchema.parse(requestData);
+
+    // Calculate total_days
+    const start = new Date(validatedData.startDate);
+    const end = new Date(validatedData.endDate);
+    const totalDays =
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    const leaveRequest = await storage.createLeaveRequest({
+      ...validatedData,
+      totalDays: totalDays,
+    });
+    res.status(201).json(leaveRequest);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Invalid request data",
+        details: error.errors,
+      });
+      return;
+    }
+    console.error("Create leave request error:", error);
+    res.status(500).json({ error: "Failed to create leave request" });
+  }
+};
+
+export const updateLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const validatedData = insertLeaveRequestSchema.partial().parse(req.body);
+
+    // Check if leave request exists and user has permission
+    const existingRequest = await storage.getLeaveRequest(id);
+    if (!existingRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only update their own requests unless admin
+    if (req.user!.role !== "admin" && existingRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to update this leave request" });
+      return;
+    }
+
+    // Calculate total_days if dates are being updated
+    let updateData = { ...validatedData };
+    if (validatedData.startDate || validatedData.endDate) {
+      const startDate = validatedData.startDate || existingRequest.startDate;
+      const endDate = validatedData.endDate || existingRequest.endDate;
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const totalDays =
+        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) +
+        1;
+      updateData.totalDays = totalDays;
+    }
+
+    const leaveRequest = await storage.updateLeaveRequest(id, updateData);
+    res.json(leaveRequest);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Invalid request data",
+        details: error.errors,
+      });
+      return;
+    }
+    console.error("Update leave request error:", error);
+    res.status(500).json({ error: "Failed to update leave request" });
+  }
+};
+
+export const deleteLeaveRequest = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if leave request exists and user has permission
+    const existingRequest = await storage.getLeaveRequest(id);
+    if (!existingRequest) {
+      res.status(404).json({ error: "Leave request not found" });
+      return;
+    }
+
+    // Users can only delete their own requests unless admin
+    if (req.user!.role !== "admin" && existingRequest.userId !== req.user!.id) {
+      res
+        .status(403)
+        .json({ error: "Not authorized to delete this leave request" });
+      return;
+    }
+
+    await storage.deleteLeaveRequest(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Delete leave request error:", error);
+    res.status(500).json({ error: "Failed to delete leave request" });
+  }
+};
+
+export const getLeaveRequestsByStatus = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status } = req.params;
+
+    // Admin can see all, users see their own
+    const leaveRequests =
+      req.user!.role === "admin"
+        ? await storage.getLeaveRequestsByStatus(status)
+        : await storage.getLeaveRequestsByUser(req.user!.id);
+
+    // Filter by status for non-admin users
+    const filteredRequests =
+      req.user!.role === "admin"
+        ? leaveRequests
+        : leaveRequests.filter((request) => request.status === status);
+
+    res.json(filteredRequests);
+  } catch (error) {
+    console.error("Get leave requests by status error:", error);
+    res.status(500).json({ error: "Failed to fetch leave requests" });
   }
 };
 
@@ -1861,6 +2443,7 @@ export function registerMarketingRoutes(
     {
       method: "get",
       path: "/api/field-visits/today",
+
       middlewares: ["requireAuth"],
       handler: getTodayFieldVisits,
     },
@@ -1932,6 +2515,32 @@ export function registerMarketingRoutes(
     // ==========================================
     // MARKETING ATTENDANCE ROUTES (10 endpoints)
     // ==========================================
+    // IMPORTANT: Specific routes MUST come before parameterized routes
+    // to avoid Express matching "/today" and "/metrics" as ":id" parameters
+    {
+      method: "get",
+      path: "/api/marketing-attendance/today",
+      middlewares: ["requireAuth"],
+      handler: getTodayMarketingAttendance,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-attendance/metrics",
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getMarketingAttendanceMetrics,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/check-in",
+      middlewares: ["requireAuth"],
+      handler: checkInMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/check-out",
+      middlewares: ["requireAuth"],
+      handler: checkOutMarketingAttendance,
+    },
     {
       method: "get",
       path: "/api/marketing-attendance",
@@ -1964,33 +2573,49 @@ export function registerMarketingRoutes(
     },
     {
       method: "post",
-      path: "/api/marketing-attendance/check-in",
-      middlewares: ["requireAuth"],
-      handler: checkInMarketingAttendance,
-    },
-    {
-      method: "post",
-      path: "/api/marketing-attendance/check-out",
-      middlewares: ["requireAuth"],
-      handler: checkOutMarketingAttendance,
-    },
-    {
-      method: "get",
-      path: "/api/marketing-attendance/today",
-      middlewares: ["requireAuth"],
-      handler: getTodayMarketingAttendance,
-    },
-    {
-      method: "get",
-      path: "/api/marketing-attendance/metrics",
-      middlewares: ["requireAuth", "requireMarketingAccess"],
-      handler: getMarketingAttendanceMetrics,
-    },
-    {
-      method: "post",
       path: "/api/marketing-attendance/photo/upload-url",
       middlewares: ["requireAuth"],
       handler: generateMarketingAttendancePhotoUploadUrl,
+    },
+
+    // ==========================================
+    // LEAVE REQUEST ROUTES (6 endpoints)
+    // ==========================================
+    {
+      method: "get",
+      path: "/api/leave-requests",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequests,
+    },
+    {
+      method: "get",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequest,
+    },
+    {
+      method: "post",
+      path: "/api/leave-requests",
+      middlewares: ["requireAuth"],
+      handler: createLeaveRequest,
+    },
+    {
+      method: "put",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: updateLeaveRequest,
+    },
+    {
+      method: "delete",
+      path: "/api/leave-requests/:id",
+      middlewares: ["requireAuth"],
+      handler: deleteLeaveRequest,
+    },
+    {
+      method: "get",
+      path: "/api/leave-requests/status/:status",
+      middlewares: ["requireAuth"],
+      handler: getLeaveRequestsByStatus,
     },
 
     // ==========================================

@@ -15,7 +15,14 @@ import {
   avg,
   isNotNull,
 } from "drizzle-orm";
-import { users, products, marketingAttendance } from "@shared/schema";
+import {
+  users,
+  products,
+  marketingAttendance,
+  marketing_Todays,
+  marketing_metrics,
+  leaveRequests,
+} from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
 
@@ -24,12 +31,14 @@ export type InsertUser = typeof users.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
 
 import {
   suppliers,
   outboundQuotations,
   inboundQuotations,
-  invoices
+  invoices,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -38,6 +47,8 @@ export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -156,54 +167,6 @@ class Storage {
       throw error;
     }
   }
-  async getOutboundQuotation(
-    id: string
-  ): Promise<OutboundQuotation & { customer: Customer | null }> {
-    try {
-      console.log(
-        `💾 [STORAGE] getOutboundQuotation - Fetching quotation ID: ${id} with customer data`
-      );
-
-      const result = await db
-        .select({
-          quotation: outboundQuotations,
-          customer: {
-            id: customers.id,
-            name: customers.name,
-            email: customers.email,
-            phone: customers.phone,
-            // Add other customer fields needed for PDF
-          },
-        })
-        .from(outboundQuotations)
-        .leftJoin(customers, eq(outboundQuotations.customerId, customers.id))
-        .where(eq(outboundQuotations.id, id));
-
-      if (result.length === 0) {
-        console.warn(
-          `💾 [STORAGE] getOutboundQuotation - Quotation ID ${id} not found`
-        );
-        return undefined; // Or throw an error
-      }
-
-      const row = result[0];
-      const transformedQuotation = {
-        ...row.quotation,
-        customer: row.customer || null,
-      };
-
-      console.log(
-        `💾 [STORAGE] getOutboundQuotation - Fetched quotation ID: ${id}`
-      );
-      return transformedQuotation;
-    } catch (error) {
-      console.error(
-        "💥 [STORAGE] getOutboundQuotation - Error fetching quotation:",
-        error
-      );
-      throw error;
-    }
-  }
   async updateOutboundQuotation(
     id: string, // Assuming ID is a string (UUID) based on your schema
     update: Partial<InsertOutboundQuotation>
@@ -242,6 +205,16 @@ class Storage {
       // Re-throw the error so the calling route can handle it appropriately
       throw error;
     }
+  }
+
+  async getOutboundQuotation(
+    id: string
+  ): Promise<OutboundQuotation | undefined> {
+    const [row] = await db
+      .select()
+      .from(outboundQuotations)
+      .where(eq(outboundQuotations.id, id));
+    return row;
   }
   // In-memory fallbacks (used when DB is unavailable)
   private inMemoryProducts: any[] = [];
@@ -288,165 +261,6 @@ class Storage {
     }
     return row;
   }
-
-  //invices CRUD////////////////////////////////////////////////////
-
-// --- INVOICES CRUD ---
-// In storage.ts
-async getInvoices(): Promise<Invoice[]> {
-  try {
-    console.log("💾 [STORAGE] getInvoices - Fetching invoices with customer data");
-
-    // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
-    // This avoids the Drizzle internal error caused by nested selection objects.
-    const rows = await db
-      .select({
-        // --- Fields from invoices table ---
-        id: invoices.id,
-        quotationNumber: invoices.quotationNumber,
-        customerId: invoices.customerId,
-        userId: invoices.userId,
-        status: invoices.status,
-        quotationDate: invoices.quotationDate,
-        validUntil: invoices.validUntil,
-        jobCardNumber: invoices.jobCardNumber,
-        partNumber: invoices.partNumber,
-        subtotalAmount: invoices.subtotalAmount,
-        taxAmount: invoices.taxamount, // Note the column name from DB schema
-        discountAmount: invoices.discountamount, // Note the column name from DB schema
-        totalAmount: invoices.totalamount, // Note the column name from DB schema
-        paymentTerms: invoices.paymentterms, // Note the column name from DB schema
-        deliveryTerms: invoices.deliveryterms, // Note the column name from DB schema
-        notes: invoices.notes,
-        bankName: invoices.bankName,
-        accountNumber: invoices.accountNumber,
-        ifscCode: invoices.ifscCode,
-        warrantyTerms: invoices.warrantyTerms,
-        specialTerms: invoices.specialTerms,
-        createdAt: invoices.createdAt,
-        updatedAt: invoices.updatedAt,
-        // --- Fields from customers table (joined) ---
-        // IMPORTANT: Select these individually and alias them to prevent conflicts
-        // and to identify them for manual nesting in the next step.
-        _customerIdJoin: customers.id,        // Aliased customer ID
-        _customerNameJoin: customers.name,    // Aliased customer name
-        _customerEmailJoin: customers.email,  // Aliased customer email
-        _customerPhoneJoin: customers.phone, // Aliased customer phone
-        // Add other customer fields if needed by the frontend later
-        // _customerCityJoin: customers.city,
-        // _customerStateJoin: customers.state,
-        // ...
-      })
-      .from(invoices)
-      .leftJoin(customers, eq(invoices.customerId, customers.id)); // Join condition
-
-    console.log(`💾 [STORAGE] getInvoices - Fetched ${rows.length} raw rows with join`);
-
-    // --- STEP 2: Transform the Result ---
-    // Drizzle returns an array like [{ invoice: {...}, customer: {...} }, ...].
-    // We need to flatten this to match Invoice type with a nested 'customer' property.
-    const transformedInvoices = rows.map(row => {
-      // Check if customer data was joined (customerId_join will be non-null if customer exists)
-      const hasCustomer = row._customerIdJoin !== null && row._customerIdJoin !== undefined;
-
-      return {
-        // Spread all fields from the 'invoice' object (invoice fields)
-        ...row.invoice,
-        // Conditionally create the nested 'customer' object
-        customer: hasCustomer ? {
-          id: row._customerIdJoin,       // Use the aliased customer ID
-          name: row._customerNameJoin,    // Use the aliased customer name
-          email: row._customerEmailJoin,  // Use the aliased customer email
-          phone: row._customerPhoneJoin, // Use the aliased customer phone
-          // Map other customer fields as needed
-        } : null // Or {} if preferred
-      };
-    });
-
-    console.log(`💾 [STORAGE] getInvoices - Transformed ${transformedInvoices.length} invoices`);
-    // Return the correctly structured array
-    return transformedInvoices;
-  } catch (error) {
-    // --- STEP 3: Robust Error Handling ---
-    console.error("💥 [STORAGE] getInvoices - Error fetching invoices with JOIN:", error);
-    // Fallback to a simple query to maintain API availability.
-    try {
-        console.log("🐛 [STORAGE] getInvoices - Falling back to simple invoices fetch...");
-        const fallbackRows = await db.select().from(invoices);
-        return fallbackRows;
-    } catch (fallbackError) {
-        console.error("💥 [STORAGE] getInvoices - Fallback fetch also failed:", fallbackError);
-        throw new Error("Failed to fetch invoices: " + (error.message || "An unknown error occurred"));
-    }
-  }
-}
-
-async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
-  try {
-    console.log("💾 [STORAGE] createInvoice - Creating new invoice", insertInvoice);
-
-    // Convert types for database
-    const data = {
-      ...insertInvoice,
-      // Convert string amounts to numbers
-      subtotalAmount: parseFloat(insertInvoice.subtotalAmount),
-      taxAmount: insertInvoice.taxAmount ? parseFloat(insertInvoice.taxAmount) : 0,
-      discountAmount: insertInvoice.discountAmount ? parseFloat(insertInvoice.discountAmount) : 0,
-      totalAmount: parseFloat(insertInvoice.totalAmount),
-      // Convert date strings to Date objects
-      invoiceDate: new Date(insertInvoice.invoiceDate),
-      dueDate: new Date(insertInvoice.dueDate),
-      // Use a valid user ID
-      userId: insertInvoice.userId || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
-    };
-
-    const [row] = await db.insert(invoices).values(data).returning();
-    console.log("💾 [STORAGE] createInvoice - Invoice created successfully", row);
-    return row;
-  } catch (error) {
-    console.error("💥 [STORAGE] createInvoice - Error creating invoice:", error);
-    throw error; // Re-throw to be caught by the route handler
-  }
-}
-
-async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice> {
-  try {
-    console.log(`💾 [STORAGE] updateInvoice - Updating invoice ID: ${id}`, update);
-
-    // Convert types for database
-    const data = {
-      ...update,
-      // Convert string amounts to numbers if provided
-      subtotalAmount: update.subtotalAmount ? parseFloat(update.subtotalAmount) : undefined,
-      taxAmount: update.taxAmount ? parseFloat(update.taxAmount) : undefined,
-      discountAmount: update.discountAmount ? parseFloat(update.discountAmount) : undefined,
-      totalAmount: update.totalAmount ? parseFloat(update.totalAmount) : undefined,
-      // Convert date strings to Date objects if provided
-      invoiceDate: update.invoiceDate ? new Date(update.invoiceDate) : undefined,
-      dueDate: update.dueDate ? new Date(update.dueDate) : undefined,
-      // Use a valid user ID if provided
-      userId: update.userId || '79c36f2b-237a-4ba6-a4b3-a12fc8a18446',
-    };
-
-    const [row] = await db
-      .update(invoices)
-      .set(data)
-      .where(eq(invoices.id, id))
-      .returning();
-
-    if (!row) {
-      const errorMessage = `Invoice with ID '${id}' not found for update.`;
-      console.warn(`💾 [STORAGE] updateInvoice - ${errorMessage}`);
-      throw new Error(errorMessage);
-    }
-
-    console.log(`💾 [STORAGE] updateInvoice - Invoice ID: ${id} updated successfully`);
-    return row;
-  } catch (error) {
-    console.error("💥 [STORAGE] updateInvoice - Error updating invoice:", error);
-    throw error; // Re-throw to be caught by the route handler
-  }
-}
 
   // Users
   async getUser(id: string): Promise<User | undefined> {
@@ -663,136 +477,47 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
       user: r.users,
     }));
   }
-
-  // async getTodayMarketingAttendance(): Promise<any[]> {
-  //   const today = new Date();
-  //   today.setHours(0, 0, 0, 0); // start of today
-
-  //   const tomorrow = new Date(today);
-  //   tomorrow.setDate(tomorrow.getDate() + 1); // start of next day
-
-  //   const rows = await db
-  //     .select()
-  //     .from(marketingAttendance)
-  //     .leftJoin(users, eq(marketingAttendance.userId, users.id))
-  //     .where(
-  //       and(
-  //         gte(marketingAttendance.date, today),
-  //         lt(marketingAttendance.date, tomorrow)
-  //       )
-  //     )
-  //     .orderBy(desc(marketingAttendance.date));
-
-  //   // Map results: include user details nested under `user`
-  //   return rows.map((r) => ({
-  //     ...r.marketingAttendance,
-  //     user: r.users,
-  //   }));
-  // }
-
- async getTodayMarketingAttendance(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
+  async getTodayMarketingAttendance(): Promise<any[]> {
     try {
-      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Fetching records for user ID: ${userId} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+      const rows = await db.execute(sql`
+      SELECT ma.*,
+             u.id   AS user_id,
+             CONCAT(u."firstName", ' ', u."lastName") AS user_name,
+             u.email AS user_email
+      FROM marketing_Todays ma
+      LEFT JOIN users u ON ma."userId" = u.id
+      WHERE DATE(ma.date) = CURRENT_DATE
+      ORDER BY ma.date DESC
+    `);
 
-      // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
-      // This avoids the Drizzle internal error caused by nested selection objects.
-      const rows = await db
-        .select({
-          // --- Fields from marketingAttendance table ---
-          id: marketingAttendance.id,
-          userId: marketingAttendance.userId,
-          date: marketingAttendance.date,
-          checkInTime: marketingAttendance.checkInTime,
-          checkOutTime: marketingAttendance.checkOutTime,
-          checkInLocation: marketingAttendance.checkInLocation,
-          checkOutLocation: marketingAttendance.checkOutLocation,
-          checkInLatitude: marketingAttendance.checkInLatitude,
-          checkInLongitude: marketingAttendance.checkInLongitude,
-          checkOutLatitude: marketingAttendance.checkOutLatitude,
-          checkOutLongitude: marketingAttendance.checkOutLongitude,
-          photoPath: marketingAttendance.photoPath,
-          workDescription: marketingAttendance.workDescription,
-          visitCount: marketingAttendance.visitCount,
-          tasksCompleted: marketingAttendance.tasksCompleted,
-          outcome: marketingAttendance.outcome,
-          nextAction: marketingAttendance.nextAction,
-          attendanceStatus: marketingAttendance.attendanceStatus,
-          createdAt: marketingAttendance.createdAt,
-          updatedAt: marketingAttendance.updatedAt,
-          // --- Fields from users table (joined) ---
-          // IMPORTANT: Select these individually and alias them to prevent conflicts
-          // and to identify them for manual nesting in the next step.
-          _userIdJoin: users.id,        // Aliased user ID
-          _userNameJoin: users.name,    // Aliased user name
-          _userEmailJoin: users.email,  // Aliased user email
-          _userPhoneJoin: users.phone, // Aliased user phone
-          // Add other user fields if needed by the frontend later
-          // _userDepartmentJoin: users.department,
-          // _userRoleJoin: users.role,
-          // ...
-        })
-        .from(marketingAttendance)
-        .leftJoin(users, eq(marketingAttendance.userId, users.id)) // Join condition
-        .where(and(
-          eq(marketingAttendance.userId, userId), // Filter by user ID
-          gte(marketingAttendance.date, startDate), // Filter by date range start
-          lt(marketingAttendance.date, endDate) // Filter by date range end
-        ))
-        .orderBy(desc(marketingAttendance.date)); // Order by date descending
-
-      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Fetched ${rows.length} raw rows with join (flattened approach)`);
-
-      // --- STEP 2: Transform the Result ---
-      // Drizzle returns an array like [{ marketingAttendance: {...}, users: {...} }, ...].
-      // We need to flatten this to match MarketingAttendance type with a nested 'user' property.
-      const transformedRows = rows.map(row => {
-        // Check if user data was joined (userId_join will be non-null if user exists)
-        const hasUser = row._userIdJoin !== null && row._userIdJoin !== undefined;
-
-        return {
-          // Spread all fields from the 'marketingAttendance' object (marketingAttendance fields)
-          ...row.marketingAttendance,
-          // Conditionally create the nested 'user' object
-          user: hasUser ? {
-            id: row._userIdJoin,       // Use the aliased user ID
-            name: row._userNameJoin,    // Use the aliased user name
-            email: row._userEmailJoin,  // Use the aliased user email
-            phone: row._userPhoneJoin, // Use the aliased user phone
-            // Map other user fields as needed
-          } : null // Or {} if preferred
-        };
-      });
-
-      console.log(`💾 [STORAGE] getTodayMarketingAttendance - Transformed ${transformedRows.length} rows`);
-      // Return the correctly structured array
-      return transformedRows;
-    } catch (error) {
-      // --- STEP 3: Robust Error Handling ---
-      console.error("💥 [STORAGE] getTodayMarketingAttendance - Error fetching today's attendance with JOIN:", error);
-      // Fallback to simple fetch to maintain API availability.
-      try {
-          console.log("🐛 [STORAGE] getTodayMarketingAttendance - Falling back to simple attendance fetch...");
-          const fallbackRows = await db
-            .select()
-            .from(marketingAttendance)
-            .where(and(
-              eq(marketingAttendance.userId, userId),
-              gte(marketingAttendance.date, startDate),
-              lt(marketingAttendance.date, endDate)
-            ))
-            .orderBy(desc(marketingAttendance.date));
-          
-          // Transform simple rows to match the expected structure with null user
-          const transformedFallback = fallbackRows.map(row => ({
-            ...row,
-            user: null // No user data in fallback
-          }));
-          
-          return transformedFallback;
-      } catch (fallbackError) {
-          console.error("💥 [STORAGE] getTodayMarketingAttendance - Fallback fetch also failed:", fallbackError);
-          throw new Error("Failed to fetch today's attendance: " + (error.message || "An unknown error occurred"));
-      }
+      return rows.map((r: any) => ({
+        id: r.id,
+        userId: r.userId,
+        date: r.date,
+        checkInTime: r.checkInTime,
+        checkOutTime: r.checkOutTime,
+        checkInLocation: r.checkInLocation,
+        checkOutLocation: r.checkOutLocation,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        location: r.location,
+        photoPath: r.photoPath,
+        workDescription: r.workDescription,
+        attendanceStatus: r.attendanceStatus,
+        visitCount: r.visitCount,
+        tasksCompleted: r.tasksCompleted,
+        outcome: r.outcome,
+        nextAction: r.nextAction,
+        isOnLeave: r.isOnLeave,
+        user: {
+          id: r.user_id,
+          name: r.user_name,
+          email: r.user_email,
+        },
+      }));
+    } catch (error: any) {
+      console.error("❌ Error in getTodayMarketingAttendance:", error);
+      throw new Error("Failed to fetch attendance record");
     }
   }
 
@@ -819,12 +544,8 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
         .update(marketingAttendance)
         .set({
           checkInTime: data.checkInTime ?? new Date(),
-          latitude: data.latitude,
-          longitude: data.longitude,
-          location: data.location,
-          photoPath: data.photoPath,
-          workDescription: data.workDescription,
-          attendanceStatus: data.attendanceStatus ?? "present",
+          checkInLatitude: data.latitude,
+          checkInLocation: data.location,
         })
         .where(eq(marketingAttendance.id, (existing[0] as any).id))
         .returning();
@@ -835,12 +556,8 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
       userId,
       date: data.date ?? new Date(),
       checkInTime: data.checkInTime ?? new Date(),
-      latitude: data.latitude,
-      longitude: data.longitude,
-      location: data.location,
-      photoPath: data.photoPath,
-      workDescription: data.workDescription,
-      attendanceStatus: data.attendanceStatus ?? "present",
+      checkInLatitude: data.latitude,
+      checkInLocation: data.location,
     } as InsertMarketingAttendance;
 
     const [row] = await db
@@ -873,7 +590,6 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
         userId,
         date: new Date(),
         checkInTime: new Date(),
-        attendanceStatus: "present",
       } as InsertMarketingAttendance;
       const [created] = await db
         .insert(marketingAttendance)
@@ -886,20 +602,204 @@ async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice
       .update(marketingAttendance)
       .set({
         checkOutTime: data.checkOutTime ?? new Date(),
-        latitude: data.latitude,
-        longitude: data.longitude,
-        location: data.location,
-        photoPath: data.photoPath,
-        workDescription: data.workDescription,
-        visitCount: data.visitCount,
-        tasksCompleted: data.tasksCompleted,
-        outcome: data.outcome,
-        nextAction: data.nextAction,
+        checkOutLocation: data.location,
       })
       .where(eq(marketingAttendance.userId, userId))
       .returning();
 
     return row;
+  }
+
+  async checkOutMarketingAttendanceById(
+    attendanceId: string,
+    data: any
+  ): Promise<MarketingAttendance> {
+    const [row] = await db
+      .update(marketingAttendance)
+      .set({
+        checkOutTime: data.checkOutTime ?? new Date(),
+        checkOutLocation: data.checkOutLocation,
+      })
+      .where(eq(marketingAttendance.id, attendanceId))
+      .returning();
+
+    return row;
+  }
+  async getMarketingAttendanceMetrics(): Promise<any> {
+    try {
+      const rows = await db.execute(sql`
+      SELECT 
+        COUNT(*) AS total_records,
+        COUNT(CASE WHEN ma."attendanceStatus" = 'present' THEN 1 END) AS present_count,
+        COUNT(CASE WHEN ma."attendanceStatus" = 'absent' THEN 1 END) AS absent_count,
+        COUNT(CASE WHEN ma."isOnLeave" = true THEN 1 END) AS leave_count,
+        COALESCE(AVG(NULLIF(ma."visitCount", 0)), 0) AS avg_visits,
+        COALESCE(AVG(NULLIF(ma."tasksCompleted", 0)), 0) AS avg_tasks
+      FROM marketing_Todays ma
+    `);
+
+      const r = rows[0];
+
+      return {
+        totalRecords: Number(r.total_records ?? 0),
+        presentCount: Number(r.present_count ?? 0),
+        absentCount: Number(r.absent_count ?? 0),
+        leaveCount: Number(r.leave_count ?? 0),
+        avgVisits: Number(r.avg_visits ?? 0),
+        avgTasks: Number(r.avg_tasks ?? 0),
+      };
+    } catch (error: any) {
+      console.error("❌ Error in getMarketingAttendanceMetrics:", error);
+      throw new Error("Failed to fetch attendance metrics");
+    }
+  }
+
+  // Leave Request Methods
+  async getLeaveRequests(): Promise<LeaveRequest[]> {
+    const rows = await db.execute(sql`
+    SELECT 
+      *,
+      EXTRACT(DAY FROM (end_date - start_date)) + 1 AS total_days
+    FROM leave_requests
+    ORDER BY start_date DESC
+  `);
+    return rows;
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    const [row] = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, id));
+    return row;
+  }
+
+  async getLeaveRequestsByUser(userId: string): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.userId, userId))
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  async createLeaveRequest(
+    insertLeaveRequest: InsertLeaveRequest
+  ): Promise<LeaveRequest> {
+    const [row] = await db
+      .insert(leaveRequests)
+      .values(insertLeaveRequest)
+      .returning();
+    return row;
+  }
+
+  async updateLeaveRequest(
+    id: string,
+    update: Partial<InsertLeaveRequest>
+  ): Promise<LeaveRequest> {
+    const [row] = await db
+      .update(leaveRequests)
+      .set(update)
+      .where(eq(leaveRequests.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteLeaveRequest(id: string): Promise<void> {
+    await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
+  }
+
+  async getLeaveRequestsByStatus(status: string): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.status, status))
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  async getLeaveRequestsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(
+        and(
+          gte(leaveRequests.startDate, startDate),
+          lte(leaveRequests.endDate, endDate)
+        )
+      )
+      .orderBy(desc(leaveRequests.startDate));
+  }
+
+  // Invoice methods
+  async getInvoices(): Promise<Invoice[]> {
+    return await db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        quotationId: invoices.quotationId,
+        customerId: invoices.customerId,
+        userId: invoices.userId,
+        status: invoices.status,
+        invoiceDate: invoices.invoiceDate,
+        dueDate: invoices.dueDate,
+        subtotalAmount: invoices.subtotalAmount,
+        // GST fields - will be null if columns don't exist yet
+        cgstRate: sql<number>`${invoices.cgstRate}`.as("cgstRate"),
+        cgstAmount: sql<number>`${invoices.cgstAmount}`.as("cgstAmount"),
+        sgstRate: sql<number>`${invoices.sgstRate}`.as("sgstRate"),
+        sgstAmount: sql<number>`${invoices.sgstAmount}`.as("sgstAmount"),
+        igstRate: sql<number>`${invoices.igstRate}`.as("igstRate"),
+        igstAmount: sql<number>`${invoices.igstAmount}`.as("igstAmount"),
+        discountAmount: sql<number>`${invoices.discountAmount}`.as(
+          "discountAmount"
+        ),
+        totalAmount: sql<number>`${invoices.totalAmount}`.as("totalAmount"),
+        balanceAmount: sql<number>`${invoices.balanceAmount}`.as(
+          "balanceAmount"
+        ),
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          address: customers.address,
+          gstNumber: customers.gstNumber,
+        },
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .orderBy(desc(invoices.invoiceDate));
+  }
+
+  async getInvoice(id: string | number): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const [row] = await db.insert(invoices).values(insertInvoice).returning();
+    return row;
+  }
+
+  async updateInvoice(
+    id: string | number,
+    update: Partial<InsertInvoice>
+  ): Promise<Invoice> {
+    const [row] = await db
+      .update(invoices)
+      .set(update)
+      .where(eq(invoices.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteInvoice(id: string | number): Promise<void> {
+    await db.delete(invoices).where(eq(invoices.id, id));
   }
 
   // async getMarketingAttendanceMetrics() {

@@ -1,9 +1,25 @@
 import { useState, useEffect } from "react";
-import { MapPin, Clock, Camera, Upload, AlertTriangle, CheckCircle, LogOut, Target, FileText } from "lucide-react";
+import {
+  MapPin,
+  Clock,
+  Camera,
+  Upload,
+  AlertTriangle,
+  CheckCircle,
+  LogOut,
+  Target,
+  FileText,
+} from "lucide-react";
 import { uploadMarketingAttendancePhoto } from "@/lib/marketingPhotoUpload";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -11,7 +27,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LocationData {
   latitude: number;
@@ -49,83 +71,85 @@ interface CheckOutModalProps {
 }
 
 const outcomeOptions = [
-  { value: 'productive', label: 'Productive Day' },
-  { value: 'challenging', label: 'Challenging Day' },
-  { value: 'normal', label: 'Normal Day' },
-  { value: 'exceptional', label: 'Exceptional Day' },
-  { value: 'needs_improvement', label: 'Needs Improvement' }
+  { value: "productive", label: "Productive Day" },
+  { value: "challenging", label: "Challenging Day" },
+  { value: "normal", label: "Normal Day" },
+  { value: "exceptional", label: "Exceptional Day" },
+  { value: "needs_improvement", label: "Needs Improvement" },
 ];
 
-export default function CheckOutModal({ 
-  open, 
-  onOpenChange, 
-  onCheckOut, 
+export default function CheckOutModal({
+  open,
+  onOpenChange,
+  onCheckOut,
   isLoading = false,
   userId,
   userName,
-  checkInTime 
+  checkInTime,
 }: CheckOutModalProps) {
-  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-  const [locationError, setLocationError] = useState<string>('');
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(
+    null
+  );
+  const [locationError, setLocationError] = useState<string>("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [address, setAddress] = useState('');
-  
+  const [address, setAddress] = useState("");
+
   // Work summary states
-  const [workDescription, setWorkDescription] = useState('');
+  const [workDescription, setWorkDescription] = useState("");
   const [visitCount, setVisitCount] = useState<number>(0);
   const [tasksCompleted, setTasksCompleted] = useState<number>(0);
-  const [outcome, setOutcome] = useState<string>('');
-  const [nextAction, setNextAction] = useState('');
-  
+  const [outcome, setOutcome] = useState<string>("");
+  const [nextAction, setNextAction] = useState("");
+
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [photoUploadError, setPhotoUploadError] = useState<string>('');
-  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string>('');
+  const [photoUploadError, setPhotoUploadError] = useState<string>("");
+  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string>("");
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (open) {
       setCurrentLocation(null);
-      setLocationError('');
-      setAddress('');
-      setWorkDescription('');
+      setLocationError("");
+      setAddress("");
+      setWorkDescription("");
       setVisitCount(0);
       setTasksCompleted(0);
-      setOutcome('');
-      setNextAction('');
+      setOutcome("");
+      setNextAction("");
       setUploadedPhoto(null);
-      setPhotoPreview('');
+      setPhotoPreview("");
       setIsUploadingPhoto(false);
-      setPhotoUploadError('');
-      setUploadedPhotoPath('');
+      setPhotoUploadError("");
+      setUploadedPhotoPath("");
       getCurrentLocation();
     }
   }, [open]);
 
   // Calculate work duration
   const getWorkDuration = () => {
-    if (!checkInTime) return 'Unknown duration';
-    
+    if (!checkInTime) return "Unknown duration";
+
     const startTime = new Date(checkInTime);
     const endTime = new Date();
-    
+
     const diffMs = endTime.getTime() - startTime.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return `${hours}h ${minutes}m`;
   };
 
   // Get current GPS location
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser');
+      setLocationError("Geolocation is not supported by this browser");
       return;
     }
 
     setIsLoadingLocation(true);
-    setLocationError('');
+    setLocationError("");
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -133,7 +157,7 @@ export default function CheckOutModal({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
 
         setCurrentLocation(locationData);
@@ -141,59 +165,75 @@ export default function CheckOutModal({
 
         // Try to get address from coordinates
         try {
-          const addressText = await reverseGeocode(locationData.latitude, locationData.longitude);
+          const addressText = await reverseGeocode(
+            locationData.latitude,
+            locationData.longitude
+          );
           setAddress(addressText);
         } catch (error) {
-          console.warn('Failed to get address:', error);
-          setAddress(`Lat: ${locationData.latitude.toFixed(6)}, Lng: ${locationData.longitude.toFixed(6)}`);
+          console.warn("Failed to get address:", error);
+          setAddress(
+            `Lat: ${locationData.latitude.toFixed(
+              6
+            )}, Lng: ${locationData.longitude.toFixed(6)}`
+          );
         }
       },
       (error) => {
         setIsLoadingLocation(false);
-        let errorMessage = 'Failed to get location';
-        
+        let errorMessage = "Failed to get location";
+
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Location permission denied. Please enable location access and refresh the page.';
+            errorMessage =
+              "Location permission denied. Please enable location access and refresh the page.";
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable. Please try again.';
+            errorMessage =
+              "Location information unavailable. Please try again.";
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out. Please try again.';
+            errorMessage = "Location request timed out. Please try again.";
             break;
         }
-        
+
         setLocationError(errorMessage);
       },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 60000
+        maximumAge: 60000,
       }
     );
   };
 
   // Simple reverse geocoding using a free service
-  const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
+  const reverseGeocode = async (
+    latitude: number,
+    longitude: number
+  ): Promise<string> => {
     try {
       const response = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
       );
-      
+
       if (!response.ok) {
-        throw new Error('Geocoding service unavailable');
+        throw new Error("Geocoding service unavailable");
       }
-      
+
       const data = await response.json();
-      
+
       if (data.locality || data.city) {
-        return `${data.locality || data.city}, ${data.principalSubdivision || ''}, ${data.countryName || ''}`.replace(/,\s*,/g, ',').replace(/,\s*$/, '');
+        return `${data.locality || data.city}, ${
+          data.principalSubdivision || ""
+        }, ${data.countryName || ""}`
+          .replace(/,\s*,/g, ",")
+          .replace(/,\s*$/, "");
       }
-      
+
       return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
     } catch (error) {
-      throw new Error('Failed to get address');
+      throw new Error("Failed to get address");
     }
   };
 
@@ -201,8 +241,9 @@ export default function CheckOutModal({
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert('Photo size must be less than 5MB');
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        alert("Photo size must be less than 5MB");
         return;
       }
 
@@ -218,50 +259,68 @@ export default function CheckOutModal({
   // Handle camera capture
   const capturePhoto = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Use back camera
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }, // Use back camera
       });
-      
+
       // Create video element to show camera feed
-      const video = document.createElement('video');
+      const video = document.createElement("video");
       video.srcObject = stream;
       video.play();
-      
+
       // This is a simplified implementation
       // In a real app, you'd show a camera interface
-      alert('Camera feature requires additional implementation. Please use the upload button to select a photo.');
-      
-      stream.getTracks().forEach(track => track.stop());
+      alert(
+        "Camera feature requires additional implementation. Please use the upload button to select a photo."
+      );
+
+      stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      alert('Camera access denied or not available');
+      alert("Camera access denied or not available");
     }
   };
 
   // Get location accuracy status
-  const getLocationAccuracy = (): { status: 'good' | 'fair' | 'poor'; message: string } => {
+  const getLocationAccuracy = (): {
+    status: "good" | "fair" | "poor";
+    message: string;
+  } => {
     if (!currentLocation) {
-      return { status: 'poor', message: 'Location not available' };
+      return { status: "poor", message: "Location not available" };
     }
 
     if (currentLocation.accuracy <= 10) {
-      return { status: 'good', message: `Excellent accuracy (±${Math.round(currentLocation.accuracy)}m)` };
+      return {
+        status: "good",
+        message: `Excellent accuracy (±${Math.round(
+          currentLocation.accuracy
+        )}m)`,
+      };
     } else if (currentLocation.accuracy <= 50) {
-      return { status: 'fair', message: `Good accuracy (±${Math.round(currentLocation.accuracy)}m)` };
+      return {
+        status: "fair",
+        message: `Good accuracy (±${Math.round(currentLocation.accuracy)}m)`,
+      };
     } else {
-      return { status: 'poor', message: `Low accuracy (±${Math.round(currentLocation.accuracy)}m). Consider moving to an area with better signal.` };
+      return {
+        status: "poor",
+        message: `Low accuracy (±${Math.round(
+          currentLocation.accuracy
+        )}m). Consider moving to an area with better signal.`,
+      };
     }
   };
 
   // Handle form submission - FIXED: Create attendance record first, then upload photo
   const handleSubmit = async () => {
     if (!currentLocation) {
-      alert('Please get your current location first');
+      alert("Please get your current location first");
       return;
     }
 
     try {
-      // Step 1: Create attendance record first (without photo)
       const checkOutData = {
+        userId: userId,
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
         location: address,
@@ -269,61 +328,72 @@ export default function CheckOutModal({
         visitCount: visitCount > 0 ? visitCount : undefined,
         tasksCompleted: tasksCompleted > 0 ? tasksCompleted : undefined,
         outcome: outcome || undefined,
-        nextAction: nextAction.trim() || undefined
+        nextAction: nextAction.trim() || undefined,
       };
 
       const result = await onCheckOut(checkOutData);
-      
+
       if (!result.success) {
-        alert(result.error || 'Failed to check out. Please try again.');
+        alert(result.error || "Failed to check out. Please try again.");
         return;
       }
 
-      // Step 2: Upload photo if one is selected, using the real attendanceId
+      // Upload photo if one is selected, using the attendanceId from check-out
       if (uploadedPhoto && !uploadedPhotoPath) {
         setIsUploadingPhoto(true);
-        setPhotoUploadError('');
-        
+        setPhotoUploadError("");
+
         try {
           const photoResult = await uploadMarketingAttendancePhoto({
             file: uploadedPhoto,
             attendanceId: result.attendanceId,
-            photoType: 'check-out'
+            photoType: "check-out",
           });
 
           if (photoResult.success) {
             setUploadedPhotoPath(photoResult.objectPath);
-            
+
             // Step 3: Update attendance record with photo path
-            const updateResponse = await fetch(`/api/marketing-attendance/${result.attendanceId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ checkOutPhotoPath: photoResult.objectPath })
-            });
-            
+            const updateResponse = await fetch(
+              `/api/marketing-attendance/${result.attendanceId}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  checkOutPhotoPath: photoResult.objectPath,
+                }),
+              }
+            );
+
             if (!updateResponse.ok) {
-              console.warn('Photo uploaded but failed to update attendance record');
-              setPhotoUploadError('Photo uploaded but failed to link to record');
+              console.warn(
+                "Photo uploaded but failed to update attendance record"
+              );
+              setPhotoUploadError(
+                "Photo uploaded but failed to link to record"
+              );
             }
           } else {
-            setPhotoUploadError(photoResult.error || 'Photo upload failed');
+            setPhotoUploadError(photoResult.error || "Photo upload failed");
           }
         } catch (error) {
-          console.error('Photo upload error:', error);
-          setPhotoUploadError('Photo upload failed. Please try again.');
+          console.error("Photo upload error:", error);
+          setPhotoUploadError("Photo upload failed. Please try again.");
         }
-        
+
         setIsUploadingPhoto(false);
       }
 
       // Success - close modal after brief delay to show any photo upload status
-      setTimeout(() => {
-        onOpenChange(false);
-      }, uploadedPhoto ? 1500 : 500);
-      
+      setTimeout(
+        () => {
+          onOpenChange(false);
+        },
+        uploadedPhoto ? 1500 : 500
+      );
     } catch (error) {
-      console.error('Check-out error:', error);
-      alert('Check-out failed. Please try again.');
+      console.error("Check-out error:", error);
+      alert("Check-out failed. Please try again.");
     }
   };
 
@@ -338,7 +408,9 @@ export default function CheckOutModal({
             <span>Check Out from Work</span>
           </DialogTitle>
           <DialogDescription>
-            {userName ? `Checking out ${userName}` : 'Complete your attendance with work summary'}
+            {userName
+              ? `Checking out ${userName}`
+              : "Complete your attendance with work summary"}
           </DialogDescription>
         </DialogHeader>
 
@@ -356,19 +428,21 @@ export default function CheckOutModal({
                 <div>
                   <p className="text-sm text-muted-foreground">Check-in Time</p>
                   <p className="font-light" data-testid="checkin-time-display">
-                    {checkInTime 
-                      ? new Date(checkInTime).toLocaleTimeString('en-US', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: false 
+                    {checkInTime
+                      ? new Date(checkInTime).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
                         })
-                      : '--:--'
-                    }
+                      : "--:--"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Work Duration</p>
-                  <p className="font-light text-green-600" data-testid="work-duration-display">
+                  <p
+                    className="font-light text-green-600"
+                    data-testid="work-duration-display"
+                  >
                     {getWorkDuration()}
                   </p>
                 </div>
@@ -376,25 +450,36 @@ export default function CheckOutModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="visit-count" className="text-sm font-light">Client Visits</Label>
+                  <Label htmlFor="visit-count" className="text-sm font-light">
+                    Client Visits
+                  </Label>
                   <Input
                     id="visit-count"
                     type="number"
                     min="0"
                     value={visitCount}
-                    onChange={(e) => setVisitCount(parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setVisitCount(parseInt(e.target.value) || 0)
+                    }
                     className="mt-1"
                     data-testid="input-visit-count"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tasks-completed" className="text-sm font-light">Tasks Completed</Label>
+                  <Label
+                    htmlFor="tasks-completed"
+                    className="text-sm font-light"
+                  >
+                    Tasks Completed
+                  </Label>
                   <Input
                     id="tasks-completed"
                     type="number"
                     min="0"
                     value={tasksCompleted}
-                    onChange={(e) => setTasksCompleted(parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setTasksCompleted(parseInt(e.target.value) || 0)
+                    }
                     className="mt-1"
                     data-testid="input-tasks-completed"
                   />
@@ -402,7 +487,9 @@ export default function CheckOutModal({
               </div>
 
               <div>
-                <Label htmlFor="outcome" className="text-sm font-light">Day Outcome</Label>
+                <Label htmlFor="outcome" className="text-sm font-light">
+                  Day Outcome
+                </Label>
                 <Select value={outcome} onValueChange={setOutcome}>
                   <SelectTrigger className="mt-1" data-testid="select-outcome">
                     <SelectValue placeholder="How was your day?" />
@@ -429,7 +516,10 @@ export default function CheckOutModal({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="work-description" className="text-sm font-light">
+                <Label
+                  htmlFor="work-description"
+                  className="text-sm font-light"
+                >
                   What did you accomplish today?
                 </Label>
                 <Textarea
@@ -488,10 +578,17 @@ export default function CheckOutModal({
                   {/* Location Status */}
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-light">Location acquired</span>
-                    <Badge 
-                      variant={locationAccuracy.status === 'good' ? 'default' : 
-                               locationAccuracy.status === 'fair' ? 'secondary' : 'destructive'}
+                    <span className="text-sm font-light">
+                      Location acquired
+                    </span>
+                    <Badge
+                      variant={
+                        locationAccuracy.status === "good"
+                          ? "default"
+                          : locationAccuracy.status === "fair"
+                          ? "secondary"
+                          : "destructive"
+                      }
                       className="text-xs"
                     >
                       {locationAccuracy.status.toUpperCase()}
@@ -508,7 +605,10 @@ export default function CheckOutModal({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Longitude:</span>
-                      <p className="font-light" data-testid="location-longitude">
+                      <p
+                        className="font-light"
+                        data-testid="location-longitude"
+                      >
                         {currentLocation.longitude.toFixed(6)}
                       </p>
                     </div>
@@ -516,7 +616,9 @@ export default function CheckOutModal({
 
                   {/* Address */}
                   <div>
-                    <Label htmlFor="address" className="text-sm font-light">Location Address</Label>
+                    <Label htmlFor="address" className="text-sm font-light">
+                      Location Address
+                    </Label>
                     <Input
                       id="address"
                       value={address}
@@ -528,7 +630,7 @@ export default function CheckOutModal({
                   </div>
 
                   {/* Accuracy Warning */}
-                  {locationAccuracy.status !== 'good' && (
+                  {locationAccuracy.status !== "good" && (
                     <Alert>
                       <Target className="h-4 w-4" />
                       <AlertDescription className="text-xs">
@@ -541,8 +643,8 @@ export default function CheckOutModal({
 
               {/* Retry Location Button */}
               {locationError && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={getCurrentLocation}
                   className="w-full"
                   data-testid="button-retry-location"
@@ -564,8 +666,8 @@ export default function CheckOutModal({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={capturePhoto}
                   className="flex-1"
                   data-testid="button-camera"
@@ -573,13 +675,10 @@ export default function CheckOutModal({
                   <Camera className="h-4 w-4 mr-2" />
                   Take Photo
                 </Button>
-                
-                <Label 
-                  htmlFor="photo-upload" 
-                  className="flex-1 cursor-pointer"
-                >
-                  <Button 
-                    variant="outline" 
+
+                <Label htmlFor="photo-upload" className="flex-1 cursor-pointer">
+                  <Button
+                    variant="outline"
                     className="w-full"
                     asChild
                     data-testid="button-upload"
@@ -602,9 +701,9 @@ export default function CheckOutModal({
               {photoPreview && (
                 <div className="mt-3">
                   <p className="text-sm font-light mb-2">Photo Preview:</p>
-                  <img 
-                    src={photoPreview} 
-                    alt="Check-out photo" 
+                  <img
+                    src={photoPreview}
+                    alt="Check-out photo"
                     className="w-full max-w-xs rounded-lg border"
                     data-testid="photo-preview"
                   />
@@ -627,7 +726,9 @@ export default function CheckOutModal({
               {photoUploadError && (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">{photoUploadError}</AlertDescription>
+                  <AlertDescription className="text-sm">
+                    {photoUploadError}
+                  </AlertDescription>
                 </Alert>
               )}
             </CardContent>
@@ -654,7 +755,11 @@ export default function CheckOutModal({
               {isLoading || isUploadingPhoto ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Checking Out...'}</span>
+                  <span>
+                    {isUploadingPhoto
+                      ? "Uploading Photo..."
+                      : "Checking Out..."}
+                  </span>
                 </div>
               ) : (
                 <>
