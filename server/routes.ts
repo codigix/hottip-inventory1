@@ -2287,9 +2287,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
     res.json({ total: 0 });
   });
-  app.get("/api/accounts/receivables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
   app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
     res.json([]);
   });
