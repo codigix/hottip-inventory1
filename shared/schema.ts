@@ -933,10 +933,12 @@ export const insertAccountsPayableSchema = z.object({
   notes: z.string().optional(),
 });
 export const insertBankAccountSchema = z.object({
-  accountName: z.string(),
-  accountNumber: z.string(),
-  bankName: z.string(),
-  ifscCode: z.string(),
+  name: z.string().min(1, "Name is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  accountNumberMasked: z.string().min(1, "Account number is required"),
+  ifsc: z.string().min(1, "IFSC code is required"),
+  upiId: z.string().optional(),
+  openingBalance: z.coerce.number().optional(),
 });
 export const insertBankTransactionSchema = z.object({
   transactionDate: z.string(),
@@ -1352,4 +1354,17 @@ export const attendance = pgTable("attendance", {
   location: text("location"),
   status: text("status").notNull().default("present"),
   notes: text("notes"),
+});
+
+// =====================
+// BANK ACCOUNTS
+// =====================
+export const bank_accounts = pgTable("bank_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  bankName: text("bankName").notNull(),
+  accountNumberMasked: text("accountNumberMasked").notNull(),
+  ifsc: text("ifsc").notNull(),
+  upiId: text("upiId"),
+  openingBalance: numeric("openingBalance", { precision: 10, scale: 2 }),
 });

@@ -57,6 +57,7 @@ import {
   insertInvoiceSchema,
   customers,
 } from "../shared/schema";
+import { bank_accounts, insertBankAccountSchema } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
 
@@ -2366,14 +2367,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
   //   res.json([]);
   // });
+  app.post("/api/bank-accounts", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankAccountSchema.parse(req.body);
+      const newAccount = await db
+        .insert(bank_accounts)
+        .values(data)
+        .returning();
+      res.status(201).json(newAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank account:", error);
+      res.status(500).json({ error: "Failed to create bank account" });
+    }
+  });
   app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/active", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/default", requireAuth, async (_req, res) => {
-    res.json(null);
+    try {
+      const accounts = await db.select().from(bank_accounts).limit(1);
+      res.json(accounts[0] || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch default bank account" });
+    }
   });
   app.get("/api/bank-transactions", requireAuth, async (_req, res) => {
     res.json([]);
