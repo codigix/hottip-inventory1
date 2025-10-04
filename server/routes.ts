@@ -1,5 +1,6 @@
-import type { Express, Request, Response, NextFunction } from "express";
+﻿import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
+import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -20,8 +21,6 @@ import { stockTransactions, suppliers } from "../shared/schema";
 // adjust path as needed
 import { desc } from "drizzle-orm";
 import { attendance } from "../shared/schema";
-import { validate as isUuid } from "uuid";
-import { requireAuth } from "@/middleware/auth";
 import {
   marketingAttendance,
   marketingTodays,
@@ -57,6 +56,14 @@ import {
   insertInboundQuotationSchema,
   insertInvoiceSchema,
   customers,
+} from "../shared/schema";
+import {
+  bank_accounts,
+  insertBankAccountSchema,
+  bank_transactions,
+  insertBankTransactionSchema,
+  account_reminders,
+  insertAccountReminderSchema,
 } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
@@ -650,6 +657,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin API routes (secured, admin only)
   registerAdminRoutes(app);
+
+  // Accounts API routes (secured, accounts access required)
+  registerAccountsRoutes(app);
 
   // Users Routes - SECURED: Role-based scoping for user access
   app.get("/api/users", requireAuth, async (req, res) => {
@@ -1435,14 +1445,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Alias: /api/quotations/inbound → inbound quotations
-  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(inboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
+  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+    try {
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch inbound quotations",
+        details: error.message,
+      });
+    }
+  });
   // Inbound Quotations Routes
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
@@ -1768,9 +1781,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Purchase orders (stub)
+  // Purchase orders
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const purchaseOrders = await storage.getPurchaseOrders();
+      res.json(purchaseOrders);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase orders",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const purchaseOrder = await storage.getPurchaseOrder(req.params.id);
+      if (!purchaseOrder) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      res.json(purchaseOrder);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.post("/api/purchase-orders", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.parse(req.body);
+      const purchaseOrder = await storage.createPurchaseOrder(parsedData);
+      res.status(201).json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to create purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.put("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.partial().parse(req.body);
+      const purchaseOrder = await storage.updatePurchaseOrder(
+        req.params.id,
+        parsedData
+      );
+      res.json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to update purchase order",
+        details: error.message,
+      });
+    }
   });
 
   // Dashboard/Activities/Orders basic stubs for frontend expectations
@@ -2275,65 +2354,288 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Accounts metrics and lists (stubs to satisfy UI)
-  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
-    res.json({
-      totalReceivables: 0,
-      totalPayables: 0,
-      invoicesDue: 0,
-      avgDaysToPay: 0,
-    });
-  });
+  // app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+  //   res.json({
+  //     totalReceivables: 0,
+  //     totalPayables: 0,
+  //     invoicesDue: 0,
+  //     avgDaysToPay: 0,
+  //   });
+  // });
   app.get("/api/accounts/cash-flow-summary", requireAuth, async (_req, res) => {
     res.json({ inflow: 0, outflow: 0, net: 0 });
   });
-  app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
-  app.get("/api/accounts/receivables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
-  app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/accounts-receivables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get(
-    "/api/accounts-receivables/overdue",
-    requireAuth,
-    async (_req, res) => {
-      res.json([]);
+  // app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
+  //   res.json({ total: 0 });
+  // });
+  // app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  app.post("/api/bank-accounts", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankAccountSchema.parse(req.body);
+      const newAccount = await db
+        .insert(bank_accounts)
+        .values(data)
+        .returning();
+      res.status(201).json(newAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank account:", error);
+      res.status(500).json({ error: "Failed to create bank account" });
     }
-  );
+  });
   app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/active", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/default", requireAuth, async (_req, res) => {
-    res.json(null);
+    try {
+      const accounts = await db.select().from(bank_accounts).limit(1);
+      res.json(accounts[0] || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch default bank account" });
+    }
+  });
+  app.put("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertBankAccountSchema.parse(req.body);
+      const updatedAccount = await db
+        .update(bank_accounts)
+        .set(data)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (updatedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json(updatedAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error updating bank account:", error);
+      res.status(500).json({ error: "Failed to update bank account" });
+    }
+  });
+  app.delete("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletedAccount = await db
+        .delete(bank_accounts)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (deletedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json({ message: "Bank account deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting bank account:", error);
+      res.status(500).json({ error: "Failed to delete bank account" });
+    }
   });
   app.get("/api/bank-transactions", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const transactions = await db
+        .select({
+          id: bank_transactions.id,
+          bankAccountId: bank_transactions.bankAccountId,
+          date: bank_transactions.date,
+          type: bank_transactions.type,
+          amount: bank_transactions.amount,
+          bankAccount: {
+            id: bank_accounts.id,
+            name: bank_accounts.name,
+            bankName: bank_accounts.bankName,
+            accountNumberMasked: bank_accounts.accountNumberMasked,
+          },
+        })
+        .from(bank_transactions)
+        .leftJoin(
+          bank_accounts,
+          eq(bank_transactions.bankAccountId, bank_accounts.id)
+        );
+      // Add default empty strings for description and reference until DB migration is run
+      const transactionsWithDefaults = transactions.map((t) => ({
+        ...t,
+        description: "",
+        reference: "",
+      }));
+      res.json(transactionsWithDefaults);
+    } catch (error) {
+      console.error("Error fetching bank transactions:", error);
+      res.status(500).json({ error: "Failed to fetch bank transactions" });
+    }
   });
+  app.post("/api/bank-transactions", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankTransactionSchema.parse(req.body);
+      // Parse date string to Date object for timestamp
+      const { date, amount, type, bankAccountId } = data;
+      const transactionData = {
+        date: new Date(date),
+        amount,
+        type,
+        bankAccountId,
+      };
+      const newTransaction = await db
+        .insert(bank_transactions)
+        .values(transactionData)
+        .returning();
+      res.status(201).json(newTransaction[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank transaction:", error);
+      res.status(500).json({ error: "Failed to create bank transaction" });
+    }
+  });
+  // app.get("/api/account-reminders", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/account-tasks", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+
   app.get("/api/account-reminders", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const reminders = await db.select().from(account_reminders);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching account reminders:", error);
+      res.status(500).json({ error: "Failed to fetch account reminders" });
+    }
   });
-  app.get("/api/account-tasks", requireAuth, async (_req, res) => {
+
+  app.post("/api/account-reminders", requireAuth, async (req, res) => {
+    try {
+      const data = insertAccountReminderSchema.parse(req.body);
+      // Convert string dates to Date objects for Drizzle
+      const insertData = {
+        ...data,
+        dueDate: new Date(data.dueDate),
+        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
+        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
+      };
+      const newReminder = await db
+        .insert(account_reminders)
+        .values(insertData)
+        .returning();
+      res.status(201).json(newReminder[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating account reminder:", error);
+      res.status(500).json({ error: "Failed to create account reminder" });
+    }
+  });
+
+  // PUT /api/account-reminders/:id (edit)
+  app.put("/api/account-reminders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertAccountReminderSchema.parse(req.body);
+      const updateData = {
+        ...data,
+        dueDate: new Date(data.dueDate),
+        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
+        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
+      };
+      const updated = await db
+        .update(account_reminders)
+        .set(updateData)
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error updating account reminder:", error);
+      res.status(500).json({ error: "Failed to update account reminder" });
+    }
+  });
+
+  // DELETE /api/account-reminders/:id
+  app.delete("/api/account-reminders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await db
+        .delete(account_reminders)
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (deleted.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json({ message: "Reminder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting account reminder:", error);
+      res.status(500).json({ error: "Failed to delete account reminder" });
+    }
+  });
+
+  // POST /api/account-reminders/:id/send (mark as sent)
+  app.post("/api/account-reminders/:id/send", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await db
+        .update(account_reminders)
+        .set({
+          status: "sent",
+          lastSentAt: new Date(),
+        })
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Error sending account reminder:", error);
+      res.status(500).json({ error: "Failed to send account reminder" });
+    }
     res.json([]);
   });
 
   // GST returns (stubs)
-  app.get("/api/gst-returns", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
+  // app.get("/api/gst-returns", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
 
   // Accounts Attendance (stubs to satisfy AccountsAttendance page)
   app.get("/api/account-attendance", requireAuth, async (_req, res) => {
@@ -3524,10 +3826,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "assignedTo must be a valid user ID" });
       }
 
-      const validPriority = ["low", "medium", "high"];
-      const status = "new"; // automatically set for new tasks
+      // Normalize enums
+      const normalizedPriority = priority?.toLowerCase() || "medium";
+      const normalizedStatus = "open"; // default for tasks
 
-      if (!validPriority.includes(priority)) {
+      const validPriorities = ["low", "medium", "high", "urgent"];
+      if (!validPriorities.includes(normalizedPriority)) {
         return res.status(400).json({ error: "Invalid priority" });
       }
 
@@ -3536,15 +3840,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values({
           title,
           description,
+          status: normalizedStatus,
+          priority: normalizedPriority,
           assignedTo,
           assignedBy,
-          status,
-          priority,
           dueDate: dueDate ? new Date(dueDate) : null,
         })
         .returning({
           id: tasks.id,
           title: tasks.title,
+          description: tasks.description,
           status: tasks.status,
           priority: tasks.priority,
           assignedTo: tasks.assignedTo,
@@ -3557,95 +3862,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json({ message: "Task created", task: newTask });
     } catch (err) {
       console.error("Error creating task:", err);
-      res.status(500).json({ error: "Failed to create task" });
+      res.status(500).json({
+        error: "Failed to create task",
+        details: err.message,
+      });
     }
   });
 
-  // GET /api/tasks/:id
-  // app.get("/api/tasks/:id", (req: Request, res: Response) => {
-  //   const { id } = req.params;
-  //   res.json({ message: `Task ${id} details` });
-  // });
-
-  // // PUT /api/tasks/:id
-  // app.put("/api/tasks/:id", (req: Request, res: Response) => {
-  //   const { id } = req.params;
-  //   const updates = req.body;
-  //   res.json({ message: `Task ${id} updated`, updates });
-  // });
-
-  // DELETE /api/tasks/:id
-  app.delete("/api/tasks/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Task ${id} deleted` });
-  });
-  const enableRegistries = process.env.ENABLE_FULL_REGISTRIES === "1";
-  // Import and register marketing routes safely
-  try {
-    if (!enableRegistries) {
-      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
-    }
-    const { registerMarketingRoutes } = await import(
-      "./marketing-routes-registry"
-    );
-    registerMarketingRoutes(app, {
-      requireAuth,
-      requireMarketingAccess,
-      checkOwnership,
-    });
-    console.log("✅ Marketing routes registered successfully");
-  } catch (error) {
-    console.warn("⚠️ Marketing routes registry not available:", error);
-  }
-
-  // Import and register logistics routes safely
-  try {
-    if (!enableRegistries) {
-      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
-    }
-    const { registerLogisticsRoutes } = await import(
-      "./logistics-routes-registry"
-    );
-    registerLogisticsRoutes(app, { requireAuth });
-    console.log("✅ Logistics routes registered successfully");
-  } catch (error) {
-    console.warn("⚠️ Logistics routes registry not available:", error);
-  }
-
-  // Always register lightweight registries for dashboards
-  try {
-    const { registerInventoryRoutes } = await import(
-      "./inventory-routes-registry"
-    );
-    registerInventoryRoutes(app, { requireAuth });
-    console.log("✅ Inventory routes registered");
-  } catch (e) {
-    console.warn("⚠️ Inventory routes registry load failed", e);
-  }
-
-  try {
-    const { registerSalesRoutes } = await import("./sales-routes-registry");
-    registerSalesRoutes(app, { requireAuth });
-    console.log("✅ Sales routes registered");
-  } catch (e) {
-    console.warn("⚠️ Sales routes registry load failed", e);
-  }
-
-  try {
-    const { registerAccountsRoutes } = await import(
-      "./accounts-routes-registry"
-    );
-    registerAccountsRoutes(app, { requireAuth });
-    console.log("✅ Accounts routes registered");
-  } catch (e) {
-    console.warn("⚠️ Accounts routes registry load failed", e);
-  }
-
-  // Marketing attendance routes are now handled by marketing-routes-registry.ts
-  // Removed duplicate /api/marketing-attendance/today route to avoid conflicts
-
-  // Removed duplicate /api/marketing-attendance/metrics route to avoid conflicts
-
-  const httpServer = createServer(app);
-  return httpServer;
+  // Return the server instance
+  const server = createServer(app);
+  return server;
 }
