@@ -466,37 +466,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication endpoints (public routes)
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("🔐 Login attempt received for username:", req.body.username);
+      console.log("?? Login attempt received for username:", req.body.username);
 
       const { username, email, password } = req.body;
       if (!username && !email) {
         return res.status(400).json({ error: "Username or email is required" });
       }
-      console.log("✅ Login data parsed successfully:", { username, email });
+      console.log("? Login data parsed successfully:", { username, email });
 
       const user = await storage.findUserByUsernameOrEmail(
         username || "",
         email || ""
       );
       console.log(
-        "👤 User lookup result:",
+        "?? User lookup result:",
         user ? `Found user: ${user.username} (${user.role})` : "No user found"
       );
 
       if (!user || !user.isActive) {
-        console.log("❌ Login failed: Invalid user or inactive account");
+        console.log("? Login failed: Invalid user or inactive account");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      console.log("🔑 Comparing passwords...");
+      console.log("?? Comparing passwords...");
       const validPassword = await bcrypt.compare(password, user.password);
       console.log(
-        "🔐 Password comparison result:",
+        "?? Password comparison result:",
         validPassword ? "Valid" : "Invalid"
       );
 
       if (!validPassword) {
-        console.log("❌ Login failed: Invalid password");
+        console.log("? Login failed: Invalid password");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
@@ -504,7 +504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const devTokenSecret = process.env.DEV_TOKEN_SECRET;
       const tokenSecret = jwtSecret || devTokenSecret;
 
-      console.log("🔒 Authentication secret status:", {
+      console.log("?? Authentication secret status:", {
         jwt: jwtSecret ? "Available" : "Missing",
         dev: devTokenSecret ? "Available" : "Missing",
         using: jwtSecret ? "JWT_SECRET" : "DEV_TOKEN_SECRET",
@@ -512,21 +512,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tokenSecret) {
         console.error(
-          "❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available"
+          "? CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available"
         );
         throw new Error(
           "Authentication secret is required (JWT_SECRET or DEV_TOKEN_SECRET)"
         );
       }
 
-      console.log("🎫 Generating JWT token...");
+      console.log("?? Generating JWT token...");
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
         tokenSecret,
         { expiresIn: "15m", algorithm: "HS256" }
       );
 
-      console.log("✅ Login successful for user:", user.username);
+      console.log("? Login successful for user:", user.username);
       res.json({
         token,
         user: {
@@ -537,20 +537,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
     } catch (error) {
-      console.error("💥 Login error details:", {
+      console.error("?? Login error details:", {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : typeof error,
       });
 
       if (error instanceof z.ZodError) {
-        console.log("📝 Validation error:", error.errors);
+        console.log("?? Validation error:", error.errors);
         return res
           .status(400)
           .json({ error: "Invalid input", details: error.errors });
       }
 
-      console.error("❌ Unexpected login error:", error);
+      console.error("? Unexpected login error:", error);
       res.status(500).json({
         error: "Login failed",
         details: error instanceof Error ? error.message : "Unknown error",
@@ -1151,7 +1151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     const { insertOutboundQuotationSchema } = await import("../shared/schema");
   //     const data = insertOutboundQuotationSchema
   //       .partial({ customerId: true })
-  //       .parse(req.body); // ← allow optional customerId
+  //       .parse(req.body); // ? allow optional customerId
   //     const quotation = await storage.insertOutboundQuotationSchema(data);
   //     res.status(201).json(quotation);
   //   } catch (error) {
@@ -1168,7 +1168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
-  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+  //     console.log("?? [DEBUG] GET /api/outbound-quotations - Request received");
 
   //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
   //     // This avoids the Drizzle internal error caused by nested selection objects.
@@ -1208,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
 
   //     console.log(
-  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
+  //       `?? [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
   //     );
 
   //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
@@ -1257,7 +1257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     });
 
   //     console.log(
-  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
+  //       `?? [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
   //     );
   //     // Send the correctly structured data (with nested customer objects) to the frontend.
   //     res.json(transformedRows);
@@ -1265,19 +1265,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     // --- STEP 3: Robust Error Handling ---
   //     // Catch any unexpected errors during the JOIN or transformation process.
   //     console.error(
-  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+  //       "?? [ERROR] Failed to fetch outbound quotations with JOIN:",
   //       error
   //     );
   //     // Fallback to a simple query to maintain API availability.
   //     try {
   //       console.log(
-  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+  //         "?? [DEBUG] Falling back to simple outbound_quotations fetch..."
   //       );
   //       const fallbackRows = await db.select().from(outboundQuotations);
   //       res.json(fallbackRows);
   //     } catch (fallbackError) {
   //       // Catch errors in the fallback itself.
-  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+  //       console.error("?? [ERROR] Fallback fetch also failed:", fallbackError);
   //       res
   //         .status(500)
   //         .json({
@@ -1289,20 +1289,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
   app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
-      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+      console.log("?? [ROUTE] GET /api/outbound-quotations - Request received");
 
       // --- Call the new storage method ---
       const quotations = await storage.getOutboundQuotations();
 
       console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
+        `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
       );
       // --- Send the correctly structured data ---
       res.json(quotations);
     } catch (error) {
       // --- Handle errors from storage ---
       console.error(
-        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
+        "?? [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
         error
       );
       res.status(500).json({
@@ -1316,19 +1316,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log(
-        "🐛 [DEBUG] POST /api/outbound-quotations - Request received"
+        "?? [DEBUG] POST /api/outbound-quotations - Request received"
       );
-      console.log("🐛 [DEBUG] req.body:", req.body);
-      console.log("🐛 [DEBUG] req.user:", req.user);
+      console.log("?? [DEBUG] req.body:", req.body);
+      console.log("?? [DEBUG] req.user:", req.user);
 
       const { insertOutboundQuotationSchema } = await import(
         "../shared/schema"
       );
-      console.log("🐛 [DEBUG] About to parse request body with Zod schema");
+      console.log("?? [DEBUG] About to parse request body with Zod schema");
       const parsedData = insertOutboundQuotationSchema
         .partial({ customerId: true })
         .parse(req.body);
-      console.log("🐛 [DEBUG] Parsed data from Zod:", parsedData);
+      console.log("?? [DEBUG] Parsed data from Zod:", parsedData);
 
       // Convert types for database
       const data = {
@@ -1356,42 +1356,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // --- LOGGING ADDED HERE ---
       console.log(
-        "🐛 [DEBUG] Final 'data' object before storage call:",
+        "?? [DEBUG] Final 'data' object before storage call:",
         JSON.stringify(data, null, 2)
       );
       console.log(
-        "🐛 [DEBUG] typeof data.userId:",
+        "?? [DEBUG] typeof data.userId:",
         typeof data.userId,
         "value:",
         data.userId
       );
       console.log(
-        "🐛 [DEBUG] typeof data.customerId:",
+        "?? [DEBUG] typeof data.customerId:",
         typeof data.customerId,
         "value:",
         data.customerId
       );
       // --- END LOGGING ---
 
-      // ✅ FIXED: Call the correct method on storage
+      // ? FIXED: Call the correct method on storage
       console.log(
-        "🐛 [DEBUG] Calling storage.createOutboundQuotation with data..."
+        "?? [DEBUG] Calling storage.createOutboundQuotation with data..."
       );
       const quotation = await storage.createOutboundQuotation(data);
       console.log(
-        "🐛 [DEBUG] Storage call successful, returning quotation:",
+        "?? [DEBUG] Storage call successful, returning quotation:",
         quotation
       );
       res.status(201).json(quotation);
     } catch (error) {
-      console.error("💥 [ERROR] Failed to create outbound quotation:", error);
+      console.error("?? [ERROR] Failed to create outbound quotation:", error);
       if (error instanceof z.ZodError) {
-        console.error("🐛 [ZOD ERROR] Zod validation failed:", error.errors);
+        console.error("?? [ZOD ERROR] Zod validation failed:", error.errors);
         return res
           .status(400)
           .json({ error: "Invalid quotation data", details: error.errors });
       }
-      console.error("🐛 [GENERIC ERROR] Non-Zod error occurred");
+      console.error("?? [GENERIC ERROR] Non-Zod error occurred");
       res
         .status(500)
         .json({ error: "Failed to create quotation", details: error.message });
@@ -1444,7 +1444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Alias: /api/quotations/inbound → inbound quotations
+  // Alias: /api/quotations/inbound ? inbound quotations
   app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
     try {
       const quotations = await storage.getInboundQuotations();
@@ -1601,22 +1601,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete requestBody.attachmentName; // Remove the key if value is null
       }
 
-      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ? Parse the cleaned object
 
       // Convert types for database
       const data = {
         ...parsedData,
-        // ✅ Convert dates from string to Date object
+        // ? Convert dates from string to Date object
         quotationDate: new Date(parsedData.quotationDate),
         validUntil: parsedData.validUntil
           ? new Date(parsedData.validUntil)
           : null,
-        // ✅ Convert amount from string to number
+        // ? Convert amount from string to number
         totalAmount: parseFloat(parsedData.totalAmount),
-        // ✅ Use a valid UUID for userId in development mode
+        // ? Use a valid UUID for userId in development mode
         userId:
           process.env.NODE_ENV === "development"
-            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ← Your valid user ID
+            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ? Your valid user ID
             : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
       };
 
@@ -3935,6 +3935,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Register additional routes from registries
+  registerAdminRoutes(app);
+  registerAccountsRoutes(app);
 
   // Return the server instance
   const server = createServer(app);
