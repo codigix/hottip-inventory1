@@ -6,43 +6,130 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Clock, Users, CheckCircle2, AlertTriangle, Play, Pause, Square, CalendarDays,
-  Plus, Search, Filter, Eye, Edit, Trash2, User, MapPin, Timer, 
-  Download, FileText, BarChart3, TrendingUp, TrendingDown, Activity,
-  ClockIcon, UserCheck, UserX, Coffee, Zap, FileDown, Calendar as CalendarIcon
+import {
+  Clock,
+  Users,
+  CheckCircle2,
+  AlertTriangle,
+  Play,
+  Pause,
+  Square,
+  CalendarDays,
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  Trash2,
+  User,
+  MapPin,
+  Timer,
+  Download,
+  FileText,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  ClockIcon,
+  UserCheck,
+  UserX,
+  Coffee,
+  Zap,
+  FileDown,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertAttendanceSchema, type Attendance, type InsertAttendance } from "@shared/schema";
-import { format, isEqual, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import {
+  insertAttendanceSchema,
+  type Attendance,
+  type InsertAttendance,
+} from "@shared/schema";
+import {
+  format,
+  isEqual,
+  startOfDay,
+  endOfDay,
+  subDays,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
 
 // Schemas - Use shared schemas from drizzle-zod with proper validation
-const attendanceFormSchema = insertAttendanceSchema.extend({
-  date: z.coerce.date("Please enter a valid date"),
-  checkIn: z.coerce.date().optional(),
-  checkOut: z.coerce.date().optional(),
-}).refine((data) => {
-  if (data.checkIn && data.checkOut) {
-    return data.checkIn <= data.checkOut;
-  }
-  return true;
-}, {
-  message: "Check-out time must be after check-in time",
-  path: ["checkOut"],
-});
+const attendanceFormSchema = insertAttendanceSchema
+  .extend({
+    userId: z.string().min(1, "Please select an employee"), // Override employeeId with userId for frontend
+    date: z.coerce.date("Please enter a valid date"),
+    checkIn: z.coerce.date().optional(),
+    checkOut: z.coerce.date().optional(),
+  })
+  .omit({ employeeId: true }) // Remove the original employeeId field
+  .refine(
+    (data) => {
+      if (data.checkIn && data.checkOut) {
+        return data.checkIn <= data.checkOut;
+      }
+      return true;
+    },
+    {
+      message: "Check-out time must be after check-in time",
+      path: ["checkOut"],
+    }
+  );
 
 const clockInSchema = z.object({
   location: z.string().optional(),
@@ -73,24 +160,29 @@ const statusStyles = {
   absent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   late: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   "half-day": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  "on-leave": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  "on-leave":
+    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
 };
 
 export default function AccountsAttendance() {
   const { toast } = useToast();
-  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [selectedAttendance, setSelectedAttendance] =
+    useState<Attendance | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isClockInOpen, setIsClockInOpen] = useState(false);
   const [isClockOutOpen, setIsClockOutOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [attendanceToDelete, setAttendanceToDelete] = useState<Attendance | null>(null);
+  const [attendanceToDelete, setAttendanceToDelete] =
+    useState<Attendance | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("today");
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    new Date()
+  );
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Data fetching - Real-time data from APIs
@@ -146,10 +238,12 @@ export default function AccountsAttendance() {
   });
 
   // Calculate metrics from real data
-  const recordsArray = Array.isArray(attendanceRecords) ? attendanceRecords : [];
+  const recordsArray = Array.isArray(attendanceRecords)
+    ? attendanceRecords
+    : [];
   const todayArray = Array.isArray(todayAttendance) ? todayAttendance : [];
   const metrics = attendanceMetrics || {};
-  
+
   const teamSize = metrics.teamSize || 0;
   const presentToday = metrics.presentToday || 0;
   const attendanceRate = metrics.attendanceRate || 0;
@@ -189,29 +283,46 @@ export default function AccountsAttendance() {
       const response = await apiRequest("/account-attendance", {
         method: "POST",
         body: JSON.stringify({
-          ...data,
-          date: data.date.toISOString(),
+          employeeId: data.userId, // Map userId to employeeId for backend
+          date: data.date.toISOString().split("T")[0], // Send as YYYY-MM-DD format
+          status: data.status,
           checkIn: data.checkIn ? data.checkIn.toISOString() : null,
           checkOut: data.checkOut ? data.checkOut.toISOString() : null,
+          location: data.location,
+          notes: data.notes,
         }),
       });
       return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "metrics"] });
-      toast({ title: "Success", description: "Attendance record created successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "today"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "metrics"],
+      });
+      toast({
+        title: "Success",
+        description: "Attendance record created successfully",
+      });
       setIsCreateOpen(false);
       createForm.reset();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create attendance record", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create attendance record",
+        variant: "destructive",
+      });
     },
   });
 
   const updateAttendanceMutation = useMutation({
-    mutationFn: async ({ id, ...data }: AttendanceFormData & { id: string }) => {
+    mutationFn: async ({
+      id,
+      ...data
+    }: AttendanceFormData & { id: string }) => {
       const response = await apiRequest(`/account-attendance/${id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -225,14 +336,25 @@ export default function AccountsAttendance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "metrics"] });
-      toast({ title: "Success", description: "Attendance record updated successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "today"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "metrics"],
+      });
+      toast({
+        title: "Success",
+        description: "Attendance record updated successfully",
+      });
       setIsEditOpen(false);
       setSelectedAttendance(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update attendance record", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update attendance record",
+        variant: "destructive",
+      });
     },
   });
 
@@ -246,17 +368,21 @@ export default function AccountsAttendance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "today"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "metrics"],
+      });
       toast({ title: "Success", description: "Clocked in successfully" });
       setIsClockInOpen(false);
       clockInForm.reset();
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error?.message || "Failed to clock in", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to clock in",
+        variant: "destructive",
       });
     },
   });
@@ -271,17 +397,21 @@ export default function AccountsAttendance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "metrics"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "today"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "metrics"],
+      });
       toast({ title: "Success", description: "Clocked out successfully" });
       setIsClockOutOpen(false);
       clockOutForm.reset();
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error?.message || "Failed to clock out", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to clock out",
+        variant: "destructive",
       });
     },
   });
@@ -291,14 +421,25 @@ export default function AccountsAttendance() {
       apiRequest(`/account-attendance/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/account-attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "today"] });
-      queryClient.invalidateQueries({ queryKey: ["/account-attendance", "metrics"] });
-      toast({ title: "Success", description: "Attendance record deleted successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "today"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/account-attendance", "metrics"],
+      });
+      toast({
+        title: "Success",
+        description: "Attendance record deleted successfully",
+      });
       setIsDeleteOpen(false);
       setAttendanceToDelete(null);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete attendance record", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to delete attendance record",
+        variant: "destructive",
+      });
     },
   });
 
@@ -347,18 +488,22 @@ export default function AccountsAttendance() {
 
   // Filter attendance records
   const filteredRecords = recordsArray.filter((record: any) => {
-    const matchesSearch = !searchTerm || 
-      record.user?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      !searchTerm ||
+      record.user?.firstName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       record.user?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.location?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || record.status === statusFilter;
-    
+
+    const matchesStatus =
+      statusFilter === "all" || record.status === statusFilter;
+
     // Date filtering
     const recordDate = new Date(record.date);
     const { start, end } = calculateDateRange(dateFilter);
     const matchesDate = recordDate >= start && recordDate <= end;
-    
+
     return matchesSearch && matchesStatus && matchesDate;
   });
 
@@ -384,7 +529,10 @@ export default function AccountsAttendance() {
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1
+            className="text-3xl font-bold text-foreground"
+            data-testid="page-title"
+          >
             Accounts Attendance
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -394,8 +542,8 @@ export default function AccountsAttendance() {
         <div className="flex gap-2">
           <Dialog open={isClockInOpen} onOpenChange={setIsClockInOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 disabled={clockInMutation.isPending}
                 data-testid="button-clock-in"
               >
@@ -411,7 +559,10 @@ export default function AccountsAttendance() {
                 </DialogDescription>
               </DialogHeader>
               <Form {...clockInForm}>
-                <form onSubmit={clockInForm.handleSubmit(handleClockInSubmit)} className="space-y-4">
+                <form
+                  onSubmit={clockInForm.handleSubmit(handleClockInSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={clockInForm.control}
                     name="location"
@@ -419,7 +570,11 @@ export default function AccountsAttendance() {
                       <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Office" data-testid="input-clock-in-location" />
+                          <Input
+                            {...field}
+                            placeholder="Office"
+                            data-testid="input-clock-in-location"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -432,18 +587,33 @@ export default function AccountsAttendance() {
                       <FormItem>
                         <FormLabel>Notes (Optional)</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Any additional notes..." data-testid="textarea-clock-in-notes" />
+                          <Textarea
+                            {...field}
+                            placeholder="Any additional notes..."
+                            data-testid="textarea-clock-in-notes"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsClockInOpen(false)} data-testid="button-cancel-clock-in">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsClockInOpen(false)}
+                      data-testid="button-cancel-clock-in"
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={clockInMutation.isPending} data-testid="button-submit-clock-in">
-                      {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
+                    <Button
+                      type="submit"
+                      disabled={clockInMutation.isPending}
+                      data-testid="button-submit-clock-in"
+                    >
+                      {clockInMutation.isPending
+                        ? "Clocking In..."
+                        : "Clock In"}
                     </Button>
                   </div>
                 </form>
@@ -453,8 +623,8 @@ export default function AccountsAttendance() {
 
           <Dialog open={isClockOutOpen} onOpenChange={setIsClockOutOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 disabled={clockOutMutation.isPending}
                 data-testid="button-clock-out"
               >
@@ -470,7 +640,10 @@ export default function AccountsAttendance() {
                 </DialogDescription>
               </DialogHeader>
               <Form {...clockOutForm}>
-                <form onSubmit={clockOutForm.handleSubmit(handleClockOutSubmit)} className="space-y-4">
+                <form
+                  onSubmit={clockOutForm.handleSubmit(handleClockOutSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={clockOutForm.control}
                     name="notes"
@@ -478,18 +651,33 @@ export default function AccountsAttendance() {
                       <FormItem>
                         <FormLabel>Notes (Optional)</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="End of day summary..." data-testid="textarea-clock-out-notes" />
+                          <Textarea
+                            {...field}
+                            placeholder="End of day summary..."
+                            data-testid="textarea-clock-out-notes"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsClockOutOpen(false)} data-testid="button-cancel-clock-out">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsClockOutOpen(false)}
+                      data-testid="button-cancel-clock-out"
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={clockOutMutation.isPending} data-testid="button-submit-clock-out">
-                      {clockOutMutation.isPending ? "Clocking Out..." : "Clock Out"}
+                    <Button
+                      type="submit"
+                      disabled={clockOutMutation.isPending}
+                      data-testid="button-submit-clock-out"
+                    >
+                      {clockOutMutation.isPending
+                        ? "Clocking Out..."
+                        : "Clock Out"}
                     </Button>
                   </div>
                 </form>
@@ -512,7 +700,10 @@ export default function AccountsAttendance() {
                 </DialogDescription>
               </DialogHeader>
               <Form {...createForm}>
-                <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+                <form
+                  onSubmit={createForm.handleSubmit(handleCreateSubmit)}
+                  className="space-y-4"
+                >
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={createForm.control}
@@ -520,7 +711,10 @@ export default function AccountsAttendance() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Employee</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger data-testid="select-employee">
                                 <SelectValue placeholder="Select employee" />
@@ -561,13 +755,17 @@ export default function AccountsAttendance() {
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent
+                              className="w-auto p-0"
+                              align="start"
+                            >
                               <Calendar
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 disabled={(date) =>
-                                  date > new Date() || date < new Date("1900-01-01")
+                                  date > new Date() ||
+                                  date < new Date("1900-01-01")
                                 }
                                 initialFocus
                               />
@@ -578,7 +776,7 @@ export default function AccountsAttendance() {
                       )}
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={createForm.control}
@@ -586,7 +784,10 @@ export default function AccountsAttendance() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger data-testid="select-status">
                                 <SelectValue placeholder="Select status" />
@@ -611,7 +812,11 @@ export default function AccountsAttendance() {
                         <FormItem>
                           <FormLabel>Location</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Office" data-testid="input-location" />
+                            <Input
+                              {...field}
+                              placeholder="Office"
+                              data-testid="input-location"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -627,11 +832,21 @@ export default function AccountsAttendance() {
                         <FormItem>
                           <FormLabel>Check In Time</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="datetime-local" 
-                              value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""} 
-                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                              data-testid="input-check-in" 
+                            <Input
+                              type="datetime-local"
+                              value={
+                                field.value
+                                  ? format(field.value, "yyyy-MM-dd'T'HH:mm")
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? new Date(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              data-testid="input-check-in"
                             />
                           </FormControl>
                           <FormMessage />
@@ -645,11 +860,21 @@ export default function AccountsAttendance() {
                         <FormItem>
                           <FormLabel>Check Out Time</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="datetime-local" 
-                              value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""} 
-                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                              data-testid="input-check-out" 
+                            <Input
+                              type="datetime-local"
+                              value={
+                                field.value
+                                  ? format(field.value, "yyyy-MM-dd'T'HH:mm")
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? new Date(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              data-testid="input-check-out"
                             />
                           </FormControl>
                           <FormMessage />
@@ -665,7 +890,11 @@ export default function AccountsAttendance() {
                       <FormItem>
                         <FormLabel>Notes</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Additional notes..." data-testid="textarea-notes" />
+                          <Textarea
+                            {...field}
+                            placeholder="Additional notes..."
+                            data-testid="textarea-notes"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -673,11 +902,22 @@ export default function AccountsAttendance() {
                   />
 
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} data-testid="button-cancel">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateOpen(false)}
+                      data-testid="button-cancel"
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={createAttendanceMutation.isPending} data-testid="button-submit">
-                      {createAttendanceMutation.isPending ? "Creating..." : "Create Record"}
+                    <Button
+                      type="submit"
+                      disabled={createAttendanceMutation.isPending}
+                      data-testid="button-submit"
+                    >
+                      {createAttendanceMutation.isPending
+                        ? "Creating..."
+                        : "Create Record"}
                     </Button>
                   </div>
                 </form>
@@ -698,7 +938,12 @@ export default function AccountsAttendance() {
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold" data-testid="metric-team-size">{teamSize}</div>
+              <div
+                className="text-2xl font-bold"
+                data-testid="metric-team-size"
+              >
+                {teamSize}
+              </div>
             )}
             <p className="text-xs text-muted-foreground">Active employees</p>
           </CardContent>
@@ -713,10 +958,17 @@ export default function AccountsAttendance() {
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold text-green-600" data-testid="metric-present-today">{presentToday}</div>
+              <div
+                className="text-2xl font-bold text-green-600"
+                data-testid="metric-present-today"
+              >
+                {presentToday}
+              </div>
             )}
             <p className="text-xs text-muted-foreground">
-              {teamSize > 0 ? `${Math.round(attendanceRate)}% attendance` : "0% attendance"}
+              {teamSize > 0
+                ? `${Math.round(attendanceRate)}% attendance`
+                : "0% attendance"}
             </p>
           </CardContent>
         </Card>
@@ -730,7 +982,12 @@ export default function AccountsAttendance() {
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold" data-testid="metric-avg-hours">{avgHours}</div>
+              <div
+                className="text-2xl font-bold"
+                data-testid="metric-avg-hours"
+              >
+                {avgHours}
+              </div>
             )}
             <p className="text-xs text-muted-foreground">Hours per day</p>
           </CardContent>
@@ -745,7 +1002,12 @@ export default function AccountsAttendance() {
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold text-orange-600" data-testid="metric-late-arrivals">{lateArrivalsThisWeek}</div>
+              <div
+                className="text-2xl font-bold text-orange-600"
+                data-testid="metric-late-arrivals"
+              >
+                {lateArrivalsThisWeek}
+              </div>
             )}
             <p className="text-xs text-muted-foreground">This week</p>
           </CardContent>
@@ -768,7 +1030,10 @@ export default function AccountsAttendance() {
         </div>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+            <SelectTrigger
+              className="w-[140px]"
+              data-testid="select-status-filter"
+            >
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -781,7 +1046,10 @@ export default function AccountsAttendance() {
             </SelectContent>
           </Select>
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[140px]" data-testid="select-date-filter">
+            <SelectTrigger
+              className="w-[140px]"
+              data-testid="select-date-filter"
+            >
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
@@ -801,22 +1069,43 @@ export default function AccountsAttendance() {
           <CardTitle>Attendance Records</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-4"
+          >
             <TabsList>
               <TabsTrigger value="all" data-testid="tab-all">
                 All ({filteredRecords.length})
               </TabsTrigger>
               <TabsTrigger value="present" data-testid="tab-present">
-                Present ({filteredRecords.filter((r: any) => r.status === "present").length})
+                Present (
+                {
+                  filteredRecords.filter((r: any) => r.status === "present")
+                    .length
+                }
+                )
               </TabsTrigger>
               <TabsTrigger value="absent" data-testid="tab-absent">
-                Absent ({filteredRecords.filter((r: any) => r.status === "absent").length})
+                Absent (
+                {
+                  filteredRecords.filter((r: any) => r.status === "absent")
+                    .length
+                }
+                )
               </TabsTrigger>
               <TabsTrigger value="late" data-testid="tab-late">
-                Late ({filteredRecords.filter((r: any) => r.status === "late").length})
+                Late (
+                {filteredRecords.filter((r: any) => r.status === "late").length}
+                )
               </TabsTrigger>
               <TabsTrigger value="on-leave" data-testid="tab-on-leave">
-                On Leave ({filteredRecords.filter((r: any) => r.status === "on-leave").length})
+                On Leave (
+                {
+                  filteredRecords.filter((r: any) => r.status === "on-leave")
+                    .length
+                }
+                )
               </TabsTrigger>
             </TabsList>
 
@@ -830,12 +1119,13 @@ export default function AccountsAttendance() {
               ) : tabRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <ClockIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Attendance Records</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No Attendance Records
+                  </h3>
                   <p className="text-muted-foreground">
-                    {activeTab === "all" 
+                    {activeTab === "all"
                       ? "No attendance records found for the selected criteria."
-                      : `No ${activeTab} records found for the selected criteria.`
-                    }
+                      : `No ${activeTab} records found for the selected criteria.`}
                   </p>
                 </div>
               ) : (
@@ -843,19 +1133,37 @@ export default function AccountsAttendance() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead data-testid="header-employee">Employee</TableHead>
+                        <TableHead data-testid="header-employee">
+                          Employee
+                        </TableHead>
                         <TableHead data-testid="header-date">Date</TableHead>
-                        <TableHead data-testid="header-check-in">Check In</TableHead>
-                        <TableHead data-testid="header-check-out">Check Out</TableHead>
+                        <TableHead data-testid="header-check-in">
+                          Check In
+                        </TableHead>
+                        <TableHead data-testid="header-check-out">
+                          Check Out
+                        </TableHead>
                         <TableHead data-testid="header-hours">Hours</TableHead>
-                        <TableHead data-testid="header-location">Location</TableHead>
-                        <TableHead data-testid="header-status">Status</TableHead>
-                        <TableHead className="text-right" data-testid="header-actions">Actions</TableHead>
+                        <TableHead data-testid="header-location">
+                          Location
+                        </TableHead>
+                        <TableHead data-testid="header-status">
+                          Status
+                        </TableHead>
+                        <TableHead
+                          className="text-right"
+                          data-testid="header-actions"
+                        >
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {tabRecords.map((record: any) => (
-                        <TableRow key={record.id} data-testid={`row-attendance-${record.id}`}>
+                        <TableRow
+                          key={record.id}
+                          data-testid={`row-attendance-${record.id}`}
+                        >
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <User className="h-4 w-4" />
@@ -868,15 +1176,28 @@ export default function AccountsAttendance() {
                             {format(new Date(record.date), "MMM dd, yyyy")}
                           </TableCell>
                           <TableCell data-testid={`text-check-in-${record.id}`}>
-                            {record.checkIn ? format(new Date(record.checkIn), "hh:mm a") : "-"}
+                            {record.checkIn
+                              ? format(new Date(record.checkIn), "hh:mm a")
+                              : "-"}
                           </TableCell>
-                          <TableCell data-testid={`text-check-out-${record.id}`}>
-                            {record.checkOut ? format(new Date(record.checkOut), "hh:mm a") : "-"}
+                          <TableCell
+                            data-testid={`text-check-out-${record.id}`}
+                          >
+                            {record.checkOut
+                              ? format(new Date(record.checkOut), "hh:mm a")
+                              : "-"}
                           </TableCell>
                           <TableCell data-testid={`text-hours-${record.id}`}>
-                            {record.checkIn && record.checkOut ? (
-                              Math.round(((new Date(record.checkOut).getTime() - new Date(record.checkIn).getTime()) / (1000 * 60 * 60)) * 10) / 10 + "h"
-                            ) : "-"}
+                            {record.checkIn && record.checkOut
+                              ? Math.round(
+                                  ((new Date(record.checkOut).getTime() -
+                                    new Date(record.checkIn).getTime()) /
+                                    (1000 * 60 * 60)) *
+                                    10
+                                ) /
+                                  10 +
+                                "h"
+                              : "-"}
                           </TableCell>
                           <TableCell data-testid={`text-location-${record.id}`}>
                             <div className="flex items-center space-x-1">
@@ -885,8 +1206,12 @@ export default function AccountsAttendance() {
                             </div>
                           </TableCell>
                           <TableCell data-testid={`badge-status-${record.id}`}>
-                            <Badge 
-                              className={statusStyles[record.status as keyof typeof statusStyles] || statusStyles.present}
+                            <Badge
+                              className={
+                                statusStyles[
+                                  record.status as keyof typeof statusStyles
+                                ] || statusStyles.present
+                              }
                             >
                               {record.status}
                             </Badge>
@@ -940,7 +1265,10 @@ export default function AccountsAttendance() {
             </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleEditSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
@@ -948,7 +1276,10 @@ export default function AccountsAttendance() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Employee</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-employee">
                             <SelectValue placeholder="Select employee" />
@@ -1006,7 +1337,7 @@ export default function AccountsAttendance() {
                   )}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
@@ -1014,7 +1345,10 @@ export default function AccountsAttendance() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-status">
                             <SelectValue placeholder="Select status" />
@@ -1039,7 +1373,11 @@ export default function AccountsAttendance() {
                     <FormItem>
                       <FormLabel>Location</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Office" data-testid="input-edit-location" />
+                        <Input
+                          {...field}
+                          placeholder="Office"
+                          data-testid="input-edit-location"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1055,11 +1393,21 @@ export default function AccountsAttendance() {
                     <FormItem>
                       <FormLabel>Check In Time</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="datetime-local" 
-                          value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""} 
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                          data-testid="input-edit-check-in" 
+                        <Input
+                          type="datetime-local"
+                          value={
+                            field.value
+                              ? format(field.value, "yyyy-MM-dd'T'HH:mm")
+                              : ""
+                          }
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value
+                                ? new Date(e.target.value)
+                                : undefined
+                            )
+                          }
+                          data-testid="input-edit-check-in"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1073,11 +1421,21 @@ export default function AccountsAttendance() {
                     <FormItem>
                       <FormLabel>Check Out Time</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="datetime-local" 
-                          value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""} 
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                          data-testid="input-edit-check-out" 
+                        <Input
+                          type="datetime-local"
+                          value={
+                            field.value
+                              ? format(field.value, "yyyy-MM-dd'T'HH:mm")
+                              : ""
+                          }
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value
+                                ? new Date(e.target.value)
+                                : undefined
+                            )
+                          }
+                          data-testid="input-edit-check-out"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1093,7 +1451,11 @@ export default function AccountsAttendance() {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Additional notes..." data-testid="textarea-edit-notes" />
+                      <Textarea
+                        {...field}
+                        placeholder="Additional notes..."
+                        data-testid="textarea-edit-notes"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1101,11 +1463,22 @@ export default function AccountsAttendance() {
               />
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} data-testid="button-cancel-edit">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditOpen(false)}
+                  data-testid="button-cancel-edit"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateAttendanceMutation.isPending} data-testid="button-submit-edit">
-                  {updateAttendanceMutation.isPending ? "Updating..." : "Update Record"}
+                <Button
+                  type="submit"
+                  disabled={updateAttendanceMutation.isPending}
+                  data-testid="button-submit-edit"
+                >
+                  {updateAttendanceMutation.isPending
+                    ? "Updating..."
+                    : "Update Record"}
                 </Button>
               </div>
             </form>
@@ -1126,9 +1499,12 @@ export default function AccountsAttendance() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Employee</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Employee
+                  </Label>
                   <p className="font-light" data-testid="view-employee">
-                    {(selectedAttendance as any).user?.firstName} {(selectedAttendance as any).user?.lastName}
+                    {(selectedAttendance as any).user?.firstName}{" "}
+                    {(selectedAttendance as any).user?.lastName}
                   </p>
                 </div>
                 <div>
@@ -1141,25 +1517,39 @@ export default function AccountsAttendance() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Check In</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Check In
+                  </Label>
                   <p className="font-light" data-testid="view-check-in">
-                    {selectedAttendance.checkIn ? format(new Date(selectedAttendance.checkIn), "hh:mm a") : "Not recorded"}
+                    {selectedAttendance.checkIn
+                      ? format(new Date(selectedAttendance.checkIn), "hh:mm a")
+                      : "Not recorded"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Check Out</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Check Out
+                  </Label>
                   <p className="font-light" data-testid="view-check-out">
-                    {selectedAttendance.checkOut ? format(new Date(selectedAttendance.checkOut), "hh:mm a") : "Not recorded"}
+                    {selectedAttendance.checkOut
+                      ? format(new Date(selectedAttendance.checkOut), "hh:mm a")
+                      : "Not recorded"}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Status</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Status
+                  </Label>
                   <div className="mt-1">
-                    <Badge 
-                      className={statusStyles[selectedAttendance.status as keyof typeof statusStyles] || statusStyles.present}
+                    <Badge
+                      className={
+                        statusStyles[
+                          selectedAttendance.status as keyof typeof statusStyles
+                        ] || statusStyles.present
+                      }
                       data-testid="view-status"
                     >
                       {selectedAttendance.status}
@@ -1167,7 +1557,9 @@ export default function AccountsAttendance() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Location</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Location
+                  </Label>
                   <p className="font-light" data-testid="view-location">
                     {selectedAttendance.location || "Not specified"}
                   </p>
@@ -1176,9 +1568,20 @@ export default function AccountsAttendance() {
 
               {selectedAttendance.checkIn && selectedAttendance.checkOut && (
                 <div>
-                  <Label className="text-sm text-muted-foreground">Total Hours</Label>
-                  <p className="font-light text-lg" data-testid="view-total-hours">
-                    {Math.round(((new Date(selectedAttendance.checkOut).getTime() - new Date(selectedAttendance.checkIn).getTime()) / (1000 * 60 * 60)) * 10) / 10} hours
+                  <Label className="text-sm text-muted-foreground">
+                    Total Hours
+                  </Label>
+                  <p
+                    className="font-light text-lg"
+                    data-testid="view-total-hours"
+                  >
+                    {Math.round(
+                      ((new Date(selectedAttendance.checkOut).getTime() -
+                        new Date(selectedAttendance.checkIn).getTime()) /
+                        (1000 * 60 * 60)) *
+                        10
+                    ) / 10}{" "}
+                    hours
                   </p>
                 </div>
               )}
@@ -1186,18 +1589,27 @@ export default function AccountsAttendance() {
               {selectedAttendance.notes && (
                 <div>
                   <Label className="text-sm text-muted-foreground">Notes</Label>
-                  <p className="mt-1" data-testid="view-notes">{selectedAttendance.notes}</p>
+                  <p className="mt-1" data-testid="view-notes">
+                    {selectedAttendance.notes}
+                  </p>
                 </div>
               )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsViewOpen(false)} data-testid="button-close-view">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsViewOpen(false)}
+                  data-testid="button-close-view"
+                >
                   Close
                 </Button>
-                <Button onClick={() => {
-                  setIsViewOpen(false);
-                  handleEdit(selectedAttendance);
-                }} data-testid="button-edit-from-view">
+                <Button
+                  onClick={() => {
+                    setIsViewOpen(false);
+                    handleEdit(selectedAttendance);
+                  }}
+                  data-testid="button-edit-from-view"
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Record
                 </Button>
@@ -1213,11 +1625,14 @@ export default function AccountsAttendance() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this attendance record? This action cannot be undone.
+              Are you sure you want to delete this attendance record? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (attendanceToDelete) {

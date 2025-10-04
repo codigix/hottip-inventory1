@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import { db } from "./db";
 import {
   accountsReceivables,
@@ -8,12 +9,17 @@ import {
   suppliers,
   inboundQuotations,
   gstReturns,
+  accountTasks,
+  insertAccountTaskSchema,
+  accountReports,
+  users,
 } from "../shared/schema";
 import { eq, sql, gte, lt } from "drizzle-orm";
 import {
   insertAccountsReceivableSchema,
   insertAccountsPayableSchema,
   insertGstReturnSchema,
+  insertAccountReportSchema,
 } from "../shared/schema";
 
 interface AuthenticatedRequest extends Request {
@@ -32,7 +38,7 @@ const requireAuth = async (
   // In development mode, authentication is bypassed
   if (process.env.NODE_ENV === "development") {
     req.user = {
-      id: "dev-admin-user",
+      id: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID for dev user
       role: "admin",
       username: "dev_admin",
     };
@@ -44,13 +50,312 @@ const requireAuth = async (
 };
 
 export function registerAccountsRoutes(app: Express) {
-  // Accounts dashboards minimal stubs; extend with real queries later
-  app.get("/api/accounts/dashboard", requireAuth, async (_req, res) => {
-    res.json({
-      totalReceivables: 0,
-      totalPayables: 0,
-      cashFlow: { inflow: 0, outflow: 0 },
-    });
+  // Accounts dashboard metrics
+  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+    try {
+      // Get total outstanding receivables
+      const receivablesResult = await db
+        .select({
+          total: sql<number>`SUM(${accountsReceivables.amountDue} - ${accountsReceivables.amountPaid})`,
+        })
+        .from(accountsReceivables)
+        .where(sql`${accountsReceivables.status} != 'paid'`);
+
+      const totalReceivables = receivablesResult[0]?.total || 0;
+
+      // Get total outstanding payables
+      let totalPayables = 0;
+      try {
+        const payablesResult = await db
+          .select({
+            total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
+          })
+          .from(accountsPayables)
+          .where(sql`${accountsPayables.status} != 'paid'`);
+
+        totalPayables = payablesResult[0]?.total || 0;
+      } catch (error) {
+        console.error("Error fetching payables total:", error);
+        totalPayables = 0;
+      }
+
+      // For cash flow, we could calculate based on recent transactions
+      // For now, return 0 as placeholder
+      const cashFlow = { inflow: 0, outflow: 0 };
+
+      res.json({
+        totalReceivables,
+        totalPayables,
+        cashFlow,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Generate financial reports
+  app.post("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const { reportType, dateRange, startDate, endDate } = req.body;
+
+      if (!reportType) {
+        return res.status(400).json({ message: "Report type is required" });
+      }
+
+      let reportData: any = {};
+      let title = "";
+
+      // Determine date filter
+      const getDateFilter = (tableName: string) => {
+        if (dateRange === "custom" && startDate && endDate) {
+          return `AND ${tableName}."createdAt" >= '${startDate}' AND ${tableName}."createdAt" <= '${endDate}'`;
+        } else if (dateRange === "this_month") {
+          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW())`;
+        } else if (dateRange === "last_month") {
+          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW() - INTERVAL '1 month') AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW() - INTERVAL '1 month')`;
+        }
+        return "";
+      };
+
+      if (
+        reportType === "receivables" ||
+        reportType === "Accounts Receivable"
+      ) {
+        title = "Accounts Receivable Report";
+
+        const receivables = await db
+          .select({
+            id: accountsReceivables.id,
+            invoiceId: accountsReceivables.invoiceId,
+            customerId: accountsReceivables.customerId,
+            amountDue: accountsReceivables.amountDue,
+            amountPaid: accountsReceivables.amountPaid,
+            dueDate: accountsReceivables.dueDate,
+            status: accountsReceivables.status,
+            createdAt: accountsReceivables.createdAt,
+            customer: {
+              id: customers.id,
+              name: customers.name,
+            },
+          })
+          .from(accountsReceivables)
+          .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_receivables"))}`)
+          .orderBy(accountsReceivables.createdAt);
+
+        const totalAmount = receivables.reduce(
+          (sum, r) => sum + parseFloat(r.amountDue),
+          0
+        );
+        const totalPaid = receivables.reduce(
+          (sum, r) => sum + parseFloat(r.amountPaid || 0),
+          0
+        );
+        const totalOutstanding = totalAmount - totalPaid;
+
+        reportData = {
+          receivables,
+          summary: {
+            totalAmount,
+            totalPaid,
+            totalOutstanding,
+            recordCount: receivables.length,
+          },
+        };
+      } else if (
+        reportType === "daily_collections" ||
+        reportType === "Daily Collections"
+      ) {
+        title = "Daily Collections Report";
+
+        // Get daily collections aggregated by date
+        const dailyCollections = await db
+          .select({
+            date: sql<string>`${accountsReceivables.updatedAt}::date`,
+            totalCollected: sql<number>`SUM(${accountsReceivables.amountPaid})`,
+            transactionCount: sql<number>`COUNT(*)`,
+          })
+          .from(accountsReceivables)
+          .where(
+            sql`${accountsReceivables.amountPaid} > 0 AND ${sql.raw(
+              getDateFilter("accounts_receivables")
+            )}`
+          )
+          .groupBy(sql`${accountsReceivables.updatedAt}::date`)
+          .orderBy(sql`${accountsReceivables.updatedAt}::date`);
+
+        const totalCollected = dailyCollections.reduce(
+          (sum, day) => sum + parseFloat(day.totalCollected.toString()),
+          0
+        );
+        const totalTransactions = dailyCollections.reduce(
+          (sum, day) => sum + day.transactionCount,
+          0
+        );
+
+        reportData = {
+          dailyCollections: dailyCollections.map((day) => ({
+            date: day.date,
+            totalCollected: parseFloat(day.totalCollected.toString()),
+            transactionCount: day.transactionCount,
+          })),
+          summary: {
+            totalCollected,
+            totalTransactions,
+            daysWithCollections: dailyCollections.length,
+            averageDaily:
+              dailyCollections.length > 0
+                ? totalCollected / dailyCollections.length
+                : 0,
+          },
+        };
+      } else if (
+        reportType === "payables" ||
+        reportType === "Accounts Payable"
+      ) {
+        title = "Accounts Payable Report";
+
+        try {
+          const payables = await db
+            .select({
+              id: accountsPayables.id,
+              poId: accountsPayables.poId,
+              supplierId: accountsPayables.supplierId,
+              amountDue: accountsPayables.amountDue,
+              amountPaid: accountsPayables.amountPaid,
+              dueDate: accountsPayables.dueDate,
+              status: accountsPayables.status,
+              createdAt: accountsPayables.createdAt,
+              supplier: {
+                id: suppliers.id,
+                name: suppliers.name,
+              },
+            })
+            .from(accountsPayables)
+            .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+            .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
+            .orderBy(accountsPayables.createdAt);
+
+          const totalAmount = payables.reduce(
+            (sum, p) => sum + parseFloat(p.amountDue),
+            0
+          );
+          const totalPaid = payables.reduce(
+            (sum, p) => sum + parseFloat(p.amountPaid || 0),
+            0
+          );
+          const totalOutstanding = totalAmount - totalPaid;
+
+          reportData = {
+            payables,
+            summary: {
+              totalAmount,
+              totalPaid,
+              totalOutstanding,
+              recordCount: payables.length,
+            },
+          };
+        } catch (error) {
+          console.error("Error fetching payables data:", error);
+          // Return empty data if table doesn't exist
+          reportData = {
+            payables: [],
+            summary: {
+              totalAmount: 0,
+              totalPaid: 0,
+              totalOutstanding: 0,
+              recordCount: 0,
+            },
+          };
+        }
+      } else {
+        return res.status(400).json({ message: "Invalid report type" });
+      }
+
+      // Save report to database
+      // Set default date range if not provided
+      const now = new Date();
+      const defaultStartDate =
+        dateRange === "this_month"
+          ? new Date(now.getFullYear(), now.getMonth(), 1)
+          : dateRange === "last_month"
+          ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          : startDate
+          ? new Date(startDate)
+          : new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const defaultEndDate =
+        dateRange === "this_month"
+          ? new Date(now.getFullYear(), now.getMonth() + 1, 0)
+          : dateRange === "last_month"
+          ? new Date(now.getFullYear(), now.getMonth(), 0)
+          : endDate
+          ? new Date(endDate)
+          : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const savedReport = await db
+        .insert(accountReports)
+        .values({
+          reportType,
+          title,
+          startDate: defaultStartDate,
+          endDate: defaultEndDate,
+          generatedBy:
+            process.env.NODE_ENV === "development" ? null : req.user?.id,
+          parameters: JSON.stringify({
+            dateRange,
+            startDate,
+            endDate,
+          }),
+          summary: JSON.stringify(reportData.summary),
+        })
+        .returning();
+
+      res.json({
+        id: savedReport[0].id,
+        title,
+        reportType,
+        dateRange,
+        generatedAt: savedReport[0].generatedAt,
+        data: reportData,
+      });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get all saved reports
+  app.get("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const reports = await db
+        .select({
+          id: accountReports.id,
+          reportType: accountReports.reportType,
+          title: accountReports.title,
+          startDate: accountReports.startDate,
+          endDate: accountReports.endDate,
+          status: accountReports.status,
+          generatedAt: accountReports.generatedAt,
+          summary: accountReports.summary,
+          generatedBy: {
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(accountReports)
+        .leftJoin(users, eq(accountReports.generatedBy, users.id))
+        .orderBy(accountReports.generatedAt)
+        .limit(100); // Limit to last 100 reports
+
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // Get all accounts receivables
@@ -682,6 +987,137 @@ export function registerAccountsRoutes(app: Express) {
 
       inMemoryGstReturns.splice(index, 1);
       res.json({ message: "GST return deleted successfully" });
+    }
+  });
+
+  // Get all account tasks
+  app.get("/api/account-tasks", requireAuth, async (req, res) => {
+    try {
+      const tasks = await db
+        .select({
+          id: accountTasks.id,
+          title: accountTasks.title,
+          description: accountTasks.description,
+          type: accountTasks.type,
+          assignedTo: accountTasks.assignedTo,
+          assignedBy: accountTasks.assignedBy,
+          status: accountTasks.status,
+          priority: accountTasks.priority,
+          dueDate: accountTasks.dueDate,
+          completedDate: accountTasks.completedDate,
+          relatedType: accountTasks.relatedType,
+          relatedId: accountTasks.relatedId,
+          notes: accountTasks.notes,
+          createdAt: accountTasks.createdAt,
+          updatedAt: accountTasks.updatedAt,
+        })
+        .from(accountTasks)
+        .orderBy(accountTasks.createdAt);
+
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching account tasks:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create new account task
+  app.post("/api/account-tasks", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertAccountTaskSchema.parse(req.body);
+
+      const task = await db
+        .insert(accountTasks)
+        .values({
+          title: validatedData.title,
+          description: validatedData.description,
+          type: validatedData.type,
+          assignedTo: validatedData.assignedTo,
+          assignedBy: validatedData.assignedBy,
+          status: validatedData.status || "open",
+          priority: validatedData.priority || "medium",
+          dueDate: validatedData.dueDate
+            ? new Date(validatedData.dueDate)
+            : null,
+          relatedType: validatedData.relatedType,
+          relatedId: validatedData.relatedId,
+          notes: validatedData.notes,
+        })
+        .returning();
+
+      res.status(201).json(task[0]);
+    } catch (error) {
+      console.error("Error creating account task:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid data", details: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update account task
+  app.put("/api/account-tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertAccountTaskSchema.partial().parse(req.body);
+
+      const task = await db
+        .update(accountTasks)
+        .set({
+          title: validatedData.title,
+          description: validatedData.description,
+          type: validatedData.type,
+          assignedTo: validatedData.assignedTo,
+          assignedBy: validatedData.assignedBy,
+          status: validatedData.status,
+          priority: validatedData.priority,
+          dueDate: validatedData.dueDate
+            ? new Date(validatedData.dueDate)
+            : null,
+          relatedType: validatedData.relatedType,
+          relatedId: validatedData.relatedId,
+          notes: validatedData.notes,
+          updatedAt: new Date(),
+        })
+        .where(eq(accountTasks.id, id))
+        .returning();
+
+      if (task.length === 0) {
+        return res.status(404).json({ message: "Account task not found" });
+      }
+
+      res.json(task[0]);
+    } catch (error) {
+      console.error("Error updating account task:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid data", details: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete account task
+  app.delete("/api/account-tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await db
+        .delete(accountTasks)
+        .where(eq(accountTasks.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Account task not found" });
+      }
+
+      res.json({ message: "Account task deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting account task:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 }
