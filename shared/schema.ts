@@ -996,12 +996,12 @@ export const insertBankTransactionSchema = z.object({
   description: z.string().optional(),
   reference: z.string().optional(),
 });
-export const insertAccountReminderSchema = z.object({
-  reminderDate: z.string(),
-  accountId: z.string(),
-  message: z.string(),
-  status: z.enum(["pending", "sent"]).default("pending"),
-});
+// export const insertAccountReminderSchema = z.object({
+//   reminderDate: z.string(),
+//   accountId: z.string(),
+//   message: z.string(),
+//   status: z.enum(["pending", "sent"]).default("pending"),
+// });
 
 export const insertAccountReportSchema = z.object({
   reportId: z.string(),
@@ -1421,4 +1421,49 @@ export const bank_transactions = pgTable("bank_transactions", {
   date: timestamp("date").notNull(),
   type: bankTransactionType("type").notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }),
+});
+// =====================
+// ACCOUNT REMINDERS
+// =====================
+// =====================
+// ACCOUNT REMINDERS
+// =====================
+export const reminder_target_type = pgEnum("reminder_target_type", [
+  "account",
+  "payable",
+  "receivable",
+  "gst",
+]);
+export const reminder_channel = pgEnum("reminder_channel", ["email"]);
+export const reminder_status = pgEnum("reminder_status", [
+  "pending",
+  "sent",
+  "cancelled",
+]);
+
+export const account_reminders = pgTable("account_reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  targetType: reminder_target_type("targetType").notNull(),
+  targetId: varchar("targetId", { length: 255 }).notNull(),
+  dueDate: timestamp("dueDate").notNull(),
+  nextReminderAt: timestamp("nextReminderAt").notNull(),
+  lastSentAt: timestamp("lastSentAt"),
+  channel: reminder_channel("channel").notNull(),
+  status: reminder_status("status").default("pending").notNull(),
+  template: text("template"),
+  frequency: integer("frequency").default(7).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export const insertAccountReminderSchema = z.object({
+  targetType: z.enum(["account", "payable", "receivable", "gst"]),
+  targetId: z.string(),
+  dueDate: z.string().datetime(),
+  nextReminderAt: z.string().datetime().optional(),
+  lastSentAt: z.string().datetime().optional(),
+  channel: z.enum(["email"]),
+  status: z.enum(["pending", "sent", "cancelled"]).default("pending"),
+  template: z.string().optional(),
+  frequency: z.number().default(7),
 });
