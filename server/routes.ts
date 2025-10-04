@@ -2353,6 +2353,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Schema for creating account attendance records
+  const createAccountAttendanceSchema = z.object({
+    employeeId: z.string(), // User ID or username
+    date: z.string(), // Date in YYYY-MM-DD format
+    status: z.enum(["present", "absent", "leave"]),
+    checkIn: z.string().optional(), // Time in HH:mm format or full datetime
+    checkOut: z.string().optional(), // Time in HH:mm format or full datetime
+    location: z.string().optional(),
+    notes: z.string().optional(),
+  });
+
+  // POST create account attendance record
+  app.post("/api/account-attendance", requireAuth, async (req, res) => {
+    try {
+      const data = createAccountAttendanceSchema.parse(req.body);
+
+      // Find user by ID or username
+      let user;
+      if (isUuid(data.employeeId)) {
+        user = await storage.getUser(data.employeeId);
+      } else {
+        // Assume it's a username
+        user = await storage.getUserByUsername(data.employeeId);
+      }
+
+      if (!user) {
+        return res.status(400).json({ error: "Employee not found" });
+      }
+
+      // Parse dates
+      const attendanceDate = new Date(data.date);
+      const checkIn = data.checkIn ? new Date(data.checkIn) : null;
+      const checkOut = data.checkOut ? new Date(data.checkOut) : null;
+
+      // Insert attendance record
+      const [newRecord] = await db
+        .insert(attendance)
+        .values({
+          userId: user.id,
+          date: attendanceDate,
+          checkIn: checkIn,
+          checkOut: checkOut,
+          location: data.location,
+          status: data.status,
+          notes: data.notes,
+        })
+        .returning();
+
+      res.status(201).json({
+        message: "Attendance record created successfully",
+        record: newRecord,
+      });
+    } catch (error: any) {
+      console.error("Error creating account attendance record:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to create attendance record",
+        details: error.message,
+      });
+    }
+  });
   // Accounts metrics and lists (stubs to satisfy UI)
   // app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
   //   res.json({
