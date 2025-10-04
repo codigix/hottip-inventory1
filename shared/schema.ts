@@ -93,6 +93,11 @@ export const taskPriority = pgEnum("task_priority", [
   "high",
   "urgent",
 ]);
+export const accountTaskStatus = pgEnum("account_task_status", [
+  "open",
+  "in_progress",
+  "done",
+]);
 export const inventoryTaskType = pgEnum("inventory_task_type", [
   "Fabrication",
   "Maintenance",
@@ -304,6 +309,46 @@ export const leaveRequests = pgTable("leave_requests", {
   reason: text("reason").notNull(),
   status: text("status").default("pending"),
   totalDays: integer("total_days"),
+});
+
+// =====================
+// ACCOUNT TASKS
+// =====================
+export const accountTasks = pgTable("account_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id),
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id),
+  status: accountTaskStatus("status").notNull().default("open"),
+  priority: taskPriority("priority").notNull().default("medium"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  relatedType: text("relatedType"),
+  relatedId: uuid("relatedId"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Custom insert schema with UUID validation
+export const insertAccountTaskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: z.string().optional(),
+  assignedTo: z.string().uuid("Assigned To must be a valid UUID"),
+  assignedBy: z.string().uuid("Assigned By must be a valid UUID"),
+  status: z.enum(["open", "in_progress", "done"]).optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueDate: z.string().optional(),
+  relatedType: z.string().optional(),
+  relatedId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  notes: z.string().optional(),
 });
 // =====================
 // FIELD VISITS
@@ -905,6 +950,9 @@ export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
 export type AccountsPayable = typeof accountsPayables.$inferSelect;
 export type InsertAccountsPayable = typeof accountsPayables.$inferInsert;
 
+export type AccountTask = typeof accountTasks.$inferSelect;
+export type InsertAccountTask = typeof accountTasks.$inferInsert;
+
 export type GstReturn = typeof gstReturns.$inferSelect;
 export type InsertGstReturn = typeof gstReturns.$inferInsert;
 
@@ -953,14 +1001,6 @@ export const insertAccountReminderSchema = z.object({
   accountId: z.string(),
   message: z.string(),
   status: z.enum(["pending", "sent"]).default("pending"),
-});
-export const insertAccountTaskSchema = z.object({
-  taskId: z.string(),
-  accountId: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  dueDate: z.string(),
-  status: z.enum(["pending", "completed"]).default("pending"),
 });
 
 export const insertAccountReportSchema = z.object({

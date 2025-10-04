@@ -50,6 +50,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   ClipboardList,
   Users,
@@ -115,6 +116,7 @@ const typeStyles = {
 
 export default function AccountsTasks() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedTask, setSelectedTask] = useState<AccountTask | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -146,7 +148,7 @@ export default function AccountsTasks() {
       description: "",
       type: "reconcile",
       assignedTo: "",
-      assignedBy: "",
+      assignedBy: user?.id || "",
       status: "open",
       priority: "medium",
       relatedType: "",
