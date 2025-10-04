@@ -64,14 +64,20 @@ export function registerAccountsRoutes(app: Express) {
       const totalReceivables = receivablesResult[0]?.total || 0;
 
       // Get total outstanding payables
-      const payablesResult = await db
-        .select({
-          total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
-        })
-        .from(accountsPayables)
-        .where(sql`${accountsPayables.status} != 'paid'`);
+      let totalPayables = 0;
+      try {
+        const payablesResult = await db
+          .select({
+            total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
+          })
+          .from(accountsPayables)
+          .where(sql`${accountsPayables.status} != 'paid'`);
 
-      const totalPayables = payablesResult[0]?.total || 0;
+        totalPayables = payablesResult[0]?.total || 0;
+      } catch (error) {
+        console.error("Error fetching payables total:", error);
+        totalPayables = 0;
+      }
 
       // For cash flow, we could calculate based on recent transactions
       // For now, return 0 as placeholder
@@ -158,50 +164,111 @@ export function registerAccountsRoutes(app: Express) {
           },
         };
       } else if (
+        reportType === "daily_collections" ||
+        reportType === "Daily Collections"
+      ) {
+        title = "Daily Collections Report";
+
+        // Get daily collections aggregated by date
+        const dailyCollections = await db
+          .select({
+            date: sql<string>`${accountsReceivables.updatedAt}::date`,
+            totalCollected: sql<number>`SUM(${accountsReceivables.amountPaid})`,
+            transactionCount: sql<number>`COUNT(*)`,
+          })
+          .from(accountsReceivables)
+          .where(
+            sql`${accountsReceivables.amountPaid} > 0 AND ${sql.raw(
+              getDateFilter("accounts_receivables")
+            )}`
+          )
+          .groupBy(sql`${accountsReceivables.updatedAt}::date`)
+          .orderBy(sql`${accountsReceivables.updatedAt}::date`);
+
+        const totalCollected = dailyCollections.reduce(
+          (sum, day) => sum + parseFloat(day.totalCollected.toString()),
+          0
+        );
+        const totalTransactions = dailyCollections.reduce(
+          (sum, day) => sum + day.transactionCount,
+          0
+        );
+
+        reportData = {
+          dailyCollections: dailyCollections.map((day) => ({
+            date: day.date,
+            totalCollected: parseFloat(day.totalCollected.toString()),
+            transactionCount: day.transactionCount,
+          })),
+          summary: {
+            totalCollected,
+            totalTransactions,
+            daysWithCollections: dailyCollections.length,
+            averageDaily:
+              dailyCollections.length > 0
+                ? totalCollected / dailyCollections.length
+                : 0,
+          },
+        };
+      } else if (
         reportType === "payables" ||
         reportType === "Accounts Payable"
       ) {
         title = "Accounts Payable Report";
 
-        const payables = await db
-          .select({
-            id: accountsPayables.id,
-            poId: accountsPayables.poId,
-            supplierId: accountsPayables.supplierId,
-            amountDue: accountsPayables.amountDue,
-            amountPaid: accountsPayables.amountPaid,
-            dueDate: accountsPayables.dueDate,
-            status: accountsPayables.status,
-            createdAt: accountsPayables.createdAt,
-            supplier: {
-              id: suppliers.id,
-              name: suppliers.name,
+        try {
+          const payables = await db
+            .select({
+              id: accountsPayables.id,
+              poId: accountsPayables.poId,
+              supplierId: accountsPayables.supplierId,
+              amountDue: accountsPayables.amountDue,
+              amountPaid: accountsPayables.amountPaid,
+              dueDate: accountsPayables.dueDate,
+              status: accountsPayables.status,
+              createdAt: accountsPayables.createdAt,
+              supplier: {
+                id: suppliers.id,
+                name: suppliers.name,
+              },
+            })
+            .from(accountsPayables)
+            .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+            .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
+            .orderBy(accountsPayables.createdAt);
+
+          const totalAmount = payables.reduce(
+            (sum, p) => sum + parseFloat(p.amountDue),
+            0
+          );
+          const totalPaid = payables.reduce(
+            (sum, p) => sum + parseFloat(p.amountPaid || 0),
+            0
+          );
+          const totalOutstanding = totalAmount - totalPaid;
+
+          reportData = {
+            payables,
+            summary: {
+              totalAmount,
+              totalPaid,
+              totalOutstanding,
+              recordCount: payables.length,
             },
-          })
-          .from(accountsPayables)
-          .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
-          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
-          .orderBy(accountsPayables.createdAt);
-
-        const totalAmount = payables.reduce(
-          (sum, p) => sum + parseFloat(p.amountDue),
-          0
-        );
-        const totalPaid = payables.reduce(
-          (sum, p) => sum + parseFloat(p.amountPaid || 0),
-          0
-        );
-        const totalOutstanding = totalAmount - totalPaid;
-
-        reportData = {
-          payables,
-          summary: {
-            totalAmount,
-            totalPaid,
-            totalOutstanding,
-            recordCount: payables.length,
-          },
-        };
+          };
+        } catch (error) {
+          console.error("Error fetching payables data:", error);
+          // Return empty data if table doesn't exist
+          reportData = {
+            payables: [],
+            summary: {
+              totalAmount: 0,
+              totalPaid: 0,
+              totalOutstanding: 0,
+              recordCount: 0,
+            },
+          };
+        }
       } else {
         return res.status(400).json({ message: "Invalid report type" });
       }
