@@ -1003,14 +1003,6 @@ export const insertBankTransactionSchema = z.object({
 //   status: z.enum(["pending", "sent"]).default("pending"),
 // });
 
-export const insertAccountReportSchema = z.object({
-  reportId: z.string(),
-  accountId: z.string(),
-  title: z.string(),
-  generatedOn: z.string(),
-  status: z.enum(["draft", "final"]).default("draft"),
-  notes: z.string().optional(),
-});
 export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
   date: z.string(),
@@ -1466,4 +1458,49 @@ export const insertAccountReminderSchema = z.object({
   status: z.enum(["pending", "sent", "cancelled"]).default("pending"),
   template: z.string().optional(),
   frequency: z.number().default(7),
+});
+
+// =====================
+// ACCOUNT REPORTS
+// =====================
+export const reportStatus = pgEnum("report_status", [
+  "generated",
+  "processing",
+  "failed",
+]);
+
+export const accountReports = pgTable("account_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportType: text("reportType").notNull(),
+  title: text("title").notNull(),
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  status: reportStatus("status").default("generated").notNull(),
+  fileUrl: text("fileUrl"),
+  fileName: text("fileName"),
+  fileSize: integer("fileSize"),
+  generatedBy: uuid("generatedBy").references(() => users.id),
+  downloadCount: integer("downloadCount").default(0),
+  parameters: jsonb("parameters"),
+  summary: jsonb("summary"),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export const insertAccountReportSchema = z.object({
+  reportType: z.string(),
+  title: z.string(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  status: z.enum(["generated", "processing", "failed"]).optional(),
+  fileUrl: z.string().optional(),
+  fileName: z.string().optional(),
+  fileSize: z.number().optional(),
+  generatedBy: z.string().uuid().optional(),
+  downloadCount: z.number().optional(),
+  parameters: z.any().optional(),
+  summary: z.any().optional(),
+  expiresAt: z.string().optional(),
 });

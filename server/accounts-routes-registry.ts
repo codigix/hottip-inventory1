@@ -11,12 +11,15 @@ import {
   gstReturns,
   accountTasks,
   insertAccountTaskSchema,
+  accountReports,
+  users,
 } from "../shared/schema";
 import { eq, sql, gte, lt } from "drizzle-orm";
 import {
   insertAccountsReceivableSchema,
   insertAccountsPayableSchema,
   insertGstReturnSchema,
+  insertAccountReportSchema,
 } from "../shared/schema";
 
 interface AuthenticatedRequest extends Request {
@@ -47,13 +50,224 @@ const requireAuth = async (
 };
 
 export function registerAccountsRoutes(app: Express) {
-  // Accounts dashboards minimal stubs; extend with real queries later
-  app.get("/api/accounts/dashboard", requireAuth, async (_req, res) => {
-    res.json({
-      totalReceivables: 0,
-      totalPayables: 0,
-      cashFlow: { inflow: 0, outflow: 0 },
-    });
+  // Accounts dashboard metrics
+  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+    try {
+      // Get total outstanding receivables
+      const receivablesResult = await db
+        .select({
+          total: sql<number>`SUM(${accountsReceivables.amountDue} - ${accountsReceivables.amountPaid})`,
+        })
+        .from(accountsReceivables)
+        .where(sql`${accountsReceivables.status} != 'paid'`);
+
+      const totalReceivables = receivablesResult[0]?.total || 0;
+
+      // Get total outstanding payables
+      const payablesResult = await db
+        .select({
+          total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
+        })
+        .from(accountsPayables)
+        .where(sql`${accountsPayables.status} != 'paid'`);
+
+      const totalPayables = payablesResult[0]?.total || 0;
+
+      // For cash flow, we could calculate based on recent transactions
+      // For now, return 0 as placeholder
+      const cashFlow = { inflow: 0, outflow: 0 };
+
+      res.json({
+        totalReceivables,
+        totalPayables,
+        cashFlow,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Generate financial reports
+  app.post("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const { reportType, dateRange, startDate, endDate } = req.body;
+
+      if (!reportType) {
+        return res.status(400).json({ message: "Report type is required" });
+      }
+
+      let reportData: any = {};
+      let title = "";
+
+      // Determine date filter
+      const getDateFilter = (tableName: string) => {
+        if (dateRange === "custom" && startDate && endDate) {
+          return `AND ${tableName}."createdAt" >= '${startDate}' AND ${tableName}."createdAt" <= '${endDate}'`;
+        } else if (dateRange === "this_month") {
+          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW())`;
+        } else if (dateRange === "last_month") {
+          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW() - INTERVAL '1 month') AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW() - INTERVAL '1 month')`;
+        }
+        return "";
+      };
+
+      if (
+        reportType === "receivables" ||
+        reportType === "Accounts Receivable"
+      ) {
+        title = "Accounts Receivable Report";
+
+        const receivables = await db
+          .select({
+            id: accountsReceivables.id,
+            invoiceId: accountsReceivables.invoiceId,
+            customerId: accountsReceivables.customerId,
+            amountDue: accountsReceivables.amountDue,
+            amountPaid: accountsReceivables.amountPaid,
+            dueDate: accountsReceivables.dueDate,
+            status: accountsReceivables.status,
+            createdAt: accountsReceivables.createdAt,
+            customer: {
+              id: customers.id,
+              name: customers.name,
+            },
+          })
+          .from(accountsReceivables)
+          .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_receivables"))}`)
+          .orderBy(accountsReceivables.createdAt);
+
+        const totalAmount = receivables.reduce(
+          (sum, r) => sum + parseFloat(r.amountDue),
+          0
+        );
+        const totalPaid = receivables.reduce(
+          (sum, r) => sum + parseFloat(r.amountPaid || 0),
+          0
+        );
+        const totalOutstanding = totalAmount - totalPaid;
+
+        reportData = {
+          receivables,
+          summary: {
+            totalAmount,
+            totalPaid,
+            totalOutstanding,
+            recordCount: receivables.length,
+          },
+        };
+      } else if (
+        reportType === "payables" ||
+        reportType === "Accounts Payable"
+      ) {
+        title = "Accounts Payable Report";
+
+        const payables = await db
+          .select({
+            id: accountsPayables.id,
+            poId: accountsPayables.poId,
+            supplierId: accountsPayables.supplierId,
+            amountDue: accountsPayables.amountDue,
+            amountPaid: accountsPayables.amountPaid,
+            dueDate: accountsPayables.dueDate,
+            status: accountsPayables.status,
+            createdAt: accountsPayables.createdAt,
+            supplier: {
+              id: suppliers.id,
+              name: suppliers.name,
+            },
+          })
+          .from(accountsPayables)
+          .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
+          .orderBy(accountsPayables.createdAt);
+
+        const totalAmount = payables.reduce(
+          (sum, p) => sum + parseFloat(p.amountDue),
+          0
+        );
+        const totalPaid = payables.reduce(
+          (sum, p) => sum + parseFloat(p.amountPaid || 0),
+          0
+        );
+        const totalOutstanding = totalAmount - totalPaid;
+
+        reportData = {
+          payables,
+          summary: {
+            totalAmount,
+            totalPaid,
+            totalOutstanding,
+            recordCount: payables.length,
+          },
+        };
+      } else {
+        return res.status(400).json({ message: "Invalid report type" });
+      }
+
+      // Save report to database
+      const savedReport = await db
+        .insert(accountReports)
+        .values({
+          reportType,
+          title,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          generatedBy: req.user?.id,
+          parameters: {
+            dateRange,
+            startDate,
+            endDate,
+          },
+          summary: reportData.summary,
+        })
+        .returning();
+
+      res.json({
+        id: savedReport[0].id,
+        title,
+        reportType,
+        dateRange,
+        generatedAt: savedReport[0].generatedAt,
+        data: reportData,
+      });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get all saved reports
+  app.get("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const reports = await db
+        .select({
+          id: accountReports.id,
+          reportType: accountReports.reportType,
+          title: accountReports.title,
+          startDate: accountReports.startDate,
+          endDate: accountReports.endDate,
+          status: accountReports.status,
+          generatedAt: accountReports.generatedAt,
+          summary: accountReports.summary,
+          generatedBy: {
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(accountReports)
+        .leftJoin(users, eq(accountReports.generatedBy, users.id))
+        .orderBy(accountReports.generatedAt)
+        .limit(100); // Limit to last 100 reports
+
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // Get all accounts receivables
