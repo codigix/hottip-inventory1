@@ -652,6 +652,44 @@ export const gstReturns = pgTable("gst_returns", {
 });
 
 // =====================
+// ACCOUNT REPORTS
+// =====================
+export const reportStatus = pgEnum("report_status", [
+  "generating",
+  "completed",
+  "failed",
+]);
+
+export const reportType = pgEnum("report_type", [
+  "daily_collections",
+  "receivables",
+  "payables",
+  "gst_filing",
+  "cash_flow",
+  "profit_loss",
+]);
+
+export const accountReports = pgTable("account_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportType: reportType("reportType").notNull(),
+  title: text("title").notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  status: reportStatus("status").notNull().default("generating"),
+  fileUrl: text("fileUrl"),
+  fileName: text("fileName"),
+  fileSize: integer("fileSize"),
+  generatedBy: uuid("generatedBy").references(() => users.id),
+  downloadCount: integer("downloadCount").notNull().default(0),
+  parameters: text("parameters"),
+  summary: text("summary"),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
 // PURCHASE ORDERS
 // =====================
 export const orderStatus = pgEnum("order_status", [
@@ -956,6 +994,9 @@ export type InsertAccountTask = typeof accountTasks.$inferInsert;
 export type GstReturn = typeof gstReturns.$inferSelect;
 export type InsertGstReturn = typeof gstReturns.$inferInsert;
 
+export type AccountReport = typeof accountReports.$inferSelect;
+export type InsertAccountReport = typeof accountReports.$inferInsert;
+
 // GST Return schema
 export const insertGstReturnSchema = z.object({
   periodStart: z.string().min(1, "Period start date is required"),
@@ -1004,12 +1045,19 @@ export const insertBankTransactionSchema = z.object({
 // });
 
 export const insertAccountReportSchema = z.object({
-  reportId: z.string(),
-  accountId: z.string(),
-  title: z.string(),
-  generatedOn: z.string(),
-  status: z.enum(["draft", "final"]).default("draft"),
-  notes: z.string().optional(),
+  reportType: z.enum([
+    "daily_collections",
+    "receivables",
+    "payables",
+    "gst_filing",
+    "cash_flow",
+    "profit_loss",
+  ]),
+  title: z.string().min(1, "Title is required"),
+  startDate: z.string(),
+  endDate: z.string(),
+  parameters: z.string().optional(),
+  summary: z.string().optional(),
 });
 export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
