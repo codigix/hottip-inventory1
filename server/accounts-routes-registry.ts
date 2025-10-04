@@ -56,63 +56,6 @@ export function registerAccountsRoutes(app: Express) {
     });
   });
 
-  // Dashboard metrics endpoint
-  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
-    try {
-      // Calculate total receivables (amount due - amount paid for unpaid items)
-      const receivablesResult = await db
-        .select({
-          total: sql<number>`SUM(CAST(${accountsReceivables.amountDue} AS DECIMAL) - COALESCE(CAST(${accountsReceivables.amountPaid} AS DECIMAL), 0))`,
-        })
-        .from(accountsReceivables)
-        .where(sql`${accountsReceivables.status} != 'paid'`);
-
-      const totalReceivables = receivablesResult[0]?.total || 0;
-
-      // Calculate total payables (amount due - amount paid for unpaid items)
-      const payablesResult = await db
-        .select({
-          total: sql<number>`SUM(CAST(${accountsPayables.amountDue} AS DECIMAL) - COALESCE(CAST(${accountsPayables.amountPaid} AS DECIMAL), 0))`,
-        })
-        .from(accountsPayables)
-        .where(sql`${accountsPayables.status} != 'paid'`);
-
-      const totalPayables = payablesResult[0]?.total || 0;
-
-      // Count overdue invoices (invoices past due date)
-      const overdueInvoicesResult = await db
-        .select({
-          count: sql<number>`COUNT(*)`,
-        })
-        .from(accountsReceivables)
-        .where(
-          sql`${accountsReceivables.dueDate} < NOW() AND ${accountsReceivables.status} != 'paid'`
-        );
-
-      const invoicesDue = overdueInvoicesResult[0]?.count || 0;
-
-      // Calculate average days to pay (for paid receivables)
-      const avgDaysResult = await db
-        .select({
-          avg: sql<number>`AVG(EXTRACT(EPOCH FROM (${accountsReceivables.updatedAt} - ${accountsReceivables.createdAt})) / 86400)`,
-        })
-        .from(accountsReceivables)
-        .where(eq(accountsReceivables.status, "paid"));
-
-      const avgDaysToPay = Math.round(avgDaysResult[0]?.avg || 0);
-
-      res.json({
-        totalReceivables: Number(totalReceivables),
-        totalPayables: Number(totalPayables),
-        invoicesDue,
-        avgDaysToPay,
-      });
-    } catch (error) {
-      console.error("Error fetching dashboard metrics:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
   // Get all accounts receivables
   app.get("/api/accounts-receivables", requireAuth, async (req, res) => {
     try {

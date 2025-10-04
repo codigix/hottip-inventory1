@@ -64,8 +64,6 @@ import {
   insertBankTransactionSchema,
   account_reminders,
   insertAccountReminderSchema,
-  accountReports,
-  insertAccountReportSchema,
 } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
@@ -2728,102 +2726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generic reports list
   app.get("/api/reports", requireAuth, async (_req, res) => {
-    try {
-      const reports = await db
-        .select({
-          id: accountReports.id,
-          reportType: accountReports.reportType,
-          title: accountReports.title,
-          startDate: accountReports.startDate,
-          endDate: accountReports.endDate,
-          status: accountReports.status,
-          fileUrl: accountReports.fileUrl,
-          fileName: accountReports.fileName,
-          fileSize: accountReports.fileSize,
-          generatedBy: accountReports.generatedBy,
-          downloadCount: accountReports.downloadCount,
-          parameters: accountReports.parameters,
-          summary: accountReports.summary,
-          generatedAt: accountReports.generatedAt,
-          expiresAt: accountReports.expiresAt,
-          createdAt: accountReports.createdAt,
-          updatedAt: accountReports.updatedAt,
-        })
-        .from(accountReports)
-        .orderBy(desc(accountReports.createdAt));
-
-      res.json(reports);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      res.status(500).json({ error: "Failed to fetch reports" });
-    }
-  });
-
-  // Create/generate a new report
-  app.post("/api/reports", requireAuth, async (req, res) => {
-    try {
-      const validatedData = insertAccountReportSchema.parse(req.body);
-
-      // Get the authenticated user
-      const userId = (req as AuthenticatedRequest).user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
-      }
-
-      // Create the report record with generating status
-      const newReport = await db
-        .insert(accountReports)
-        .values({
-          ...validatedData,
-          startDate: new Date(validatedData.startDate),
-          endDate: new Date(validatedData.endDate),
-          generatedBy: userId,
-          status: "generating",
-        })
-        .returning();
-
-      // In a real implementation, you would queue the report generation here
-      // For now, we'll simulate report generation by updating the status to completed
-      // and generating a mock file URL
-
-      // Simulate report generation (replace with actual report generation logic)
-      setTimeout(async () => {
-        try {
-          await db
-            .update(accountReports)
-            .set({
-              status: "completed",
-              fileUrl: `/reports/${newReport[0].id}.pdf`,
-              fileName: `${validatedData.title.replace(/\s+/g, '_')}.pdf`,
-              fileSize: 1024000, // Mock file size in bytes
-              summary: `Report generated for ${validatedData.reportType} from ${validatedData.startDate} to ${validatedData.endDate}`,
-              generatedAt: new Date(),
-            })
-            .where(eq(accountReports.id, newReport[0].id));
-        } catch (error) {
-          console.error("Error updating report status:", error);
-          // Update status to failed if generation fails
-          await db
-            .update(accountReports)
-            .set({ status: "failed" })
-            .where(eq(accountReports.id, newReport[0].id));
-        }
-      }, 2000); // Simulate 2 second generation time
-
-      res.status(201).json({
-        message: "Report generation started",
-        report: newReport[0],
-      });
-    } catch (error) {
-      console.error("Error creating report:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: "Invalid input",
-          details: error.errors,
-        });
-      }
-      res.status(500).json({ error: "Failed to create report" });
-    }
+    res.json([]);
   });
 
   //
@@ -4012,24 +3915,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning({
           id: tasks.id,
-               });
-
-      res.status(201).json({
-        message: 'Task created successfully',
-        task: newTask,
-      });
-    } catch (error) {
-      console.error('Error creating task:', error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: 'Invalid input',
-          details: error.errors,
+          title: tasks.title,
+          description: tasks.description,
+          status: tasks.status,
+          priority: tasks.priority,
+          assignedTo: tasks.assignedTo,
+          assignedBy: tasks.assignedBy,
+          dueDate: tasks.dueDate,
+          createdAt: tasks.createdAt,
+          updatedAt: tasks.updatedAt,
         });
-      }
-      res.status(500).json({ error: 'Failed to create task' });
+
+      res.status(201).json({ message: "Task created", task: newTask });
+    } catch (err) {
+      console.error("Error creating task:", err);
+      res.status(500).json({
+        error: "Failed to create task",
+        details: err.message,
+      });
     }
   });
 
-  // Return the configured server
-  return createServer(app);
+  // Return the server instance
+  const server = createServer(app);
+  return server;
 }
