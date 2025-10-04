@@ -38,7 +38,7 @@ const requireAuth = async (
   // In development mode, authentication is bypassed
   if (process.env.NODE_ENV === "development") {
     req.user = {
-      id: "dev-admin-user",
+      id: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID for dev user
       role: "admin",
       username: "dev_admin",
     };
@@ -207,20 +207,41 @@ export function registerAccountsRoutes(app: Express) {
       }
 
       // Save report to database
+      // Set default date range if not provided
+      const now = new Date();
+      const defaultStartDate =
+        dateRange === "this_month"
+          ? new Date(now.getFullYear(), now.getMonth(), 1)
+          : dateRange === "last_month"
+          ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          : startDate
+          ? new Date(startDate)
+          : new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const defaultEndDate =
+        dateRange === "this_month"
+          ? new Date(now.getFullYear(), now.getMonth() + 1, 0)
+          : dateRange === "last_month"
+          ? new Date(now.getFullYear(), now.getMonth(), 0)
+          : endDate
+          ? new Date(endDate)
+          : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
       const savedReport = await db
         .insert(accountReports)
         .values({
           reportType,
           title,
-          startDate: startDate ? new Date(startDate) : undefined,
-          endDate: endDate ? new Date(endDate) : undefined,
-          generatedBy: req.user?.id,
-          parameters: {
+          startDate: defaultStartDate,
+          endDate: defaultEndDate,
+          generatedBy:
+            process.env.NODE_ENV === "development" ? null : req.user?.id,
+          parameters: JSON.stringify({
             dateRange,
             startDate,
             endDate,
-          },
-          summary: reportData.summary,
+          }),
+          summary: JSON.stringify(reportData.summary),
         })
         .returning();
 
