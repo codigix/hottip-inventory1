@@ -1,11 +1,20 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiRequest } from '@/lib/queryClient';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface User {
   id: string;
   username: string;
   role: string;
-  department?: string;
+  department: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 }
 
 interface AuthContextType {
@@ -22,7 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
@@ -38,12 +47,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for existing token on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
+    const storedToken = localStorage.getItem("auth_token");
     if (storedToken) {
       setToken(storedToken);
       // TODO: Validate token and get user info
       // For now, we'll just trust the stored token
-      const storedUser = localStorage.getItem('auth_user');
+      const storedUser = localStorage.getItem("auth_user");
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
@@ -53,26 +62,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (identifier: string, password: string) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username: identifier, email: identifier, password }),
+        body: JSON.stringify({
+          username: identifier,
+          email: identifier,
+          password,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        throw new Error(errorData.error || "Login failed");
       }
 
       const data = await response.json();
       const { token, user } = data;
 
       // Store token and user info
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('auth_user', JSON.stringify(user));
-      
+      localStorage.setItem("auth_token", token);
+      localStorage.setItem("auth_user", JSON.stringify(user));
+
       setToken(token);
       setUser(user);
     } catch (error) {
@@ -81,8 +94,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
     setToken(null);
     setUser(null);
   };
@@ -101,5 +114,5 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 // Helper function to get auth token for API requests
 export function getAuthToken(): string | null {
-  return localStorage.getItem('auth_token');
+  return localStorage.getItem("auth_token");
 }
