@@ -2308,18 +2308,18 @@ export type MarketingRoute = {
  */
 export function registerMarketingRoutes(
   app: Express,
-  middleware: {
-    requireAuth: (
+  middleware?: {
+    requireAuth?: (
       req: AuthenticatedRequest,
       res: Response,
       next: NextFunction
     ) => Promise<void>;
-    requireMarketingAccess: (
+    requireMarketingAccess?: (
       req: AuthenticatedRequest,
       res: Response,
       next: NextFunction
     ) => void;
-    checkOwnership: (
+    checkOwnership?: (
       entityType: string
     ) => (
       req: AuthenticatedRequest,
@@ -2328,11 +2328,35 @@ export function registerMarketingRoutes(
     ) => Promise<void>;
   }
 ): void {
+  // Ensure middleware object exists with proper defaults
+  if (!middleware) {
+    throw new Error(
+      "registerMarketingRoutes: middleware parameter is required"
+    );
+  }
+
   const {
     requireAuth: auth,
     requireMarketingAccess: marketingAccess,
     checkOwnership,
   } = middleware;
+
+  // Validate that all required middleware are provided
+  if (!auth) {
+    throw new Error(
+      "registerMarketingRoutes: requireAuth middleware is required"
+    );
+  }
+  if (!marketingAccess) {
+    throw new Error(
+      "registerMarketingRoutes: requireMarketingAccess middleware is required"
+    );
+  }
+  if (!checkOwnership) {
+    throw new Error(
+      "registerMarketingRoutes: checkOwnership middleware is required"
+    );
+  }
 
   // Define all marketing routes with their middleware requirements
   const marketingRoutes: MarketingRoute[] = [
