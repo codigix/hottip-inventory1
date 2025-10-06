@@ -1,6 +1,8 @@
-﻿import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { registerAccountsRoutes } from "./accounts-routes-registry";
+import { registerMarketingRoutes } from "./marketing-routes-registry";
+import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -3939,8 +3941,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register additional routes from registries
   registerAdminRoutes(app);
   registerAccountsRoutes(app);
+  registerMarketingRoutes(app, {
+    requireAuth,
+    requireMarketingAccess,
+    checkOwnership,
+  });
+  registerLogisticsRoutes(app, {
 
-  // Return the server instance
-  const server = createServer(app);
-  return server;
+    requireAuth,
+
+    requireLogisticsAccess: requireMarketingAccess, // Reuse marketing access for logistics
+
+    checkOwnership,
+
+  });
+  
+  const httpServer = createServer(app);
+  return httpServer;
 }
