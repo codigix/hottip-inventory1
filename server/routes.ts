@@ -3,6 +3,7 @@ import { registerAdminRoutes } from "./admin-routes-registry";
 import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
+import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -844,10 +845,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Spare Parts API
   app.get("/api/fabrication-orders", async (req, res) => {
     try {
-      const orders = await storage.getFabricationOrders();
+      const orders = await db
+        .select({
+          id: fabricationOrders.id,
+          orderNumber: fabricationOrders.orderNumber,
+          sparePartId: fabricationOrders.sparePartId,
+          quantity: fabricationOrders.quantity,
+          status: fabricationOrders.status,
+          priority: fabricationOrders.priority,
+          startDate: fabricationOrders.startDate,
+          dueDate: fabricationOrders.dueDate,
+          notes: fabricationOrders.notes,
+          createdAt: fabricationOrders.createdAt,
+          updatedAt: fabricationOrders.updatedAt,
+        })
+        .from(fabricationOrders)
+        .orderBy(fabricationOrders.createdAt);
+
       res.json(orders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch fabrication orders" });
+    } catch (error: any) {
+      console.error("Error fetching fabrication orders:", error);
+      res
+        .status(500)
+        .json({
+          error: "Failed to fetch fabrication orders",
+          details: error.message,
+        });
     }
   });
 
@@ -3929,7 +3952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       res.status(201).json({ message: "Task created", task: newTask });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating task:", err);
       res.status(500).json({
         error: "Failed to create task",
@@ -3939,7 +3962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register additional routes from registries
-  registerAdminRoutes(app);
+  registerAdminRoutes(app, { requireAuth });
   registerAccountsRoutes(app);
   registerMarketingRoutes(app, {
     requireAuth,
@@ -3947,15 +3970,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     checkOwnership,
   });
   registerLogisticsRoutes(app, {
-
     requireAuth,
-
-    requireLogisticsAccess: requireMarketingAccess, // Reuse marketing access for logistics
-
-    checkOwnership,
-
   });
-  
+  registerInventoryRoutes(app, {
+    requireAuth,
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
