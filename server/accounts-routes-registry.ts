@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { db } from "./db";
+import { storage } from "./storage";
 import {
   accountsReceivables,
   customers,
@@ -13,6 +14,8 @@ import {
   insertAccountTaskSchema,
   accountReports,
   users,
+  insertCustomerSchema,
+  attendance,
 } from "../shared/schema";
 import { eq, sql, gte, lt } from "drizzle-orm";
 import {
@@ -1120,4 +1123,193 @@ export function registerAccountsRoutes(app: Express) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Get all customers
+  app.get("/api/customers", requireAuth, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create new customer
+  app.post("/api/customers", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertCustomerSchema.parse(req.body);
+      const customer = await storage.createCustomer(validatedData);
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update customer
+  app.put("/api/customers/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertCustomerSchema.parse(req.body);
+
+      const customer = await db
+        .update(customers)
+        .set(validatedData)
+        .where(eq(customers.id, id))
+        .returning();
+
+      if (customer.length === 0) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.json(customer[0]);
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete customer
+  app.delete("/api/customers/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await db
+        .delete(customers)
+        .where(eq(customers.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Clock in for attendance
+  app.post(
+    "/api/account-attendance/clock-in",
+    requireAuth,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const { location, notes } = req.body;
+
+        // Check if user already has an attendance record for today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const existingRecord = await db
+          .select()
+          .from(attendance)
+          .where(
+            sql`${attendance.userId} = ${userId} AND ${attendance.date} >= ${today} AND ${attendance.date} < ${tomorrow}`
+          )
+          .limit(1);
+
+        if (existingRecord.length > 0) {
+          return res
+            .status(400)
+            .json({ message: "Already clocked in for today" });
+        }
+
+        // Create new attendance record with check-in time
+        const [newRecord] = await db
+          .insert(attendance)
+          .values({
+            userId,
+            date: new Date(),
+            checkIn: new Date(),
+            location,
+            notes,
+            status: "present",
+          })
+          .returning();
+
+        res.status(201).json({
+          message: "Successfully clocked in",
+          record: newRecord,
+        });
+      } catch (error) {
+        console.error("Error clocking in:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Clock out for attendance
+  app.post(
+    "/api/account-attendance/clock-out",
+    requireAuth,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const { location, notes } = req.body;
+
+        // Find today's attendance record for the user
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const existingRecord = await db
+          .select()
+          .from(attendance)
+          .where(
+            sql`${attendance.userId} = ${userId} AND ${attendance.date} >= ${today} AND ${attendance.date} < ${tomorrow}`
+          )
+          .limit(1);
+
+        if (existingRecord.length === 0) {
+          return res
+            .status(400)
+            .json({ message: "No clock-in record found for today" });
+        }
+
+        // Update the record with check-out time
+        const [updatedRecord] = await db
+          .update(attendance)
+          .set({
+            checkOut: new Date(),
+            location: location || existingRecord[0].location,
+            notes: notes || existingRecord[0].notes,
+          })
+          .where(eq(attendance.id, existingRecord[0].id))
+          .returning();
+
+        res.json({
+          message: "Successfully clocked out",
+          record: updatedRecord,
+        });
+      } catch (error) {
+        console.error("Error clocking out:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
 }
