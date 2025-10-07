@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HOTTIP INDIA POLYMERS QUOTATION</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Arial", "Helvetica", sans-serif;
+        font-size: 11px;
+        line-height: 1.3;
+        color: #000;
+        padding: 15px;
+        background: #fff;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 15px;
+        border: 2px solid #000;
+        padding: 12px 10px;
+        background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+      }
+      .header h1 {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 3px;
+        color: #003366;
+        letter-spacing: 1px;
+      }
+      .header .subtitle {
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #003366;
+      }
+      .header .address {
+        font-size: 10px;
+        line-height: 1.4;
+        margin-bottom: 5px;
+      }
+      .header .contact {
+        font-size: 10px;
+        margin-bottom: 3px;
+      }
+      .header .gstin {
+        font-size: 10px;
+        font-weight: bold;
+        margin-top: 3px;
+      }
+      .info-section {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        gap: 20px;
+      }
+      .customer-block {
+        flex: 1;
+        border: 1px solid #000;
+        padding: 10px;
+        background: #f9f9f9;
+      }
+      .customer-block .title {
+        font-weight: bold;
+        font-size: 11px;
+        margin-bottom: 8px;
+        text-decoration: underline;
+      }
+      .customer-block p {
+        margin: 3px 0;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+      .quotation-details {
+        flex: 1;
+        border: 1px solid #000;
+        padding: 10px;
+        background: #f9f9f9;
+      }
+      .quotation-details p {
+        margin: 4px 0;
+        font-size: 10px;
+      }
+      .quotation-details strong {
+        display: inline-block;
+        width: 130px;
+        font-weight: bold;
+      }
+      .part-section {
+        margin-bottom: 20px;
+        page-break-inside: avoid;
+      }
+      .part-header {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 8px;
+        padding: 5px 8px;
+        background: #e8e8e8;
+        border: 1px solid #000;
+        border-bottom: 2px solid #000;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        font-size: 10px;
+      }
+      table.mold-table th {
+        border: 1px solid #000;
+        padding: 6px 4px;
+        text-align: center;
+        vertical-align: middle;
+        background: #d9d9d9;
+        font-weight: bold;
+        font-size: 9px;
+        line-height: 1.2;
+      }
+      table.mold-table td {
+        border: 1px solid #000;
+        padding: 6px 4px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 10px;
+      }
+      table.items-table th {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        text-align: center;
+        background: #d9d9d9;
+        font-weight: bold;
+        font-size: 10px;
+      }
+      table.items-table td {
+        border: 1px solid #000;
+        padding: 5px 8px;
+        vertical-align: middle;
+        font-size: 10px;
+      }
+      table.items-table td.no {
+        text-align: center;
+        width: 5%;
+      }
+      table.items-table td.name {
+        text-align: left;
+        width: 40%;
+      }
+      table.items-table td.qty {
+        text-align: center;
+        width: 10%;
+      }
+      table.items-table td.price {
+        text-align: right;
+        width: 20%;
+      }
+      table.items-table td.amount {
+        text-align: right;
+        width: 20%;
+      }
+      table.items-table tr.total-row {
+        background: #e8e8e8;
+        font-weight: bold;
+      }
+      table.items-table tr.total-row td {
+        border-top: 2px solid #000;
+      }
+      .summary-section {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #000;
+        padding: 10px 15px;
+        background: #f9f9f9;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        font-size: 11px;
+      }
+      .summary-row.grand-total {
+        border-top: 2px solid #000;
+        margin-top: 8px;
+        padding-top: 8px;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      .footer {
+        margin-top: 20px;
+        font-size: 10px;
+        line-height: 1.5;
+        border-top: 2px solid #000;
+        padding-top: 12px;
+      }
+      .footer p {
+        margin: 5px 0;
+      }
+      .footer strong {
+        font-weight: bold;
+      }
+      .text-right {
+        text-align: right;
+      }
+      .text-center {
+        text-align: center;
+      }
+      @media print {
+        body {
+          padding: 10px;
+        }
+        .page-break {
+          page-break-before: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <h1>HOTTIP INDIA POLYMERS</h1>
+      <div class="subtitle">HOT RUNNER SYSTEMS</div>
+      <div class="address">
+        Gat no 209, Office No 406, Swaraj Capital Borhadewadi<br />
+        Chikhali Moshi Road, Pune 412105, Maharashtra, India
+      </div>
+      <div class="contact">
+        www.hottipindia.com | sales@hottipindia.com | Mob: 9028018877
+      </div>
+      <div class="gstin">
+        GSTIN: <%= quotation.companyGstin || '27AQYPM1029M1Z6' %>
+      </div>
+    </div>
+
+    <!-- CUSTOMER & QUOTATION INFO -->
+    <div class="info-section">
+      <div class="customer-block">
+        <div class="title">CUSTOMER ADDRESS</div>
+        <p>
+          <strong
+            ><%= quotation.customerName || customer?.name || 'N/A' %></strong
+          >
+        </p>
+        <p><%= quotation.customerAddress || customer?.address || 'N/A' %></p>
+        <p>
+          GST.NO – <%= quotation.customerGstNo || customer?.gstNumber || 'N/A'
+          %>
+        </p>
+        <p>Ph: <%= quotation.customerPhone || customer?.phone || 'N/A' %></p>
+        <p>Mail: <%= quotation.customerEmail || customer?.email || 'N/A' %></p>
+        <p>
+          Kind Attn: <%= quotation.customerContactPerson ||
+          customer?.contactPerson || 'N/A' %>
+        </p>
+      </div>
+
+      <div class="quotation-details">
+        <p>
+          <strong>Quotation Ref No :</strong> <%= quotation.quotationNumber %>
+        </p>
+        <p>
+          <strong>Quotation Date :</strong> <%= new
+          Date(quotation.quotationDate).toLocaleDateString("en-IN") %>
+        </p>
+        <p>
+          <strong>Project Incharge :</strong> <%= quotation.projectIncharge ||
+          '-' %>
+        </p>
+        <p>
+          <strong>Job Card Details :</strong> <%= quotation.jobCardNumber || '-'
+          %>
+        </p>
+      </div>
+    </div>
+
+    <!-- PARTS SECTIONS -->
+    <% if (quotation.moldDetails && quotation.moldDetails.length > 0) { %> <%
+    quotation.moldDetails.forEach(function(part, partIndex){ %>
+    <div class="part-section">
+      <div class="part-header">
+        Part <%= partIndex+1 %> – <%= part.partName || part.name || 'N/A' %>
+      </div>
+
+      <!-- Mold Details Table (10 columns) -->
+      <table class="mold-table">
+        <thead>
+          <tr>
+            <th style="width: 10%">1<br />Part Name</th>
+            <th style="width: 8%">2<br />Mould No</th>
+            <th style="width: 8%">3<br />No of Cavity</th>
+            <th style="width: 8%">4<br />No of Drops</th>
+            <th style="width: 12%">5<br />Plastic Material</th>
+            <th style="width: 8%">6<br />MFI</th>
+            <th style="width: 10%">7<br />GF%+MF%</th>
+            <th style="width: 10%">8<br />Part Weight (Gms)</th>
+            <th style="width: 10%">9<br />Color Change</th>
+            <th style="width: 16%">10<br />System Suggested</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><%= part.partName || part.name || '-' %></td>
+            <td><%= part.mouldNo || '-' %></td>
+            <td><%= part.noOfCavity || part.cavities || '-' %></td>
+            <td><%= part.noOfDrops || part.drops || '-' %></td>
+            <td><%= part.plasticMaterial || part.material || '-' %></td>
+            <td><%= part.mfi || '-' %></td>
+            <td>
+              <%= part.gf_mf || `${part.gfPercent || 0}+${part.mfPercent || 0}`
+              %>
+            </td>
+            <td><%= part.partWeightGms || part.partWeight || '-' %></td>
+            <td><%= part.colorChange || part.colourChange || '-' %></td>
+            <td><%= part.systemSuggested || '-' %></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Spare Parts Items Table -->
+      <% if (part.quotation_spare_parts && part.quotation_spare_parts.length >
+      0) { %>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Part Name</th>
+            <th>QTY</th>
+            <th>Unit Price (INR)</th>
+            <th>Amount (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% let partTotal = 0; %> <%
+          part.quotation_spare_parts.forEach(function(sp, spIndex){ %> <% const
+          amount = (sp.qty || 0) * (sp.unitPrice || 0); partTotal += amount; %>
+          <tr>
+            <td class="no"><%= spIndex+1 %></td>
+            <td class="name">
+              <%= sp.subpartName || sp.partName || sp.name || '-' %>
+            </td>
+            <td class="qty"><%= sp.qty || 0 %></td>
+            <td class="price">
+              <%= (sp.unitPrice || 0).toLocaleString('en-IN',
+              {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
+            </td>
+            <td class="amount">
+              <%= amount.toLocaleString('en-IN', {minimumFractionDigits: 2,
+              maximumFractionDigits: 2}) %>
+            </td>
+          </tr>
+          <% }); %>
+          <tr class="total-row">
+            <td colspan="4" class="text-right"><strong>TOTAL INR</strong></td>
+            <td class="amount">
+              <strong
+                ><%= partTotal.toLocaleString('en-IN', {minimumFractionDigits:
+                2, maximumFractionDigits: 2}) %></strong
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+    <% }); %> <% } %>
+
+    <!-- FINANCIAL SUMMARY -->
+    <div class="summary-section">
+      <div class="summary-row">
+        <span><strong>Basic Amount</strong></span>
+        <span
+          ><strong
+            ><%= (quotation.subtotalAmount || basicAmount ||
+            0).toLocaleString('en-IN', {minimumFractionDigits: 2,
+            maximumFractionDigits: 2}) %></strong
+          ></span
+        >
+      </div>
+      <div class="summary-row">
+        <span><strong>IGST <%= quotation.gstPercentage || 18 %>%</strong></span>
+        <span
+          ><strong
+            ><%= (gst || 0).toLocaleString('en-IN', {minimumFractionDigits: 2,
+            maximumFractionDigits: 2}) %></strong
+          ></span
+        >
+      </div>
+      <div class="summary-row grand-total">
+        <span>GRAND TOTAL</span>
+        <span
+          ><%= (grandTotal || 0).toLocaleString('en-IN', {minimumFractionDigits:
+          2, maximumFractionDigits: 2}) %></span
+        >
+      </div>
+    </div>
+
+    <!-- FOOTER: TERMS & CONDITIONS -->
+    <div class="footer">
+      <p>
+        <strong>Delivery Period :</strong> <%= quotation.deliveryTerms || '25 to
+        30 Days from the Date of Approval Drawings' %>
+      </p>
+
+      <p>
+        <strong>Packaging :</strong> <%= quotation.packaging || 'Standard
+        Packaging' %>
+      </p>
+
+      <p><strong>Notes:</strong></p>
+      <p style="margin-left: 15px">
+        A) One Nozzle Heater and one Nozzle T/C are included in the package.
+      </p>
+      <p style="margin-left: 15px">
+        B) Standard warranty 18 months from supply date.
+      </p>
+
+      <p style="margin-top: 10px">
+        <strong>Bank Details :</strong>
+        <%= quotation.bankName || 'Hottip India Polymers' %> | A/C No <%=
+        quotation.bankAccountNo || '738305000994' %> | Branch <%=
+        quotation.bankBranch || 'Moshi' %> | IFSC <%= quotation.bankIfscCode ||
+        'ICIC0007383' %>
+      </p>
+
+      <p>
+        <strong>Payment :</strong> <%= quotation.paymentTerms || '50 % Advance &
+        50 % Against Delivery' %>
+      </p>
+    </div>
+  </body>
+</html>

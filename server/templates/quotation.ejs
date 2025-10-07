@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quotation - <%= quotationNumber %></title>
+    <link rel="stylesheet" href="./quotation.css" />
+    <style>
+      /* Inline critical CSS for PDF generation */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Arial", "Helvetica", sans-serif;
+        font-size: 10pt;
+        line-height: 1.4;
+        color: #000;
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 15mm;
+        margin: 0 auto;
+        background: white;
+        position: relative;
+      }
+      @media print {
+        .page {
+          margin: 0;
+          border: none;
+          padding: 10mm;
+        }
+        @page {
+          size: A4;
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- Company Header -->
+      <header class="company-header">
+        <div class="header-top">
+          <div class="logo-section">
+            <% if (companyLogo) { %>
+            <img
+              src="<%= companyLogo %>"
+              alt="Company Logo"
+              class="company-logo"
+            />
+            <% } %>
+          </div>
+          <div class="company-info">
+            <h1 class="company-name">
+              <%= companyName || 'HOTTIP INDIA POLYMERS' %>
+            </h1>
+            <p class="company-tagline">
+              ENGINEERING PLASTICS & MOULDING SOLUTIONS
+            </p>
+          </div>
+        </div>
+        <div class="header-details">
+          <p class="company-address">
+            <%= companyAddress || '123, Industrial Area, Phase-II, City - 411
+            001, State' %>
+          </p>
+          <p class="company-contact">
+            Email: <%= companyEmail || 'info@hottipolymers.com' %> | Mobile: <%=
+            companyPhone || '+91-9876543210' %>
+          </p>
+          <p class="company-legal">
+            Website: <%= companyWebsite || 'www.hottipolymers.com' %> | GSTIN:
+            <%= companyGstin || '27AAAAA0000A1Z5' %>
+          </p>
+        </div>
+      </header>
+
+      <div class="quotation-title">
+        <h2>QUOTATION</h2>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="content-grid">
+        <!-- Left Column: Empty or Additional Info -->
+        <div class="left-column">
+          <!-- Can be used for additional info if needed -->
+        </div>
+
+        <!-- Right Column: Customer & Quotation Details -->
+        <div class="right-column">
+          <!-- Customer Details -->
+          <div class="customer-section">
+            <h3>Bill To:</h3>
+            <p class="customer-name"><%= customer.name || 'N/A' %></p>
+            <% if (customer.company) { %>
+            <p><%= customer.company %></p>
+            <% } %>
+            <p><%= customer.address || 'N/A' %></p>
+            <p>GST: <%= customer.gstNumber || 'N/A' %></p>
+            <p>Phone: <%= customer.phone || 'N/A' %></p>
+            <p>Email: <%= customer.email || 'N/A' %></p>
+            <p>Contact: <%= customer.contactPerson || 'N/A' %></p>
+          </div>
+
+          <!-- Quotation Details -->
+          <div class="quotation-details">
+            <p><strong>Ref No:</strong> <%= quotationNumber %></p>
+            <p>
+              <strong>Date:</strong> <%= new
+              Date(quotationDate).toLocaleDateString('en-IN') %>
+            </p>
+            <p>
+              <strong>Project Incharge:</strong> <%= projectIncharge || 'N/A' %>
+            </p>
+            <p><strong>Job Card:</strong> <%= jobCardNumber || 'N/A' %></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 1: Mold/Part Details -->
+      <% if (moldDetails && moldDetails.length > 0) { %>
+      <section class="mold-section">
+        <div class="section-header">
+          <h3>SECTION 1 – MOLD / PART DETAILS</h3>
+        </div>
+        <table class="mold-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Part Name</th>
+              <th>Mould No</th>
+              <th>Plastic Mat.</th>
+              <th>Colour</th>
+              <th>MFI</th>
+              <th>Wall Thick.</th>
+              <th>Cavities</th>
+              <th>GF%+MF%</th>
+              <th>Part Wt.(g)</th>
+              <th>System</th>
+              <th>Drops</th>
+              <th>Trial Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% moldDetails.forEach((mold, index) => { %>
+            <tr>
+              <td><%= index + 1 %></td>
+              <td><%= mold.partName || '-' %></td>
+              <td><%= mold.mouldNo || '-' %></td>
+              <td><%= mold.plasticMaterial || '-' %></td>
+              <td><%= mold.colourChange || '-' %></td>
+              <td><%= mold.mfi || '-' %></td>
+              <td><%= mold.wallThickness || '-' %></td>
+              <td><%= mold.noOfCavity || '-' %></td>
+              <td><%= (mold.gfPercent || 0) %>+<%= (mold.mfPercent || 0) %></td>
+              <td><%= mold.partWeight || '-' %></td>
+              <td><%= mold.systemSuggested || '-' %></td>
+              <td><%= mold.noOfDrops || '-' %></td>
+              <td><%= mold.trialDate || '-' %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </section>
+      <% } %>
+
+      <!-- Section 2: Quotation Items -->
+      <% if (quotationItems && quotationItems.length > 0) { %>
+      <section class="items-section">
+        <div class="section-header">
+          <h3>SECTION 2 – QUOTATION ITEMS</h3>
+        </div>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Part Name</th>
+              <th>Description</th>
+              <th>UOM</th>
+              <th>Qty</th>
+              <th>Unit Price (₹)</th>
+              <th>Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% let subtotal = 0; quotationItems.forEach((item, index) => { const
+            amount = (item.quantity || 0) * (item.unitPrice || 0); subtotal +=
+            amount; %>
+            <tr>
+              <td><%= index + 1 %></td>
+              <td><%= item.partName || '-' %></td>
+              <td><%= item.description || '-' %></td>
+              <td><%= item.uom || 'PCS' %></td>
+              <td class="text-right"><%= item.quantity || 0 %></td>
+              <td class="text-right">
+                <%= (item.unitPrice || 0).toFixed(2) %>
+              </td>
+              <td class="text-right"><%= amount.toFixed(2) %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+          <div class="summary-row">
+            <span class="summary-label">Basic Amount:</span>
+            <span class="summary-value">₹ <%= subtotal.toFixed(2) %></span>
+          </div>
+          <% const gstRate = gstPercentage || 18; const gstAmount = subtotal *
+          (gstRate / 100); const grandTotal = subtotal + gstAmount; %>
+          <div class="summary-row">
+            <span class="summary-label">GST (<%= gstRate %>%):</span>
+            <span class="summary-value">₹ <%= gstAmount.toFixed(2) %></span>
+          </div>
+          <div class="summary-row grand-total">
+            <span class="summary-label"><strong>Grand Total:</strong></span>
+            <span class="summary-value"
+              ><strong>₹ <%= grandTotal.toFixed(2) %></strong></span
+            >
+          </div>
+        </div>
+      </section>
+      <% } %>
+
+      <!-- Terms and Conditions -->
+      <section class="terms-section">
+        <div class="section-header">
+          <h3>NOTES & TERMS</h3>
+        </div>
+        <div class="terms-content">
+          <div class="terms-row">
+            <strong>Delivery Period:</strong>
+            <p>
+              <%= deliveryPeriod || 'As per discussion / 15-20 working days from
+              receipt of order' %>
+            </p>
+          </div>
+          <div class="terms-row">
+            <strong>Packaging:</strong>
+            <p><%= packaging || 'Standard industrial packaging' %></p>
+          </div>
+          <div class="terms-row">
+            <strong>Payment Terms:</strong>
+            <p>
+              <%= paymentTerms || '50% Advance, Balance against delivery' %>
+            </p>
+          </div>
+          <div class="terms-row">
+            <strong>Validity:</strong>
+            <p><%= validity || '30 days from quotation date' %></p>
+          </div>
+          <% if (bankDetails) { %>
+          <div class="terms-row">
+            <strong>Bank Details:</strong>
+            <p><%= bankDetails %></p>
+          </div>
+          <% } %> <% if (additionalNotes) { %>
+          <div class="terms-row">
+            <strong>Additional Notes:</strong>
+            <p><%= additionalNotes %></p>
+          </div>
+          <% } %>
+        </div>
+      </section>
+
+      <!-- Signature Section -->
+      <div class="signature-section">
+        <div class="signature-box">
+          <p>Customer Signature</p>
+          <div class="signature-line"></div>
+        </div>
+        <div class="signature-box">
+          <p>Authorized Signatory</p>
+          <div class="signature-line"></div>
+          <p class="company-name-small">
+            <%= companyName || 'HOTTIP INDIA POLYMERS' %>
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="page-footer">
+        <p>
+          This is a computer-generated quotation and does not require a
+          signature.
+        </p>
+        <p>
+          <%= companyWebsite || 'www.hottipolymers.com' %> | <%= companyEmail ||
+          'info@hottipolymers.com' %>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
