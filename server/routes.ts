@@ -1,5 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
+import { registerAccountsRoutes } from "./accounts-routes-registry";
+import { registerMarketingRoutes } from "./marketing-routes-registry";
+import { registerLogisticsRoutes } from "./logistics-routes-registry";
+import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -20,8 +24,6 @@ import { stockTransactions, suppliers } from "../shared/schema";
 // adjust path as needed
 import { desc } from "drizzle-orm";
 import { attendance } from "../shared/schema";
-import { validate as isUuid } from "uuid";
-import { requireAuth } from "@/middleware/auth";
 import {
   marketingAttendance,
   marketingTodays,
@@ -57,6 +59,14 @@ import {
   insertInboundQuotationSchema,
   insertInvoiceSchema,
   customers,
+} from "../shared/schema";
+import {
+  bank_accounts,
+  insertBankAccountSchema,
+  bank_transactions,
+  insertBankTransactionSchema,
+  account_reminders,
+  insertAccountReminderSchema,
 } from "../shared/schema";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
@@ -459,37 +469,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication endpoints (public routes)
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("🔐 Login attempt received for username:", req.body.username);
+      console.log("?? Login attempt received for username:", req.body.username);
 
       const { username, email, password } = req.body;
       if (!username && !email) {
         return res.status(400).json({ error: "Username or email is required" });
       }
-      console.log("✅ Login data parsed successfully:", { username, email });
+      console.log("? Login data parsed successfully:", { username, email });
 
       const user = await storage.findUserByUsernameOrEmail(
         username || "",
         email || ""
       );
       console.log(
-        "👤 User lookup result:",
+        "?? User lookup result:",
         user ? `Found user: ${user.username} (${user.role})` : "No user found"
       );
 
       if (!user || !user.isActive) {
-        console.log("❌ Login failed: Invalid user or inactive account");
+        console.log("? Login failed: Invalid user or inactive account");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      console.log("🔑 Comparing passwords...");
+      console.log("?? Comparing passwords...");
       const validPassword = await bcrypt.compare(password, user.password);
       console.log(
-        "🔐 Password comparison result:",
+        "?? Password comparison result:",
         validPassword ? "Valid" : "Invalid"
       );
 
       if (!validPassword) {
-        console.log("❌ Login failed: Invalid password");
+        console.log("? Login failed: Invalid password");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
@@ -497,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const devTokenSecret = process.env.DEV_TOKEN_SECRET;
       const tokenSecret = jwtSecret || devTokenSecret;
 
-      console.log("🔒 Authentication secret status:", {
+      console.log("?? Authentication secret status:", {
         jwt: jwtSecret ? "Available" : "Missing",
         dev: devTokenSecret ? "Available" : "Missing",
         using: jwtSecret ? "JWT_SECRET" : "DEV_TOKEN_SECRET",
@@ -505,21 +515,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tokenSecret) {
         console.error(
-          "❌ CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available"
+          "? CRITICAL: Neither JWT_SECRET nor DEV_TOKEN_SECRET is available"
         );
         throw new Error(
           "Authentication secret is required (JWT_SECRET or DEV_TOKEN_SECRET)"
         );
       }
 
-      console.log("🎫 Generating JWT token...");
+      console.log("?? Generating JWT token...");
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username },
         tokenSecret,
         { expiresIn: "15m", algorithm: "HS256" }
       );
 
-      console.log("✅ Login successful for user:", user.username);
+      console.log("? Login successful for user:", user.username);
       res.json({
         token,
         user: {
@@ -530,20 +540,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
     } catch (error) {
-      console.error("💥 Login error details:", {
+      console.error("?? Login error details:", {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : typeof error,
       });
 
       if (error instanceof z.ZodError) {
-        console.log("📝 Validation error:", error.errors);
+        console.log("?? Validation error:", error.errors);
         return res
           .status(400)
           .json({ error: "Invalid input", details: error.errors });
       }
 
-      console.error("❌ Unexpected login error:", error);
+      console.error("? Unexpected login error:", error);
       res.status(500).json({
         error: "Login failed",
         details: error instanceof Error ? error.message : "Unknown error",
@@ -650,6 +660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin API routes (secured, admin only)
   registerAdminRoutes(app);
+
+  // Accounts API routes (secured, accounts access required)
+  registerAccountsRoutes(app);
 
   // Users Routes - SECURED: Role-based scoping for user access
   app.get("/api/users", requireAuth, async (req, res) => {
@@ -832,10 +845,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Spare Parts API
   app.get("/api/fabrication-orders", async (req, res) => {
     try {
-      const orders = await storage.getFabricationOrders();
+      const orders = await db
+        .select({
+          id: fabricationOrders.id,
+          orderNumber: fabricationOrders.orderNumber,
+          sparePartId: fabricationOrders.sparePartId,
+          quantity: fabricationOrders.quantity,
+          status: fabricationOrders.status,
+          priority: fabricationOrders.priority,
+          startDate: fabricationOrders.startDate,
+          dueDate: fabricationOrders.dueDate,
+          notes: fabricationOrders.notes,
+          createdAt: fabricationOrders.createdAt,
+          updatedAt: fabricationOrders.updatedAt,
+        })
+        .from(fabricationOrders)
+        .orderBy(fabricationOrders.createdAt);
+
       res.json(orders);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch fabrication orders" });
+    } catch (error: any) {
+      console.error("Error fetching fabrication orders:", error);
+      res
+        .status(500)
+        .json({
+          error: "Failed to fetch fabrication orders",
+          details: error.message,
+        });
     }
   });
 
@@ -1141,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     const { insertOutboundQuotationSchema } = await import("../shared/schema");
   //     const data = insertOutboundQuotationSchema
   //       .partial({ customerId: true })
-  //       .parse(req.body); // ← allow optional customerId
+  //       .parse(req.body); // ? allow optional customerId
   //     const quotation = await storage.insertOutboundQuotationSchema(data);
   //     res.status(201).json(quotation);
   //   } catch (error) {
@@ -1158,7 +1193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
-  //     console.log("🐛 [DEBUG] GET /api/outbound-quotations - Request received");
+  //     console.log("?? [DEBUG] GET /api/outbound-quotations - Request received");
 
   //     // --- STEP 1: Perform LEFT JOIN with FLATTENED field selection ---
   //     // This avoids the Drizzle internal error caused by nested selection objects.
@@ -1198,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //       .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
 
   //     console.log(
-  //       `🐛 [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
+  //       `?? [DEBUG] Fetched ${rows.length} raw rows from DB with JOIN`
   //     );
 
   //     // --- STEP 2: Transform flat DB result into the NESTED structure expected by the frontend ---
@@ -1247,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     });
 
   //     console.log(
-  //       `🐛 [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
+  //       `?? [DEBUG] Transformed ${transformedRows.length} rows into nested structure`
   //     );
   //     // Send the correctly structured data (with nested customer objects) to the frontend.
   //     res.json(transformedRows);
@@ -1255,19 +1290,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     // --- STEP 3: Robust Error Handling ---
   //     // Catch any unexpected errors during the JOIN or transformation process.
   //     console.error(
-  //       "💥 [ERROR] Failed to fetch outbound quotations with JOIN:",
+  //       "?? [ERROR] Failed to fetch outbound quotations with JOIN:",
   //       error
   //     );
   //     // Fallback to a simple query to maintain API availability.
   //     try {
   //       console.log(
-  //         "🐛 [DEBUG] Falling back to simple outbound_quotations fetch..."
+  //         "?? [DEBUG] Falling back to simple outbound_quotations fetch..."
   //       );
   //       const fallbackRows = await db.select().from(outboundQuotations);
   //       res.json(fallbackRows);
   //     } catch (fallbackError) {
   //       // Catch errors in the fallback itself.
-  //       console.error("💥 [ERROR] Fallback fetch also failed:", fallbackError);
+  //       console.error("?? [ERROR] Fallback fetch also failed:", fallbackError);
   //       res
   //         .status(500)
   //         .json({
@@ -1279,20 +1314,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
   app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
-      console.log("🐛 [ROUTE] GET /api/outbound-quotations - Request received");
+      console.log("?? [ROUTE] GET /api/outbound-quotations - Request received");
 
       // --- Call the new storage method ---
       const quotations = await storage.getOutboundQuotations();
 
       console.log(
-        `🐛 [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
+        `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
       );
       // --- Send the correctly structured data ---
       res.json(quotations);
     } catch (error) {
       // --- Handle errors from storage ---
       console.error(
-        "💥 [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
+        "?? [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
         error
       );
       res.status(500).json({
@@ -1306,19 +1341,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log(
-        "🐛 [DEBUG] POST /api/outbound-quotations - Request received"
+        "?? [DEBUG] POST /api/outbound-quotations - Request received"
       );
-      console.log("🐛 [DEBUG] req.body:", req.body);
-      console.log("🐛 [DEBUG] req.user:", req.user);
+      console.log("?? [DEBUG] req.body:", req.body);
+      console.log("?? [DEBUG] req.user:", req.user);
 
       const { insertOutboundQuotationSchema } = await import(
         "../shared/schema"
       );
-      console.log("🐛 [DEBUG] About to parse request body with Zod schema");
+      console.log("?? [DEBUG] About to parse request body with Zod schema");
       const parsedData = insertOutboundQuotationSchema
         .partial({ customerId: true })
         .parse(req.body);
-      console.log("🐛 [DEBUG] Parsed data from Zod:", parsedData);
+      console.log("?? [DEBUG] Parsed data from Zod:", parsedData);
 
       // Convert types for database
       const data = {
@@ -1346,42 +1381,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // --- LOGGING ADDED HERE ---
       console.log(
-        "🐛 [DEBUG] Final 'data' object before storage call:",
+        "?? [DEBUG] Final 'data' object before storage call:",
         JSON.stringify(data, null, 2)
       );
       console.log(
-        "🐛 [DEBUG] typeof data.userId:",
+        "?? [DEBUG] typeof data.userId:",
         typeof data.userId,
         "value:",
         data.userId
       );
       console.log(
-        "🐛 [DEBUG] typeof data.customerId:",
+        "?? [DEBUG] typeof data.customerId:",
         typeof data.customerId,
         "value:",
         data.customerId
       );
       // --- END LOGGING ---
 
-      // ✅ FIXED: Call the correct method on storage
+      // ? FIXED: Call the correct method on storage
       console.log(
-        "🐛 [DEBUG] Calling storage.createOutboundQuotation with data..."
+        "?? [DEBUG] Calling storage.createOutboundQuotation with data..."
       );
       const quotation = await storage.createOutboundQuotation(data);
       console.log(
-        "🐛 [DEBUG] Storage call successful, returning quotation:",
+        "?? [DEBUG] Storage call successful, returning quotation:",
         quotation
       );
       res.status(201).json(quotation);
     } catch (error) {
-      console.error("💥 [ERROR] Failed to create outbound quotation:", error);
+      console.error("?? [ERROR] Failed to create outbound quotation:", error);
       if (error instanceof z.ZodError) {
-        console.error("🐛 [ZOD ERROR] Zod validation failed:", error.errors);
+        console.error("?? [ZOD ERROR] Zod validation failed:", error.errors);
         return res
           .status(400)
           .json({ error: "Invalid quotation data", details: error.errors });
       }
-      console.error("🐛 [GENERIC ERROR] Non-Zod error occurred");
+      console.error("?? [GENERIC ERROR] Non-Zod error occurred");
       res
         .status(500)
         .json({ error: "Failed to create quotation", details: error.message });
@@ -1434,15 +1469,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Alias: /api/quotations/inbound → inbound quotations
-  // app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
-  //   try {
-  //     const rows = await db.select().from(inboundQuotations);
-  //     res.json(rows);
-  //   } catch (e) {
-  //     res.json([]);
-  //   }
-  // });
+  // Alias: /api/quotations/inbound ? inbound quotations
+  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
+    try {
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch inbound quotations",
+        details: error.message,
+      });
+    }
+  });
   // Inbound Quotations Routes
 
   app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
@@ -1588,22 +1626,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete requestBody.attachmentName; // Remove the key if value is null
       }
 
-      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ✅ Parse the cleaned object
+      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ? Parse the cleaned object
 
       // Convert types for database
       const data = {
         ...parsedData,
-        // ✅ Convert dates from string to Date object
+        // ? Convert dates from string to Date object
         quotationDate: new Date(parsedData.quotationDate),
         validUntil: parsedData.validUntil
           ? new Date(parsedData.validUntil)
           : null,
-        // ✅ Convert amount from string to number
+        // ? Convert amount from string to number
         totalAmount: parseFloat(parsedData.totalAmount),
-        // ✅ Use a valid UUID for userId in development mode
+        // ? Use a valid UUID for userId in development mode
         userId:
           process.env.NODE_ENV === "development"
-            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ← Your valid user ID
+            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ? Your valid user ID
             : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
       };
 
@@ -1768,9 +1806,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Purchase orders (stub)
+  // Purchase orders
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const purchaseOrders = await storage.getPurchaseOrders();
+      res.json(purchaseOrders);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase orders",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const purchaseOrder = await storage.getPurchaseOrder(req.params.id);
+      if (!purchaseOrder) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+      res.json(purchaseOrder);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.post("/api/purchase-orders", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.parse(req.body);
+      const purchaseOrder = await storage.createPurchaseOrder(parsedData);
+      res.status(201).json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to create purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.put("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertPurchaseOrderSchema.partial().parse(req.body);
+      const purchaseOrder = await storage.updatePurchaseOrder(
+        req.params.id,
+        parsedData
+      );
+      res.json(purchaseOrder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid purchase order data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to update purchase order",
+        details: error.message,
+      });
+    }
   });
 
   // Dashboard/Activities/Orders basic stubs for frontend expectations
@@ -2274,66 +2378,356 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  // Accounts metrics and lists (stubs to satisfy UI)
-  app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
-    res.json({
-      totalReceivables: 0,
-      totalPayables: 0,
-      invoicesDue: 0,
-      avgDaysToPay: 0,
-    });
+
+  // Schema for creating account attendance records
+  const createAccountAttendanceSchema = z.object({
+    employeeId: z.string(), // User ID or username
+    date: z.string(), // Date in YYYY-MM-DD format
+    status: z.enum(["present", "absent", "leave"]),
+    checkIn: z.string().optional(), // Time in HH:mm format or full datetime
+    checkOut: z.string().optional(), // Time in HH:mm format or full datetime
+    location: z.string().optional(),
+    notes: z.string().optional(),
   });
+
+  // POST create account attendance record
+  app.post("/api/account-attendance", requireAuth, async (req, res) => {
+    try {
+      const data = createAccountAttendanceSchema.parse(req.body);
+
+      // Find user by ID or username
+      let user;
+      if (isUuid(data.employeeId)) {
+        user = await storage.getUser(data.employeeId);
+      } else {
+        // Assume it's a username
+        user = await storage.getUserByUsername(data.employeeId);
+      }
+
+      if (!user) {
+        return res.status(400).json({ error: "Employee not found" });
+      }
+
+      // Parse dates
+      const attendanceDate = new Date(data.date);
+      const checkIn = data.checkIn ? new Date(data.checkIn) : null;
+      const checkOut = data.checkOut ? new Date(data.checkOut) : null;
+
+      // Insert attendance record
+      const [newRecord] = await db
+        .insert(attendance)
+        .values({
+          userId: user.id,
+          date: attendanceDate,
+          checkIn: checkIn,
+          checkOut: checkOut,
+          location: data.location,
+          status: data.status,
+          notes: data.notes,
+        })
+        .returning();
+
+      res.status(201).json({
+        message: "Attendance record created successfully",
+        record: newRecord,
+      });
+    } catch (error: any) {
+      console.error("Error creating account attendance record:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input data",
+          details: error.errors,
+        });
+      }
+      res.status(500).json({
+        error: "Failed to create attendance record",
+        details: error.message,
+      });
+    }
+  });
+  // Accounts metrics and lists (stubs to satisfy UI)
+  // app.get("/api/accounts/dashboard-metrics", requireAuth, async (_req, res) => {
+  //   res.json({
+  //     totalReceivables: 0,
+  //     totalPayables: 0,
+  //     invoicesDue: 0,
+  //     avgDaysToPay: 0,
+  //   });
+  // });
   app.get("/api/accounts/cash-flow-summary", requireAuth, async (_req, res) => {
     res.json({ inflow: 0, outflow: 0, net: 0 });
   });
-  app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
-  app.get("/api/accounts/receivables-total", requireAuth, async (_req, res) => {
-    res.json({ total: 0 });
-  });
-  app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/accounts-receivables", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get(
-    "/api/accounts-receivables/overdue",
-    requireAuth,
-    async (_req, res) => {
-      res.json([]);
+  // app.get("/api/accounts/payables-total", requireAuth, async (_req, res) => {
+  //   res.json({ total: 0 });
+  // });
+  // app.get("/api/accounts-payables", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/accounts-payables/overdue", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  app.post("/api/bank-accounts", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankAccountSchema.parse(req.body);
+      const newAccount = await db
+        .insert(bank_accounts)
+        .values(data)
+        .returning();
+      res.status(201).json(newAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank account:", error);
+      res.status(500).json({ error: "Failed to create bank account" });
     }
-  );
+  });
   app.get("/api/bank-accounts", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/active", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const accounts = await db.select().from(bank_accounts);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active bank accounts" });
+    }
   });
   app.get("/api/bank-accounts/default", requireAuth, async (_req, res) => {
-    res.json(null);
+    try {
+      const accounts = await db.select().from(bank_accounts).limit(1);
+      res.json(accounts[0] || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch default bank account" });
+    }
+  });
+  app.put("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertBankAccountSchema.parse(req.body);
+      const updatedAccount = await db
+        .update(bank_accounts)
+        .set(data)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (updatedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json(updatedAccount[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error updating bank account:", error);
+      res.status(500).json({ error: "Failed to update bank account" });
+    }
+  });
+  app.delete("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletedAccount = await db
+        .delete(bank_accounts)
+        .where(eq(bank_accounts.id, id))
+        .returning();
+      if (deletedAccount.length === 0) {
+        return res.status(404).json({ error: "Bank account not found" });
+      }
+      res.json({ message: "Bank account deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting bank account:", error);
+      res.status(500).json({ error: "Failed to delete bank account" });
+    }
   });
   app.get("/api/bank-transactions", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const transactions = await db
+        .select({
+          id: bank_transactions.id,
+          bankAccountId: bank_transactions.bankAccountId,
+          date: bank_transactions.date,
+          type: bank_transactions.type,
+          amount: bank_transactions.amount,
+          bankAccount: {
+            id: bank_accounts.id,
+            name: bank_accounts.name,
+            bankName: bank_accounts.bankName,
+            accountNumberMasked: bank_accounts.accountNumberMasked,
+          },
+        })
+        .from(bank_transactions)
+        .leftJoin(
+          bank_accounts,
+          eq(bank_transactions.bankAccountId, bank_accounts.id)
+        );
+      // Add default empty strings for description and reference until DB migration is run
+      const transactionsWithDefaults = transactions.map((t) => ({
+        ...t,
+        description: "",
+        reference: "",
+      }));
+      res.json(transactionsWithDefaults);
+    } catch (error) {
+      console.error("Error fetching bank transactions:", error);
+      res.status(500).json({ error: "Failed to fetch bank transactions" });
+    }
   });
+  app.post("/api/bank-transactions", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankTransactionSchema.parse(req.body);
+      // Parse date string to Date object for timestamp
+      const { date, amount, type, bankAccountId } = data;
+      const transactionData = {
+        date: new Date(date),
+        amount,
+        type,
+        bankAccountId,
+      };
+      const newTransaction = await db
+        .insert(bank_transactions)
+        .values(transactionData)
+        .returning();
+      res.status(201).json(newTransaction[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating bank transaction:", error);
+      res.status(500).json({ error: "Failed to create bank transaction" });
+    }
+  });
+  // app.get("/api/account-reminders", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/account-tasks", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+
   app.get("/api/account-reminders", requireAuth, async (_req, res) => {
-    res.json([]);
+    try {
+      const reminders = await db.select().from(account_reminders);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching account reminders:", error);
+      res.status(500).json({ error: "Failed to fetch account reminders" });
+    }
   });
-  app.get("/api/account-tasks", requireAuth, async (_req, res) => {
+
+  app.post("/api/account-reminders", requireAuth, async (req, res) => {
+    try {
+      const data = insertAccountReminderSchema.parse(req.body);
+      // Convert string dates to Date objects for Drizzle
+      const insertData = {
+        ...data,
+        dueDate: new Date(data.dueDate),
+        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
+        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
+      };
+      const newReminder = await db
+        .insert(account_reminders)
+        .values(insertData)
+        .returning();
+      res.status(201).json(newReminder[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error creating account reminder:", error);
+      res.status(500).json({ error: "Failed to create account reminder" });
+    }
+  });
+
+  // PUT /api/account-reminders/:id (edit)
+  app.put("/api/account-reminders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertAccountReminderSchema.parse(req.body);
+      const updateData = {
+        ...data,
+        dueDate: new Date(data.dueDate),
+        nextReminderAt: new Date(data.nextReminderAt || data.dueDate),
+        lastSentAt: data.lastSentAt ? new Date(data.lastSentAt) : undefined,
+      };
+      const updated = await db
+        .update(account_reminders)
+        .set(updateData)
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: error.errors });
+      }
+      console.error("Error updating account reminder:", error);
+      res.status(500).json({ error: "Failed to update account reminder" });
+    }
+  });
+
+  // DELETE /api/account-reminders/:id
+  app.delete("/api/account-reminders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await db
+        .delete(account_reminders)
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (deleted.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json({ message: "Reminder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting account reminder:", error);
+      res.status(500).json({ error: "Failed to delete account reminder" });
+    }
+  });
+
+  // POST /api/account-reminders/:id/send (mark as sent)
+  app.post("/api/account-reminders/:id/send", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await db
+        .update(account_reminders)
+        .set({
+          status: "sent",
+          lastSentAt: new Date(),
+        })
+        .where(eq(account_reminders.id, id))
+        .returning();
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Error sending account reminder:", error);
+      res.status(500).json({ error: "Failed to send account reminder" });
+    }
     res.json([]);
   });
 
   // GST returns (stubs)
-  app.get("/api/gst-returns", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-  app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
+  // app.get("/api/gst-returns", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
+  // app.get("/api/gst-returns/status/:status", requireAuth, async (_req, res) => {
+  //   res.json([]);
+  // });
 
   // Accounts Attendance (stubs to satisfy AccountsAttendance page)
   app.get("/api/account-attendance", requireAuth, async (_req, res) => {
@@ -3524,10 +3918,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "assignedTo must be a valid user ID" });
       }
 
-      const validPriority = ["low", "medium", "high"];
-      const status = "new"; // automatically set for new tasks
+      // Normalize enums
+      const normalizedPriority = priority?.toLowerCase() || "medium";
+      const normalizedStatus = "open"; // default for tasks
 
-      if (!validPriority.includes(priority)) {
+      const validPriorities = ["low", "medium", "high", "urgent"];
+      if (!validPriorities.includes(normalizedPriority)) {
         return res.status(400).json({ error: "Invalid priority" });
       }
 
@@ -3536,15 +3932,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values({
           title,
           description,
+          status: normalizedStatus,
+          priority: normalizedPriority,
           assignedTo,
           assignedBy,
-          status,
-          priority,
           dueDate: dueDate ? new Date(dueDate) : null,
         })
         .returning({
           id: tasks.id,
           title: tasks.title,
+          description: tasks.description,
           status: tasks.status,
           priority: tasks.priority,
           assignedTo: tasks.assignedTo,
@@ -3555,96 +3952,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       res.status(201).json({ message: "Task created", task: newTask });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating task:", err);
-      res.status(500).json({ error: "Failed to create task" });
+      res.status(500).json({
+        error: "Failed to create task",
+        details: err.message,
+      });
     }
   });
 
-  // GET /api/tasks/:id
-  // app.get("/api/tasks/:id", (req: Request, res: Response) => {
-  //   const { id } = req.params;
-  //   res.json({ message: `Task ${id} details` });
-  // });
-
-  // // PUT /api/tasks/:id
-  // app.put("/api/tasks/:id", (req: Request, res: Response) => {
-  //   const { id } = req.params;
-  //   const updates = req.body;
-  //   res.json({ message: `Task ${id} updated`, updates });
-  // });
-
-  // DELETE /api/tasks/:id
-  app.delete("/api/tasks/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Task ${id} deleted` });
+  // Register additional routes from registries
+  registerAdminRoutes(app, { requireAuth });
+  registerAccountsRoutes(app);
+  registerMarketingRoutes(app, {
+    requireAuth,
+    requireMarketingAccess,
+    checkOwnership,
   });
-  const enableRegistries = process.env.ENABLE_FULL_REGISTRIES === "1";
-  // Import and register marketing routes safely
-  try {
-    if (!enableRegistries) {
-      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
-    }
-    const { registerMarketingRoutes } = await import(
-      "./marketing-routes-registry"
-    );
-    registerMarketingRoutes(app, {
-      requireAuth,
-      requireMarketingAccess,
-      checkOwnership,
-    });
-    console.log("✅ Marketing routes registered successfully");
-  } catch (error) {
-    console.warn("⚠️ Marketing routes registry not available:", error);
-  }
-
-  // Import and register logistics routes safely
-  try {
-    if (!enableRegistries) {
-      throw new Error("Registries disabled by ENABLE_FULL_REGISTRIES");
-    }
-    const { registerLogisticsRoutes } = await import(
-      "./logistics-routes-registry"
-    );
-    registerLogisticsRoutes(app, { requireAuth });
-    console.log("✅ Logistics routes registered successfully");
-  } catch (error) {
-    console.warn("⚠️ Logistics routes registry not available:", error);
-  }
-
-  // Always register lightweight registries for dashboards
-  try {
-    const { registerInventoryRoutes } = await import(
-      "./inventory-routes-registry"
-    );
-    registerInventoryRoutes(app, { requireAuth });
-    console.log("✅ Inventory routes registered");
-  } catch (e) {
-    console.warn("⚠️ Inventory routes registry load failed", e);
-  }
-
-  try {
-    const { registerSalesRoutes } = await import("./sales-routes-registry");
-    registerSalesRoutes(app, { requireAuth });
-    console.log("✅ Sales routes registered");
-  } catch (e) {
-    console.warn("⚠️ Sales routes registry load failed", e);
-  }
-
-  try {
-    const { registerAccountsRoutes } = await import(
-      "./accounts-routes-registry"
-    );
-    registerAccountsRoutes(app, { requireAuth });
-    console.log("✅ Accounts routes registered");
-  } catch (e) {
-    console.warn("⚠️ Accounts routes registry load failed", e);
-  }
-
-  // Marketing attendance routes are now handled by marketing-routes-registry.ts
-  // Removed duplicate /api/marketing-attendance/today route to avoid conflicts
-
-  // Removed duplicate /api/marketing-attendance/metrics route to avoid conflicts
+  registerLogisticsRoutes(app, {
+    requireAuth,
+  });
+  registerInventoryRoutes(app, {
+    requireAuth,
+  });
 
   const httpServer = createServer(app);
   return httpServer;

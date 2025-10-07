@@ -93,6 +93,11 @@ export const taskPriority = pgEnum("task_priority", [
   "high",
   "urgent",
 ]);
+export const accountTaskStatus = pgEnum("account_task_status", [
+  "open",
+  "in_progress",
+  "done",
+]);
 export const inventoryTaskType = pgEnum("inventory_task_type", [
   "Fabrication",
   "Maintenance",
@@ -305,6 +310,46 @@ export const leaveRequests = pgTable("leave_requests", {
   status: text("status").default("pending"),
   totalDays: integer("total_days"),
 });
+
+// =====================
+// ACCOUNT TASKS
+// =====================
+export const accountTasks = pgTable("account_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id),
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id),
+  status: accountTaskStatus("status").notNull().default("open"),
+  priority: taskPriority("priority").notNull().default("medium"),
+  dueDate: timestamp("dueDate"),
+  completedDate: timestamp("completedDate"),
+  relatedType: text("relatedType"),
+  relatedId: uuid("relatedId"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Custom insert schema with UUID validation
+export const insertAccountTaskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: z.string().optional(),
+  assignedTo: z.string().uuid("Assigned To must be a valid UUID"),
+  assignedBy: z.string().uuid("Assigned By must be a valid UUID"),
+  status: z.enum(["open", "in_progress", "done"]).optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueDate: z.string().optional(),
+  relatedType: z.string().optional(),
+  relatedId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  notes: z.string().optional(),
+});
 // =====================
 // FIELD VISITS
 // =====================
@@ -412,21 +457,19 @@ const quotationStatus = pgEnum("quotation_status", [
   "rejected",
 ]);
 export const inboundQuotations = pgTable("inbound_quotations", {
-  id: uuid("id").defaultRandom().primaryKey(), // ✅ Matches DB: uuid, default gen_random_uuid()
-  quotationNumber: text("quotationNumber").notNull(), // ✅ Matches DB: text
-  quotationRef: text("quotationRef"), // ✅ Matches DB: text
-  senderId: uuid("senderId")
-    .notNull()
-    .references(() => suppliers.id), // ✅ Matches DB: uuid, references suppliers
-  senderType: text("senderType").notNull().default("supplier"), // ✅ Matches DB: text
-  userId: uuid("userId")
-    .notNull()
-    .references(() => users.id), // ✅ Matches DB: uuid, references users
-  status: quotationStatus("status").notNull().default("received"), // ✅ Matches DB: enum type
-  quotationDate: timestamp("quotationDate").notNull(), // ✅ Matches DB: timestamp without time zone
-  validUntil: timestamp("validUntil"), // ✅ Matches DB: timestamp without time zone
-  subject: text("subject"), // ✅ Matches DB: text
-  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }), // ✅ Matches DB: numeric(10,2)
+  id: serial("id").primaryKey(), // Matches migration: serial
+  quotationNumber: varchar("quotationNumber", { length: 50 }).notNull(), // Matches DB column
+  quotationDate: timestamp("quotationDate").notNull(), // Matches DB column
+  validUntil: timestamp("validUntil"), // Matches DB column
+  subject: text("subject"), // Matches DB column
+  totalAmount: numeric("totalAmount").notNull(), // Matches DB column
+  status: varchar("status", { length: 20 }).notNull().default("received"), // Matches DB column
+  notes: text("notes"), // Matches DB column
+  attachmentPath: text("attachmentPath"), // Matches DB column
+  attachmentName: text("attachmentName"), // Matches DB column
+  senderId: uuid("senderId").references(() => users.id), // Matches DB column
+  senderType: varchar("senderType", { length: 20 }).notNull().default("vendor"), // Matches DB column
+  createdAt: timestamp("createdAt").defaultNow(), // Matches DB column
 });
 
 // =====================
@@ -528,6 +571,122 @@ export const customers = pgTable("customers", {
   address: text("address"),
   gstNumber: varchar("gstNumber", { length: 20 }),
   createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// =====================
+// ACCOUNTS RECEIVABLES
+// =====================
+export const accountsReceivableStatus = pgEnum("accounts_receivable_status", [
+  "pending",
+  "partial",
+  "paid",
+  "overdue",
+]);
+
+export const accountsReceivables = pgTable("accounts_receivables", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceId: uuid("invoiceId")
+    .references(() => invoices.id)
+    .default(null),
+  customerId: uuid("customerId")
+    .references(() => customers.id)
+    .notNull(),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default(0),
+  dueDate: timestamp("dueDate").notNull(),
+  notes: text("notes"),
+  status: accountsReceivableStatus("status").notNull().default("pending"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
+// ACCOUNTS PAYABLES
+// =====================
+export const accountsPayables = pgTable("accounts_payables", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  poId: uuid("poId"),
+  inboundQuotationId: uuid("inboundQuotationId").references(
+    () => inboundQuotations.id
+  ),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default(0),
+  dueDate: timestamp("duedate").notNull(),
+  notes: text("notes"),
+  status: accountsReceivableStatus("status").notNull().default("pending"),
+  createdAt: timestamp("createdat").defaultNow().notNull(),
+  updatedAt: timestamp("updatedat").defaultNow().notNull(),
+});
+
+// =====================
+// GST RETURNS
+// =====================
+export const gstReturnStatus = pgEnum("gst_return_status", [
+  "draft",
+  "filed",
+  "paid",
+  "reconciled",
+]);
+
+export const gstReturnFrequency = pgEnum("gst_return_frequency", [
+  "monthly",
+  "quarterly",
+]);
+
+export const gstReturns = pgTable("gst_returns", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  periodStart: timestamp("periodStart").notNull(),
+  periodEnd: timestamp("periodEnd").notNull(),
+  frequency: gstReturnFrequency("frequency").notNull().default("quarterly"),
+  outputTax: numeric("outputTax", { precision: 10, scale: 2 }).notNull(),
+  inputTax: numeric("inputTax", { precision: 10, scale: 2 }).notNull(),
+  liability: numeric("liability", { precision: 10, scale: 2 }).notNull(),
+  status: gstReturnStatus("status").notNull().default("draft"),
+  notes: text("notes"),
+  filedAt: timestamp("filedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
+// PURCHASE ORDERS
+// =====================
+export const orderStatus = pgEnum("order_status", [
+  "pending",
+  "approved",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  poNumber: text("poNumber").notNull(),
+  supplierId: uuid("supplierId")
+    .notNull()
+    .references(() => suppliers.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id),
+  status: orderStatus("status").notNull().default("pending"),
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
+});
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+
+export const insertPurchaseOrderSchema = z.object({
+  poNumber: z.string().min(1, "PO number is required"),
+  supplierId: z.string().uuid("Invalid supplier ID"),
+  userId: z.string().uuid("Invalid user ID"),
+  status: z
+    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .optional()
+    .default("pending"),
+  totalAmount: z.number().positive().optional(),
 });
 
 // =====================
@@ -769,57 +928,81 @@ export const insertSupplierSchema = z.object({
   address: z.string().optional(),
 });
 export const insertAccountsReceivableSchema = z.object({
-  date: z.string(),
-  amount: z.number(),
-  customerId: z.string(),
-});
-// Outbound Quotation schema
-export const insertAccountsPayableSchema = z.object({
-  date: z.string(),
-  amount: z.number(),
-  supplierId: z.string(),
-});
-export const insertGstReturnSchema = z.object({
-  returnPeriod: z.string(),
-  gstAmount: z.number(),
-  invoiceIds: z.array(z.string()),
-});
-export const insertBankAccountSchema = z.object({
-  accountName: z.string(),
-  accountNumber: z.string(),
-  bankName: z.string(),
-  ifscCode: z.string(),
-});
-export const insertBankTransactionSchema = z.object({
-  transactionDate: z.string(),
-  amount: z.number(),
-  transactionType: z.enum(["credit", "debit"]),
-  accountId: z.string(),
-  description: z.string().optional(),
-});
-export const insertAccountReminderSchema = z.object({
-  reminderDate: z.string(),
-  accountId: z.string(),
-  message: z.string(),
-  status: z.enum(["pending", "sent"]).default("pending"),
-});
-export const insertAccountTaskSchema = z.object({
-  taskId: z.string(),
-  accountId: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  dueDate: z.string(),
-  status: z.enum(["pending", "completed"]).default("pending"),
+  invoiceId: z.string().uuid().optional(),
+  customerId: z.string().uuid(),
+  amountDue: z.number().positive("Amount due must be positive"),
+  amountPaid: z
+    .number()
+    .min(0, "Amount paid cannot be negative")
+    .optional()
+    .default(0),
+  dueDate: z.string().min(1, "Due date is required"),
+  notes: z.string().optional(),
+  status: z
+    .enum(["pending", "partial", "paid", "overdue"])
+    .optional()
+    .default("pending"),
 });
 
-export const insertAccountReportSchema = z.object({
-  reportId: z.string(),
-  accountId: z.string(),
-  title: z.string(),
-  generatedOn: z.string(),
-  status: z.enum(["draft", "final"]).default("draft"),
+export type AccountsReceivable = typeof accountsReceivables.$inferSelect;
+export type InsertAccountsReceivable = typeof accountsReceivables.$inferInsert;
+
+export type AccountsPayable = typeof accountsPayables.$inferSelect;
+export type InsertAccountsPayable = typeof accountsPayables.$inferInsert;
+
+export type AccountTask = typeof accountTasks.$inferSelect;
+export type InsertAccountTask = typeof accountTasks.$inferInsert;
+
+export type GstReturn = typeof gstReturns.$inferSelect;
+export type InsertGstReturn = typeof gstReturns.$inferInsert;
+
+// GST Return schema
+export const insertGstReturnSchema = z.object({
+  periodStart: z.string().min(1, "Period start date is required"),
+  periodEnd: z.string().min(1, "Period end date is required"),
+  frequency: z.enum(["monthly", "quarterly"]).optional().default("quarterly"),
+  outputTax: z.coerce.number().min(0, "Output tax must be non-negative"),
+  inputTax: z.coerce.number().min(0, "Input tax must be non-negative"),
+  liability: z.coerce.number().min(0, "Liability must be non-negative"),
+  status: z
+    .enum(["draft", "filed", "paid", "reconciled"])
+    .optional()
+    .default("draft"),
   notes: z.string().optional(),
 });
+
+// Accounts Payable schema
+export const insertAccountsPayableSchema = z.object({
+  poId: z.string().uuid().optional(),
+  inboundQuotationId: z.string().uuid().optional(),
+  supplierId: z.string().uuid(),
+  amountDue: z.number().positive(),
+  dueDate: z.string(),
+  notes: z.string().optional(),
+});
+export const insertBankAccountSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  accountNumberMasked: z.string().min(1, "Account number is required"),
+  ifsc: z.string().min(1, "IFSC code is required"),
+  upiId: z.string().optional(),
+  openingBalance: z.coerce.number().optional(),
+});
+export const insertBankTransactionSchema = z.object({
+  date: z.string(),
+  amount: z.coerce.number(),
+  type: z.enum(["credit", "debit"]),
+  bankAccountId: z.string().uuid(),
+  description: z.string().optional(),
+  reference: z.string().optional(),
+});
+// export const insertAccountReminderSchema = z.object({
+//   reminderDate: z.string(),
+//   accountId: z.string(),
+//   message: z.string(),
+//   status: z.enum(["pending", "sent"]).default("pending"),
+// });
+
 export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
   date: z.string(),
@@ -1204,4 +1387,120 @@ export const attendance = pgTable("attendance", {
   location: text("location"),
   status: text("status").notNull().default("present"),
   notes: text("notes"),
+});
+
+// =====================
+// BANK ACCOUNTS
+// =====================
+export const bankTransactionType = pgEnum("bank_transaction_type", [
+  "credit",
+  "debit",
+]);
+export const bank_accounts = pgTable("bank_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  bankName: text("bankName").notNull(),
+  accountNumberMasked: text("accountNumberMasked").notNull(),
+  ifsc: text("ifsc").notNull(),
+  upiId: text("upiId"),
+  openingBalance: numeric("openingBalance", { precision: 10, scale: 2 }),
+});
+export const bank_transactions = pgTable("bank_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankAccountId: uuid("bankAccountId")
+    .notNull()
+    .references(() => bank_accounts.id),
+  date: timestamp("date").notNull(),
+  type: bankTransactionType("type").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }),
+});
+// =====================
+// ACCOUNT REMINDERS
+// =====================
+// =====================
+// ACCOUNT REMINDERS
+// =====================
+export const reminder_target_type = pgEnum("reminder_target_type", [
+  "account",
+  "payable",
+  "receivable",
+  "gst",
+]);
+export const reminder_channel = pgEnum("reminder_channel", ["email"]);
+export const reminder_status = pgEnum("reminder_status", [
+  "pending",
+  "sent",
+  "cancelled",
+]);
+
+export const account_reminders = pgTable("account_reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  targetType: reminder_target_type("targetType").notNull(),
+  targetId: varchar("targetId", { length: 255 }).notNull(),
+  dueDate: timestamp("dueDate").notNull(),
+  nextReminderAt: timestamp("nextReminderAt").notNull(),
+  lastSentAt: timestamp("lastSentAt"),
+  channel: reminder_channel("channel").notNull(),
+  status: reminder_status("status").default("pending").notNull(),
+  template: text("template"),
+  frequency: integer("frequency").default(7).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export const insertAccountReminderSchema = z.object({
+  targetType: z.enum(["account", "payable", "receivable", "gst"]),
+  targetId: z.string(),
+  dueDate: z.string().datetime(),
+  nextReminderAt: z.string().datetime().optional(),
+  lastSentAt: z.string().datetime().optional(),
+  channel: z.enum(["email"]),
+  status: z.enum(["pending", "sent", "cancelled"]).default("pending"),
+  template: z.string().optional(),
+  frequency: z.number().default(7),
+});
+
+// =====================
+// ACCOUNT REPORTS
+// =====================
+export const reportStatus = pgEnum("report_status", [
+  "generated",
+  "processing",
+  "failed",
+]);
+
+export const accountReports = pgTable("account_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportType: text("reportType").notNull(),
+  title: text("title").notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  status: reportStatus("status").default("generated").notNull(),
+  fileUrl: text("fileUrl"),
+  fileName: text("fileName"),
+  fileSize: integer("fileSize"),
+  generatedBy: uuid("generatedBy").references(() => users.id),
+  downloadCount: integer("downloadCount").default(0).notNull(),
+  parameters: text("parameters"),
+  summary: text("summary"),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export const insertAccountReportSchema = z.object({
+  reportType: z.string(),
+  title: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  status: z.enum(["generated", "processing", "failed"]).optional(),
+  fileUrl: z.string().optional(),
+  fileName: z.string().optional(),
+  fileSize: z.number().optional(),
+  generatedBy: z.string().uuid().optional(),
+  downloadCount: z.number().optional(),
+  parameters: z.string().optional(),
+  summary: z.string().optional(),
+  expiresAt: z.string().optional(),
 });
