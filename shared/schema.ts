@@ -922,10 +922,27 @@ export const insertCustomerSchema = z.object({
 
 // Supplier schema
 export const insertSupplierSchema = z.object({
-  name: z.string(),
-  contactEmail: z.string().email(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
+  name: z.string().min(1, "Vendor name is required"),
+  email: z
+    .string()
+    .email("Please enter a valid email")
+    .optional()
+    .or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  state: z.string().optional().or(z.literal("")),
+  zipCode: z.string().optional().or(z.literal("")),
+  country: z.string().optional().default("India"),
+  gstNumber: z.string().optional().or(z.literal("")),
+  panNumber: z.string().optional().or(z.literal("")),
+  companyType: z.string().optional().default("company"),
+  contactPerson: z.string().optional().or(z.literal("")),
+  website: z.string().optional().or(z.literal("")),
+  creditLimit: z.string().optional().or(z.literal("0")),
+  paymentTerms: z.number().int().optional().default(30),
+  isActive: z.boolean().optional().default(true),
+  notes: z.string().optional().or(z.literal("")),
 });
 export const insertAccountsReceivableSchema = z.object({
   invoiceId: z.string().uuid().optional(),
