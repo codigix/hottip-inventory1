@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   root: path.resolve(process.cwd(), "client"),
+  envDir: process.cwd(),
   build: {
     outDir: path.resolve(process.cwd(), "dist/public"),
     emptyOutDir: true,
@@ -19,7 +20,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: 'http://localhost:5000', // your backend URL
+        target: "http://localhost:5000", // your backend URL
         changeOrigin: true,
         secure: false,
       },
