@@ -71,6 +71,30 @@ class Storage {
     const [row] = await db.insert(customers).values(insertCustomer).returning();
     return row;
   }
+
+  async updateCustomer(
+    id: string,
+    update: Partial<InsertCustomer>
+  ): Promise<Customer> {
+    const [row] = await db
+      .update(customers)
+      .set(update)
+      .where(eq(customers.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Customer with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    // Optionally check if any row was deleted
+    // if (result.rowCount === 0) {
+    //   throw new Error(`Customer with ID '${id}' not found for deletion.`);
+    // }
+  }
+
   // Suppliers CRUD
   async getSuppliers(): Promise<Supplier[]> {
     return await db.select().from(suppliers);

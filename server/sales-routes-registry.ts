@@ -77,6 +77,60 @@ export function registerSalesRoutes(
     }
   });
 
+  // Alias routes for /api/clients (frontend compatibility)
+  app.get("/api/clients", requireAuth, async (_req, res) => {
+    try {
+      const rows = await storage.getCustomers();
+      console.log("rows", rows);
+      res.json(rows);
+    } catch (e: any) {
+      console.error("❌ Error in /api/clients:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch clients", details: e.message });
+    }
+  });
+
+  app.post("/api/clients", requireAuth, async (req, res) => {
+    try {
+      const customerData = req.body;
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Invalid client data",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.put("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const customer = await storage.updateCustomer(id, updateData);
+      res.json(customer);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to update client",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteCustomer(id);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to delete client",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
   // Placeholder orders endpoints for UI. You can wire to real tables later.
   const orders: any[] = [];
 

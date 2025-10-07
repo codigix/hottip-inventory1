@@ -911,11 +911,15 @@ export const insertInvoiceSchema = z.object({
 });
 
 export const insertCustomerSchema = z.object({
-  name: z.string(),
-  email: z.string().email(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  gstNumber: z.string().optional(),
+  name: z.string().min(1, "Client name is required"),
+  email: z
+    .string()
+    .email("Please enter a valid email")
+    .optional()
+    .or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  gstNumber: z.string().optional().or(z.literal("")),
 });
 
 // Customer schema
