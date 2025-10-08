@@ -96,12 +96,21 @@
       }
       .part-header {
         font-weight: bold;
-        font-size: 13px;
-        margin-bottom: 8px;
-        padding: 5px 8px;
-        background: #e8e8e8;
+        font-size: 12px;
+        margin-bottom: 0;
+        padding: 6px 10px;
+        background: #ffff00;
         border: 1px solid #000;
         border-bottom: 2px solid #000;
+      }
+      .quotation-for-title {
+        font-weight: bold;
+        font-size: 11px;
+        margin-top: 12px;
+        margin-bottom: 8px;
+        padding: 5px 8px;
+        background: #fff;
+        border: none;
       }
       table {
         width: 100%;
@@ -111,20 +120,20 @@
       }
       table.mold-table th {
         border: 1px solid #000;
-        padding: 6px 4px;
+        padding: 4px 3px;
         text-align: center;
         vertical-align: middle;
-        background: #d9d9d9;
+        background: #ffff00;
         font-weight: bold;
-        font-size: 9px;
+        font-size: 8px;
         line-height: 1.2;
       }
       table.mold-table td {
         border: 1px solid #000;
-        padding: 6px 4px;
+        padding: 5px 3px;
         text-align: center;
         vertical-align: middle;
-        font-size: 10px;
+        font-size: 9px;
       }
       table.items-table th {
         border: 1px solid #000;
@@ -238,20 +247,16 @@
       <div class="customer-block">
         <div class="title">CUSTOMER ADDRESS</div>
         <p>
-          <strong
-            ><%= quotation.customerName || customer?.name || 'N/A' %></strong
-          >
+          <strong><%= quotation.customerName || customer?.name || 'N/A' %></strong>
         </p>
         <p><%= quotation.customerAddress || customer?.address || 'N/A' %></p>
         <p>
-          GST.NO – <%= quotation.customerGstNo || customer?.gstNumber || 'N/A'
-          %>
+          GST.NO – <%= quotation.customerGstNo || customer?.gstNumber || 'N/A' %>
         </p>
         <p>Ph: <%= quotation.customerPhone || customer?.phone || 'N/A' %></p>
         <p>Mail: <%= quotation.customerEmail || customer?.email || 'N/A' %></p>
         <p>
-          Kind Attn: <%= quotation.customerContactPerson ||
-          customer?.contactPerson || 'N/A' %>
+          Kind Attn: <%= quotation.customerContactPerson || customer?.contactPerson || 'N/A' %>
         </p>
       </div>
 
@@ -260,151 +265,159 @@
           <strong>Quotation Ref No :</strong> <%= quotation.quotationNumber %>
         </p>
         <p>
-          <strong>Quotation Date :</strong> <%= new
-          Date(quotation.quotationDate).toLocaleDateString("en-IN") %>
+          <strong>Quotation Date :</strong> <%= quotation.quotationDate ? new Date(quotation.quotationDate).toLocaleDateString("en-IN") : 'N/A' %>
         </p>
         <p>
-          <strong>Project Incharge :</strong> <%= quotation.projectIncharge ||
-          '-' %>
+          <strong>Project Incharge :</strong> <%= quotation.projectIncharge || '-' %>
         </p>
         <p>
-          <strong>Job Card Details :</strong> <%= quotation.jobCardNumber || '-'
-          %>
+          <strong>Job Card Details :</strong> <%= quotation.jobCardNumber || '-' %>
         </p>
       </div>
     </div>
 
-    <!-- PARTS SECTIONS -->
-    <% if (quotation.moldDetails && quotation.moldDetails.length > 0) { %> <%
-    quotation.moldDetails.forEach(function(part, partIndex){ %>
+    <!-- MOLD / PART DETAILS SECTIONS -->
+    <% if (quotation.moldDetails && quotation.moldDetails.length > 0) { %>
+    <% quotation.moldDetails.forEach(function(mold, moldIndex){ %>
     <div class="part-section">
-      <div class="part-header">
-        Part <%= partIndex+1 %> – <%= part.partName || part.name || 'N/A' %>
-      </div>
+      <div class="part-header"><%= moldIndex+1 %>) MOLD / PART DETAILS</div>
 
-      <!-- Mold Details Table (10 columns) -->
+      <!-- Mold Details Table (13 fields in 4 rows) -->
       <table class="mold-table">
-        <thead>
-          <tr>
-            <th style="width: 10%">1<br />Part Name</th>
-            <th style="width: 8%">2<br />Mould No</th>
-            <th style="width: 8%">3<br />No of Cavity</th>
-            <th style="width: 8%">4<br />No of Drops</th>
-            <th style="width: 12%">5<br />Plastic Material</th>
-            <th style="width: 8%">6<br />MFI</th>
-            <th style="width: 10%">7<br />GF%+MF%</th>
-            <th style="width: 10%">8<br />Part Weight (Gms)</th>
-            <th style="width: 10%">9<br />Color Change</th>
-            <th style="width: 16%">10<br />System Suggested</th>
-          </tr>
-        </thead>
         <tbody>
           <tr>
-            <td><%= part.partName || part.name || '-' %></td>
-            <td><%= part.mouldNo || '-' %></td>
-            <td><%= part.noOfCavity || part.cavities || '-' %></td>
-            <td><%= part.noOfDrops || part.drops || '-' %></td>
-            <td><%= part.plasticMaterial || part.material || '-' %></td>
-            <td><%= part.mfi || '-' %></td>
-            <td>
-              <%= part.gf_mf || `${part.gfPercent || 0}+${part.mfPercent || 0}`
-              %>
+            <td style="width: 5%; font-weight: bold">1</td>
+            <td style="width: 15%; text-align: left; font-weight: bold">
+              Part Name
             </td>
-            <td><%= part.partWeightGms || part.partWeight || '-' %></td>
-            <td><%= part.colorChange || part.colourChange || '-' %></td>
-            <td><%= part.systemSuggested || '-' %></td>
+            <td style="width: 20%; text-align: left">
+              <%= mold.partName || '-' %>
+            </td>
+            <td style="width: 5%; font-weight: bold">5</td>
+            <td style="width: 15%; text-align: left; font-weight: bold">
+              Plastic Material
+            </td>
+            <td style="width: 20%; text-align: left">
+              <%= mold.plasticMaterial || '-' %>
+            </td>
+            <td style="width: 5%; font-weight: bold">9</td>
+            <td style="width: 15%; text-align: left; font-weight: bold">
+              Colour Change
+            </td>
+            <td style="width: 20%; text-align: left">
+              <%= mold.colourChange || '-' %>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold">2</td>
+            <td style="text-align: left; font-weight: bold">Mould no</td>
+            <td style="text-align: left"><%= mold.mouldNo || '-' %></td>
+            <td style="font-weight: bold">6</td>
+            <td style="text-align: left; font-weight: bold">MFI</td>
+            <td style="text-align: left"><%= mold.mfi || '-' %></td>
+            <td style="font-weight: bold">10</td>
+            <td style="text-align: left; font-weight: bold">Wall Thickness</td>
+            <td style="text-align: left"><%= mold.wallThickness || '-' %></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold">3</td>
+            <td style="text-align: left; font-weight: bold">No of Cavity</td>
+            <td style="text-align: left"><%= mold.noOfCavity || '-' %></td>
+            <td style="font-weight: bold">7</td>
+            <td style="text-align: left; font-weight: bold">GF% + MP%</td>
+            <td style="text-align: left">
+              <%= mold.gfPercent || '0' %>% + <%= mold.mfPercent || '0' %>%
+            </td>
+            <td style="font-weight: bold">11</td>
+            <td style="text-align: left; font-weight: bold">
+              System Suggested
+            </td>
+            <td style="text-align: left"><%= mold.systemSuggested || '-' %></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold">4</td>
+            <td style="text-align: left; font-weight: bold">No of Drops</td>
+            <td style="text-align: left"><%= mold.noOfDrops || '-' %></td>
+            <td style="font-weight: bold">8</td>
+            <td style="text-align: left; font-weight: bold">
+              Part Weight (Gms)
+            </td>
+            <td style="text-align: left"><%= mold.partWeight || '-' %> GMS</td>
+            <td style="font-weight: bold">12</td>
+            <td style="text-align: left; font-weight: bold">Trial Date</td>
+            <td style="text-align: left">
+              <%= mold.trialDate ? new Date(mold.trialDate).toLocaleDateString('en-IN') : '-' %>
+            </td>
           </tr>
         </tbody>
       </table>
 
-      <!-- Spare Parts Items Table -->
-      <% if (part.quotation_spare_parts && part.quotation_spare_parts.length >
-      0) { %>
+      <!-- Quotation For Title -->
+      <div class="quotation-for-title">Quotation For <%= mold.partName || 'Part ' + (moldIndex+1) %> <%= mold.quotationFor ? '- ' + mold.quotationFor : '' %></div>
+
+      <!-- Quotation Items Table -->
+      <% var moldItems = quotation.quotationItems ? quotation.quotationItems.filter(function(item) { return item.partName === mold.partName || item.no === mold.no; }) : []; %>
+      <% if (moldItems.length > 0) { %>
       <table class="items-table">
         <thead>
           <tr>
-            <th>No</th>
-            <th>Part Name</th>
-            <th>QTY</th>
-            <th>Unit Price (INR)</th>
-            <th>Amount (INR)</th>
+            <th style="width: 5%">No</th>
+            <th style="width: 25%">Part Name</th>
+            <th style="width: 30%">Part Description</th>
+            <th style="width: 10%">QTY</th>
+            <th style="width: 10%">UOM</th>
+            <th style="width: 10%">Unit Price (INR)</th>
+            <th style="width: 10%">Amount (INR)</th>
           </tr>
         </thead>
         <tbody>
-          <% let partTotal = 0; %> <%
-          part.quotation_spare_parts.forEach(function(sp, spIndex){ %> <% const
-          amount = (sp.qty || 0) * (sp.unitPrice || 0); partTotal += amount; %>
+          <% var moldTotal = 0; %>
+          <% moldItems.forEach(function(item, itemIndex){ %>
+            <% moldTotal += item.amount || 0; %>
           <tr>
-            <td class="no"><%= spIndex+1 %></td>
-            <td class="name">
-              <%= sp.subpartName || sp.partName || sp.name || '-' %>
-            </td>
-            <td class="qty"><%= sp.qty || 0 %></td>
-            <td class="price">
-              <%= (sp.unitPrice || 0).toLocaleString('en-IN',
-              {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-            </td>
-            <td class="amount">
-              <%= amount.toLocaleString('en-IN', {minimumFractionDigits: 2,
-              maximumFractionDigits: 2}) %>
-            </td>
+            <td class="no"><%= itemIndex+1 %></td>
+            <td class="name"><%= item.partName || '-' %></td>
+            <td class="name"><%= item.partDescription || '-' %></td>
+            <td class="qty"><%= item.qty || 0 %></td>
+            <td class="text-center"><%= item.uom || 'NOS' %></td>
+            <td class="price"><%= (parseFloat(item.unitPrice) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></td>
+            <td class="amount"><%= (parseFloat(item.amount) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></td>
           </tr>
           <% }); %>
           <tr class="total-row">
-            <td colspan="4" class="text-right"><strong>TOTAL INR</strong></td>
-            <td class="amount">
-              <strong
-                ><%= partTotal.toLocaleString('en-IN', {minimumFractionDigits:
-                2, maximumFractionDigits: 2}) %></strong
-              >
-            </td>
+            <td colspan="6" class="text-right"><strong>TOTAL INR</strong></td>
+            <td class="amount"><strong><%= moldTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong></td>
           </tr>
         </tbody>
       </table>
       <% } %>
     </div>
-    <% }); %> <% } %>
+    <% }); %><% } %>
 
     <!-- FINANCIAL SUMMARY -->
     <div class="summary-section">
       <div class="summary-row">
         <span><strong>Basic Amount</strong></span>
-        <span
-          ><strong
-            ><%= (quotation.subtotalAmount || basicAmount ||
-            0).toLocaleString('en-IN', {minimumFractionDigits: 2,
-            maximumFractionDigits: 2}) %></strong
-          ></span
-        >
+        <span><strong><%= (quotation.subtotalAmount || basicAmount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong></span>
       </div>
       <div class="summary-row">
         <span><strong>IGST <%= quotation.gstPercentage || 18 %>%</strong></span>
-        <span
-          ><strong
-            ><%= (gst || 0).toLocaleString('en-IN', {minimumFractionDigits: 2,
-            maximumFractionDigits: 2}) %></strong
-          ></span
-        >
+        <span><strong><%= (gst || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong></span>
       </div>
       <div class="summary-row grand-total">
         <span>GRAND TOTAL</span>
-        <span
-          ><%= (grandTotal || 0).toLocaleString('en-IN', {minimumFractionDigits:
-          2, maximumFractionDigits: 2}) %></span
-        >
+        <span><%= (grandTotal || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></span>
       </div>
     </div>
 
     <!-- FOOTER: TERMS & CONDITIONS -->
     <div class="footer">
       <p>
-        <strong>Delivery Period :</strong> <%= quotation.deliveryTerms || '25 to
-        30 Days from the Date of Approval Drawings' %>
+        <strong>Delivery Period :</strong> <%= quotation.deliveryTerms || '25 to 30 Days from the Date of Approval Drawings' %>
       </p>
 
       <p>
-        <strong>Packaging :</strong> <%= quotation.packaging || 'Standard
-        Packaging' %>
+        <strong>Packaging :</strong> <%= quotation.packaging || 'Standard Packaging' %>
       </p>
 
       <p><strong>Notes:</strong></p>
@@ -417,15 +430,11 @@
 
       <p style="margin-top: 10px">
         <strong>Bank Details :</strong>
-        <%= quotation.bankName || 'Hottip India Polymers' %> | A/C No <%=
-        quotation.bankAccountNo || '738305000994' %> | Branch <%=
-        quotation.bankBranch || 'Moshi' %> | IFSC <%= quotation.bankIfscCode ||
-        'ICIC0007383' %>
+        <%= quotation.bankName || 'Hottip India Polymers' %> | A/C No <%= quotation.bankAccountNo || '738305000994' %> | Branch <%= quotation.bankBranch || 'Moshi' %> | IFSC <%= quotation.bankIfscCode || 'ICIC0007383' %>
       </p>
 
       <p>
-        <strong>Payment :</strong> <%= quotation.paymentTerms || '50 % Advance &
-        50 % Against Delivery' %>
+        <strong>Payment :</strong> <%= quotation.paymentTerms || '50 % Advance & 50 % Against Delivery' %>
       </p>
     </div>
   </body>

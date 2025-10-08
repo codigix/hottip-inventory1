@@ -1,0 +1,3 @@
+# Ignore EJS templates to prevent breaking syntax
+*.ejs
+server/templates/**/*.ejs
