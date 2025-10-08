@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -164,6 +164,79 @@ export default function OutboundQuotations() {
       endDate: "",
     },
   });
+
+  // --- MAIN TABLE FILTER STATE ---
+  const [mainFilters, setMainFilters] = useState({
+    customerId: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [displayedQuotations, setDisplayedQuotations] = useState<
+    OutboundQuotation[]
+  >([]);
+
+  // Update displayed quotations when quotations data changes or filters change
+  const applyMainFilters = async () => {
+    try {
+      console.log("🔍 [MAIN] Applying filters:", mainFilters);
+
+      // Build query string
+      const params = new URLSearchParams();
+      if (mainFilters.customerId)
+        params.append("customerId", mainFilters.customerId);
+      if (mainFilters.status) params.append("status", mainFilters.status);
+      if (mainFilters.startDate)
+        params.append("startDate", mainFilters.startDate);
+      if (mainFilters.endDate) params.append("endDate", mainFilters.endDate);
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `/outbound-quotations?${queryString}`
+        : "/outbound-quotations";
+
+      console.log("🔍 [MAIN] Fetching from URL:", url);
+
+      const response = await apiRequest<OutboundQuotation[]>("GET", url);
+      console.log("🔍 [MAIN] Filtered quotations received:", response?.length);
+
+      setDisplayedQuotations(response || []);
+
+      toast({
+        title: "Filters Applied",
+        description: `Showing ${response?.length || 0} quotation(s)`,
+      });
+    } catch (error) {
+      console.error("❌ [MAIN] Error applying filters:", error);
+      toast({
+        title: "Error",
+        description: "Failed to apply filters",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Clear main filters
+  const clearMainFilters = () => {
+    setMainFilters({
+      customerId: "",
+      status: "",
+      startDate: "",
+      endDate: "",
+    });
+    setDisplayedQuotations(quotations || []);
+    toast({
+      title: "Filters Cleared",
+      description: "Showing all quotations",
+    });
+  };
+
+  // Initialize displayed quotations when quotations data loads
+  useEffect(() => {
+    if (quotations && quotations.length > 0) {
+      setDisplayedQuotations(quotations);
+    }
+  }, [quotations]);
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) =>
@@ -407,15 +480,23 @@ export default function OutboundQuotations() {
         queryParams.append("endDate", data.endDate);
       }
 
+      const url = `/outbound-quotations?${queryParams.toString()}`;
+      console.log("🐛 [EXPORT] Fetching from URL:", url);
+
       // Fetch filtered quotations from the backend
       // This assumes your backend supports query parameters for filtering
-      const response = await apiRequest<OutboundQuotation[]>(
-        "GET",
-        `/outbound-quotations?${queryParams.toString()}`
-      );
+      const response = await apiRequest<OutboundQuotation[]>("GET", url);
 
       console.log("🐛 [EXPORT] Filtered quotations received:", response);
+      console.log("🐛 [EXPORT] Number of quotations:", response?.length);
+      console.log(
+        "🐛 [EXPORT] Quotation statuses:",
+        response?.map((q) => ({ number: q.quotationNumber, status: q.status }))
+      );
+
       setFilteredQuotations(response || []);
+      console.log("🐛 [EXPORT] State updated with quotations");
+
       toast({
         title: "Success",
         description: `Found ${
@@ -423,7 +504,7 @@ export default function OutboundQuotations() {
         } quotations matching your filters.`,
       });
     } catch (error: any) {
-      console.error("Failed to filter quotations:", error);
+      console.error("❌ [EXPORT] Failed to filter quotations:", error);
       toast({
         title: "Error",
         description: error?.data?.error || "Failed to filter quotations",
@@ -2684,8 +2765,116 @@ export default function OutboundQuotations() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filter Section */}
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+            <h3 className="text-sm font-semibold mb-4 flex items-center">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter Quotations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Customer Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Customer
+                </label>
+                <Select
+                  value={mainFilters.customerId}
+                  onValueChange={(value) =>
+                    setMainFilters({ ...mainFilters, customerId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Customers</SelectItem>
+                    {(customers || []).map((customer: any) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select
+                  value={mainFilters.status}
+                  onValueChange={(value) =>
+                    setMainFilters({ ...mainFilters, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Start Date Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Start Date
+                </label>
+                <Input
+                  type="date"
+                  value={mainFilters.startDate}
+                  onChange={(e) =>
+                    setMainFilters({
+                      ...mainFilters,
+                      startDate: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              {/* End Date Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  End Date
+                </label>
+                <Input
+                  type="date"
+                  value={mainFilters.endDate}
+                  onChange={(e) =>
+                    setMainFilters({ ...mainFilters, endDate: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Filter Action Buttons */}
+            <div className="flex gap-2 mt-4">
+              <Button
+                size="sm"
+                onClick={applyMainFilters}
+                className="flex items-center"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Apply Filters
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearMainFilters}>
+                Clear Filters
+              </Button>
+              <div className="ml-auto text-sm text-muted-foreground flex items-center">
+                Showing {displayedQuotations.length} of {quotations.length}{" "}
+                quotation(s)
+              </div>
+            </div>
+          </div>
+
+          {/* Data Table */}
           <DataTable
-            data={quotations || []}
+            data={displayedQuotations || []}
             columns={columns}
             searchable={true}
             searchKey="quotationNumber"

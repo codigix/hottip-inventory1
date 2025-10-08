@@ -176,9 +176,62 @@ export function registerSalesRoutes(
   });
 
   // Outbound Quotations CRUD
-  app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
-      const quotations = await storage.getOutboundQuotations();
+      console.log("📋 Fetching outbound quotations with filters:", req.query);
+
+      // Get all quotations
+      let quotations = await storage.getOutboundQuotations();
+      console.log(`📋 Total quotations in database: ${quotations.length}`);
+
+      // Apply filters based on query parameters
+      // Filter by customer ID
+      if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
+        quotations = quotations.filter(
+          (q) => q.customerId === req.query.customerId
+        );
+        console.log(
+          `   After customer filter: ${quotations.length} quotations`
+        );
+      }
+
+      // Filter by status (case-insensitive)
+      if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
+        quotations = quotations.filter(
+          (q) => q.status.toLowerCase() === statusFilter
+        );
+        console.log(`   After status filter: ${quotations.length} quotations`);
+      }
+
+      // Filter by date range
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        startDate.setHours(0, 0, 0, 0); // Start of day
+        console.log(`📅 Filtering by startDate: ${startDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate >= startDate;
+        });
+        console.log(
+          `   After startDate filter: ${quotations.length} quotations`
+        );
+      }
+
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        console.log(`📅 Filtering by endDate: ${endDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate <= endDate;
+        });
+        console.log(`   After endDate filter: ${quotations.length} quotations`);
+      }
+
+      console.log(`✅ Returning ${quotations.length} filtered quotations`);
       res.json(quotations);
     } catch (e: any) {
       console.error("❌ Error in /api/outbound-quotations:", e);
@@ -361,22 +414,42 @@ export function registerSalesRoutes(
 
       // Get all quotations
       const allQuotations = await storage.getOutboundQuotations();
+      console.log(`📊 Total quotations in database: ${allQuotations.length}`);
 
       // Apply filters based on query parameters
       let filteredQuotations = allQuotations;
 
       // Filter by customer ID
       if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
         filteredQuotations = filteredQuotations.filter(
           (q) => q.customerId === req.query.customerId
         );
+        console.log(
+          `   After customer filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: customerId=${q.customerId}, status=${q.status}, date=${q.quotationDate}`
+          );
+        });
       }
 
-      // Filter by status
+      // Filter by status (case-insensitive)
       if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
         filteredQuotations = filteredQuotations.filter(
-          (q) => q.status === req.query.status
+          (q) => q.status.toLowerCase() === statusFilter
         );
+        console.log(
+          `   After status filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: status=${q.status}, date=${q.quotationDate}`
+          );
+        });
       }
 
       // Filter by date range
