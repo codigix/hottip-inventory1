@@ -1,0 +1,56 @@
+═══════════════════════════════════════════════════════════════
+                    COMPANY LOGO PLACEHOLDER
+═══════════════════════════════════════════════════════════════
+
+📁 This is the correct folder for your company logo!
+
+🎯 TO ADD YOUR LOGO:
+
+1. Prepare your logo image file (PNG, JPG, or JPEG format)
+
+2. Rename it to exactly one of these:
+   • company-logo.png   (recommended)
+   • company-logo.jpg
+   • company-logo.jpeg
+
+3. Place the file in THIS folder (attached_assets/)
+
+4. Restart your server
+
+5. Download a quotation PDF to see your logo!
+
+═══════════════════════════════════════════════════════════════
+
+📖 For detailed instructions, see:
+   → HOW_TO_ADD_LOGO.md (in this same folder)
+
+═══════════════════════════════════════════════════════════════
+
+🔍 QUICK CHECK:
+
+Your logo file should be at:
+c:\Users\admin\Desktop\hottip-inventory-backend\hottip-inventory1\
+hottip-inventory1\hottip-inventory1\attached_assets\company-logo.png
+
+If you see your logo file in this folder with that exact name,
+you're all set! Just restart the server and test a PDF download.
+
+═══════════════════════════════════════════════════════════════
+
+⚠️ IMPORTANT NOTES:
+
+• Filename must be exact (lowercase, with hyphen)
+• Logo should be at least 300x300 pixels
+• PNG with transparent background works best
+• Keep file size under 1MB
+
+• If no logo is found, PDF will use text-only header (no errors)
+
+═══════════════════════════════════════════════════════════════
+
+✅ READY TO GO!
+
+Once your logo is in place, every PDF quotation will automatically
+include it in the header. No code changes needed!
+
+═══════════════════════════════════════════════════════════════

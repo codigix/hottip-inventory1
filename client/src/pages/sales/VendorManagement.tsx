@@ -3,14 +3,40 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Building2, Eye, Edit, FileText, History } from "lucide-react";
@@ -19,16 +45,28 @@ import { z } from "zod";
 
 export default function VendorManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const { toast } = useToast();
-  
+
   const { data: suppliers, isLoading } = useQuery({
     queryKey: ["/suppliers"],
   });
 
   const vendorFormSchema = insertSupplierSchema.extend({
     name: z.string().min(1, "Vendor name is required"),
-    email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-    phone: z.string().min(10, "Please enter a valid phone number").optional().or(z.literal("")),
+    email: z
+      .string()
+      .email("Please enter a valid email")
+      .optional()
+      .or(z.literal("")),
+    phone: z
+      .string()
+      .min(10, "Please enter a valid phone number")
+      .optional()
+      .or(z.literal("")),
     gstNumber: z.string().optional(),
   });
 
@@ -56,8 +94,8 @@ export default function VendorManagement() {
   });
 
   const createVendorMutation = useMutation({
-    mutationFn: (data: InsertSupplier) => 
-      apiRequest('POST', '/suppliers', data),
+    mutationFn: (data: InsertSupplier) =>
+      apiRequest("POST", "/suppliers", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/suppliers"] });
       toast({
@@ -68,7 +106,7 @@ export default function VendorManagement() {
       form.reset();
     },
     onError: (error) => {
-      console.error('Failed to create vendor:', error);
+      console.error("Failed to create vendor:", error);
       toast({
         title: "Error",
         description: "Failed to create vendor. Please try again.",
@@ -78,23 +116,94 @@ export default function VendorManagement() {
   });
 
   const onSubmit = (values: z.infer<typeof vendorFormSchema>) => {
-    createVendorMutation.mutate(values);
+    if (selectedVendor) {
+      // Update existing vendor
+      updateVendorMutation.mutate({ id: selectedVendor.id, data: values });
+    } else {
+      // Create new vendor
+      createVendorMutation.mutate(values);
+    }
+  };
+
+  const updateVendorMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: InsertSupplier }) =>
+      apiRequest("PUT", `/suppliers/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/suppliers"] });
+      toast({
+        title: "Success",
+        description: "Vendor updated successfully.",
+      });
+      setIsEditModalOpen(false);
+      setSelectedVendor(null);
+      form.reset();
+    },
+    onError: (error) => {
+      console.error("Failed to update vendor:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update vendor. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleView = (supplier: any) => {
+    setSelectedVendor(supplier);
+    setIsViewModalOpen(true);
+  };
+
+  const handleEdit = (supplier: any) => {
+    setSelectedVendor(supplier);
+    form.reset({
+      name: supplier.name || "",
+      email: supplier.email || "",
+      phone: supplier.phone || "",
+      address: supplier.address || "",
+      city: supplier.city || "",
+      state: supplier.state || "",
+      zipCode: supplier.zipCode || "",
+      country: supplier.country || "India",
+      gstNumber: supplier.gstNumber || "",
+      panNumber: supplier.panNumber || "",
+      companyType: supplier.companyType || "company",
+      contactPerson: supplier.contactPerson || "",
+      website: supplier.website || "",
+      creditLimit: supplier.creditLimit || "0",
+      paymentTerms: supplier.paymentTerms || 30,
+      isActive: supplier.isActive !== undefined ? supplier.isActive : true,
+      notes: supplier.notes || "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleHistory = (supplier: any) => {
+    setSelectedVendor(supplier);
+    setIsHistoryModalOpen(true);
+  };
+
+  const handleNewVendor = () => {
+    setSelectedVendor(null);
+    form.reset();
+    setIsModalOpen(true);
   };
 
   const columns = [
     {
-      key: 'name',
-      header: 'Vendor Name',
+      key: "name",
+      header: "Vendor Name",
       cell: (supplier: any) => (
         <div>
           <div className="font-light">{supplier.name}</div>
-          <div className="text-xs text-muted-foreground">{supplier.companyType || 'Company'}</div>
+          <div className="text-xs text-muted-foreground">
+            {supplier.companyType || "Company"}
+          </div>
         </div>
       ),
     },
     {
-      key: 'contactPerson',
-      header: 'Contact Person',
+      key: "contactPerson",
+      header: "Contact Person",
       cell: (supplier: any) => (
         <div>
           <div className="text-sm">{supplier.contactPerson}</div>
@@ -103,17 +212,17 @@ export default function VendorManagement() {
       ),
     },
     {
-      key: 'gstNumber',
-      header: 'GST Number',
+      key: "gstNumber",
+      header: "GST Number",
       cell: (supplier: any) => (
         <div className="text-sm font-mono">
-          {supplier.gstNumber || 'Not Provided'}
+          {supplier.gstNumber || "Not Provided"}
         </div>
       ),
     },
     {
-      key: 'location',
-      header: 'Location',
+      key: "location",
+      header: "Location",
       cell: (supplier: any) => (
         <div className="text-sm">
           {supplier.city}, {supplier.state}
@@ -121,43 +230,67 @@ export default function VendorManagement() {
       ),
     },
     {
-      key: 'paymentTerms',
-      header: 'Payment Terms',
+      key: "paymentTerms",
+      header: "Payment Terms",
       cell: (supplier: any) => `${supplier.paymentTerms || 30} days`,
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (supplier: any) => (
-        <Badge className={supplier.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-          {supplier.isActive ? 'ACTIVE' : 'INACTIVE'}
+        <Badge
+          className={
+            supplier.isActive
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }
+        >
+          {supplier.isActive ? "ACTIVE" : "INACTIVE"}
         </Badge>
       ),
     },
     {
-      key: 'actions',
-      header: 'Actions',
+      key: "actions",
+      header: "Actions",
       cell: (supplier: any) => (
         <div className="flex items-center space-x-2">
-          <Button size="sm" variant="ghost" data-testid={`button-view-vendor-${supplier.id}`}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleView(supplier)}
+            data-testid={`button-view-vendor-${supplier.id}`}
+          >
             <Eye className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" data-testid={`button-edit-vendor-${supplier.id}`}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleEdit(supplier)}
+            data-testid={`button-edit-vendor-${supplier.id}`}
+          >
             <Edit className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" data-testid={`button-history-vendor-${supplier.id}`}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleHistory(supplier)}
+            data-testid={`button-history-vendor-${supplier.id}`}
+          >
             <History className="h-4 w-4" />
           </Button>
         </div>
       ),
-    }
+    },
   ];
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-vendor-management-title">
+          <h1
+            className="text-3xl font-bold tracking-tight"
+            data-testid="text-vendor-management-title"
+          >
             Vendor Database
           </h1>
           <p className="text-muted-foreground">
@@ -166,7 +299,7 @@ export default function VendorManagement() {
         </div>
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-vendor">
+            <Button data-testid="button-new-vendor" onClick={handleNewVendor}>
               <Plus className="h-4 w-4 mr-2" />
               New Vendor
             </Button>
@@ -175,12 +308,16 @@ export default function VendorManagement() {
             <DialogHeader>
               <DialogTitle>Create New Vendor</DialogTitle>
               <DialogDescription>
-                Add a new vendor/supplier to your database with complete details.
+                Add a new vendor/supplier to your database with complete
+                details.
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -189,9 +326,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Vendor Name *</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="e.g., ABC Technologies Pvt Ltd" 
-                            {...field} 
+                          <Input
+                            placeholder="e.g., ABC Technologies Pvt Ltd"
+                            {...field}
                             data-testid="input-vendor-name"
                           />
                         </FormControl>
@@ -199,7 +336,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="contactPerson"
@@ -207,9 +344,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Contact Person</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="e.g., John Doe" 
-                            {...field} 
+                          <Input
+                            placeholder="e.g., John Doe"
+                            {...field}
                             data-testid="input-contact-person"
                           />
                         </FormControl>
@@ -227,9 +364,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="vendor@example.com" 
-                            {...field} 
+                          <Input
+                            placeholder="vendor@example.com"
+                            {...field}
                             data-testid="input-email"
                           />
                         </FormControl>
@@ -237,7 +374,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="phone"
@@ -245,9 +382,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="+91 98765 43210" 
-                            {...field} 
+                          <Input
+                            placeholder="+91 98765 43210"
+                            {...field}
                             data-testid="input-phone"
                           />
                         </FormControl>
@@ -265,9 +402,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>GST Number</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="22AAAAA0000A1Z5" 
-                            {...field} 
+                          <Input
+                            placeholder="22AAAAA0000A1Z5"
+                            {...field}
                             data-testid="input-gst-number"
                           />
                         </FormControl>
@@ -275,7 +412,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="panNumber"
@@ -283,9 +420,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>PAN Number</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="AAAAA0000A" 
-                            {...field} 
+                          <Input
+                            placeholder="AAAAA0000A"
+                            {...field}
                             data-testid="input-pan-number"
                           />
                         </FormControl>
@@ -302,9 +439,9 @@ export default function VendorManagement() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Complete business address..." 
-                          {...field} 
+                        <Textarea
+                          placeholder="Complete business address..."
+                          {...field}
                           data-testid="textarea-address"
                         />
                       </FormControl>
@@ -321,9 +458,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>City</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Mumbai" 
-                            {...field} 
+                          <Input
+                            placeholder="Mumbai"
+                            {...field}
                             data-testid="input-city"
                           />
                         </FormControl>
@@ -331,7 +468,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="state"
@@ -339,9 +476,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>State</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Maharashtra" 
-                            {...field} 
+                          <Input
+                            placeholder="Maharashtra"
+                            {...field}
                             data-testid="input-state"
                           />
                         </FormControl>
@@ -349,7 +486,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="zipCode"
@@ -357,9 +494,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>ZIP Code</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="400001" 
-                            {...field} 
+                          <Input
+                            placeholder="400001"
+                            {...field}
                             data-testid="input-zip-code"
                           />
                         </FormControl>
@@ -376,25 +513,36 @@ export default function VendorManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Company Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-company-type">
                               <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="company">Private Limited</SelectItem>
-                            <SelectItem value="proprietorship">Proprietorship</SelectItem>
-                            <SelectItem value="partnership">Partnership</SelectItem>
+                            <SelectItem value="company">
+                              Private Limited
+                            </SelectItem>
+                            <SelectItem value="proprietorship">
+                              Proprietorship
+                            </SelectItem>
+                            <SelectItem value="partnership">
+                              Partnership
+                            </SelectItem>
                             <SelectItem value="llp">LLP</SelectItem>
-                            <SelectItem value="public">Public Limited</SelectItem>
+                            <SelectItem value="public">
+                              Public Limited
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="paymentTerms"
@@ -402,11 +550,13 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Payment Terms (Days)</FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             type="number"
-                            placeholder="30" 
+                            placeholder="30"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value) || 30)
+                            }
                             data-testid="input-payment-terms"
                           />
                         </FormControl>
@@ -424,9 +574,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Website</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="https://vendor.com" 
-                            {...field} 
+                          <Input
+                            placeholder="https://vendor.com"
+                            {...field}
                             data-testid="input-website"
                           />
                         </FormControl>
@@ -434,7 +584,7 @@ export default function VendorManagement() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="creditLimit"
@@ -442,9 +592,9 @@ export default function VendorManagement() {
                       <FormItem>
                         <FormLabel>Credit Limit</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="50000.00" 
-                            {...field} 
+                          <Input
+                            placeholder="50000.00"
+                            {...field}
                             data-testid="input-credit-limit"
                           />
                         </FormControl>
@@ -461,9 +611,9 @@ export default function VendorManagement() {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Any additional notes about this vendor..." 
-                          {...field} 
+                        <Textarea
+                          placeholder="Any additional notes about this vendor..."
+                          {...field}
                           data-testid="textarea-notes"
                         />
                       </FormControl>
@@ -489,7 +639,9 @@ export default function VendorManagement() {
                     disabled={createVendorMutation.isPending}
                     data-testid="button-create-vendor"
                   >
-                    {createVendorMutation.isPending ? "Creating..." : "Create Vendor"}
+                    {createVendorMutation.isPending
+                      ? "Creating..."
+                      : "Create Vendor"}
                   </Button>
                 </div>
               </form>
@@ -510,13 +662,556 @@ export default function VendorManagement() {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={(suppliers || [])}
+            data={suppliers || []}
             columns={columns}
             searchable={true}
             searchKey="name"
           />
         </CardContent>
       </Card>
+
+      {/* View Vendor Dialog */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vendor Details</DialogTitle>
+            <DialogDescription>
+              Complete information about {selectedVendor?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedVendor && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Vendor Name
+                  </label>
+                  <p className="text-base mt-1">{selectedVendor.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Contact Person
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.contactPerson || "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Email
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.email || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Phone
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.phone || "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    GST Number
+                  </label>
+                  <p className="text-base mt-1 font-mono">
+                    {selectedVendor.gstNumber || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    PAN Number
+                  </label>
+                  <p className="text-base mt-1 font-mono">
+                    {selectedVendor.panNumber || "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Address
+                </label>
+                <p className="text-base mt-1">
+                  {selectedVendor.address || "N/A"}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    City
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.city || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    State
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.state || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    ZIP Code
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.zipCode || "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Company Type
+                  </label>
+                  <p className="text-base mt-1 capitalize">
+                    {selectedVendor.companyType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Payment Terms
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.paymentTerms || 30} days
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Website
+                  </label>
+                  <p className="text-base mt-1">
+                    {selectedVendor.website ? (
+                      <a
+                        href={selectedVendor.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {selectedVendor.website}
+                      </a>
+                    ) : (
+                      "N/A"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Credit Limit
+                  </label>
+                  <p className="text-base mt-1">
+                    ₹{selectedVendor.creditLimit || "0"}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Status
+                </label>
+                <p className="text-base mt-1">
+                  <Badge
+                    className={
+                      selectedVendor.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
+                  >
+                    {selectedVendor.isActive ? "ACTIVE" : "INACTIVE"}
+                  </Badge>
+                </p>
+              </div>
+              {selectedVendor.notes && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Notes
+                  </label>
+                  <p className="text-base mt-1">{selectedVendor.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Vendor Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Vendor</DialogTitle>
+            <DialogDescription>
+              Update vendor information for {selectedVendor?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., ABC Technologies Pvt Ltd"
+                          {...field}
+                          data-testid="input-vendor-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="contactPerson"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Person</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., John Doe"
+                          {...field}
+                          data-testid="input-contact-person"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="vendor@example.com"
+                          {...field}
+                          data-testid="input-email"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="+91 98765 43210"
+                          {...field}
+                          data-testid="input-phone"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="gstNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GST Number</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="22AAAAA0000A1Z5"
+                          {...field}
+                          data-testid="input-gst-number"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="panNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PAN Number</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="AAAAA0000A"
+                          {...field}
+                          data-testid="input-pan-number"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Complete business address..."
+                        {...field}
+                        data-testid="textarea-address"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Mumbai"
+                          {...field}
+                          data-testid="input-city"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Maharashtra"
+                          {...field}
+                          data-testid="input-state"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="zipCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ZIP Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="400001"
+                          {...field}
+                          data-testid="input-zip-code"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="companyType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-company-type">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="company">
+                            Private Limited
+                          </SelectItem>
+                          <SelectItem value="proprietorship">
+                            Proprietorship
+                          </SelectItem>
+                          <SelectItem value="partnership">
+                            Partnership
+                          </SelectItem>
+                          <SelectItem value="llp">LLP</SelectItem>
+                          <SelectItem value="public">Public Limited</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentTerms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Terms (Days)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="30"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value) || 30)
+                          }
+                          data-testid="input-payment-terms"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Website</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://vendor.com"
+                          {...field}
+                          data-testid="input-website"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="creditLimit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Limit</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="50000.00"
+                          {...field}
+                          data-testid="input-credit-limit"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any additional notes about this vendor..."
+                        {...field}
+                        data-testid="textarea-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedVendor(null);
+                    form.reset();
+                  }}
+                  data-testid="button-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateVendorMutation.isPending}
+                  data-testid="button-update-vendor"
+                >
+                  {updateVendorMutation.isPending
+                    ? "Updating..."
+                    : "Update Vendor"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vendor History</DialogTitle>
+            <DialogDescription>
+              Transaction and communication history for {selectedVendor?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Vendor history tracking will be displayed here. This can include:
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-sm">
+              <li>Purchase orders</li>
+              <li>Payment history</li>
+              <li>Communication logs</li>
+              <li>Delivery records</li>
+              <li>Quote requests</li>
+            </ul>
+            <p className="text-sm text-muted-foreground italic mt-4">
+              Feature coming soon...
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

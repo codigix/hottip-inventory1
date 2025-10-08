@@ -4,6 +4,7 @@ import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
+import { registerSalesRoutes } from "./sales-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -865,12 +866,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(orders);
     } catch (error: any) {
       console.error("Error fetching fabrication orders:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to fetch fabrication orders",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to fetch fabrication orders",
+        details: error.message,
+      });
     }
   });
 
@@ -973,43 +972,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/suppliers", async (req: Request, res: Response) => {
-    try {
-      const body = req.body;
+  app.post(
+    "/api/suppliers",
+    requireAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const body = req.body;
 
-      const supplierData = {
-        name: body.name,
-        email: body.contactEmail, // map frontend key to DB column
-        phone: body.contactPhone, // map frontend key to DB column
-        address: body.address || null,
-        city: body.city || null,
-        state: body.state || null,
-        zipCode: body.zipCode || null,
-        country: body.country || "India",
-        gstNumber: body.gstNumber || null,
-        panNumber: body.panNumber || null,
-        companyType: body.companyType || "company",
-        contactPerson: body.contactPerson || null,
-        website: body.website || null,
-        creditLimit: body.creditLimit || null,
-      };
+        const supplierData = {
+          name: body.name,
+          email: body.email || body.contactEmail || null, // map frontend key to DB column
+          phone: body.phone || body.contactPhone || null, // map frontend key to DB column
+          address: body.address || null,
+          city: body.city || null,
+          state: body.state || null,
+          zipCode: body.zipCode || null,
+          country: body.country || "India",
+          gstNumber: body.gstNumber || null,
+          panNumber: body.panNumber || null,
+          companyType: body.companyType || "company",
+          contactPerson: body.contactPerson || null,
+          website: body.website || null,
+          creditLimit: body.creditLimit || null,
+          paymentTerms: body.paymentTerms || 30,
+          isActive: body.isActive !== undefined ? body.isActive : true,
+        };
 
-      const [supplier] = await db
-        .insert(suppliers)
-        .values({
-          id: uuidv4(),
-          ...supplierData,
-        })
-        .returning();
+        const [supplier] = await db
+          .insert(suppliers)
+          .values({
+            id: uuidv4(),
+            ...supplierData,
+          })
+          .returning();
 
-      res.status(201).json(supplier);
-    } catch (error: any) {
-      console.error("Error creating supplier:", error);
-      res
-        .status(500)
-        .json({ error: "Failed to create supplier", details: error.message });
+        res.status(201).json(supplier);
+      } catch (error: any) {
+        console.error("Error creating supplier:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to create supplier", details: error.message });
+      }
     }
-  });
+  );
 
   app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
@@ -3973,6 +3978,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
   });
   registerInventoryRoutes(app, {
+    requireAuth,
+  });
+  registerSalesRoutes(app, {
     requireAuth,
   });
 
