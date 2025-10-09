@@ -478,6 +478,9 @@ const quotationStatus = pgEnum("quotation_status", [
 export const inboundQuotations = pgTable("inbound_quotations", {
   id: serial("id").primaryKey(), // Matches migration: serial
   quotationNumber: varchar("quotationNumber", { length: 50 }).notNull(), // Matches DB column
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id), // User who created the quotation
   quotationDate: timestamp("quotationDate").notNull(), // Matches DB column
   validUntil: timestamp("validUntil"), // Matches DB column
   subject: text("subject"), // Matches DB column
@@ -907,6 +910,8 @@ export const insertOutboundQuotationSchema = z.object({
 export const insertInboundQuotationSchema = z.object({
   // ✅ Use UUID for senderId
   senderId: z.string().uuid("Sender ID must be a valid UUID"),
+  // ✅ Use UUID for userId (user who created the quotation)
+  userId: z.string().uuid("User ID must be a valid UUID").optional(),
   // ✅ Add all required fields
   quotationNumber: z.string().min(1, "Quotation number is required"),
   quotationDate: z.string().or(z.date()), // Accept string or Date
