@@ -1330,28 +1330,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate?: string;
       } = {};
 
-      if (req.query.customerId && typeof req.query.customerId === 'string') {
+      if (req.query.customerId && typeof req.query.customerId === "string") {
         filters.customerId = req.query.customerId;
       }
 
-      if (req.query.status && typeof req.query.status === 'string') {
+      if (req.query.status && typeof req.query.status === "string") {
         filters.status = req.query.status;
       }
 
-      if (req.query.startDate && typeof req.query.startDate === 'string') {
+      if (req.query.startDate && typeof req.query.startDate === "string") {
         filters.startDate = req.query.startDate;
       }
 
-      if (req.query.endDate && typeof req.query.endDate === 'string') {
+      if (req.query.endDate && typeof req.query.endDate === "string") {
         filters.endDate = req.query.endDate;
       }
 
       console.log("?? [ROUTE] Applied filters:", filters);
 
       // --- Call the storage method with filters ---
-      const quotations = Object.keys(filters).length > 0 
-        ? await storage.getOutboundQuotations(filters)
-        : await storage.getOutboundQuotations();
+      const quotations =
+        Object.keys(filters).length > 0
+          ? await storage.getOutboundQuotations(filters)
+          : await storage.getOutboundQuotations();
 
       console.log(
         `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
@@ -1819,7 +1820,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ error: "Invalid invoice data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create invoice" });
+      res
+        .status(500)
+        .json({ error: "Failed to create invoice", details: error.errors });
     }
   });
 
