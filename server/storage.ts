@@ -39,6 +39,7 @@ import {
   outboundQuotations,
   inboundQuotations,
   invoices,
+  invoiceItems,
   purchaseOrders,
 } from "@shared/schema";
 
@@ -50,6 +51,8 @@ export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
 

@@ -526,6 +526,19 @@ export const invoices = pgTable("invoices", {
   }).default(0),
   totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
   balanceAmount: numeric("balanceAmount", { precision: 10, scale: 2 }),
+  billingAddress: text("billingAddress"),
+  shippingAddress: text("shippingAddress"),
+  billingGstNumber: text("billingGstNumber"),
+  placeOfSupply: text("placeOfSupply"),
+  paymentTerms: text("paymentTerms"),
+  deliveryTerms: text("deliveryTerms"),
+  transporterName: text("transporterName"),
+  ewayBillNumber: text("ewayBillNumber"),
+  amountInWords: text("amountInWords"),
+  notes: text("notes"),
+  packingFee: numeric("packingFee", { precision: 10, scale: 2 }).default(0),
+  shippingFee: numeric("shippingFee", { precision: 10, scale: 2 }).default(0),
+  otherCharges: numeric("otherCharges", { precision: 10, scale: 2 }).default(0),
 });
 
 // =====================
@@ -944,17 +957,53 @@ export const insertInvoiceSchema = z.object({
     (val) => (val ? new Date(val as string) : undefined),
     z.date()
   ),
-
-  subtotalAmount: z.number().min(0, "Subtotal must be positive").optional(),
-  cgstRate: z.number().min(0).max(100).optional().default(0),
-  cgstAmount: z.number().min(0).optional().default(0),
-  sgstRate: z.number().min(0).max(100).optional().default(0),
-  sgstAmount: z.number().min(0).optional().default(0),
-  igstRate: z.number().min(0).max(100).optional().default(0),
-  igstAmount: z.number().min(0).optional().default(0),
-  discountAmount: z.number().min(0).optional().default(0),
-  totalAmount: z.number().min(0, "Total amount is required"),
-  balanceAmount: z.number().min(0).optional(),
+  subtotalAmount: z.coerce
+    .number()
+    .min(0, "Subtotal must be positive")
+    .optional(),
+  cgstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  cgstAmount: z.coerce.number().min(0).optional().default(0),
+  sgstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  sgstAmount: z.coerce.number().min(0).optional().default(0),
+  igstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  igstAmount: z.coerce.number().min(0).optional().default(0),
+  discountAmount: z.coerce.number().min(0).optional().default(0),
+  totalAmount: z.coerce.number().min(0, "Total amount is required"),
+  balanceAmount: z.coerce.number().min(0).optional(),
+  billingAddress: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  billingGstNumber: z.string().optional(),
+  placeOfSupply: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  deliveryTerms: z.string().optional(),
+  transporterName: z.string().optional(),
+  ewayBillNumber: z.string().optional(),
+  amountInWords: z.string().optional(),
+  notes: z.string().optional(),
+  packingFee: z.coerce.number().min(0).optional().default(0),
+  shippingFee: z.coerce.number().min(0).optional().default(0),
+  otherCharges: z.coerce.number().min(0).optional().default(0),
+  items: z
+    .array(
+      z.object({
+        description: z.string().min(1, "Line description is required"),
+        hsnCode: z.string().optional(),
+        quantity: z.coerce.number().min(0.0001, "Quantity must be positive"),
+        unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
+        discountAmount: z.coerce.number().min(0).optional().default(0),
+        gstRate: z.coerce.number().min(0).max(100).optional().default(0),
+        cgstRate: z.coerce.number().min(0).max(100).optional(),
+        sgstRate: z.coerce.number().min(0).max(100).optional(),
+        igstRate: z.coerce.number().min(0).max(100).optional(),
+        cgstAmount: z.coerce.number().min(0).optional(),
+        sgstAmount: z.coerce.number().min(0).optional(),
+        igstAmount: z.coerce.number().min(0).optional(),
+        gstAmount: z.coerce.number().min(0).optional(),
+        lineTotal: z.coerce.number().min(0, "Line total must be non-negative"),
+        notes: z.string().optional(),
+      })
+    )
+    .min(1, "At least one line item is required"),
 });
 
 export const insertCustomerSchema = z.object({

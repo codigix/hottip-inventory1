@@ -1896,7 +1896,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ error: "Invalid invoice data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create invoice" });
+      res
+        .status(500)
+        .json({ error: "Failed to create invoice", details: error.errors });
     }
   });
 
