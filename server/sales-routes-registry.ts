@@ -1,11 +1,16 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import { db } from "./db";
 import {
   customers as customersTable,
   outboundQuotations,
   insertOutboundQuotationSchema,
   invoices,
+  invoiceItems,
+  insertInvoiceSchema,
   invoiceStatus,
+  customers,
+  users,
 } from "@shared/schema";
 import { storage } from "./storage";
 import puppeteer from "puppeteer";
@@ -13,6 +18,7 @@ import ejs from "ejs";
 import path from "path";
 import * as XLSX from "xlsx";
 import { generateInvoicePDF } from "./pdf-generator";
+import { and, eq } from "drizzle-orm";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -29,6 +35,126 @@ export function registerSalesRoutes(
   }
 ) {
   const { requireAuth } = middleware;
+
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    console.log("🟢 Received POST /api/invoices");
+
+    try {
+      const payload = insertInvoiceSchema.parse(req.body);
+      console.log("✅ Invoice data validated");
+
+      const createdInvoice = await db.transaction(async (tx) => {
+        const [invoiceRow] = await tx
+          .insert(invoices)
+          .values({
+            invoiceNumber: payload.invoiceNumber,
+            quotationId: payload.quotationId ?? null,
+            customerId: payload.customerId,
+            userId: payload.userId,
+            status: payload.status ?? "draft",
+            invoiceDate: new Date(payload.invoiceDate),
+            dueDate: new Date(payload.dueDate),
+            subtotalAmount: payload.subtotalAmount,
+            cgstRate: payload.cgstRate ?? 0,
+            cgstAmount: payload.cgstAmount ?? 0,
+            sgstRate: payload.sgstRate ?? 0,
+            sgstAmount: payload.sgstAmount ?? 0,
+            igstRate: payload.igstRate ?? 0,
+            igstAmount: payload.igstAmount ?? 0,
+            discountAmount: payload.discountAmount ?? 0,
+            totalAmount: payload.totalAmount,
+            balanceAmount: payload.balanceAmount ?? payload.totalAmount,
+            billingAddress: payload.billingAddress ?? null,
+            shippingAddress: payload.shippingAddress ?? null,
+            billingGstNumber: payload.billingGstNumber ?? null,
+            placeOfSupply: payload.placeOfSupply ?? null,
+            paymentTerms: payload.paymentTerms ?? null,
+            deliveryTerms: payload.deliveryTerms ?? null,
+            transporterName: payload.transporterName ?? null,
+            ewayBillNumber: payload.ewayBillNumber ?? null,
+            amountInWords: payload.amountInWords ?? null,
+            notes: payload.notes ?? null,
+            packingFee: payload.packingFee ?? 0,
+            shippingFee: payload.shippingFee ?? 0,
+            otherCharges: payload.otherCharges ?? 0,
+          })
+          .returning();
+
+        console.log("💾 Invoice created with ID:", invoiceRow.id);
+
+        const lineItems = payload.lineItems ?? [];
+        if (lineItems.length > 0) {
+          const itemsToInsert = lineItems.map((item) => ({
+            invoiceId: invoiceRow.id,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit ?? "pcs",
+            unitPrice: item.unitPrice,
+            amount: item.amount ?? item.unitPrice * item.quantity,
+          }));
+
+          await tx.insert(invoiceItems).values(itemsToInsert);
+          console.log(`📦 ${itemsToInsert.length} line item(s) added`);
+        } else {
+          console.log("ℹ️ No line items provided, skipping insert");
+        }
+
+        return invoiceRow.id;
+      });
+
+      console.log("✅ Transaction committed successfully");
+
+      const invoiceWithDetails = await db.query.invoices.findFirst({
+        where: (invoice, { eq }) => eq(invoice.id, createdInvoice),
+        with: {
+          invoiceItems: true,
+          customer: true,
+          user: true,
+        },
+      });
+
+      res.status(201).json({
+        message: "Invoice created successfully",
+        invoice: {
+          ...invoiceWithDetails,
+          lineItems: invoiceWithDetails?.invoiceItems ?? [],
+          customer: invoiceWithDetails?.customer ?? null,
+          user: invoiceWithDetails?.user ?? null,
+        },
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        console.error("❌ Validation error:", error.errors);
+        res.status(400).json({
+          error: "Invalid invoice data",
+          details: error.errors,
+        });
+        return;
+      }
+
+      if (error?.code === "23505") {
+        const attemptedInvoiceNumber = req.body?.invoiceNumber;
+        console.error(
+          "❌ Duplicate invoice number detected:",
+          attemptedInvoiceNumber,
+          error.detail
+        );
+        res.status(409).json({
+          error: "Invoice number already exists",
+          details: attemptedInvoiceNumber
+            ? `Invoice number ${attemptedInvoiceNumber} is already in use.`
+            : "Invoice number is already in use.",
+        });
+        return;
+      }
+
+      console.error("❌ Internal error creating invoice:", error);
+      res.status(500).json({
+        error: "Failed to create invoice",
+        details: error.message,
+      });
+    }
+  });
 
   // Sales dashboard minimal endpoints
   // Customers CRUD

@@ -55,7 +55,7 @@ import {
   inboundQuotations,
   invoices,
   leaveRequests as leaveRequestsTable,
-  insertOutboundQuotationSchema,
+  //insertOutboundQuotationSchema,
   insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
   insertInvoiceSchema,
@@ -1777,71 +1777,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
   // Invoice Routes
-  app.get("/api/invoices", requireAuth, async (req, res) => {
-    try {
-      const invoices = await storage.getInvoices();
-      res.json(invoices);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch invoices", details: error.message });
-    }
-  });
+  // app.get("/api/invoices", requireAuth, async (req, res) => {
+  //   try {
+  //     const invoices = await storage.getInvoices();
+  //     res.json(invoices);
+  //   } catch (error) {
+  //     res
+  //       .status(500)
+  //       .json({ error: "Failed to fetch invoices", details: error.message });
+  //   }
+  // });
 
-  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
-    try {
-      const invoice = await storage.getInvoice(req.params.id);
-      if (!invoice) {
-        return res.status(404).json({ error: "Invoice not found" });
-      }
-      res.json(invoice);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch invoice", details: error.message });
-    }
-  });
+  // app.get("/api/invoices/:id", requireAuth, async (req, res) => {
+  //   try {
+  //     const invoice = await storage.getInvoice(req.params.id);
+  //     if (!invoice) {
+  //       return res.status(404).json({ error: "Invoice not found" });
+  //     }
+  //     res.json(invoice);
+  //   } catch (error) {
+  //     res
+  //       .status(500)
+  //       .json({ error: "Failed to fetch invoice", details: error.message });
+  //   }
+  // });
 
-  app.post("/api/invoices", requireAuth, async (req, res) => {
-    try {
-      const invoiceData = insertInvoiceSchema.parse(req.body);
-      const invoice = await storage.createInvoice(invoiceData);
-      await storage.createActivity({
-        userId: invoice.userId,
-        action: "CREATE_INVOICE",
-        entityType: "invoice",
-        entityId: invoice.id,
-        details: `Created invoice: ${invoice.invoiceNumber}`,
-      });
-      res.status(201).json(invoice);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid invoice data", details: error.errors });
-      }
-      res
-        .status(500)
-        .json({ error: "Failed to create invoice", details: error.errors });
-    }
-  });
+  // app.post("/api/invoices", requireAuth, async (req, res) => {
+  //   try {
+  //     const invoiceData = insertInvoiceSchema.parse(req.body);
+  //     const invoice = await storage.createInvoice(invoiceData);
+  //     await storage.createActivity({
+  //       userId: invoice.userId,
+  //       action: "CREATE_INVOICE",
+  //       entityType: "invoice",
+  //       entityId: invoice.id,
+  //       details: `Created invoice: ${invoice.invoiceNumber}`,
+  //     });
+  //     res.status(201).json(invoice);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       return res
+  //         .status(400)
+  //         .json({ error: "Invalid invoice data", details: error.errors });
+  //     }
+  //     res
+  //       .status(500)
+  //       .json({ error: "Failed to create invoice", details: error.errors });
+  //   }
+  // });
 
-  app.put("/api/invoices/:id", requireAuth, async (req, res) => {
-    try {
-      const invoiceData = insertInvoiceSchema.partial().parse(req.body);
-      const invoice = await storage.updateInvoice(req.params.id, invoiceData);
-      await storage.createActivity({
-        userId: invoice.userId,
-        action: "UPDATE_INVOICE",
-        entityType: "invoice",
-        entityId: invoice.id,
-        details: `Updated invoice: ${invoice.invoiceNumber}`,
-      });
-      res.json(invoice);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update invoice" });
-    }
-  });
+  // app.put("/api/invoices/:id", requireAuth, async (req, res) => {
+  //   try {
+  //     const invoiceData = insertInvoiceSchema.partial().parse(req.body);
+  //     const invoice = await storage.updateInvoice(req.params.id, invoiceData);
+  //     await storage.createActivity({
+  //       userId: invoice.userId,
+  //       action: "UPDATE_INVOICE",
+  //       entityType: "invoice",
+  //       entityId: invoice.id,
+  //       details: `Updated invoice: ${invoice.invoiceNumber}`,
+  //     });
+  //     res.json(invoice);
+  //   } catch (error) {
+  //     res.status(500).json({ error: "Failed to update invoice" });
+  //   }
+  // });
 
   // Purchase orders
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {

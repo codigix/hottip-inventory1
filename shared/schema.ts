@@ -993,6 +993,25 @@ export const invoiceItems = pgTable("invoice_items", {
   unitPrice: numeric("unitPrice", { precision: 10, scale: 2 }).notNull(),
 });
 
+export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [invoices.customerId],
+    references: [customers.id],
+  }),
+  user: one(users, {
+    fields: [invoices.userId],
+    references: [users.id],
+  }),
+  invoiceItems: many(invoiceItems),
+}));
+
+export const invoiceItemRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+}));
+
 // Invoice Item schema
 export const insertInvoiceItemSchema = z.object({
   invoiceId: z.string().uuid(),
