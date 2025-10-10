@@ -162,25 +162,8 @@ export default function InvoiceManagement() {
   });
 
   const createInvoiceMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof insertInvoiceSchema>) => {
-      // First create the invoice
-      const invoiceResponse = await apiRequest("POST", "/invoices", data);
-      const invoice = await invoiceResponse.json();
-
-      // Then create line items
-      if (lineItems.length > 0) {
-        const itemPromises = lineItems.map((item) =>
-          apiRequest("POST", "/invoice-items", {
-            invoiceId: invoice.id,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            unit: item.unit || "pcs",
-          })
-        );
-        await Promise.all(itemPromises);
-      }
-
+    mutationFn: async (payload: z.infer<typeof insertInvoiceSchema>) => {
+      const invoice = await apiRequest("POST", "/invoices", payload);
       return invoice;
     },
     onSuccess: () => {
@@ -214,7 +197,24 @@ export default function InvoiceManagement() {
   });
 
   const onSubmit = (data: z.infer<typeof insertInvoiceSchema>) => {
-    createInvoiceMutation.mutate(data);
+    const sanitizedLineItems = lineItems
+      .filter((item) => item.description.trim().length > 0)
+      .map((item) => ({
+        description: item.description,
+        hsnSac: item.hsnSac || "",
+        quantity: Number(item.quantity) || 0,
+        unit: item.unit || "pcs",
+        unitPrice: Number(item.unitPrice) || 0,
+        cgstRate: Number(item.cgstRate) || 0,
+        sgstRate: Number(item.sgstRate) || 0,
+        igstRate: Number(item.igstRate) || 0,
+        amount: Number(item.amount) || 0,
+      }));
+
+    createInvoiceMutation.mutate({
+      ...data,
+      lineItems: sanitizedLineItems,
+    });
   };
 
   const addLineItem = () => {

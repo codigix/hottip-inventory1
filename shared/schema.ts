@@ -978,6 +978,22 @@ export const insertInvoiceSchema = z.object({
   packingFee: z.coerce.number().min(0).optional().default(0),
   shippingFee: z.coerce.number().min(0).optional().default(0),
   otherCharges: z.coerce.number().min(0).optional().default(0),
+  lineItems: z
+    .array(
+      z.object({
+        productId: z.string().uuid().optional(),
+        description: z.string().min(1, "Description is required"),
+        quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+        unit: z.string().optional(),
+        unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
+        hsnSac: z.string().optional(),
+        cgstRate: z.coerce.number().min(0).max(100).optional(),
+        sgstRate: z.coerce.number().min(0).max(100).optional(),
+        igstRate: z.coerce.number().min(0).max(100).optional(),
+        amount: z.coerce.number().min(0).optional(),
+      })
+    )
+    .default([]),
 });
 
 // Invoice Items table definition
@@ -991,6 +1007,11 @@ export const invoiceItems = pgTable("invoice_items", {
   quantity: integer("quantity").notNull(),
   unit: text("unit").notNull().default("pcs"),
   unitPrice: numeric("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  hsnSac: text("hsnSac"),
+  cgstRate: numeric("cgstRate", { precision: 5, scale: 2 }),
+  sgstRate: numeric("sgstRate", { precision: 5, scale: 2 }),
+  igstRate: numeric("igstRate", { precision: 5, scale: 2 }),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
 });
 
 export const invoiceRelations = relations(invoices, ({ one, many }) => ({
@@ -1020,6 +1041,11 @@ export const insertInvoiceItemSchema = z.object({
   quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
   unit: z.string().default("pcs"),
   unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
+  hsnSac: z.string().optional(),
+  cgstRate: z.coerce.number().min(0).max(100).optional(),
+  sgstRate: z.coerce.number().min(0).max(100).optional(),
+  igstRate: z.coerce.number().min(0).max(100).optional(),
+  amount: z.coerce.number().min(0).optional(),
 });
 
 export const insertCustomerSchema = z.object({

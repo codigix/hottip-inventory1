@@ -90,6 +90,10 @@ export function registerSalesRoutes(
             quantity: item.quantity,
             unit: item.unit ?? "pcs",
             unitPrice: item.unitPrice,
+            hsnSac: item.hsnSac ?? null,
+            cgstRate: item.cgstRate ?? null,
+            sgstRate: item.sgstRate ?? null,
+            igstRate: item.igstRate ?? null,
             amount: item.amount ?? item.unitPrice * item.quantity,
           }));
 
@@ -108,19 +112,113 @@ export function registerSalesRoutes(
         where: (invoice, { eq }) => eq(invoice.id, createdInvoice),
         with: {
           invoiceItems: true,
-          customer: true,
-          user: true,
         },
       });
 
+      if (!invoiceWithDetails) {
+        throw new Error("Invoice retrieval failed after insert");
+      }
+
+      const normalizeNumber = (value: unknown) => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === "number") return value;
+        if (typeof value === "bigint") return Number(value);
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      };
+
+      const formatDate = (value: Date | string | null | undefined) => {
+        if (!value) return "";
+        const date = value instanceof Date ? value : new Date(value);
+        return Number.isNaN(date.getTime())
+          ? ""
+          : date.toISOString().split("T")[0];
+      };
+
+      const responsePayload = {
+        invoiceNumber: invoiceWithDetails.invoiceNumber,
+        customerId: invoiceWithDetails.customerId,
+        userId: invoiceWithDetails.userId,
+        invoiceDate: formatDate(invoiceWithDetails.invoiceDate),
+        dueDate: formatDate(invoiceWithDetails.dueDate),
+        subtotalAmount: normalizeNumber(
+          invoiceWithDetails.subtotalAmount ?? payload.subtotalAmount ?? 0
+        ),
+        discountAmount: normalizeNumber(
+          invoiceWithDetails.discountAmount ?? payload.discountAmount ?? 0
+        ),
+        cgstRate: normalizeNumber(
+          invoiceWithDetails.cgstRate ?? payload.cgstRate ?? 0
+        ),
+        cgstAmount: normalizeNumber(
+          invoiceWithDetails.cgstAmount ?? payload.cgstAmount ?? 0
+        ),
+        sgstRate: normalizeNumber(
+          invoiceWithDetails.sgstRate ?? payload.sgstRate ?? 0
+        ),
+        sgstAmount: normalizeNumber(
+          invoiceWithDetails.sgstAmount ?? payload.sgstAmount ?? 0
+        ),
+        igstRate: normalizeNumber(
+          invoiceWithDetails.igstRate ?? payload.igstRate ?? 0
+        ),
+        igstAmount: normalizeNumber(
+          invoiceWithDetails.igstAmount ?? payload.igstAmount ?? 0
+        ),
+        totalAmount: normalizeNumber(
+          invoiceWithDetails.totalAmount ?? payload.totalAmount ?? 0
+        ),
+        balanceAmount: normalizeNumber(
+          invoiceWithDetails.balanceAmount ?? payload.balanceAmount ?? 0
+        ),
+        billingAddress:
+          invoiceWithDetails.billingAddress ?? payload.billingAddress ?? "",
+        shippingAddress:
+          invoiceWithDetails.shippingAddress ?? payload.shippingAddress ?? "",
+        billingGstNumber:
+          invoiceWithDetails.billingGstNumber ?? payload.billingGstNumber ?? "",
+        placeOfSupply:
+          invoiceWithDetails.placeOfSupply ?? payload.placeOfSupply ?? "",
+        paymentTerms:
+          invoiceWithDetails.paymentTerms ?? payload.paymentTerms ?? "",
+        deliveryTerms:
+          invoiceWithDetails.deliveryTerms ?? payload.deliveryTerms ?? "",
+        transporterName:
+          invoiceWithDetails.transporterName ?? payload.transporterName ?? "",
+        ewayBillNumber:
+          invoiceWithDetails.ewayBillNumber ?? payload.ewayBillNumber ?? "",
+        amountInWords:
+          invoiceWithDetails.amountInWords ?? payload.amountInWords ?? "",
+        notes: invoiceWithDetails.notes ?? payload.notes ?? "",
+        packingFee: normalizeNumber(
+          invoiceWithDetails.packingFee ?? payload.packingFee ?? 0
+        ),
+        shippingFee: normalizeNumber(
+          invoiceWithDetails.shippingFee ?? payload.shippingFee ?? 0
+        ),
+        otherCharges: normalizeNumber(
+          invoiceWithDetails.otherCharges ?? payload.otherCharges ?? 0
+        ),
+        lineItems: invoiceWithDetails.invoiceItems.map((item) => ({
+          description: item.description,
+          hsnSac: item.hsnSac ?? "",
+          quantity: normalizeNumber(item.quantity),
+          unit: item.unit ?? "pcs",
+          unitPrice: normalizeNumber(item.unitPrice),
+          cgstRate: normalizeNumber(item.cgstRate),
+          sgstRate: normalizeNumber(item.sgstRate),
+          igstRate: normalizeNumber(item.igstRate),
+          amount:
+            item.amount !== undefined && item.amount !== null
+              ? normalizeNumber(item.amount)
+              : normalizeNumber(item.unitPrice) *
+                normalizeNumber(item.quantity),
+        })),
+      };
+
       res.status(201).json({
         message: "Invoice created successfully",
-        invoice: {
-          ...invoiceWithDetails,
-          lineItems: invoiceWithDetails?.invoiceItems ?? [],
-          customer: invoiceWithDetails?.customer ?? null,
-          user: invoiceWithDetails?.user ?? null,
-        },
+        invoice: responsePayload,
       });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
