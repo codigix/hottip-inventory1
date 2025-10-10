@@ -4,12 +4,15 @@ import {
   customers as customersTable,
   outboundQuotations,
   insertOutboundQuotationSchema,
+  invoices,
+  invoiceStatus,
 } from "@shared/schema";
 import { storage } from "./storage";
 import puppeteer from "puppeteer";
 import ejs from "ejs";
 import path from "path";
 import * as XLSX from "xlsx";
+import { generateInvoicePDF } from "./pdf-generator";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -176,9 +179,62 @@ export function registerSalesRoutes(
   });
 
   // Outbound Quotations CRUD
-  app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
-      const quotations = await storage.getOutboundQuotations();
+      console.log("📋 Fetching outbound quotations with filters:", req.query);
+
+      // Get all quotations
+      let quotations = await storage.getOutboundQuotations();
+      console.log(`📋 Total quotations in database: ${quotations.length}`);
+
+      // Apply filters based on query parameters
+      // Filter by customer ID
+      if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
+        quotations = quotations.filter(
+          (q) => q.customerId === req.query.customerId
+        );
+        console.log(
+          `   After customer filter: ${quotations.length} quotations`
+        );
+      }
+
+      // Filter by status (case-insensitive)
+      if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
+        quotations = quotations.filter(
+          (q) => q.status.toLowerCase() === statusFilter
+        );
+        console.log(`   After status filter: ${quotations.length} quotations`);
+      }
+
+      // Filter by date range
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        startDate.setHours(0, 0, 0, 0); // Start of day
+        console.log(`📅 Filtering by startDate: ${startDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate >= startDate;
+        });
+        console.log(
+          `   After startDate filter: ${quotations.length} quotations`
+        );
+      }
+
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        console.log(`📅 Filtering by endDate: ${endDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate <= endDate;
+        });
+        console.log(`   After endDate filter: ${quotations.length} quotations`);
+      }
+
+      console.log(`✅ Returning ${quotations.length} filtered quotations`);
       res.json(quotations);
     } catch (e: any) {
       console.error("❌ Error in /api/outbound-quotations:", e);
@@ -361,22 +417,42 @@ export function registerSalesRoutes(
 
       // Get all quotations
       const allQuotations = await storage.getOutboundQuotations();
+      console.log(`📊 Total quotations in database: ${allQuotations.length}`);
 
       // Apply filters based on query parameters
       let filteredQuotations = allQuotations;
 
       // Filter by customer ID
       if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
         filteredQuotations = filteredQuotations.filter(
           (q) => q.customerId === req.query.customerId
         );
+        console.log(
+          `   After customer filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: customerId=${q.customerId}, status=${q.status}, date=${q.quotationDate}`
+          );
+        });
       }
 
-      // Filter by status
+      // Filter by status (case-insensitive)
       if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
         filteredQuotations = filteredQuotations.filter(
-          (q) => q.status === req.query.status
+          (q) => q.status.toLowerCase() === statusFilter
         );
+        console.log(
+          `   After status filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: status=${q.status}, date=${q.quotationDate}`
+          );
+        });
       }
 
       // Filter by date range
@@ -534,16 +610,184 @@ export function registerSalesRoutes(
     }
   });
 
-  // Invoices CRUD (placeholder for future implementation)
-  app.get("/api/invoices", requireAuth, async (_req, res) => {
+  // Invoices CRUD
+  app.get("/api/invoices", requireAuth, async (req, res) => {
     try {
-      const invoices = await storage.getInvoices();
-      res.json(invoices);
+      let invoicesList = await storage.getInvoices();
+
+      // Apply filters
+      if (req.query.customerId) {
+        invoicesList = invoicesList.filter(
+          (inv) => inv.customerId === req.query.customerId
+        );
+      }
+      if (req.query.status) {
+        invoicesList = invoicesList.filter(
+          (inv) => inv.status === req.query.status
+        );
+      }
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        invoicesList = invoicesList.filter(
+          (inv) => new Date(inv.invoiceDate) >= startDate
+        );
+      }
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        invoicesList = invoicesList.filter(
+          (inv) => new Date(inv.invoiceDate) <= endDate
+        );
+      }
+
+      res.json(invoicesList);
     } catch (e: any) {
       console.error("❌ Error in /api/invoices:", e);
       res.status(500).json({
         error: "Failed to fetch invoices",
         details: e.message,
+      });
+    }
+  });
+
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    try {
+      const invoiceData = req.body;
+      const invoice = await storage.createInvoice(invoiceData);
+      res.status(201).json(invoice);
+    } catch (error: any) {
+      console.error("❌ Error in POST /api/invoices:", error);
+      res.status(400).json({
+        error: "Invalid invoice data",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.put("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const invoice = await storage.updateInvoice(id, updateData);
+      res.json(invoice);
+    } catch (error: any) {
+      console.error("❌ Error in PUT /api/invoices/:id:", error);
+      res.status(400).json({
+        error: "Failed to update invoice",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteInvoice(id);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("❌ Error in DELETE /api/invoices/:id:", error);
+      res.status(400).json({
+        error: "Failed to delete invoice",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  // PDF Generation for Invoices
+  app.get("/api/invoices/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      console.log(`📄 Generating PDF for invoice: ${id}`);
+
+      const invoice = await storage.getInvoice(id);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // Get customer details
+      const customers = await storage.getCustomers();
+      const customer = customers.find((c) => c.id === invoice.customerId);
+
+      // Hardcode company details for now (can be from admin_settings later)
+      const company = {
+        name: "HOTTIP INDIA POLYMERS",
+        address:
+          "GAT NO.209, OFFICE NO-406, SWARAJ CAPITAL, BORHADEWADI, MOSHI CHIKHALI ROAD, PUNE-412105",
+        gstNo: "27AQYPM1029M1Z6",
+        stateName: "Maharashtra",
+        stateCode: "27",
+        email: "saleshottipindia@gmail.com",
+        bankName: "ICICI BANK",
+        accountNo: "738305000994",
+        branch: "MOSHI",
+        ifsc: "ICIC0007383",
+      };
+
+      // Prepare buyer data
+      const buyer = {
+        name: customer?.name || "N/A",
+        address: invoice.billingAddress || customer?.address || "N/A",
+        gstNo: invoice.billingGstNumber || customer?.gstNumber || "N/A",
+        stateName: invoice.placeOfSupply?.split(",")[0] || "N/A",
+        stateCode: invoice.placeOfSupply?.split(",")[1]?.trim() || "N/A",
+      };
+
+      // Prepare invoice items (assuming invoice has items, but schema doesn't have invoice_items yet)
+      // For now, assume items are in quotation or something
+      // Placeholder
+      const items = [
+        {
+          description: "Sample Item",
+          hsn: "85149000",
+          quantity: 1,
+          rate: Number(invoice.subtotalAmount) || 0,
+          amount: Number(invoice.subtotalAmount) || 0,
+        },
+      ];
+
+      // Prepare invoice data
+      const invoiceData = {
+        invoiceNumber: invoice.invoiceNumber,
+        date: new Date(invoice.invoiceDate).toLocaleDateString("en-IN"),
+        paymentTerms: invoice.paymentTerms || "100% ADVANCE",
+        orderNo: "", // from quotation?
+        referenceNo: "",
+        subtotal: Number(invoice.subtotalAmount) || 0,
+        discount: Number(invoice.discountAmount) || 0,
+        cgstRate: Number(invoice.cgstRate) || 0,
+        cgstAmount: Number(invoice.cgstAmount) || 0,
+        sgstRate: Number(invoice.sgstRate) || 0,
+        sgstAmount: Number(invoice.sgstAmount) || 0,
+        igstRate: Number(invoice.igstRate) || 0,
+        igstAmount: Number(invoice.igstAmount) || 0,
+        total: Number(invoice.totalAmount) || 0,
+        amountInWords: invoice.amountInWords || "Eleven Thousand Eight Hundred",
+        items: items,
+      };
+
+      // Prepare data for PDF
+      const pdfData = {
+        company,
+        buyer,
+        invoice: invoiceData,
+      };
+
+      // Generate PDF
+      const pdfBuffer = await generateInvoicePDF(pdfData);
+
+      // Send PDF
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="invoice_${invoice.invoiceNumber}.pdf"`
+      );
+      res.setHeader("Content-Length", pdfBuffer.length.toString());
+      res.setHeader("Cache-Control", "no-cache");
+      res.end(pdfBuffer);
+    } catch (error: any) {
+      console.error("❌ Error in GET /api/invoices/:id/pdf:", error);
+      res.status(500).json({
+        error: "Failed to generate invoice PDF",
+        details: error.message,
       });
     }
   });

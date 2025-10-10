@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+﻿import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { registerMarketingRoutes } from "./marketing-routes-registry";
@@ -1320,9 +1320,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log("?? [ROUTE] GET /api/outbound-quotations - Request received");
+      console.log("?? [ROUTE] Query parameters:", req.query);
 
-      // --- Call the new storage method ---
-      const quotations = await storage.getOutboundQuotations();
+      // --- Extract filter parameters from query string ---
+      const filters: {
+        customerId?: string;
+        status?: string;
+        startDate?: string;
+        endDate?: string;
+      } = {};
+
+      if (req.query.customerId && typeof req.query.customerId === "string") {
+        filters.customerId = req.query.customerId;
+      }
+
+      if (req.query.status && typeof req.query.status === "string") {
+        filters.status = req.query.status;
+      }
+
+      if (req.query.startDate && typeof req.query.startDate === "string") {
+        filters.startDate = req.query.startDate;
+      }
+
+      if (req.query.endDate && typeof req.query.endDate === "string") {
+        filters.endDate = req.query.endDate;
+      }
+
+      console.log("?? [ROUTE] Applied filters:", filters);
+
+      // --- Call the storage method with filters ---
+      const quotations =
+        Object.keys(filters).length > 0
+          ? await storage.getOutboundQuotations(filters)
+          : await storage.getOutboundQuotations();
 
       console.log(
         `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
@@ -1790,7 +1820,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ error: "Invalid invoice data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create invoice" });
+      res
+        .status(500)
+        .json({ error: "Failed to create invoice", details: error.errors });
     }
   });
 
