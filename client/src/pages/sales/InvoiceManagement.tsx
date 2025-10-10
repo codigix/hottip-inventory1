@@ -13,13 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   Form,
   FormControl,
@@ -358,341 +358,551 @@ export default function InvoiceManagement() {
             GST invoices with tax breakdowns and PDF downloads
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <Drawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button data-testid="button-new-invoice">
               <Plus className="h-4 w-4 mr-2" />
               New Invoice
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Invoice</DialogTitle>
-              <DialogDescription>
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader className="sticky top-0 bg-background border-b z-10">
+              <DrawerTitle>Create New Invoice</DrawerTitle>
+              <DrawerDescription>
                 Enter the invoice details below.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="invoiceNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="INV-2025-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="customerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="flex-1 overflow-y-auto p-4">
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="invoiceNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Invoice Number</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
+                            <Input placeholder="INV-2025-001" {...field} />
                           </FormControl>
-                          <SelectContent>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="invoiceDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            value={
-                              field.value
-                                ? new Date(field.value)
-                                    .toISOString()
-                                    .split("T")[0]
-                                : ""
-                            }
-                            onChange={(e) =>
-                              field.onChange(new Date(e.target.value))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dueDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Due Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            value={
-                              field.value
-                                ? new Date(field.value)
-                                    .toISOString()
-                                    .split("T")[0]
-                                : ""
-                            }
-                            onChange={(e) =>
-                              field.onChange(new Date(e.target.value))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="subtotalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subtotal Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="discountAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Discount Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-4 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="cgstRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CGST Rate (%)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="cgstAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CGST Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="sgstRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SGST Rate (%)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="sgstAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SGST Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="igstRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>IGST Rate (%)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="igstAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>IGST Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="totalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="balanceAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Balance Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select customer" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                >
+                                  {customer.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="invoiceDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Invoice Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={
+                                field.value
+                                  ? new Date(field.value)
+                                      .toISOString()
+                                      .split("T")[0]
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                field.onChange(new Date(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Due Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={
+                                field.value
+                                  ? new Date(field.value)
+                                      .toISOString()
+                                      .split("T")[0]
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                field.onChange(new Date(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="subtotalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subtotal Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="discountAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Discount Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="cgstRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CGST Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cgstAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CGST Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sgstRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SGST Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sgstAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SGST Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="igstRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IGST Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="igstAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IGST Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="totalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="balanceAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Balance Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="billingAddress"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Billing Address</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              rows={3}
+                              placeholder="Client billing address"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Shipping Address</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              rows={3}
+                              placeholder="Delivery location"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="billingGstNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client GSTIN</FormLabel>
+                          <FormControl>
+                            <Input placeholder="29ABCDE1234F1Z5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="placeOfSupply"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Place of Supply</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Bengaluru, Karnataka"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="paymentTerms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Terms</FormLabel>
+                          <FormControl>
+                            <Input placeholder="NET 30" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="deliveryTerms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Delivery Terms</FormLabel>
+                          <FormControl>
+                            <Input placeholder="FOB" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="transporterName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Transporter</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Logistics partner" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ewayBillNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-way Bill No.</FormLabel>
+                          <FormControl>
+                            <Input placeholder="1234 5678 9012" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="amountInWords"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount in Words</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              rows={2}
+                              placeholder="Rupees One Lakh Only"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="packingFee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Packing Charges</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shippingFee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Shipping Charges</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="otherCharges"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Other Charges</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
-                    name="billingAddress"
+                    name="notes"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
-                        <FormLabel>Billing Address</FormLabel>
+                      <FormItem>
+                        <FormLabel>Additional Notes</FormLabel>
                         <FormControl>
                           <Textarea
                             rows={3}
-                            placeholder="Client billing address"
+                            placeholder="Enter delivery instructions or other remarks"
                             {...field}
                           />
                         </FormControl>
@@ -700,426 +910,223 @@ export default function InvoiceManagement() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="shippingAddress"
-                    render={({ field }) => (
-                      <FormItem className="col-span-2">
-                        <FormLabel>Shipping Address</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            rows={3}
-                            placeholder="Delivery location"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="billingGstNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Client GSTIN</FormLabel>
-                        <FormControl>
-                          <Input placeholder="29ABCDE1234F1Z5" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="placeOfSupply"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Place of Supply</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Bengaluru, Karnataka"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Line Items</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addLineItem}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Item
+                      </Button>
+                    </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="paymentTerms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Terms</FormLabel>
-                        <FormControl>
-                          <Input placeholder="NET 30" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="deliveryTerms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Terms</FormLabel>
-                        <FormControl>
-                          <Input placeholder="FOB" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="transporterName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Transporter</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Logistics partner" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[30%]">
+                              Description
+                            </TableHead>
+                            <TableHead>HSN/SAC</TableHead>
+                            <TableHead>Qty</TableHead>
+                            <TableHead>Unit</TableHead>
+                            <TableHead>Unit Price</TableHead>
+                            <TableHead>CGST %</TableHead>
+                            <TableHead>SGST %</TableHead>
+                            <TableHead>IGST %</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead className="w-[60px] text-right">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lineItems.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={10}
+                                className="text-center text-sm"
+                              >
+                                No items added yet.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            lineItems.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>
+                                  <Input
+                                    value={item.description}
+                                    placeholder="Item description"
+                                    onChange={(event) =>
+                                      handleItemChange(
+                                        item.id,
+                                        "description",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={item.hsnSac ?? ""}
+                                    placeholder="HSN/SAC"
+                                    onChange={(event) =>
+                                      handleItemChange(
+                                        item.id,
+                                        "hsnSac",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    value={item.quantity}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "quantity",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={item.unit ?? ""}
+                                    placeholder="pcs"
+                                    onChange={(event) =>
+                                      handleItemChange(
+                                        item.id,
+                                        "unit",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.unitPrice}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "unitPrice",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.cgstRate ?? 0}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "cgstRate",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.sgstRate ?? 0}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "sgstRate",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.igstRate ?? 0}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "igstRate",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.amount}
+                                    onChange={(event) =>
+                                      handleItemNumberChange(
+                                        item.id,
+                                        "amount",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeLineItem(item.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="ewayBillNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-way Bill No.</FormLabel>
-                        <FormControl>
-                          <Input placeholder="1234 5678 9012" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="amountInWords"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Amount in Words</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            rows={2}
-                            placeholder="Rupees One Lakh Only"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="packingFee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Packing Charges</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="shippingFee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Shipping Charges</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="otherCharges"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Other Charges</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Additional Notes</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          rows={3}
-                          placeholder="Enter delivery instructions or other remarks"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Line Items</h3>
+                  <div className="flex justify-end space-x-2">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      onClick={addLineItem}
+                      onClick={() => {
+                        setIsDialogOpen(false);
+                        setLineItems([]);
+                      }}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Item
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createInvoiceMutation.isPending}
+                    >
+                      Create Invoice
                     </Button>
                   </div>
-
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[30%]">Description</TableHead>
-                          <TableHead>HSN/SAC</TableHead>
-                          <TableHead>Qty</TableHead>
-                          <TableHead>Unit</TableHead>
-                          <TableHead>Unit Price</TableHead>
-                          <TableHead>CGST %</TableHead>
-                          <TableHead>SGST %</TableHead>
-                          <TableHead>IGST %</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead className="w-[60px] text-right">
-                            Actions
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lineItems.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={10}
-                              className="text-center text-sm"
-                            >
-                              No items added yet.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          lineItems.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>
-                                <Input
-                                  value={item.description}
-                                  placeholder="Item description"
-                                  onChange={(event) =>
-                                    handleItemChange(
-                                      item.id,
-                                      "description",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  value={item.hsnSac ?? ""}
-                                  placeholder="HSN/SAC"
-                                  onChange={(event) =>
-                                    handleItemChange(
-                                      item.id,
-                                      "hsnSac",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={item.quantity}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "quantity",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  value={item.unit ?? ""}
-                                  placeholder="pcs"
-                                  onChange={(event) =>
-                                    handleItemChange(
-                                      item.id,
-                                      "unit",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.unitPrice}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "unitPrice",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.cgstRate ?? 0}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "cgstRate",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.sgstRate ?? 0}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "sgstRate",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.igstRate ?? 0}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "igstRate",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.amount}
-                                  onChange={(event) =>
-                                    handleItemNumberChange(
-                                      item.id,
-                                      "amount",
-                                      event.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeLineItem(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      setLineItems([]);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createInvoiceMutation.isPending}
-                  >
-                    Create Invoice
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                </form>
+              </Form>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
 
       <Card>
