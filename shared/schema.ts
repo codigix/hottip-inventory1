@@ -978,27 +978,29 @@ export const insertInvoiceSchema = z.object({
   packingFee: z.coerce.number().min(0).optional().default(0),
   shippingFee: z.coerce.number().min(0).optional().default(0),
   otherCharges: z.coerce.number().min(0).optional().default(0),
-  items: z
-    .array(
-      z.object({
-        description: z.string().min(1, "Line description is required"),
-        hsnCode: z.string().optional(),
-        quantity: z.coerce.number().min(0.0001, "Quantity must be positive"),
-        unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
-        discountAmount: z.coerce.number().min(0).optional().default(0),
-        gstRate: z.coerce.number().min(0).max(100).optional().default(0),
-        cgstRate: z.coerce.number().min(0).max(100).optional(),
-        sgstRate: z.coerce.number().min(0).max(100).optional(),
-        igstRate: z.coerce.number().min(0).max(100).optional(),
-        cgstAmount: z.coerce.number().min(0).optional(),
-        sgstAmount: z.coerce.number().min(0).optional(),
-        igstAmount: z.coerce.number().min(0).optional(),
-        gstAmount: z.coerce.number().min(0).optional(),
-        lineTotal: z.coerce.number().min(0, "Line total must be non-negative"),
-        notes: z.string().optional(),
-      })
-    )
-    .min(1, "At least one line item is required"),
+});
+
+// Invoice Items table definition
+export const invoiceItems = pgTable("invoice_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceId: uuid("invoiceId")
+    .notNull()
+    .references(() => invoices.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull().default("pcs"),
+  unitPrice: numeric("unitPrice", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Invoice Item schema
+export const insertInvoiceItemSchema = z.object({
+  invoiceId: z.string().uuid(),
+  productId: z.string().uuid().optional(),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+  unit: z.string().default("pcs"),
+  unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
 });
 
 export const insertCustomerSchema = z.object({

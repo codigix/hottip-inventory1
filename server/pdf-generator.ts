@@ -246,6 +246,125 @@ export async function generateQuotationPDF(
   }
 }
 
+interface InvoiceItem {
+  description: string;
+  hsn: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+interface InvoicePDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    stateName: string;
+    stateCode: string;
+    email: string;
+    bankName: string;
+    accountNo: string;
+    branch: string;
+    ifsc: string;
+  };
+  buyer: {
+    name: string;
+    address: string;
+    gstNo: string;
+    stateName: string;
+    stateCode: string;
+  };
+  invoice: {
+    invoiceNumber: string;
+    date: string;
+    paymentTerms: string;
+    orderNo: string;
+    referenceNo: string;
+    subtotal: number;
+    discount: number;
+    igstRate: number;
+    igstAmount: number;
+    cgstRate: number;
+    cgstAmount: number;
+    sgstRate: number;
+    sgstAmount: number;
+    total: number;
+    amountInWords: string;
+    items: InvoiceItem[];
+  };
+}
+
+/**
+ * Generate PDF from invoice data using EJS template
+ */
+export async function generateInvoicePDF(
+  invoiceData: InvoicePDFData
+): Promise<Buffer> {
+  try {
+    console.log("📄 Rendering invoice EJS template...");
+
+    // Render EJS template
+    const templatePath = path.join(__dirname, "templates", "invoice.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, invoiceData);
+
+    console.log("🚀 Launching Puppeteer for invoice...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating invoice PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log("✅ Invoice PDF generated successfully");
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating invoice PDF:", error);
+    throw new Error(
+      `Failed to generate invoice PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
 /**
  * Alternative: Generate PDF using html-pdf-node (lighter alternative to Puppeteer)
  * Uncomment and install html-pdf-node if you prefer this method

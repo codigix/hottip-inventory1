@@ -4,12 +4,15 @@ import {
   customers as customersTable,
   outboundQuotations,
   insertOutboundQuotationSchema,
+  invoices,
+  invoiceStatus,
 } from "@shared/schema";
 import { storage } from "./storage";
 import puppeteer from "puppeteer";
 import ejs from "ejs";
 import path from "path";
 import * as XLSX from "xlsx";
+import { generateInvoicePDF } from "./pdf-generator";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -607,16 +610,184 @@ export function registerSalesRoutes(
     }
   });
 
-  // Invoices CRUD (placeholder for future implementation)
-  app.get("/api/invoices", requireAuth, async (_req, res) => {
+  // Invoices CRUD
+  app.get("/api/invoices", requireAuth, async (req, res) => {
     try {
-      const invoices = await storage.getInvoices();
-      res.json(invoices);
+      let invoicesList = await storage.getInvoices();
+
+      // Apply filters
+      if (req.query.customerId) {
+        invoicesList = invoicesList.filter(
+          (inv) => inv.customerId === req.query.customerId
+        );
+      }
+      if (req.query.status) {
+        invoicesList = invoicesList.filter(
+          (inv) => inv.status === req.query.status
+        );
+      }
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        invoicesList = invoicesList.filter(
+          (inv) => new Date(inv.invoiceDate) >= startDate
+        );
+      }
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        invoicesList = invoicesList.filter(
+          (inv) => new Date(inv.invoiceDate) <= endDate
+        );
+      }
+
+      res.json(invoicesList);
     } catch (e: any) {
       console.error("❌ Error in /api/invoices:", e);
       res.status(500).json({
         error: "Failed to fetch invoices",
         details: e.message,
+      });
+    }
+  });
+
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    try {
+      const invoiceData = req.body;
+      const invoice = await storage.createInvoice(invoiceData);
+      res.status(201).json(invoice);
+    } catch (error: any) {
+      console.error("❌ Error in POST /api/invoices:", error);
+      res.status(400).json({
+        error: "Invalid invoice data",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.put("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const invoice = await storage.updateInvoice(id, updateData);
+      res.json(invoice);
+    } catch (error: any) {
+      console.error("❌ Error in PUT /api/invoices/:id:", error);
+      res.status(400).json({
+        error: "Failed to update invoice",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteInvoice(id);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("❌ Error in DELETE /api/invoices/:id:", error);
+      res.status(400).json({
+        error: "Failed to delete invoice",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  // PDF Generation for Invoices
+  app.get("/api/invoices/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      console.log(`📄 Generating PDF for invoice: ${id}`);
+
+      const invoice = await storage.getInvoice(id);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // Get customer details
+      const customers = await storage.getCustomers();
+      const customer = customers.find((c) => c.id === invoice.customerId);
+
+      // Hardcode company details for now (can be from admin_settings later)
+      const company = {
+        name: "HOTTIP INDIA POLYMERS",
+        address:
+          "GAT NO.209, OFFICE NO-406, SWARAJ CAPITAL, BORHADEWADI, MOSHI CHIKHALI ROAD, PUNE-412105",
+        gstNo: "27AQYPM1029M1Z6",
+        stateName: "Maharashtra",
+        stateCode: "27",
+        email: "saleshottipindia@gmail.com",
+        bankName: "ICICI BANK",
+        accountNo: "738305000994",
+        branch: "MOSHI",
+        ifsc: "ICIC0007383",
+      };
+
+      // Prepare buyer data
+      const buyer = {
+        name: customer?.name || "N/A",
+        address: invoice.billingAddress || customer?.address || "N/A",
+        gstNo: invoice.billingGstNumber || customer?.gstNumber || "N/A",
+        stateName: invoice.placeOfSupply?.split(",")[0] || "N/A",
+        stateCode: invoice.placeOfSupply?.split(",")[1]?.trim() || "N/A",
+      };
+
+      // Prepare invoice items (assuming invoice has items, but schema doesn't have invoice_items yet)
+      // For now, assume items are in quotation or something
+      // Placeholder
+      const items = [
+        {
+          description: "Sample Item",
+          hsn: "85149000",
+          quantity: 1,
+          rate: invoice.subtotalAmount || 0,
+          amount: invoice.subtotalAmount || 0,
+        },
+      ];
+
+      // Prepare invoice data
+      const invoiceData = {
+        invoiceNumber: invoice.invoiceNumber,
+        date: new Date(invoice.invoiceDate).toLocaleDateString("en-IN"),
+        paymentTerms: invoice.paymentTerms || "100% ADVANCE",
+        orderNo: "", // from quotation?
+        referenceNo: "",
+        subtotal: invoice.subtotalAmount || 0,
+        discount: invoice.discountAmount || 0,
+        cgstRate: invoice.cgstRate || 0,
+        cgstAmount: invoice.cgstAmount || 0,
+        sgstRate: invoice.sgstRate || 0,
+        sgstAmount: invoice.sgstAmount || 0,
+        igstRate: invoice.igstRate || 0,
+        igstAmount: invoice.igstAmount || 0,
+        total: invoice.totalAmount || 0,
+        amountInWords: invoice.amountInWords || "Eleven Thousand Eight Hundred",
+        items: items,
+      };
+
+      // Prepare data for PDF
+      const pdfData = {
+        company,
+        buyer,
+        invoice: invoiceData,
+      };
+
+      // Generate PDF
+      const pdfBuffer = await generateInvoicePDF(pdfData);
+
+      // Send PDF
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="invoice_${invoice.invoiceNumber}.pdf"`
+      );
+      res.setHeader("Content-Length", pdfBuffer.length.toString());
+      res.setHeader("Cache-Control", "no-cache");
+      res.end(pdfBuffer);
+    } catch (error: any) {
+      console.error("❌ Error in GET /api/invoices/:id/pdf:", error);
+      res.status(500).json({
+        error: "Failed to generate invoice PDF",
+        details: error.message,
       });
     }
   });

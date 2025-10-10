@@ -48,6 +48,7 @@ import {
 import { Plus, Receipt, Eye, Download, Send, Trash2 } from "lucide-react";
 import {
   insertInvoiceSchema,
+  insertInvoiceItemSchema,
   type InsertInvoice,
   type Customer,
 } from "@shared/schema";
@@ -161,11 +162,27 @@ export default function InvoiceManagement() {
   });
 
   const createInvoiceMutation = useMutation({
-    mutationFn: (
-      data: z.infer<typeof insertInvoiceSchema> & {
-        items: InvoiceItem[];
+    mutationFn: async (data: z.infer<typeof insertInvoiceSchema>) => {
+      // First create the invoice
+      const invoiceResponse = await apiRequest("POST", "/invoices", data);
+      const invoice = await invoiceResponse.json();
+
+      // Then create line items
+      if (lineItems.length > 0) {
+        const itemPromises = lineItems.map((item) =>
+          apiRequest("POST", "/invoice-items", {
+            invoiceId: invoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            unit: item.unit || "pcs",
+          })
+        );
+        await Promise.all(itemPromises);
       }
-    ) => apiRequest("POST", "/invoices", data),
+
+      return invoice;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/invoices"] });
       toast({
@@ -174,7 +191,7 @@ export default function InvoiceManagement() {
       });
       setIsDialogOpen(false);
       form.reset();
-      setLineItems([]);
+      setLineItems([createEmptyLineItem()]);
     },
     onError: (error: any) => {
       console.error("Invoice creation error:", error);
@@ -197,7 +214,7 @@ export default function InvoiceManagement() {
   });
 
   const onSubmit = (data: z.infer<typeof insertInvoiceSchema>) => {
-    createInvoiceMutation.mutate({ ...data, items: lineItems });
+    createInvoiceMutation.mutate(data);
   };
 
   const addLineItem = () => {
