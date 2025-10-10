@@ -269,6 +269,41 @@ export default function InvoiceManagement() {
     );
   };
 
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
+      if (!response.ok) {
+        throw new Error("Failed to download invoice");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `invoice-${invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({
+        title: "Success",
+        description: "Invoice downloaded successfully",
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewInvoice = (invoiceId: string) => {
+    // For now, just download as view
+    handleDownloadInvoice(invoiceId);
+  };
+
   const columns = [
     {
       key: "invoiceNumber",
@@ -338,6 +373,7 @@ export default function InvoiceManagement() {
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleViewInvoice(invoice.id)}
             data-testid={`button-view-invoice-${invoice.id}`}
           >
             <Eye className="h-4 w-4" />
@@ -345,6 +381,7 @@ export default function InvoiceManagement() {
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleDownloadInvoice(invoice.id)}
             data-testid={`button-download-invoice-${invoice.id}`}
           >
             <Download className="h-4 w-4" />
