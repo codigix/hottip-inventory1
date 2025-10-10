@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +46,8 @@ import {
   Download,
   Filter,
   Receipt,
+  Trash2,
+  PlusCircle,
 } from "lucide-react";
 import {
   insertOutboundQuotationSchema,
@@ -69,6 +71,10 @@ export default function OutboundQuotations() {
   >([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toast } = useToast();
+
+  // State for dynamic form sections
+  const [moldDetails, setMoldDetails] = useState<any[]>([]);
+  const [quotationItems, setQuotationItems] = useState<any[]>([]);
 
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
     queryKey: ["/outbound-quotations"],
@@ -97,9 +103,6 @@ export default function OutboundQuotations() {
     .omit({
       warrantyTerms: true,
       specialTerms: true,
-      bankName: true,
-      accountNumber: true,
-      ifscCode: true,
     });
 
   const form = useForm<z.infer<typeof quotationFormSchema>>({
@@ -125,6 +128,20 @@ export default function OutboundQuotations() {
       projectIncharge: "",
       moldDetails: [],
       quotationItems: [],
+      gstType: "IGST",
+      gstPercentage: "18",
+      packaging: "",
+      bankName: "",
+      bankAccountNo: "",
+      bankIfscCode: "",
+      bankBranch: "",
+      companyName: "CHENNUPATI PLASTICS",
+      companyAddress:
+        "123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra",
+      companyGstin: "27AAAAA0000A1Z5",
+      companyEmail: "info@chennupatiplastics.com",
+      companyPhone: "+91-9876543210",
+      companyWebsite: "www.chennupatiplastics.com",
     },
   });
 
@@ -148,11 +165,86 @@ export default function OutboundQuotations() {
     },
   });
 
+  // --- MAIN TABLE FILTER STATE ---
+  const [mainFilters, setMainFilters] = useState({
+    customerId: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [displayedQuotations, setDisplayedQuotations] = useState<
+    OutboundQuotation[]
+  >([]);
+
+  // Update displayed quotations when quotations data changes or filters change
+  const applyMainFilters = async () => {
+    try {
+      console.log("🔍 [MAIN] Applying filters:", mainFilters);
+
+      // Build query string
+      const params = new URLSearchParams();
+      if (mainFilters.customerId)
+        params.append("customerId", mainFilters.customerId);
+      if (mainFilters.status) params.append("status", mainFilters.status);
+      if (mainFilters.startDate)
+        params.append("startDate", mainFilters.startDate);
+      if (mainFilters.endDate) params.append("endDate", mainFilters.endDate);
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `/outbound-quotations?${queryString}`
+        : "/outbound-quotations";
+
+      console.log("🔍 [MAIN] Fetching from URL:", url);
+
+      const response = await apiRequest<OutboundQuotation[]>("GET", url);
+      console.log("🔍 [MAIN] Filtered quotations received:", response?.length);
+
+      setDisplayedQuotations(response || []);
+
+      toast({
+        title: "Filters Applied",
+        description: `Showing ${response?.length || 0} quotation(s)`,
+      });
+    } catch (error) {
+      console.error("❌ [MAIN] Error applying filters:", error);
+      toast({
+        title: "Error",
+        description: "Failed to apply filters",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Clear main filters
+  const clearMainFilters = () => {
+    setMainFilters({
+      customerId: "",
+      status: "",
+      startDate: "",
+      endDate: "",
+    });
+    setDisplayedQuotations(quotations || []);
+    toast({
+      title: "Filters Cleared",
+      description: "Showing all quotations",
+    });
+  };
+
+  // Initialize displayed quotations when quotations data loads
+  useEffect(() => {
+    if (quotations && quotations.length > 0) {
+      setDisplayedQuotations(quotations);
+    }
+  }, [quotations]);
+
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) =>
       apiRequest("POST", "/outbound-quotations", {
         ...data,
         userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
+        moldDetails,
+        quotationItems,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/outbound-quotations"] });
@@ -162,6 +254,8 @@ export default function OutboundQuotations() {
       });
       setIsDialogOpen(false);
       form.reset();
+      setMoldDetails([]);
+      setQuotationItems([]);
     },
     onError: (error: any) => {
       console.error("Quotation creation error:", error);
@@ -196,6 +290,11 @@ export default function OutboundQuotations() {
   const handleEditQuotation = (quotation: OutboundQuotation) => {
     setSelectedQuotation(quotation);
     setIsEditDialogOpen(true);
+
+    // Set the dynamic arrays
+    setMoldDetails(quotation.moldDetails || []);
+    setQuotationItems(quotation.quotationItems || []);
+
     // Reset form with quotation data
     // Ensure dates are Date objects for the form controls
     const resetData = {
@@ -381,15 +480,23 @@ export default function OutboundQuotations() {
         queryParams.append("endDate", data.endDate);
       }
 
+      const url = `/outbound-quotations?${queryParams.toString()}`;
+      console.log("🐛 [EXPORT] Fetching from URL:", url);
+
       // Fetch filtered quotations from the backend
       // This assumes your backend supports query parameters for filtering
-      const response = await apiRequest<OutboundQuotation[]>(
-        "GET",
-        `/outbound-quotations?${queryParams.toString()}`
-      );
+      const response = await apiRequest<OutboundQuotation[]>("GET", url);
 
       console.log("🐛 [EXPORT] Filtered quotations received:", response);
+      console.log("🐛 [EXPORT] Number of quotations:", response?.length);
+      console.log(
+        "🐛 [EXPORT] Quotation statuses:",
+        response?.map((q) => ({ number: q.quotationNumber, status: q.status }))
+      );
+
       setFilteredQuotations(response || []);
+      console.log("🐛 [EXPORT] State updated with quotations");
+
       toast({
         title: "Success",
         description: `Found ${
@@ -397,7 +504,7 @@ export default function OutboundQuotations() {
         } quotations matching your filters.`,
       });
     } catch (error: any) {
-      console.error("Failed to filter quotations:", error);
+      console.error("❌ [EXPORT] Failed to filter quotations:", error);
       toast({
         title: "Error",
         description: error?.data?.error || "Failed to filter quotations",
@@ -474,6 +581,83 @@ export default function OutboundQuotations() {
         variant: "destructive",
       });
     }
+  };
+
+  // Helper functions for Mold Details
+  const addMoldDetail = () => {
+    setMoldDetails([
+      ...moldDetails,
+      {
+        no: moldDetails.length + 1,
+        partName: "",
+        mouldNo: "",
+        plasticMaterial: "",
+        colourChange: "",
+        mfi: "",
+        wallThickness: "",
+        noOfCavity: 1,
+        gfPercent: "",
+        mfPercent: "",
+        partWeight: 0,
+        systemSuggested: "",
+        noOfDrops: 1,
+        trialDate: "",
+        quotationFor: "",
+      },
+    ]);
+  };
+
+  const removeMoldDetail = (index: number) => {
+    const updated = moldDetails.filter((_, i) => i !== index);
+    // Renumber the items
+    const renumbered = updated.map((item, i) => ({ ...item, no: i + 1 }));
+    setMoldDetails(renumbered);
+  };
+
+  const updateMoldDetail = (index: number, field: string, value: any) => {
+    const updated = [...moldDetails];
+    updated[index] = { ...updated[index], [field]: value };
+    setMoldDetails(updated);
+  };
+
+  // Helper functions for Quotation Items
+  const addQuotationItem = () => {
+    setQuotationItems([
+      ...quotationItems,
+      {
+        no: quotationItems.length + 1,
+        partName: "",
+        partDescription: "",
+        uom: "NOS",
+        qty: 1,
+        unitPrice: 0,
+        amount: 0,
+      },
+    ]);
+  };
+
+  const removeQuotationItem = (index: number) => {
+    const updated = quotationItems.filter((_, i) => i !== index);
+    // Renumber the items
+    const renumbered = updated.map((item, i) => ({ ...item, no: i + 1 }));
+    setQuotationItems(renumbered);
+  };
+
+  const updateQuotationItem = (index: number, field: string, value: any) => {
+    const updated = [...quotationItems];
+    updated[index] = { ...updated[index], [field]: value };
+
+    // Auto-calculate amount if qty or unitPrice changes
+    if (field === "qty" || field === "unitPrice") {
+      const qty = field === "qty" ? parseFloat(value) || 0 : updated[index].qty;
+      const unitPrice =
+        field === "unitPrice"
+          ? parseFloat(value) || 0
+          : updated[index].unitPrice;
+      updated[index].amount = qty * unitPrice;
+    }
+
+    setQuotationItems(updated);
   };
 
   const columns = [
@@ -889,38 +1073,117 @@ export default function OutboundQuotations() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="paymentTerms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Terms</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value || ""}
-                            placeholder="30 days"
-                            data-testid="input-payment-terms"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {/* GST Details Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">
+                    GST & Tax Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="gstType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GST Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || "IGST"}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select GST type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="IGST">IGST</SelectItem>
+                              <SelectItem value="CGST_SGST">
+                                CGST + SGST
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="gstPercentage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GST Percentage (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || "18"}
+                              type="number"
+                              step="0.01"
+                              placeholder="18"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Terms Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Terms & Conditions
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="paymentTerms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Terms</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="50% advance, 50% against delivery"
+                              data-testid="input-payment-terms"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="deliveryTerms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Delivery Terms</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="25-30 days from approval"
+                              data-testid="input-delivery-terms"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}
-                    name="deliveryTerms"
+                    name="packaging"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Terms</FormLabel>
+                      <FormItem className="mt-4">
+                        <FormLabel>Packaging</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             value={field.value || ""}
-                            placeholder="Ex-works"
-                            data-testid="input-delivery-terms"
+                            placeholder="Standard export packaging"
                           />
                         </FormControl>
                         <FormMessage />
@@ -929,18 +1192,662 @@ export default function OutboundQuotations() {
                   />
                 </div>
 
+                {/* Banking Details Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Banking Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bank Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="State Bank of India"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankAccountNo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Account Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="1234567890"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankIfscCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IFSC Code</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="SBIN0001234"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankBranch"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Branch</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="Pune Main Branch"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Company Details Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Company Details (for PDF Header)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="CHENNUPATI PLASTICS"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="companyGstin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company GSTIN</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="27AAAAA0000A1Z5"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="companyAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Address</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra"
+                              rows={2}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="companyEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                type="email"
+                                placeholder="info@chennupatiplastics.com"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="companyPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Phone</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                placeholder="+91-9876543210"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="companyWebsite"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Website</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="www.chennupatiplastics.com"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Mold/Part Details Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold">
+                      Mold / Part Details
+                    </h3>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={addMoldDetail}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add Mold Detail
+                    </Button>
+                  </div>
+
+                  {moldDetails.length > 0 && (
+                    <div className="space-y-4">
+                      {moldDetails.map((mold, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 space-y-4 bg-gray-50"
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-semibold">
+                              Mold Detail #{mold.no}
+                            </h4>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeMoldDetail(index)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="text-sm font-medium">
+                                Part Name
+                              </label>
+                              <Input
+                                value={mold.partName}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "partName",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="TTC 161"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Mould No
+                              </label>
+                              <Input
+                                value={mold.mouldNo}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "mouldNo",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="250ML JAR"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Plastic Material
+                              </label>
+                              <Input
+                                value={mold.plasticMaterial}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "plasticMaterial",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="PP"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Colour Change
+                              </label>
+                              <Input
+                                value={mold.colourChange}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "colourChange",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="YES"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">MFI</label>
+                              <Input
+                                value={mold.mfi}
+                                onChange={(e) =>
+                                  updateMoldDetail(index, "mfi", e.target.value)
+                                }
+                                placeholder="MFI"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Wall Thickness
+                              </label>
+                              <Input
+                                value={mold.wallThickness}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "wallThickness",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0.4 MM"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                No. of Cavity
+                              </label>
+                              <Input
+                                type="number"
+                                value={mold.noOfCavity}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "noOfCavity",
+                                    parseInt(e.target.value) || 1
+                                  )
+                                }
+                                placeholder="1"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                GF% + MP%
+                              </label>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={mold.gfPercent}
+                                  onChange={(e) =>
+                                    updateMoldDetail(
+                                      index,
+                                      "gfPercent",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="GF%"
+                                />
+                                <Input
+                                  value={mold.mfPercent}
+                                  onChange={(e) =>
+                                    updateMoldDetail(
+                                      index,
+                                      "mfPercent",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="MP%"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Part Weight (Gms)
+                              </label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={mold.partWeight}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "partWeight",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                placeholder="7.8"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                System Suggested
+                              </label>
+                              <Input
+                                value={mold.systemSuggested}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "systemSuggested",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Single Valve gate"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                No. of Drops
+                              </label>
+                              <Input
+                                type="number"
+                                value={mold.noOfDrops}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "noOfDrops",
+                                    parseInt(e.target.value) || 1
+                                  )
+                                }
+                                placeholder="1"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Trial Date
+                              </label>
+                              <Input
+                                type="date"
+                                value={mold.trialDate}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "trialDate",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="text-sm font-medium">
+                                Quotation For
+                              </label>
+                              <Input
+                                value={mold.quotationFor}
+                                onChange={(e) =>
+                                  updateMoldDetail(
+                                    index,
+                                    "quotationFor",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="TTC-161 250ML JAR SINGLE DROP NEEDLE VALAVE GATE PNEUMATIC HOT SPRUE - JK25051740-C"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quotation Items Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold">Quotation Items</h3>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={addQuotationItem}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </div>
+
+                  {quotationItems.length > 0 && (
+                    <div className="space-y-4">
+                      {quotationItems.map((item, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 space-y-4 bg-gray-50"
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-semibold">Item #{item.no}</h4>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeQuotationItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="text-sm font-medium">
+                                Part Name
+                              </label>
+                              <Input
+                                value={item.partName}
+                                onChange={(e) =>
+                                  updateQuotationItem(
+                                    index,
+                                    "partName",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="VALVE TYPE NOZZLE"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="text-sm font-medium">
+                                Part Description
+                              </label>
+                              <Input
+                                value={item.partDescription}
+                                onChange={(e) =>
+                                  updateQuotationItem(
+                                    index,
+                                    "partDescription",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="AMP-D15-26120"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">UOM</label>
+                              <Select
+                                value={item.uom}
+                                onValueChange={(value) =>
+                                  updateQuotationItem(index, "uom", value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select UOM" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="NOS">NOS</SelectItem>
+                                  <SelectItem value="KG">KG</SelectItem>
+                                  <SelectItem value="PCS">PCS</SelectItem>
+                                  <SelectItem value="SET">SET</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Quantity
+                              </label>
+                              <Input
+                                type="number"
+                                value={item.qty}
+                                onChange={(e) =>
+                                  updateQuotationItem(
+                                    index,
+                                    "qty",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                placeholder="1"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Unit Price (INR)
+                              </label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  updateQuotationItem(
+                                    index,
+                                    "unitPrice",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                placeholder="176500.00"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-medium">
+                                Amount (INR)
+                              </label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.amount}
+                                readOnly
+                                className="bg-gray-100"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Total Calculation */}
+                      <div className="border-t pt-4 mt-4">
+                        <div className="flex justify-end">
+                          <div className="w-64 space-y-2">
+                            <div className="flex justify-between font-semibold text-lg">
+                              <span>TOTAL INR:</span>
+                              <span>
+                                ₹
+                                {quotationItems
+                                  .reduce((sum, item) => sum + item.amount, 0)
+                                  .toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                    <FormItem className="border-t pt-4 mt-4">
+                      <FormLabel>Additional Notes</FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
                           value={field.value || ""}
                           placeholder="Additional notes for the quotation"
                           data-testid="textarea-notes"
+                          rows={3}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1858,8 +2765,116 @@ export default function OutboundQuotations() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filter Section */}
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+            <h3 className="text-sm font-semibold mb-4 flex items-center">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter Quotations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Customer Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Customer
+                </label>
+                <Select
+                  value={mainFilters.customerId}
+                  onValueChange={(value) =>
+                    setMainFilters({ ...mainFilters, customerId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Customers</SelectItem>
+                    {(customers || []).map((customer: any) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select
+                  value={mainFilters.status}
+                  onValueChange={(value) =>
+                    setMainFilters({ ...mainFilters, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Start Date Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Start Date
+                </label>
+                <Input
+                  type="date"
+                  value={mainFilters.startDate}
+                  onChange={(e) =>
+                    setMainFilters({
+                      ...mainFilters,
+                      startDate: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              {/* End Date Filter */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  End Date
+                </label>
+                <Input
+                  type="date"
+                  value={mainFilters.endDate}
+                  onChange={(e) =>
+                    setMainFilters({ ...mainFilters, endDate: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Filter Action Buttons */}
+            <div className="flex gap-2 mt-4">
+              <Button
+                size="sm"
+                onClick={applyMainFilters}
+                className="flex items-center"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Apply Filters
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearMainFilters}>
+                Clear Filters
+              </Button>
+              <div className="ml-auto text-sm text-muted-foreground flex items-center">
+                Showing {displayedQuotations.length} of {quotations.length}{" "}
+                quotation(s)
+              </div>
+            </div>
+          </div>
+
+          {/* Data Table */}
           <DataTable
-            data={quotations || []}
+            data={displayedQuotations || []}
             columns={columns}
             searchable={true}
             searchKey="quotationNumber"

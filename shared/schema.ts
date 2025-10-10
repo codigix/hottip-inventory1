@@ -413,6 +413,8 @@ export const deliveries = pgTable("deliveries", {
 //   jobCardNumber: text('jobCardNumber'),
 // });
 
+export const gstTypeEnum = pgEnum("gst_type", ["IGST", "CGST_SGST"]);
+
 export const outboundQuotations = pgTable("outbound_quotations", {
   id: serial("id").primaryKey(),
   quotationNumber: text("quotationNumber").notNull(),
@@ -430,13 +432,30 @@ export const outboundQuotations = pgTable("outbound_quotations", {
   totalAmount: numeric("totalamount").notNull(),
   paymentTerms: text("paymentterms"),
   deliveryTerms: text("deliveryterms"),
+  packaging: text("packaging"),
   notes: text("notes"),
   // New fields for detailed quotation
-  projectIncharge: text("projectincharge"),
-  moldDetails: jsonb("molddetails"), // Array of mold/part details
-  quotationItems: jsonb("quotationitems"), // Array of quotation line items
-  bankingDetails: text("bankingdetails"),
-  termsConditions: text("termsconditions"),
+  projectIncharge: text("projectIncharge"),
+  moldDetails: jsonb("moldDetails"), // Array of mold/part details
+  quotationItems: jsonb("quotationItems"), // Array of quotation line items
+  termsConditions: text("termsConditions"),
+  // GST Details
+  gstType: gstTypeEnum("gstType").default("IGST"),
+  gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default(
+    "18"
+  ),
+  // Banking Details (separate fields)
+  bankName: text("bankName"),
+  bankAccountNo: text("bankAccountNo"),
+  bankIfscCode: text("bankIfscCode"),
+  bankBranch: text("bankBranch"),
+  // Company Details (for PDF header)
+  companyName: text("companyName"),
+  companyAddress: text("companyAddress"),
+  companyGstin: text("companyGstin"),
+  companyEmail: text("companyEmail"),
+  companyPhone: text("companyPhone"),
+  companyWebsite: text("companyWebsite"),
 });
 
 // =====================
@@ -459,6 +478,9 @@ const quotationStatus = pgEnum("quotation_status", [
 export const inboundQuotations = pgTable("inbound_quotations", {
   id: serial("id").primaryKey(), // Matches migration: serial
   quotationNumber: varchar("quotationNumber", { length: 50 }).notNull(), // Matches DB column
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id), // User who created the quotation
   quotationDate: timestamp("quotationDate").notNull(), // Matches DB column
   validUntil: timestamp("validUntil"), // Matches DB column
   subject: text("subject"), // Matches DB column
@@ -504,6 +526,19 @@ export const invoices = pgTable("invoices", {
   }).default(0),
   totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
   balanceAmount: numeric("balanceAmount", { precision: 10, scale: 2 }),
+  billingAddress: text("billingAddress"),
+  shippingAddress: text("shippingAddress"),
+  billingGstNumber: text("billingGstNumber"),
+  placeOfSupply: text("placeOfSupply"),
+  paymentTerms: text("paymentTerms"),
+  deliveryTerms: text("deliveryTerms"),
+  transporterName: text("transporterName"),
+  ewayBillNumber: text("ewayBillNumber"),
+  amountInWords: text("amountInWords"),
+  notes: text("notes"),
+  packingFee: numeric("packingFee", { precision: 10, scale: 2 }).default(0),
+  shippingFee: numeric("shippingFee", { precision: 10, scale: 2 }).default(0),
+  otherCharges: numeric("otherCharges", { precision: 10, scale: 2 }).default(0),
 });
 
 // =====================
@@ -566,9 +601,15 @@ export const task_priority = pgEnum("task_priority", ["low", "medium", "high"]);
 export const customers = pgTable("customers", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
+  company: varchar("company", { length: 150 }),
   email: varchar("email", { length: 100 }),
   phone: varchar("phone", { length: 20 }),
+  contactPerson: varchar("contactPerson", { length: 100 }),
   address: text("address"),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  zipCode: varchar("zipCode", { length: 20 }),
+  country: varchar("country", { length: 100 }).default("India"),
   gstNumber: varchar("gstNumber", { length: 20 }),
   createdAt: timestamp("createdAt").defaultNow(),
 });
@@ -821,13 +862,29 @@ export const insertOutboundQuotationSchema = z.object({
     .default("draft"),
   deliveryTerms: z.string().optional(),
   paymentTerms: z.string().optional(),
-  bankingDetails: z.string().optional(),
+  packaging: z.string().optional(),
   termsConditions: z.string().optional(),
   notes: z.string().optional(),
   jobCardNumber: z.string().optional(),
   partNumber: z.string().optional(),
   // New fields
   projectIncharge: z.string().optional(),
+  // GST fields
+  gstType: z.enum(["IGST", "CGST_SGST"]).optional().default("IGST"),
+  gstPercentage: z.string().optional().default("18"),
+  // Banking fields
+  bankName: z.string().optional(),
+  bankAccountNo: z.string().optional(),
+  bankIfscCode: z.string().optional(),
+  bankBranch: z.string().optional(),
+  // Company fields
+  companyName: z.string().optional(),
+  companyAddress: z.string().optional(),
+  companyGstin: z.string().optional(),
+  companyEmail: z.string().optional(),
+  companyPhone: z.string().optional(),
+  companyWebsite: z.string().optional(),
+  // Mold Details with quotationFor
   moldDetails: z
     .array(
       z.object({
@@ -845,6 +902,7 @@ export const insertOutboundQuotationSchema = z.object({
         systemSuggested: z.string(),
         noOfDrops: z.number(),
         trialDate: z.string().optional(),
+        quotationFor: z.string().optional(),
       })
     )
     .optional(),
@@ -865,6 +923,8 @@ export const insertOutboundQuotationSchema = z.object({
 export const insertInboundQuotationSchema = z.object({
   // ✅ Use UUID for senderId
   senderId: z.string().uuid("Sender ID must be a valid UUID"),
+  // ✅ Use UUID for userId (user who created the quotation)
+  userId: z.string().uuid("User ID must be a valid UUID").optional(),
   // ✅ Add all required fields
   quotationNumber: z.string().min(1, "Quotation number is required"),
   quotationDate: z.string().or(z.date()), // Accept string or Date
@@ -897,35 +957,98 @@ export const insertInvoiceSchema = z.object({
     (val) => (val ? new Date(val as string) : undefined),
     z.date()
   ),
-
-  subtotalAmount: z.number().min(0, "Subtotal must be positive").optional(),
-  cgstRate: z.number().min(0).max(100).optional().default(0),
-  cgstAmount: z.number().min(0).optional().default(0),
-  sgstRate: z.number().min(0).max(100).optional().default(0),
-  sgstAmount: z.number().min(0).optional().default(0),
-  igstRate: z.number().min(0).max(100).optional().default(0),
-  igstAmount: z.number().min(0).optional().default(0),
-  discountAmount: z.number().min(0).optional().default(0),
-  totalAmount: z.number().min(0, "Total amount is required"),
-  balanceAmount: z.number().min(0).optional(),
+  subtotalAmount: z.coerce
+    .number()
+    .min(0, "Subtotal must be positive")
+    .optional(),
+  cgstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  cgstAmount: z.coerce.number().min(0).optional().default(0),
+  sgstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  sgstAmount: z.coerce.number().min(0).optional().default(0),
+  igstRate: z.coerce.number().min(0).max(100).optional().default(0),
+  igstAmount: z.coerce.number().min(0).optional().default(0),
+  discountAmount: z.coerce.number().min(0).optional().default(0),
+  totalAmount: z.coerce.number().min(0, "Total amount is required"),
+  balanceAmount: z.coerce.number().min(0).optional(),
+  billingAddress: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  billingGstNumber: z.string().optional(),
+  placeOfSupply: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  deliveryTerms: z.string().optional(),
+  transporterName: z.string().optional(),
+  ewayBillNumber: z.string().optional(),
+  amountInWords: z.string().optional(),
+  notes: z.string().optional(),
+  packingFee: z.coerce.number().min(0).optional().default(0),
+  shippingFee: z.coerce.number().min(0).optional().default(0),
+  otherCharges: z.coerce.number().min(0).optional().default(0),
+  items: z
+    .array(
+      z.object({
+        description: z.string().min(1, "Line description is required"),
+        hsnCode: z.string().optional(),
+        quantity: z.coerce.number().min(0.0001, "Quantity must be positive"),
+        unitPrice: z.coerce.number().min(0, "Unit price must be non-negative"),
+        discountAmount: z.coerce.number().min(0).optional().default(0),
+        gstRate: z.coerce.number().min(0).max(100).optional().default(0),
+        cgstRate: z.coerce.number().min(0).max(100).optional(),
+        sgstRate: z.coerce.number().min(0).max(100).optional(),
+        igstRate: z.coerce.number().min(0).max(100).optional(),
+        cgstAmount: z.coerce.number().min(0).optional(),
+        sgstAmount: z.coerce.number().min(0).optional(),
+        igstAmount: z.coerce.number().min(0).optional(),
+        gstAmount: z.coerce.number().min(0).optional(),
+        lineTotal: z.coerce.number().min(0, "Line total must be non-negative"),
+        notes: z.string().optional(),
+      })
+    )
+    .min(1, "At least one line item is required"),
 });
 
 export const insertCustomerSchema = z.object({
-  name: z.string(),
-  email: z.string().email(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  gstNumber: z.string().optional(),
+  name: z.string().min(1, "Client name is required"),
+  company: z.string().optional().or(z.literal("")),
+  email: z
+    .string()
+    .email("Please enter a valid email")
+    .optional()
+    .or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  contactPerson: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  state: z.string().optional().or(z.literal("")),
+  zipCode: z.string().optional().or(z.literal("")),
+  country: z.string().optional().default("India"),
+  gstNumber: z.string().optional().or(z.literal("")),
 });
 
 // Customer schema
 
 // Supplier schema
 export const insertSupplierSchema = z.object({
-  name: z.string(),
-  contactEmail: z.string().email(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
+  name: z.string().min(1, "Vendor name is required"),
+  email: z
+    .string()
+    .email("Please enter a valid email")
+    .optional()
+    .or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  state: z.string().optional().or(z.literal("")),
+  zipCode: z.string().optional().or(z.literal("")),
+  country: z.string().optional().default("India"),
+  gstNumber: z.string().optional().or(z.literal("")),
+  panNumber: z.string().optional().or(z.literal("")),
+  companyType: z.string().optional().default("company"),
+  contactPerson: z.string().optional().or(z.literal("")),
+  website: z.string().optional().or(z.literal("")),
+  creditLimit: z.string().optional().or(z.literal("0")),
+  paymentTerms: z.number().int().optional().default(30),
+  isActive: z.boolean().optional().default(true),
+  notes: z.string().optional().or(z.literal("")),
 });
 export const insertAccountsReceivableSchema = z.object({
   invoiceId: z.string().uuid().optional(),

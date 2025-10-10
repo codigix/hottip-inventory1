@@ -1,15 +1,19 @@
-import type { Express, Request, Response, NextFunction } from "express";
+﻿import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
+import { registerSalesRoutes } from "./sales-routes-registry";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
@@ -36,7 +40,6 @@ import { vendorCommunications } from "../shared/schema";
 import { inventoryTasks } from "../shared/schema";
 import { fabricationOrders } from "../shared/schema"; // adjust path if needed
 // POST attendance (check-in / check-out)
-import { v4 as uuidv4 } from "uuid";
 import {
   users as usersTable,
   leads,
@@ -46,7 +49,6 @@ import {
   logisticsShipments,
   logisticsTasks,
   deliveries,
-  suppliers,
   logisticsAttendance,
   logisticsLeaveRequests,
   vendorCommunications,
@@ -68,7 +70,6 @@ import {
   account_reminders,
   insertAccountReminderSchema,
 } from "../shared/schema";
-import { sql, eq, and, gte, lt } from "drizzle-orm";
 // Fabrication Orders API
 
 // Login schema
@@ -96,6 +97,30 @@ const userCreateSchema = userInsertSchema.extend({
 
 // Register schema for /api/register endpoint (fixes missing schema error)
 const registerSchema = userCreateSchema;
+
+// Configure multer for file uploads (local development)
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const multerStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  }
+});
+
+const upload = multer({ 
+  storage: multerStorage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Store pending uploads (for presigned URL simulation)
+const pendingUploads = new Map<string, { filename: string; uploadedAt: Date }>();
 
 // Zod schemas for marketing attendance responses (relaxed for better compatibility)
 const marketingAttendanceSchema = z.object({
@@ -865,12 +890,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(orders);
     } catch (error: any) {
       console.error("Error fetching fabrication orders:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to fetch fabrication orders",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to fetch fabrication orders",
+        details: error.message,
+      });
     }
   });
 
@@ -973,43 +996,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/suppliers", async (req: Request, res: Response) => {
-    try {
-      const body = req.body;
+  app.post(
+    "/api/suppliers",
+    requireAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const body = req.body;
 
-      const supplierData = {
-        name: body.name,
-        email: body.contactEmail, // map frontend key to DB column
-        phone: body.contactPhone, // map frontend key to DB column
-        address: body.address || null,
-        city: body.city || null,
-        state: body.state || null,
-        zipCode: body.zipCode || null,
-        country: body.country || "India",
-        gstNumber: body.gstNumber || null,
-        panNumber: body.panNumber || null,
-        companyType: body.companyType || "company",
-        contactPerson: body.contactPerson || null,
-        website: body.website || null,
-        creditLimit: body.creditLimit || null,
-      };
+        const supplierData = {
+          name: body.name,
+          email: body.email || body.contactEmail || null, // map frontend key to DB column
+          phone: body.phone || body.contactPhone || null, // map frontend key to DB column
+          address: body.address || null,
+          city: body.city || null,
+          state: body.state || null,
+          zipCode: body.zipCode || null,
+          country: body.country || "India",
+          gstNumber: body.gstNumber || null,
+          panNumber: body.panNumber || null,
+          companyType: body.companyType || "company",
+          contactPerson: body.contactPerson || null,
+          website: body.website || null,
+          creditLimit: body.creditLimit || null,
+          paymentTerms: body.paymentTerms || 30,
+          isActive: body.isActive !== undefined ? body.isActive : true,
+        };
 
-      const [supplier] = await db
-        .insert(suppliers)
-        .values({
-          id: uuidv4(),
-          ...supplierData,
-        })
-        .returning();
+        const [supplier] = await db
+          .insert(suppliers)
+          .values({
+            id: uuidv4(),
+            ...supplierData,
+          })
+          .returning();
 
-      res.status(201).json(supplier);
-    } catch (error: any) {
-      console.error("Error creating supplier:", error);
-      res
-        .status(500)
-        .json({ error: "Failed to create supplier", details: error.message });
+        res.status(201).json(supplier);
+      } catch (error: any) {
+        console.error("Error creating supplier:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to create supplier", details: error.message });
+      }
     }
-  });
+  );
 
   app.put("/api/suppliers/:id", requireAuth, async (req, res) => {
     try {
@@ -1142,32 +1171,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
   //   }
   // });
-  // File uploads (generic upload URL) - Mocked for local development
+  // File uploads (generic upload URL) - Local development with real file storage
   app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-    // --- START: Mocking Object Storage for Local Development ---
-    if (process.env.NODE_ENV === "development") {
-      // Return a dummy URL that the frontend can handle gracefully
-      // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
-      res.json({
-        uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
-        message:
-          "File upload is mocked in development mode. No actual upload occurs.",
-      });
-      return; // Exit early, don't proceed to ObjectStorageService
+    // --- START: Local File Upload for Development ---
+    if (process.env.NODE_ENV === "development" || !process.env.PRIVATE_OBJECT_DIR) {
+      // Generate a unique upload ID
+      const uploadId = uuidv4();
+      // Return a local upload URL
+      const uploadURL = `http://localhost:5000/api/upload-file/${uploadId}`;
+      res.json({ uploadURL });
+      return;
     }
-    // --- END: Mocking ---
+    // --- END: Local Upload ---
 
     try {
       const objectStorage = new ObjectStorageService();
       const uploadURL = await objectStorage.getObjectEntityUploadURL();
       res.json({ uploadURL });
     } catch (e) {
-      // This will now only catch errors when NOT in development mode
-      // or if the development check fails unexpectedly
       console.error("Object storage error:", e);
       res
         .status(500)
         .json({ error: "Failed to get upload URL", details: e.message });
+    }
+  });
+
+  // Handle actual file upload via PUT (for presigned URL simulation)
+  app.put("/api/upload-file/:uploadId", async (req, res) => {
+    try {
+      const { uploadId } = req.params;
+      
+      // Get content type from header
+      const contentType = req.headers['content-type'] || 'application/octet-stream';
+      
+      // Create filename with proper extension
+      const ext = contentType.split('/')[1] || 'bin';
+      const filename = `${uploadId}.${ext}`;
+      const filepath = path.join(uploadDir, filename);
+      
+      // Stream the file to disk
+      const writeStream = fs.createWriteStream(filepath);
+      req.pipe(writeStream);
+      
+      writeStream.on('finish', () => {
+        // Store the upload info
+        pendingUploads.set(uploadId, { filename, uploadedAt: new Date() });
+        
+        // Return success
+        res.status(200).json({ 
+          success: true, 
+          fileId: uploadId,
+          url: `/api/files/${filename}`
+        });
+      });
+      
+      writeStream.on('error', (error) => {
+        console.error('File write error:', error);
+        res.status(500).json({ error: 'Failed to save file' });
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: 'Upload failed' });
+    }
+  });
+
+  // Serve uploaded files
+  app.get("/api/files/:filename", (req, res) => {
+    try {
+      const { filename } = req.params;
+      const filepath = path.join(uploadDir, filename);
+      
+      if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      
+      res.sendFile(filepath);
+    } catch (error) {
+      console.error('File serve error:', error);
+      res.status(500).json({ error: 'Failed to serve file' });
     }
   });
 
@@ -1315,9 +1396,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log("?? [ROUTE] GET /api/outbound-quotations - Request received");
+      console.log("?? [ROUTE] Query parameters:", req.query);
 
-      // --- Call the new storage method ---
-      const quotations = await storage.getOutboundQuotations();
+      // --- Extract filter parameters from query string ---
+      const filters: {
+        customerId?: string;
+        status?: string;
+        startDate?: string;
+        endDate?: string;
+      } = {};
+
+      if (req.query.customerId && typeof req.query.customerId === "string") {
+        filters.customerId = req.query.customerId;
+      }
+
+      if (req.query.status && typeof req.query.status === "string") {
+        filters.status = req.query.status;
+      }
+
+      if (req.query.startDate && typeof req.query.startDate === "string") {
+        filters.startDate = req.query.startDate;
+      }
+
+      if (req.query.endDate && typeof req.query.endDate === "string") {
+        filters.endDate = req.query.endDate;
+      }
+
+      console.log("?? [ROUTE] Applied filters:", filters);
+
+      // --- Call the storage method with filters ---
+      const quotations =
+        Object.keys(filters).length > 0
+          ? await storage.getOutboundQuotations(filters)
+          : await storage.getOutboundQuotations();
 
       console.log(
         `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
@@ -1785,7 +1896,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ error: "Invalid invoice data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create invoice" });
+      res
+        .status(500)
+        .json({ error: "Failed to create invoice", details: error.errors });
     }
   });
 
@@ -3900,82 +4013,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(rows);
     } catch (err) {
       console.error("Error fetching tasks:", err);
-      res.status(500).json({ error: "Failed to fetch tasks" });
-    }
-  });
-
-  app.post("/api/tasks", async (req: Request, res: Response) => {
-    try {
-      const { title, description, assignedTo, priority, dueDate } = req.body;
-
-      // Hardcode assignedBy to the logged-in user or a fixed UUID
-      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
-
-      // Validate assignedTo UUID
-      if (!isUuid(assignedTo)) {
-        return res
-          .status(400)
-          .json({ error: "assignedTo must be a valid user ID" });
-      }
-
-      // Normalize enums
-      const normalizedPriority = priority?.toLowerCase() || "medium";
-      const normalizedStatus = "open"; // default for tasks
-
-      const validPriorities = ["low", "medium", "high", "urgent"];
-      if (!validPriorities.includes(normalizedPriority)) {
-        return res.status(400).json({ error: "Invalid priority" });
-      }
-
-      const [newTask] = await db
-        .insert(tasks)
-        .values({
-          title,
-          description,
-          status: normalizedStatus,
-          priority: normalizedPriority,
-          assignedTo,
-          assignedBy,
-          dueDate: dueDate ? new Date(dueDate) : null,
-        })
-        .returning({
-          id: tasks.id,
-          title: tasks.title,
-          description: tasks.description,
-          status: tasks.status,
-          priority: tasks.priority,
-          assignedTo: tasks.assignedTo,
-          assignedBy: tasks.assignedBy,
-          dueDate: tasks.dueDate,
-          createdAt: tasks.createdAt,
-          updatedAt: tasks.updatedAt,
-        });
-
-      res.status(201).json({ message: "Task created", task: newTask });
-    } catch (err: any) {
-      console.error("Error creating task:", err);
-      res.status(500).json({
-        error: "Failed to create task",
-        details: err.message,
-      });
-    }
-  });
-
-  // Register additional routes from registries
-  registerAdminRoutes(app, { requireAuth });
-  registerAccountsRoutes(app);
-  registerMarketingRoutes(app, {
-    requireAuth,
-    requireMarketingAccess,
-    checkOwnership,
-  });
-  registerLogisticsRoutes(app, {
-    requireAuth,
-  });
-  registerInventoryRoutes(app, {
-    requireAuth,
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
-}
+      res

@@ -39,6 +39,7 @@ import {
   outboundQuotations,
   inboundQuotations,
   invoices,
+  invoiceItems,
   purchaseOrders,
 } from "@shared/schema";
 
@@ -50,6 +51,8 @@ export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
 
@@ -71,6 +74,30 @@ class Storage {
     const [row] = await db.insert(customers).values(insertCustomer).returning();
     return row;
   }
+
+  async updateCustomer(
+    id: string,
+    update: Partial<InsertCustomer>
+  ): Promise<Customer> {
+    const [row] = await db
+      .update(customers)
+      .set(update)
+      .where(eq(customers.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Customer with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    // Optionally check if any row was deleted
+    // if (result.rowCount === 0) {
+    //   throw new Error(`Customer with ID '${id}' not found for deletion.`);
+    // }
+  }
+
   // Suppliers CRUD
   async getSuppliers(): Promise<Supplier[]> {
     return await db.select().from(suppliers);
@@ -111,18 +138,22 @@ class Storage {
       .returning();
     return row;
   }
-  async getOutboundQuotations(): Promise<
-    (OutboundQuotation & { customer: Customer | null })[]
-  > {
+  async getOutboundQuotations(filters?: {
+    customerId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<(OutboundQuotation & { customer: Customer | null })[]> {
     // Explicit return type
     try {
       console.log(
-        "💾 [STORAGE] getOutboundQuotations - Fetching quotations with customer data"
+        "💾 [STORAGE] getOutboundQuotations - Fetching quotations with customer data",
+        filters
       );
 
       // --- STEP 1: Perform LEFT JOIN using Drizzle's select syntax ---
       // Select all fields from outboundQuotations and specific fields from customers.
-      const result = await db
+      let query = db
         .select({
           // Shorthand to select all fields from outboundQuotations table
           quotation: outboundQuotations,
@@ -140,6 +171,43 @@ class Storage {
         })
         .from(outboundQuotations)
         .leftJoin(customers, eq(outboundQuotations.customerId, customers.id)); // Join condition
+
+      // --- STEP 1.5: Apply filters if provided ---
+      const conditions = [];
+
+      if (filters?.customerId) {
+        conditions.push(eq(outboundQuotations.customerId, filters.customerId));
+        console.log(
+          "💾 [STORAGE] Filtering by customerId:",
+          filters.customerId
+        );
+      }
+
+      if (filters?.status) {
+        conditions.push(eq(outboundQuotations.status, filters.status));
+        console.log("💾 [STORAGE] Filtering by status:", filters.status);
+      }
+
+      if (filters?.startDate) {
+        const startDate = new Date(filters.startDate);
+        conditions.push(gte(outboundQuotations.quotationDate, startDate));
+        console.log("💾 [STORAGE] Filtering by startDate:", startDate);
+      }
+
+      if (filters?.endDate) {
+        const endDate = new Date(filters.endDate);
+        // Set to end of day
+        endDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(outboundQuotations.quotationDate, endDate));
+        console.log("💾 [STORAGE] Filtering by endDate:", endDate);
+      }
+
+      // Apply all conditions with AND logic
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const result = await query;
 
       console.log(
         `💾 [STORAGE] getOutboundQuotations - Fetched ${result.length} raw rows with join`

@@ -6,6 +6,10 @@ import {
   insertOutboundQuotationSchema,
 } from "@shared/schema";
 import { storage } from "./storage";
+import puppeteer from "puppeteer";
+import ejs from "ejs";
+import path from "path";
+import * as XLSX from "xlsx";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -77,6 +81,60 @@ export function registerSalesRoutes(
     }
   });
 
+  // Alias routes for /api/clients (frontend compatibility)
+  app.get("/api/clients", requireAuth, async (_req, res) => {
+    try {
+      const rows = await storage.getCustomers();
+      console.log("rows", rows);
+      res.json(rows);
+    } catch (e: any) {
+      console.error("❌ Error in /api/clients:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch clients", details: e.message });
+    }
+  });
+
+  app.post("/api/clients", requireAuth, async (req, res) => {
+    try {
+      const customerData = req.body;
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Invalid client data",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.put("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updateData = req.body;
+      const customer = await storage.updateCustomer(id, updateData);
+      res.json(customer);
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to update client",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteCustomer(id);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(400).json({
+        error: "Failed to delete client",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
   // Placeholder orders endpoints for UI. You can wire to real tables later.
   const orders: any[] = [];
 
@@ -118,9 +176,62 @@ export function registerSalesRoutes(
   });
 
   // Outbound Quotations CRUD
-  app.get("/api/outbound-quotations", requireAuth, async (_req, res) => {
+  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
-      const quotations = await storage.getOutboundQuotations();
+      console.log("📋 Fetching outbound quotations with filters:", req.query);
+
+      // Get all quotations
+      let quotations = await storage.getOutboundQuotations();
+      console.log(`📋 Total quotations in database: ${quotations.length}`);
+
+      // Apply filters based on query parameters
+      // Filter by customer ID
+      if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
+        quotations = quotations.filter(
+          (q) => q.customerId === req.query.customerId
+        );
+        console.log(
+          `   After customer filter: ${quotations.length} quotations`
+        );
+      }
+
+      // Filter by status (case-insensitive)
+      if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
+        quotations = quotations.filter(
+          (q) => q.status.toLowerCase() === statusFilter
+        );
+        console.log(`   After status filter: ${quotations.length} quotations`);
+      }
+
+      // Filter by date range
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        startDate.setHours(0, 0, 0, 0); // Start of day
+        console.log(`📅 Filtering by startDate: ${startDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate >= startDate;
+        });
+        console.log(
+          `   After startDate filter: ${quotations.length} quotations`
+        );
+      }
+
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        console.log(`📅 Filtering by endDate: ${endDate.toISOString()}`);
+        quotations = quotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          return quotationDate <= endDate;
+        });
+        console.log(`   After endDate filter: ${quotations.length} quotations`);
+      }
+
+      console.log(`✅ Returning ${quotations.length} filtered quotations`);
       res.json(quotations);
     } catch (e: any) {
       console.error("❌ Error in /api/outbound-quotations:", e);
@@ -162,8 +273,11 @@ export function registerSalesRoutes(
 
   // PDF Generation Endpoint for Outbound Quotations
   app.get("/api/outbound-quotations/:id/pdf", requireAuth, async (req, res) => {
+    let browser;
     try {
       const id = req.params.id;
+      console.log(`📄 Generating PDF for quotation: ${id}`);
+
       const quotation = await storage.getOutboundQuotation(id);
       if (!quotation) {
         return res.status(404).json({ error: "Quotation not found" });
@@ -173,451 +287,337 @@ export function registerSalesRoutes(
       const customers = await storage.getCustomers();
       const customer = customers.find((c) => c.id === quotation.customerId);
 
-      // Generate PDF using jsPDF
-      const { jsPDF } = await import("jspdf");
+      // Calculate financial totals from quotationItems
+      const basicAmount =
+        quotation.quotationItems?.reduce((sum: number, item: any) => {
+          return sum + (parseFloat(item.amount) || 0);
+        }, 0) ||
+        parseFloat(quotation.subtotalAmount) ||
+        0;
 
-      const doc = new jsPDF();
+      const gstPercentage = quotation.gstPercentage || 18;
+      const gst = (basicAmount * gstPercentage) / 100;
+      const grandTotal = basicAmount + gst;
 
-      // Set up document properties
-      doc.setProperties({
-        title: `Quotation ${quotation.quotationNumber}`,
-        subject: "Outbound Quotation",
-        author: "HotTip Inventory System",
+      // Generate PDF using Puppeteer and EJS
+      console.log("🚀 Launching browser...");
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+          ],
+          timeout: 60000, // 60 second timeout for browser launch (first time may need to download Chromium)
+        });
+        console.log("✅ Browser launched successfully");
+      } catch (launchError: any) {
+        console.error("❌ Failed to launch browser:", launchError.message);
+        throw new Error(`Browser launch failed: ${launchError.message}`);
+      }
+
+      const page = await browser.newPage();
+
+      // Set a timeout for page operations
+      page.setDefaultTimeout(30000); // 30 seconds
+
+      // Render EJS template
+      console.log("📝 Rendering EJS template...");
+      const templatePath = path.join(
+        process.cwd(),
+        "server",
+        "templates",
+        "quotation-hottip.ejs"
+      );
+      const html = await ejs.renderFile(templatePath, {
+        quotation,
+        customer,
+        basicAmount,
+        gst,
+        grandTotal,
       });
 
-      // Company Header with Colors
-      doc.setFillColor(0, 51, 102); // Dark blue background
-      doc.rect(0, 0, 210, 25, "F");
-
-      doc.setTextColor(255, 255, 255); // White text
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("CHENNUPATI PLASTICS", 20, 15);
-
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("ENGINEERING PLASTICS & MOULDING SOLUTIONS", 20, 22);
-
-      // Company details with colors
-      doc.setFillColor(240, 248, 255); // Light blue background for details
-      doc.rect(0, 25, 210, 20, "F");
-
-      doc.setTextColor(0, 0, 0); // Black text
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(
-        "123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra",
-        20,
-        32
-      );
-      doc.text(
-        "Email: info@chennupatiplastics.com | Mobile: +91-9876543210",
-        20,
-        37
-      );
-      doc.text(
-        "Website: www.chennupatiplastics.com | GST Number: 27AAAAA0000A1Z5",
-        20,
-        42
-      );
-
-      // Draw a colored line under header
-      doc.setDrawColor(0, 51, 102);
-      doc.setLineWidth(1);
-      doc.line(20, 47, 190, 47);
-
-      // Quotation Title with Color
-      doc.setFillColor(255, 215, 0); // Gold background
-      doc.rect(80, 55, 50, 15, "F");
-
-      doc.setTextColor(0, 51, 102); // Dark blue text
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("QUOTATION", 105, 65, { align: "center" });
-
-      // Customer details (right side) with background
-      doc.setFillColor(245, 245, 245); // Light gray background
-      doc.rect(105, 75, 85, 65, "F");
-
-      doc.setTextColor(0, 0, 0); // Black text
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Bill To:", 110, 85);
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(0, 51, 102); // Dark blue for customer name
-      doc.setFont("helvetica", "bold");
-      doc.text(`${customer?.name || "N/A"}`, 110, 95);
-
-      if (customer?.company) {
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(0, 0, 0);
-        doc.text(`${customer.company}`, 110, 102);
-      }
-
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${customer?.address || "N/A"}`, 110, 109);
-      doc.text(`GST: ${customer?.gstNumber || "N/A"}`, 110, 116);
-      doc.text(`Phone: ${customer?.phone || "N/A"}`, 110, 123);
-      doc.text(`Email: ${customer?.email || "N/A"}`, 110, 130);
-      doc.text(`Contact: ${customer?.contactPerson || "N/A"}`, 110, 137);
-
-      // Quotation details (right side, below customer) with styling
-      doc.setFillColor(255, 255, 255); // White background
-      doc.rect(105, 145, 85, 25, "F");
-
-      doc.setTextColor(0, 51, 102); // Dark blue text
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Ref No: ${quotation.quotationNumber}`, 110, 152);
-      doc.text(
-        `Date: ${new Date(quotation.quotationDate).toLocaleDateString()}`,
-        110,
-        158
-      );
-      doc.text(
-        `Project Incharge: ${quotation.projectIncharge || "N/A"}`,
-        110,
-        164
-      );
-      doc.text(`Job Card: ${quotation.jobCardNumber || "N/A"}`, 110, 170);
-
-      let yPosition = 180;
-
-      // Mold / Part Details Table
-      if (quotation.moldDetails && quotation.moldDetails.length > 0) {
-        doc.setFillColor(0, 51, 102); // Dark blue background for section header
-        doc.rect(20, yPosition - 2, 170, 8, "F");
-
-        doc.setTextColor(255, 255, 255); // White text
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("SECTION 1 – MOLD / PART DETAILS", 25, yPosition + 3);
-        yPosition += 10;
-
-        // Table headers with background
-        doc.setFillColor(240, 248, 255); // Light blue background
-        doc.rect(20, yPosition - 2, 170, 6, "F");
-
-        doc.setTextColor(0, 51, 102); // Dark blue text
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        const moldHeaders = [
-          "No",
-          "Part Name",
-          "Mould No",
-          "Plastic Mat.",
-          "Colour",
-          "MFI",
-          "Wall Thick.",
-          "Cavities",
-          "GF%+MF%",
-          "Part Wt.(g)",
-          "System",
-          "Drops",
-          "Trial Date",
-        ];
-        let xPos = 20;
-        moldHeaders.forEach((header) => {
-          doc.text(header, xPos, yPosition + 2);
-          xPos += 12; // Adjust column width
-        });
-        yPosition += 5;
-
-        // Draw header line
-        doc.setDrawColor(0, 51, 102);
-        doc.setLineWidth(0.5);
-        doc.line(20, yPosition, 190, yPosition);
-        yPosition += 5;
-
-        // Table rows
-        doc.setFont("helvetica", "normal");
-        quotation.moldDetails.forEach((mold: any) => {
-          xPos = 20;
-          const rowData = [
-            mold.no.toString(),
-            mold.partName,
-            mold.mouldNo,
-            mold.plasticMaterial,
-            mold.colourChange,
-            mold.mfi,
-            mold.wallThickness,
-            mold.noOfCavity.toString(),
-            `${mold.gfPercent} + ${mold.mfPercent}`,
-            mold.partWeight.toString(),
-            mold.systemSuggested,
-            mold.noOfDrops.toString(),
-            mold.trialDate || "-",
-          ];
-          rowData.forEach((data) => {
-            doc.text(data, xPos, yPosition);
-            xPos += 12;
-          });
-          yPosition += 5;
-        });
-
-        yPosition += 10;
-      }
-
-      // Quotation Items Table
-      if (quotation.quotationItems && quotation.quotationItems.length > 0) {
-        doc.setFillColor(0, 51, 102); // Dark blue background for section header
-        doc.rect(20, yPosition - 2, 170, 8, "F");
-
-        doc.setTextColor(255, 255, 255); // White text
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("SECTION 2 – QUOTATION ITEMS", 25, yPosition + 3);
-        yPosition += 10;
-
-        // Table headers with background
-        doc.setFillColor(240, 248, 255); // Light blue background
-        doc.rect(20, yPosition - 2, 170, 6, "F");
-
-        doc.setTextColor(0, 51, 102); // Dark blue text
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        const itemHeaders = [
-          "No",
-          "Part Name",
-          "Description",
-          "UOM",
-          "Qty",
-          "Unit Price (₹)",
-          "Amount (₹)",
-        ];
-        let xPos = 20;
-        const colWidths = [10, 25, 35, 15, 15, 30, 30];
-        itemHeaders.forEach((header, index) => {
-          doc.text(header, xPos, yPosition + 2);
-          xPos += colWidths[index];
-        });
-        yPosition += 5;
-
-        // Draw header line
-        doc.setDrawColor(0, 51, 102);
-        doc.setLineWidth(0.5);
-        doc.line(20, yPosition, 190, yPosition);
-        yPosition += 5;
-
-        // Table rows
-        doc.setFont("helvetica", "normal");
-        quotation.quotationItems.forEach((item: any) => {
-          xPos = 20;
-          const rowData = [
-            item.no.toString(),
-            item.partName,
-            item.partDescription,
-            item.uom,
-            item.qty.toString(),
-            `₹${item.unitPrice.toLocaleString("en-IN")}`,
-            `₹${item.amount.toLocaleString("en-IN")}`,
-          ];
-          rowData.forEach((data, index) => {
-            doc.text(data, xPos, yPosition);
-            xPos += colWidths[index];
-          });
-          yPosition += 5;
-        });
-
-        // Total row
-        doc.setFont("helvetica", "bold");
-        doc.text("TOTAL", 105, yPosition);
-        doc.text(
-          `₹${parseFloat(quotation.subtotalAmount).toLocaleString("en-IN")}`,
-          165,
-          yPosition
-        );
-        yPosition += 10;
-      }
-
-      // Financial Summary with styling
-      yPosition += 10;
-      doc.setFillColor(0, 51, 102); // Dark blue background
-      doc.rect(20, yPosition - 2, 170, 8, "F");
-
-      doc.setTextColor(255, 255, 255); // White text
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("FINANCIAL SUMMARY", 25, yPosition + 3);
-      yPosition += 15;
-
-      doc.setFillColor(245, 245, 245); // Light gray background for summary
-      doc.rect(100, yPosition - 5, 90, 30, "F");
-
-      doc.setTextColor(0, 0, 0); // Black text
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(
-        `Basic Amount: ₹${parseFloat(quotation.subtotalAmount).toLocaleString(
-          "en-IN"
-        )}`,
-        105,
-        yPosition
-      );
-      yPosition += 5;
-
-      if (quotation.taxAmount && parseFloat(quotation.taxAmount) > 0) {
-        doc.text(
-          `IGST 18%: ₹${parseFloat(quotation.taxAmount).toLocaleString(
-            "en-IN"
-          )}`,
-          120,
-          yPosition
-        );
-        yPosition += 5;
-      }
-
-      if (
-        quotation.discountAmount &&
-        parseFloat(quotation.discountAmount) > 0
-      ) {
-        doc.text(
-          `Discount: ₹${parseFloat(quotation.discountAmount).toLocaleString(
-            "en-IN"
-          )}`,
-          120,
-          yPosition
-        );
-        yPosition += 5;
-      }
-
-      // Grand Total with emphasis
-      doc.setFillColor(255, 215, 0); // Gold background for total
-      doc.rect(100, yPosition + 2, 90, 8, "F");
-
-      doc.setTextColor(0, 51, 102); // Dark blue text
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(
-        `GRAND TOTAL: ₹${parseFloat(quotation.totalAmount).toLocaleString(
-          "en-IN"
-        )}`,
-        105,
-        yPosition + 7
-      );
-      yPosition += 20;
-
-      // Terms & Conditions with styling
-      doc.setFillColor(0, 51, 102); // Dark blue background
-      doc.rect(20, yPosition - 2, 170, 8, "F");
-
-      doc.setTextColor(255, 255, 255); // White text
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("TERMS & CONDITIONS", 25, yPosition + 3);
-      yPosition += 12;
-
-      doc.setTextColor(0, 0, 0); // Black text
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-
-      // Terms in a bordered box
-      doc.setFillColor(250, 250, 250); // Very light gray
-      doc.rect(20, yPosition - 2, 170, 25, "F");
-
-      doc.text(
-        `• Delivery: ${
-          quotation.deliveryTerms || "25–30 days from approval of drawings"
-        }`,
-        25,
-        yPosition + 2
-      );
-      doc.text("• Packaging: Standard export packaging", 25, yPosition + 7);
-      doc.text(
-        `• Payment: ${
-          quotation.paymentTerms || "50% advance, 50% against delivery"
-        }`,
-        25,
-        yPosition + 12
-      );
-      doc.text(
-        `• Warranty: ${
-          quotation.termsConditions || "18 months comprehensive warranty"
-        }`,
-        25,
-        yPosition + 17
-      );
-      if (quotation.specialTerms) {
-        doc.text(
-          `• Special Terms: ${quotation.specialTerms}`,
-          25,
-          yPosition + 22
-        );
-        yPosition += 5;
-      }
-      yPosition += 25;
-
-      // Notes
-      if (quotation.notes) {
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Notes", 20, yPosition);
-        yPosition += 8;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(quotation.notes, 20, yPosition);
-        yPosition += 10;
-      }
-
-      // Status
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "italic");
-      doc.text(
-        `Status: ${quotation.status?.toUpperCase() || "DRAFT"}`,
-        20,
-        yPosition
-      );
-      yPosition += 15;
-
-      // Footer with styling
-      doc.setFillColor(0, 51, 102); // Dark blue footer background
-      doc.rect(0, 275, 210, 22, "F");
-
-      doc.setTextColor(255, 255, 255); // White text
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text("Thank you for your business!", 105, yPosition, {
-        align: "center",
+      console.log("🌐 Setting page content...");
+      // Changed from 'networkidle0' to 'domcontentloaded' for faster, more reliable rendering
+      await page.setContent(html, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
       });
 
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text("For CHENNUPATI PLASTICS", 105, yPosition + 5, {
-        align: "center",
+      console.log("📄 Generating PDF...");
+      const pdf = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+        timeout: 30000,
       });
-      doc.text(
-        "Generated on " + new Date().toLocaleDateString(),
-        105,
-        yPosition + 10,
-        {
-          align: "center",
-        }
-      );
-      doc.text(
-        "www.chennupatiplastics.com | info@chennupatiplastics.com",
-        105,
-        yPosition + 15,
-        {
-          align: "center",
-        }
+
+      console.log("✅ PDF generated successfully");
+      console.log(`📊 PDF size: ${pdf.length} bytes`);
+      console.log(
+        `📦 PDF buffer type: ${Buffer.isBuffer(pdf) ? "Buffer" : typeof pdf}`
       );
 
-      // Generate PDF buffer
-      const pdfBuffer = doc.output("arraybuffer");
-
+      // Set proper headers for PDF download
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="Quotation_${quotation.quotationNumber}.pdf"`
+        `attachment; filename="quotation_${quotation.quotationNumber}.pdf"`
       );
-      res.send(Buffer.from(pdfBuffer));
+      res.setHeader("Content-Length", pdf.length.toString());
+      res.setHeader("Cache-Control", "no-cache");
+
+      // Send the PDF buffer directly (no encoding parameter for binary data)
+      res.end(pdf);
     } catch (error: any) {
       console.error("❌ Error in GET /api/outbound-quotations/:id/pdf:", error);
       res
         .status(500)
         .json({ error: "Failed to generate PDF", details: error.message });
+    } finally {
+      // Ensure browser is always closed, even if there's an error
+      if (browser) {
+        try {
+          await browser.close();
+          console.log("🔒 Browser closed");
+        } catch (closeError) {
+          console.error("❌ Error closing browser:", closeError);
+        }
+      }
+    }
+  });
+
+  // Delete Outbound Quotation
+  app.delete("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteOutboundQuotation(id);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("❌ Error in DELETE /api/outbound-quotations/:id:", error);
+      res.status(400).json({
+        error: "Failed to delete outbound quotation",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  // Export Outbound Quotations to Excel
+  app.get("/api/outbound-quotations/export", requireAuth, async (req, res) => {
+    try {
+      console.log("📊 Exporting outbound quotations with filters:", req.query);
+
+      // Get all quotations
+      const allQuotations = await storage.getOutboundQuotations();
+      console.log(`📊 Total quotations in database: ${allQuotations.length}`);
+
+      // Apply filters based on query parameters
+      let filteredQuotations = allQuotations;
+
+      // Filter by customer ID
+      if (req.query.customerId && req.query.customerId !== "") {
+        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
+        filteredQuotations = filteredQuotations.filter(
+          (q) => q.customerId === req.query.customerId
+        );
+        console.log(
+          `   After customer filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: customerId=${q.customerId}, status=${q.status}, date=${q.quotationDate}`
+          );
+        });
+      }
+
+      // Filter by status (case-insensitive)
+      if (req.query.status) {
+        console.log(`🔍 Filtering by status: ${req.query.status}`);
+        const statusFilter = (req.query.status as string).toLowerCase();
+        filteredQuotations = filteredQuotations.filter(
+          (q) => q.status.toLowerCase() === statusFilter
+        );
+        console.log(
+          `   After status filter: ${filteredQuotations.length} quotations`
+        );
+        filteredQuotations.forEach((q) => {
+          console.log(
+            `     - ${q.quotationNumber}: status=${q.status}, date=${q.quotationDate}`
+          );
+        });
+      }
+
+      // Filter by date range
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        startDate.setHours(0, 0, 0, 0); // Start of day
+        console.log(`📅 Filtering by startDate: ${startDate.toISOString()}`);
+        filteredQuotations = filteredQuotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          console.log(
+            `  Comparing quotation ${
+              q.quotationNumber
+            } date: ${quotationDate.toISOString()} >= ${startDate.toISOString()} = ${
+              quotationDate >= startDate
+            }`
+          );
+          return quotationDate >= startDate;
+        });
+      }
+
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        console.log(`📅 Filtering by endDate: ${endDate.toISOString()}`);
+        filteredQuotations = filteredQuotations.filter((q) => {
+          const quotationDate = new Date(q.quotationDate);
+          console.log(
+            `  Comparing quotation ${
+              q.quotationNumber
+            } date: ${quotationDate.toISOString()} <= ${endDate.toISOString()} = ${
+              quotationDate <= endDate
+            }`
+          );
+          return quotationDate <= endDate;
+        });
+      }
+
+      console.log(`📋 Found ${filteredQuotations.length} quotations to export`);
+
+      if (filteredQuotations.length === 0) {
+        return res.status(404).json({
+          error: "No quotations found matching the specified filters",
+        });
+      }
+
+      // Get all customers for lookup
+      const customers = await storage.getCustomers();
+      const customerMap = new Map(customers.map((c) => [c.id, c]));
+
+      // Prepare data for Excel export
+      const exportData = filteredQuotations.map((quotation) => {
+        const customer = customerMap.get(quotation.customerId);
+
+        // Calculate totals
+        const basicAmount =
+          quotation.quotationItems?.reduce(
+            (sum: number, item: any) => sum + (parseFloat(item.amount) || 0),
+            0
+          ) ||
+          parseFloat(quotation.subtotalAmount) ||
+          0;
+
+        const gstPercentage = quotation.gstPercentage || 18;
+        const gst = (basicAmount * gstPercentage) / 100;
+        const grandTotal = basicAmount + gst;
+
+        return {
+          "Quotation Number": quotation.quotationNumber,
+          "Quotation Date": quotation.quotationDate
+            ? new Date(quotation.quotationDate).toLocaleDateString("en-IN")
+            : "N/A",
+          "Customer Name": quotation.customerName || customer?.name || "N/A",
+          "Customer Email": quotation.customerEmail || customer?.email || "N/A",
+          "Customer Phone": quotation.customerPhone || customer?.phone || "N/A",
+          "Customer GST":
+            quotation.customerGstNo || customer?.gstNumber || "N/A",
+          Status: quotation.status || "draft",
+          "Project Incharge": quotation.projectIncharge || "-",
+          "Job Card Number": quotation.jobCardNumber || "-",
+          "Basic Amount (INR)": basicAmount.toFixed(2),
+          "GST %": gstPercentage,
+          "GST Amount (INR)": gst.toFixed(2),
+          "Grand Total (INR)": grandTotal.toFixed(2),
+          "Payment Terms": quotation.paymentTerms || "-",
+          "Delivery Terms": quotation.deliveryTerms || "-",
+          Validity: quotation.validity || "-",
+          Notes: quotation.notes || "-",
+          "Created At": quotation.createdAt
+            ? new Date(quotation.createdAt).toLocaleString("en-IN")
+            : "N/A",
+        };
+      });
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 20 }, // Quotation Number
+        { wch: 15 }, // Quotation Date
+        { wch: 25 }, // Customer Name
+        { wch: 30 }, // Customer Email
+        { wch: 15 }, // Customer Phone
+        { wch: 20 }, // Customer GST
+        { wch: 12 }, // Status
+        { wch: 20 }, // Project Incharge
+        { wch: 20 }, // Job Card Number
+        { wch: 18 }, // Basic Amount
+        { wch: 10 }, // GST %
+        { wch: 18 }, // GST Amount
+        { wch: 18 }, // Grand Total
+        { wch: 30 }, // Payment Terms
+        { wch: 30 }, // Delivery Terms
+        { wch: 20 }, // Validity
+        { wch: 40 }, // Notes
+        { wch: 20 }, // Created At
+      ];
+      worksheet["!cols"] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Quotations");
+
+      // Generate Excel file buffer
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      console.log(`✅ Excel file generated: ${excelBuffer.length} bytes`);
+
+      // Set headers for file download
+      const filename = `Outbound_Quotations_Export_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+      res.setHeader("Content-Length", excelBuffer.length.toString());
+
+      // Send the Excel file
+      res.end(excelBuffer);
+    } catch (error: any) {
+      console.error("❌ Error in GET /api/outbound-quotations/export:", error);
+      res.status(500).json({
+        error: "Failed to export quotations",
+        details: error.message,
+      });
+    }
+  });
+
+  // Invoices CRUD (placeholder for future implementation)
+  app.get("/api/invoices", requireAuth, async (_req, res) => {
+    try {
+      const invoices = await storage.getInvoices();
+      res.json(invoices);
+    } catch (e: any) {
+      console.error("❌ Error in /api/invoices:", e);
+      res.status(500).json({
+        error: "Failed to fetch invoices",
+        details: e.message,
+      });
     }
   });
 }

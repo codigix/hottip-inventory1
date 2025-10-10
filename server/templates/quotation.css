@@ -1,0 +1,466 @@
+/* Quotation PDF Stylesheet */
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Calibri", "Arial", "Helvetica", sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #000000;
+  background: #f5f5f5;
+}
+
+/* Page Setup */
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 15mm;
+  margin: 10mm auto;
+  background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    padding: 10mm;
+    page-break-after: always;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
+
+/* Company Header */
+.company-header {
+  border: 2px solid #003366;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.header-top {
+  background: linear-gradient(135deg, #003366 0%, #004080 100%);
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo-section {
+  flex-shrink: 0;
+}
+
+.company-logo {
+  max-width: 80px;
+  max-height: 60px;
+  object-fit: contain;
+}
+
+.company-info {
+  flex-grow: 1;
+}
+
+.company-name {
+  font-size: 22pt;
+  font-weight: bold;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.company-tagline {
+  font-size: 11pt;
+  font-weight: bold;
+  font-style: italic;
+  opacity: 0.95;
+}
+
+.header-details {
+  background: #f0f8ff;
+  padding: 12px 20px;
+  border-top: 1px solid #003366;
+}
+
+.header-details p {
+  margin: 3px 0;
+  font-size: 9pt;
+  color: #333;
+}
+
+.company-address {
+  font-weight: 500;
+}
+
+.company-contact,
+.company-legal {
+  font-size: 8.5pt;
+}
+
+/* Quotation Title */
+.quotation-title {
+  text-align: center;
+  margin: 20px 0 15px 0;
+}
+
+.quotation-title h2 {
+  display: inline-block;
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+  color: #003366;
+  padding: 10px 40px;
+  border-radius: 25px;
+  font-size: 18pt;
+  font-weight: bold;
+  letter-spacing: 2px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Content Grid */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.left-column {
+  /* Reserved for future use */
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Customer Section */
+.customer-section {
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+}
+
+.customer-section h3 {
+  font-size: 12pt;
+  color: #003366;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #003366;
+  padding-bottom: 5px;
+}
+
+.customer-name {
+  font-size: 11pt;
+  font-weight: bold;
+  color: #003366;
+  margin-bottom: 5px;
+}
+
+.customer-section p {
+  margin: 3px 0;
+  font-size: 9pt;
+}
+
+/* Quotation Details */
+.quotation-details {
+  background: white;
+  border: 2px solid #003366;
+  border-radius: 5px;
+  padding: 12px 15px;
+}
+
+.quotation-details p {
+  margin: 5px 0;
+  font-size: 9pt;
+  color: #333;
+}
+
+.quotation-details strong {
+  color: #003366;
+  font-weight: bold;
+}
+
+/* Section Headers */
+.section-header {
+  background: linear-gradient(135deg, #003366 0%, #004080 100%);
+  color: white;
+  padding: 10px 15px;
+  margin: 20px 0 10px 0;
+  border-radius: 3px;
+}
+
+.section-header h3 {
+  font-size: 12pt;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+  font-size: 8pt;
+}
+
+table thead {
+  background: #e6f2ff;
+  color: #003366;
+}
+
+table thead th {
+  padding: 8px 5px;
+  text-align: left;
+  font-weight: bold;
+  border: 1px solid #003366;
+  font-size: 8pt;
+}
+
+table tbody td {
+  padding: 6px 5px;
+  border: 1px solid #ddd;
+  vertical-align: top;
+}
+
+table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+table tbody tr:hover {
+  background: #f0f8ff;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Mold Table Specific */
+.mold-table {
+  font-size: 7pt;
+}
+
+.mold-table th,
+.mold-table td {
+  padding: 5px 3px;
+  font-size: 7pt;
+}
+
+/* Items Table Specific */
+.items-table th:nth-child(1) {
+  width: 5%;
+}
+.items-table th:nth-child(2) {
+  width: 20%;
+}
+.items-table th:nth-child(3) {
+  width: 25%;
+}
+.items-table th:nth-child(4) {
+  width: 8%;
+}
+.items-table th:nth-child(5) {
+  width: 10%;
+}
+.items-table th:nth-child(6) {
+  width: 16%;
+}
+.items-table th:nth-child(7) {
+  width: 16%;
+}
+
+/* Summary Section */
+.summary-section {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  min-width: 300px;
+  padding: 5px 10px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+
+.summary-row.grand-total {
+  background: #003366;
+  color: white;
+  border: 2px solid #003366;
+  font-size: 11pt;
+  padding: 10px 15px;
+}
+
+.summary-label {
+  font-weight: 500;
+}
+
+.summary-value {
+  font-weight: bold;
+  text-align: right;
+  min-width: 120px;
+}
+
+/* Terms Section */
+.terms-section {
+  margin-top: 20px;
+  page-break-inside: avoid;
+}
+
+.terms-content {
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  background: #fafafa;
+}
+
+.terms-row {
+  margin-bottom: 12px;
+}
+
+.terms-row strong {
+  display: block;
+  color: #003366;
+  font-size: 10pt;
+  margin-bottom: 3px;
+}
+
+.terms-row p {
+  margin: 0;
+  padding-left: 10px;
+  font-size: 9pt;
+  line-height: 1.4;
+}
+
+/* Signature Section */
+.signature-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  page-break-inside: avoid;
+}
+
+.signature-box {
+  width: 45%;
+  text-align: center;
+}
+
+.signature-box p {
+  font-size: 9pt;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.signature-line {
+  border-top: 2px solid #000;
+  margin: 40px 20px 10px 20px;
+}
+
+.company-name-small {
+  font-size: 8pt;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* Footer */
+.page-footer {
+  position: absolute;
+  bottom: 10mm;
+  left: 15mm;
+  right: 15mm;
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  font-size: 7pt;
+  color: #666;
+}
+
+.page-footer p {
+  margin: 2px 0;
+}
+
+/* Print Optimizations */
+@media print {
+  .company-header,
+  .section-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  .terms-section,
+  .signature-section {
+    page-break-inside: avoid;
+  }
+}
+
+/* Additional Utilities */
+.text-bold {
+  font-weight: bold;
+}
+
+.text-italic {
+  font-style: italic;
+}
+
+.text-uppercase {
+  text-transform: uppercase;
+}
+
+.mt-10 {
+  margin-top: 10px;
+}
+.mt-15 {
+  margin-top: 15px;
+}
+.mt-20 {
+  margin-top: 20px;
+}
+.mb-10 {
+  margin-bottom: 10px;
+}
+.mb-15 {
+  margin-bottom: 15px;
+}
+.mb-20 {
+  margin-bottom: 20px;
+}
