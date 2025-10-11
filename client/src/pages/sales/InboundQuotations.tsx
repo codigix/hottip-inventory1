@@ -458,6 +458,7 @@ export default function InboundQuotations() {
       // Convert date strings to Date objects for the API call
       const formattedData = {
         ...data,
+        userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Development user ID
         quotationDate: new Date(data.quotationDate),
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         attachmentPath: uploadedFile ? uploadedFile.uploadURL : null,
