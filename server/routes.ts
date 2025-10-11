@@ -5,6 +5,7 @@ import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { registerSalesRoutes } from "./sales-routes-registry";
+import { registerFileUploadRoutes } from "./file-upload-routes";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -1147,34 +1148,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
   //   }
   // });
-  // File uploads (generic upload URL) - Mocked for local development
-  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-    // --- START: Mocking Object Storage for Local Development ---
-    if (process.env.NODE_ENV === "development") {
-      // Return a dummy URL that the frontend can handle gracefully
-      // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
-      res.json({
-        uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
-        message:
-          "File upload is mocked in development mode. No actual upload occurs.",
-      });
-      return; // Exit early, don't proceed to ObjectStorageService
-    }
-    // --- END: Mocking ---
+  // OLD ENDPOINT - REMOVED (now handled by file-upload-routes.ts)
+  //   // File uploads (generic upload URL) - Mocked for local development
+  //   app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+  //     // --- START: Mocking Object Storage for Local Development ---
+  //     if (process.env.NODE_ENV === "development") {
+  //       // Return a dummy URL that the frontend can handle gracefully
+  //       // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+  //       res.json({
+  //         uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+  //         message:
+  //           "File upload is mocked in development mode. No actual upload occurs.",
+  //       });
+  //       return; // Exit early, don't proceed to ObjectStorageService
+  //     }
+  //     // --- END: Mocking ---
 
-    try {
-      const objectStorage = new ObjectStorageService();
-      const uploadURL = await objectStorage.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (e) {
-      // This will now only catch errors when NOT in development mode
-      // or if the development check fails unexpectedly
-      console.error("Object storage error:", e);
-      res
-        .status(500)
-        .json({ error: "Failed to get upload URL", details: e.message });
-    }
-  });
+  //     try {
+  //       const objectStorage = new ObjectStorageService();
+  //       const uploadURL = await objectStorage.getObjectEntityUploadURL();
+  //       res.json({ uploadURL });
+  //     } catch (e) {
+  //       // This will now only catch errors when NOT in development mode
+  //       // or if the development check fails unexpectedly
+  //       console.error("Object storage error:", e);
+  //       res
+  //         .status(500)
+  //         .json({ error: "Failed to get upload URL", details: e.message });
+  //     }
+  //   });
 
   // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
@@ -4015,6 +4017,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSalesRoutes(app, {
     requireAuth,
   });
+
+  registerFileUploadRoutes(app, requireAuth);
 
   const httpServer = createServer(app);
   return httpServer;
