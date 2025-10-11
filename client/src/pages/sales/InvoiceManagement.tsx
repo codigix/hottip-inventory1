@@ -1219,45 +1219,158 @@ export default function InvoiceManagement() {
           <Drawer open={isViewOpen} onOpenChange={setIsViewOpen}>
             <DrawerContent className="p-6 max-h-[90vh] overflow-y-auto">
               <DrawerHeader>
-                <DrawerTitle>Invoice Details</DrawerTitle>
-                <DrawerDescription>
-                  View full invoice details.
+                <DrawerTitle className="text-2xl text-center font-bold">
+                  TAX INVOICE
+                </DrawerTitle>
+                <DrawerDescription className="text-center">
+                  View full invoice details
                 </DrawerDescription>
               </DrawerHeader>
 
               {selectedInvoice ? (
-                <div className="space-y-3 text-sm">
-                  <h3 className="text-lg font-semibold">
-                    {selectedInvoice.invoiceNumber} — {selectedInvoice.customer}
-                  </h3>
-                  <p>
-                    <strong>Date:</strong> {selectedInvoice.invoiceDate}
-                  </p>
-                  <p>
-                    <strong>Due:</strong> {selectedInvoice.dueDate}
-                  </p>
+                <div className="space-y-4 text-sm max-w-5xl mx-auto">
+                  {/* Company Details */}
+                  <div className="border-b pb-4">
+                    <h2 className="text-xl font-bold text-center">
+                      HOTTIP INDIA POLYMERS
+                    </h2>
+                    <p className="text-center text-xs mt-1">
+                      GAT NO.209, OFFICE NO-406, SWARAJ CAPITAL, BORHADEWADI,
+                      <br />
+                      MOSHI CHIKHALI ROAD, PUNE-412105
+                    </p>
+                    <div className="flex justify-between mt-2 text-xs">
+                      <div>
+                        <strong>GSTIN:</strong> 27AQYPM1029M1Z6
+                      </div>
+                      <div>
+                        <strong>State:</strong> Maharashtra, Code: 27
+                      </div>
+                      <div>
+                        <strong>Email:</strong> saleshottipindia@gmail.com
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className="border-t pt-2 mt-2">
-                    <h4 className="font-medium">Items</h4>
+                  {/* Invoice & Customer Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border p-3 rounded">
+                      <h4 className="font-semibold mb-2 text-blue-700">
+                        Bill To
+                      </h4>
+                      <p className="font-semibold">
+                        {selectedInvoice.customer}
+                      </p>
+                      {selectedInvoice.billingAddress && (
+                        <p className="text-xs mt-1">
+                          {selectedInvoice.billingAddress}
+                        </p>
+                      )}
+                      {selectedInvoice.clientGSTIN && (
+                        <p className="text-xs mt-1">
+                          <strong>GSTIN:</strong> {selectedInvoice.clientGSTIN}
+                        </p>
+                      )}
+                      {selectedInvoice.placeOfSupply && (
+                        <p className="text-xs mt-1">
+                          <strong>Place of Supply:</strong>{" "}
+                          {selectedInvoice.placeOfSupply}
+                        </p>
+                      )}
+                    </div>
+                    <div className="border p-3 rounded">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <strong>Invoice No:</strong>
+                          <p className="font-semibold text-blue-600">
+                            {selectedInvoice.invoiceNumber}
+                          </p>
+                        </div>
+                        <div>
+                          <strong>Invoice Date:</strong>
+                          <p>{selectedInvoice.invoiceDate}</p>
+                        </div>
+                        <div>
+                          <strong>Due Date:</strong>
+                          <p>{selectedInvoice.dueDate}</p>
+                        </div>
+                        <div>
+                          <strong>Payment Terms:</strong>
+                          <p>{selectedInvoice.paymentTerms || "NET 30"}</p>
+                        </div>
+                        {selectedInvoice.ewayBillNumber && (
+                          <div className="col-span-2">
+                            <strong>E-Way Bill:</strong>
+                            <p>{selectedInvoice.ewayBillNumber}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Line Items */}
+                  <div className="border rounded">
+                    <h4 className="font-semibold p-3 bg-gray-50 border-b">
+                      Description of Goods
+                    </h4>
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Qty</TableHead>
-                          <TableHead>Unit</TableHead>
-                          <TableHead>Unit Price</TableHead>
-                          <TableHead>Amount</TableHead>
+                        <TableRow className="bg-gray-50">
+                          <TableHead className="font-bold">Sr.</TableHead>
+                          <TableHead className="font-bold">
+                            Description
+                          </TableHead>
+                          <TableHead className="font-bold text-center">
+                            HSN/SAC
+                          </TableHead>
+                          <TableHead className="font-bold text-center">
+                            Qty
+                          </TableHead>
+                          <TableHead className="font-bold text-center">
+                            Unit
+                          </TableHead>
+                          <TableHead className="font-bold text-right">
+                            Rate (₹)
+                          </TableHead>
+                          <TableHead className="font-bold text-right">
+                            Amount (₹)
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedInvoice.lineItems?.map(
                           (item: any, idx: number) => (
                             <TableRow key={idx}>
+                              <TableCell className="font-medium">
+                                {idx + 1}
+                              </TableCell>
                               <TableCell>{item.description}</TableCell>
-                              <TableCell>{item.quantity}</TableCell>
-                              <TableCell>{item.unit}</TableCell>
-                              <TableCell>{item.unitPrice}</TableCell>
-                              <TableCell>{item.amount}</TableCell>
+                              <TableCell className="text-center">
+                                {item.hsn_sac || item.hsnSac || "-"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {item.quantity}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {item.unit || "pcs"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {Number(item.unitPrice).toLocaleString(
+                                  "en-IN",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold">
+                                {(
+                                  Number(item.quantity) * Number(item.unitPrice)
+                                ).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </TableCell>
                             </TableRow>
                           )
                         )}
@@ -1265,20 +1378,161 @@ export default function InvoiceManagement() {
                     </Table>
                   </div>
 
-                  <div className="border-t pt-3 mt-3 text-right">
-                    <p>Subtotal: ₹{selectedInvoice.subtotalAmount}</p>
-                    <p>
-                      CGST ({selectedInvoice.cgstRate}%): ₹
-                      {selectedInvoice.cgstAmount}
-                    </p>
-                    <p>
-                      SGST ({selectedInvoice.sgstRate}%): ₹
-                      {selectedInvoice.sgstAmount}
-                    </p>
-                    <p className="font-semibold text-lg">
-                      Total: ₹{selectedInvoice.totalAmount}
-                    </p>
+                  {/* Tax Summary and Total */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border p-3 rounded">
+                      <h4 className="font-semibold mb-2">Bank Details</h4>
+                      <div className="text-xs space-y-1">
+                        <p>
+                          <strong>Bank:</strong> ICICI BANK
+                        </p>
+                        <p>
+                          <strong>A/c No:</strong> 738305000994
+                        </p>
+                        <p>
+                          <strong>Branch & IFSC:</strong> MOSHI & ICIC0007383
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal:</span>
+                        <span>
+                          ₹
+                          {Number(
+                            selectedInvoice.subtotalAmount
+                          ).toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                      {Number(selectedInvoice.discountAmount) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Discount:</span>
+                          <span className="text-red-600">
+                            -₹
+                            {Number(
+                              selectedInvoice.discountAmount
+                            ).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {Number(selectedInvoice.cgstAmount) > 0 && (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span>CGST ({selectedInvoice.cgstRate}%):</span>
+                            <span>
+                              ₹
+                              {Number(
+                                selectedInvoice.cgstAmount
+                              ).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>SGST ({selectedInvoice.sgstRate}%):</span>
+                            <span>
+                              ₹
+                              {Number(
+                                selectedInvoice.sgstAmount
+                              ).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {Number(selectedInvoice.igstAmount) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>IGST ({selectedInvoice.igstRate}%):</span>
+                          <span>
+                            ₹
+                            {Number(selectedInvoice.igstAmount).toLocaleString(
+                              "en-IN",
+                              {
+                                minimumFractionDigits: 2,
+                              }
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      {Number(selectedInvoice.packingCharges) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Packing Charges:</span>
+                          <span>
+                            ₹
+                            {Number(
+                              selectedInvoice.packingCharges
+                            ).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {Number(selectedInvoice.shippingCharges) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Shipping Charges:</span>
+                          <span>
+                            ₹
+                            {Number(
+                              selectedInvoice.shippingCharges
+                            ).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      <div className="border-t-2 pt-2 flex justify-between font-bold text-lg">
+                        <span>Total Amount:</span>
+                        <span className="text-green-700">
+                          ₹
+                          {Number(selectedInvoice.totalAmount).toLocaleString(
+                            "en-IN",
+                            {
+                              minimumFractionDigits: 2,
+                            }
+                          )}
+                        </span>
+                      </div>
+                      {selectedInvoice.amountInWords && (
+                        <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
+                          <strong>Amount in Words:</strong>{" "}
+                          {selectedInvoice.amountInWords}
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Declaration & Notes */}
+                  <div className="border-t pt-3 text-xs space-y-2">
+                    <div>
+                      <strong>Declaration:</strong>
+                      <p>
+                        We declare that this invoice shows the actual price of
+                        the goods described and that all particulars are true
+                        and correct.
+                      </p>
+                    </div>
+                    {selectedInvoice.additionalNotes && (
+                      <div>
+                        <strong>Notes:</strong>
+                        <p>{selectedInvoice.additionalNotes}</p>
+                      </div>
+                    )}
+                    <div className="text-right pt-4">
+                      <p className="font-semibold">For HOTTIP INDIA POLYMERS</p>
+                      <div className="mt-12 mb-2">
+                        <p>Authorised Signatory</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-center text-xs text-gray-500 mt-4">
+                    This is a Computer Generated Invoice
+                  </p>
                 </div>
               ) : (
                 <p>Loading...</p>

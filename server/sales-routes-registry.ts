@@ -955,25 +955,40 @@ export function registerSalesRoutes(
         stateCode: invoice.placeOfSupply?.split(",")[1]?.trim() || "N/A",
       };
 
-      // Prepare invoice items (assuming invoice has items, but schema doesn't have invoice_items yet)
-      // For now, assume items are in quotation or something
-      // Placeholder
-      const items = [
-        {
-          description: "Sample Item",
-          hsn: "85149000",
+      // Fetch actual invoice items from database
+      const invoiceItemsData = await db
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
+
+      // Prepare invoice items for PDF
+      const items = invoiceItemsData.map((item) => ({
+        description: item.description,
+        hsn: item.hsnSac || "",
+        quantity: item.quantity,
+        unit: item.unit || "pcs",
+        rate: Number(item.unitPrice) || 0,
+        amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
+      }));
+
+      // If no items found, use a placeholder
+      if (items.length === 0) {
+        items.push({
+          description: "Invoice Item",
+          hsn: "",
           quantity: 1,
+          unit: "pcs",
           rate: Number(invoice.subtotalAmount) || 0,
           amount: Number(invoice.subtotalAmount) || 0,
-        },
-      ];
+        });
+      }
 
       // Prepare invoice data
       const invoiceData = {
         invoiceNumber: invoice.invoiceNumber,
         date: new Date(invoice.invoiceDate).toLocaleDateString("en-IN"),
         paymentTerms: invoice.paymentTerms || "100% ADVANCE",
-        orderNo: "", // from quotation?
+        orderNo: invoice.quotationId || "",
         referenceNo: "",
         subtotal: Number(invoice.subtotalAmount) || 0,
         discount: Number(invoice.discountAmount) || 0,
@@ -984,7 +999,7 @@ export function registerSalesRoutes(
         igstRate: Number(invoice.igstRate) || 0,
         igstAmount: Number(invoice.igstAmount) || 0,
         total: Number(invoice.totalAmount) || 0,
-        amountInWords: invoice.amountInWords || "Eleven Thousand Eight Hundred",
+        amountInWords: invoice.amountInWords || "Zero",
         items: items,
       };
 
@@ -1079,10 +1094,12 @@ export function registerSalesRoutes(
         additionalNotes: invoice.notes || "",
         lineItems: items.map((item) => ({
           description: item.description,
-          hsn_sac: item.hsn_sac || "",
+          hsn_sac: item.hsnSac || "",
+          hsnSac: item.hsnSac || "",
           quantity: item.quantity,
           unit: item.unit,
           unitPrice: Number(item.unitPrice),
+          amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
           cgstPercent: Number(invoice.cgstRate) || 0,
           sgstPercent: Number(invoice.sgstRate) || 0,
           igstPercent: Number(invoice.igstRate) || 0,
