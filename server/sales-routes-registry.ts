@@ -1119,4 +1119,56 @@ export function registerSalesRoutes(
       });
     }
   });
+
+  // ✅ PATCH /api/invoices/:id/status - Update invoice status
+  app.patch("/api/invoices/:id/status", requireAuth, async (req, res) => {
+    console.log("🟢 Received PATCH /api/invoices/:id/status");
+
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      if (
+        !status ||
+        !["draft", "sent", "paid", "overdue", "cancelled"].includes(status)
+      ) {
+        return res.status(400).json({
+          error: "Invalid status",
+          details:
+            "Status must be one of: draft, sent, paid, overdue, cancelled",
+        });
+      }
+
+      // Check if invoice exists
+      const [existingInvoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, id));
+
+      if (!existingInvoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // Update status
+      await db
+        .update(invoices)
+        .set({ status: status as any })
+        .where(eq(invoices.id, id));
+
+      console.log(
+        `✅ Invoice ${existingInvoice.invoiceNumber} status updated to ${status}`
+      );
+      res.status(200).json({
+        message: "Invoice status updated successfully",
+        status,
+      });
+    } catch (error: any) {
+      console.error("❌ Error updating invoice status:", error.message);
+      res.status(500).json({
+        error: "Failed to update invoice status",
+        details: error.message,
+      });
+    }
+  });
 }

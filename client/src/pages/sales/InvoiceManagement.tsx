@@ -45,6 +45,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Receipt, Eye, Download, Send, Trash2 } from "lucide-react";
 import {
   insertInvoiceSchema,
@@ -115,6 +125,8 @@ export default function InvoiceManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
+  const [invoiceToSend, setInvoiceToSend] = useState<string | null>(null);
 
   const [lineItems, setLineItems] = useState<InvoiceItem[]>([
     createEmptyLineItem(),
@@ -194,6 +206,31 @@ export default function InvoiceManagement() {
         title: "Validation Error",
         description:
           error?.message || "Please fix the highlighted fields and try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendInvoiceMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return await apiRequest("PATCH", `/invoices/${invoiceId}/status`, {
+        status: "sent",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/invoices"] });
+      toast({
+        title: "Success",
+        description: "Invoice sent successfully",
+      });
+      setIsSendDialogOpen(false);
+      setInvoiceToSend(null);
+    },
+    onError: (error: any) => {
+      console.error("Send invoice error:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send invoice",
         variant: "destructive",
       });
     },
@@ -319,6 +356,17 @@ export default function InvoiceManagement() {
     }
   };
 
+  const handleSendInvoice = (invoiceId: string) => {
+    setInvoiceToSend(invoiceId);
+    setIsSendDialogOpen(true);
+  };
+
+  const confirmSendInvoice = () => {
+    if (invoiceToSend) {
+      sendInvoiceMutation.mutate(invoiceToSend);
+    }
+  };
+
   const columns = [
     {
       key: "invoiceNumber",
@@ -404,6 +452,7 @@ export default function InvoiceManagement() {
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleSendInvoice(invoice.id)}
             data-testid={`button-send-invoice-${invoice.id}`}
           >
             <Send className="h-4 w-4" />
@@ -1539,6 +1588,33 @@ export default function InvoiceManagement() {
               )}
             </DrawerContent>
           </Drawer>
+
+          {/* ✅ Send Invoice Confirmation Dialog */}
+          <AlertDialog
+            open={isSendDialogOpen}
+            onOpenChange={setIsSendDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send Invoice to Client</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to send this invoice to the client? The
+                  invoice status will be updated to "Sent".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={confirmSendInvoice}
+                  disabled={sendInvoiceMutation.isPending}
+                >
+                  {sendInvoiceMutation.isPending
+                    ? "Sending..."
+                    : "Send Invoice"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>
