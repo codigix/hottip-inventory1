@@ -407,6 +407,8 @@ export default function InboundQuotations() {
     uploadURL: string;
     fileName: string;
   } | null>(null);
+  const [viewPdfDialog, setViewPdfDialog] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const { toast } = useToast();
 
   // Fetch inbound quotations
@@ -516,6 +518,57 @@ export default function InboundQuotations() {
     });
   };
 
+  const handleViewPdf = (quotation: any) => {
+    if (quotation.attachmentPath) {
+      setSelectedQuotation(quotation);
+      setViewPdfDialog(true);
+    } else {
+      toast({
+        title: "No attachment",
+        description: "This quotation doesn't have an attached file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApprove = async (quotationId: string) => {
+    try {
+      await apiRequest("PATCH", `/inbound-quotations/${quotationId}`, {
+        status: "approved",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: "Quotation approved successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve quotation.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (quotationId: string) => {
+    try {
+      await apiRequest("PATCH", `/inbound-quotations/${quotationId}`, {
+        status: "rejected",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: "Quotation rejected successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject quotation.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const columns = [
     {
       key: "quotationNumber",
@@ -579,6 +632,8 @@ export default function InboundQuotations() {
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleViewPdf(quotation)}
+            title="View PDF"
             data-testid={`button-view-inbound-${quotation.id}`}
           >
             <Eye className="h-4 w-4" />
@@ -586,16 +641,20 @@ export default function InboundQuotations() {
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleApprove(quotation.id)}
+            title="Approve"
             data-testid={`button-approve-${quotation.id}`}
           >
-            <CheckCircle className="h-4 w-4" />
+            <CheckCircle className="h-4 w-4 text-green-600" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            onClick={() => handleReject(quotation.id)}
+            title="Reject"
             data-testid={`button-reject-${quotation.id}`}
           >
-            <XCircle className="h-4 w-4" />
+            <XCircle className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       ),
@@ -871,6 +930,28 @@ export default function InboundQuotations() {
           />
         </CardContent>
       </Card>
+
+      {/* PDF Viewer Dialog */}
+      <Dialog open={viewPdfDialog} onOpenChange={setViewPdfDialog}>
+        <DialogContent className="max-w-5xl max-h-[90vh] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>View Quotation Attachment</DialogTitle>
+            <DialogDescription>
+              {selectedQuotation?.quotationNumber} -{" "}
+              {selectedQuotation?.attachmentName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 h-full overflow-hidden">
+            {selectedQuotation?.attachmentPath && (
+              <iframe
+                src={selectedQuotation.attachmentPath}
+                className="w-full h-[calc(90vh-120px)] border rounded"
+                title="PDF Viewer"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

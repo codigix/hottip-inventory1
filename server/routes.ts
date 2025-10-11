@@ -1,11 +1,10 @@
-﻿import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { registerAdminRoutes } from "./admin-routes-registry";
 import { registerAccountsRoutes } from "./accounts-routes-registry";
 import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { registerSalesRoutes } from "./sales-routes-registry";
-import { registerFileUploadRoutes } from "./file-upload-routes";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -1148,35 +1147,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ error: "Failed to get upload URL", details: e.message});
   //   }
   // });
-  // OLD ENDPOINT - REMOVED (now handled by file-upload-routes.ts)
-  //   // File uploads (generic upload URL) - Mocked for local development
-  //   app.post("/api/objects/upload", requireAuth, async (_req, res) => {
-  //     // --- START: Mocking Object Storage for Local Development ---
-  //     if (process.env.NODE_ENV === "development") {
-  //       // Return a dummy URL that the frontend can handle gracefully
-  //       // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
-  //       res.json({
-  //         uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
-  //         message:
-  //           "File upload is mocked in development mode. No actual upload occurs.",
-  //       });
-  //       return; // Exit early, don't proceed to ObjectStorageService
-  //     }
-  //     // --- END: Mocking ---
+  // File uploads (generic upload URL) - Mocked for local development
+  app.post("/api/objects/upload", requireAuth, async (_req, res) => {
+    // --- START: Mocking Object Storage for Local Development ---
+    if (process.env.NODE_ENV === "development") {
+      // Return a dummy URL that the frontend can handle gracefully
+      // In a real scenario, this would be replaced by a call to the actual ObjectStorageService
+      res.json({
+        uploadURL: "http://localhost:5000/mock-upload-url", // This is a fake URL
+        message:
+          "File upload is mocked in development mode. No actual upload occurs.",
+      });
+      return; // Exit early, don't proceed to ObjectStorageService
+    }
+    // --- END: Mocking ---
 
-  //     try {
-  //       const objectStorage = new ObjectStorageService();
-  //       const uploadURL = await objectStorage.getObjectEntityUploadURL();
-  //       res.json({ uploadURL });
-  //     } catch (e) {
-  //       // This will now only catch errors when NOT in development mode
-  //       // or if the development check fails unexpectedly
-  //       console.error("Object storage error:", e);
-  //       res
-  //         .status(500)
-  //         .json({ error: "Failed to get upload URL", details: e.message });
-  //     }
-  //   });
+    try {
+      const objectStorage = new ObjectStorageService();
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (e) {
+      // This will now only catch errors when NOT in development mode
+      // or if the development check fails unexpectedly
+      console.error("Object storage error:", e);
+      res
+        .status(500)
+        .json({ error: "Failed to get upload URL", details: e.message });
+    }
+  });
 
   // app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
   //   try {
@@ -1767,6 +1765,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(quotation);
     } catch (error) {
       res.status(500).json({ error: "Failed to update inbound quotation" });
+    }
+  });
+
+  // PATCH endpoint for updating inbound quotation status (approve/reject)
+  app.patch("/api/inbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      const allowedStatuses = ["received", "under_review", "approved", "rejected"];
+      if (!status || !allowedStatuses.includes(status)) {
+        return res.status(400).json({
+          error: "Invalid status",
+          message: `Status must be one of: ${allowedStatuses.join(", ")}`,
+        });
+      }
+
+      // Update the quotation status
+      const quotation = await storage.updateInboundQuotation(id, { status });
+
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+
+      // Log activity
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "UPDATE_INBOUND_QUOTATION_STATUS",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Status changed to ${status}: ${quotation.quotationNumber}`,
+      });
+
+      res.json({
+        message: "Quotation status updated successfully",
+        quotation,
+      });
+    } catch (error: any) {
+      console.error("Error updating inbound quotation status:", error);
+      res.status(500).json({
+        error: "Failed to update quotation status",
+        details: error.message,
+      });
     }
   });
 
@@ -3931,95 +3973,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dueDate: tasks.dueDate,
           createdAt: tasks.createdAt,
           updatedAt: tasks.updatedAt,
-          assignedTo: users.username, // show username instead of id
-          assignedBy: users.username, // show username instead of id
-        })
-        .from(tasks)
-        .leftJoin(users, eq(tasks.assignedTo, users.id)); // join with assignedTo user
-      res.json(rows);
-    } catch (err) {
-      console.error("Error fetching tasks:", err);
-      res.status(500).json({ error: "Failed to fetch tasks" });
-    }
-  });
-
-  app.post("/api/tasks", async (req: Request, res: Response) => {
-    try {
-      const { title, description, assignedTo, priority, dueDate } = req.body;
-
-      // Hardcode assignedBy to the logged-in user or a fixed UUID
-      const assignedBy = "b34e3723-ba42-402d-b454-88cf96340573"; // Sanika
-
-      // Validate assignedTo UUID
-      if (!isUuid(assignedTo)) {
-        return res
-          .status(400)
-          .json({ error: "assignedTo must be a valid user ID" });
-      }
-
-      // Normalize enums
-      const normalizedPriority = priority?.toLowerCase() || "medium";
-      const normalizedStatus = "open"; // default for tasks
-
-      const validPriorities = ["low", "medium", "high", "urgent"];
-      if (!validPriorities.includes(normalizedPriority)) {
-        return res.status(400).json({ error: "Invalid priority" });
-      }
-
-      const [newTask] = await db
-        .insert(tasks)
-        .values({
-          title,
-          description,
-          status: normalizedStatus,
-          priority: normalizedPriority,
-          assignedTo,
-          assignedBy,
-          dueDate: dueDate ? new Date(dueDate) : null,
-        })
-        .returning({
-          id: tasks.id,
-          title: tasks.title,
-          description: tasks.description,
-          status: tasks.status,
-          priority: tasks.priority,
-          assignedTo: tasks.assignedTo,
-          assignedBy: tasks.assignedBy,
-          dueDate: tasks.dueDate,
-          createdAt: tasks.createdAt,
-          updatedAt: tasks.updatedAt,
-        });
-
-      res.status(201).json({ message: "Task created", task: newTask });
-    } catch (err: any) {
-      console.error("Error creating task:", err);
-      res.status(500).json({
-        error: "Failed to create task",
-        details: err.message,
-      });
-    }
-  });
-
-  // Register additional routes from registries
-  registerAdminRoutes(app, { requireAuth });
-  registerAccountsRoutes(app);
-  registerMarketingRoutes(app, {
-    requireAuth,
-    requireMarketingAccess,
-    checkOwnership,
-  });
-  registerLogisticsRoutes(app, {
-    requireAuth,
-  });
-  registerInventoryRoutes(app, {
-    requireAuth,
-  });
-  registerSalesRoutes(app, {
-    requireAuth,
-  });
-
-  registerFileUploadRoutes(app, requireAuth);
-
-  const httpServer = createServer(app);
-  return httpServer;
-}
+          assignedTo: users.us
