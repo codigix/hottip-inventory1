@@ -1015,4 +1015,91 @@ export function registerSalesRoutes(
       });
     }
   });
+  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
+    console.log("🟢 Received GET /api/invoices/:id");
+
+    try {
+      const { id } = req.params;
+
+      // ✅ Fetch main invoice
+      const [invoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, id));
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // ✅ Fetch customer name (optional)
+      let customerName = "";
+      try {
+        const [customer] = await db
+          .select({ name: customers.name })
+          .from(customers)
+          .where(eq(customers.id, invoice.customerId));
+        customerName = customer?.name || "Unknown Customer";
+      } catch {
+        customerName = "Unknown Customer";
+      }
+
+      // ✅ Fetch line items
+      const items = await db
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
+
+      // ✅ Format structured response
+      const formattedInvoice = {
+        invoiceNumber: invoice.invoiceNumber,
+        customer: customerName,
+        invoiceDate: invoice.invoiceDate?.toISOString().split("T")[0] || "",
+        dueDate: invoice.dueDate?.toISOString().split("T")[0] || "",
+        subtotalAmount: Number(invoice.subtotalAmount) || 0,
+        discountAmount: Number(invoice.discountAmount) || 0,
+        cgstRate: Number(invoice.cgstRate) || 0,
+        cgstAmount: Number(invoice.cgstAmount) || 0,
+        sgstRate: Number(invoice.sgstRate) || 0,
+        sgstAmount: Number(invoice.sgstAmount) || 0,
+        igstRate: Number(invoice.igstRate) || 0,
+        igstAmount: Number(invoice.igstAmount) || 0,
+        totalAmount: Number(invoice.totalAmount) || 0,
+        balanceAmount: Number(invoice.balanceAmount) || 0,
+        billingAddress: invoice.billingAddress || "",
+        shippingAddress: invoice.shippingAddress || "",
+        clientGSTIN: invoice.billingGstNumber || "",
+        placeOfSupply: invoice.placeOfSupply || "",
+        paymentTerms: invoice.paymentTerms || "",
+        deliveryTerms: invoice.deliveryTerms || "",
+        transporter: invoice.transporterName || "",
+        ewayBillNumber: invoice.ewayBillNumber || "",
+        amountInWords: invoice.amountInWords || "",
+        packingCharges: Number(invoice.packingFee) || 0,
+        shippingCharges: Number(invoice.shippingFee) || 0,
+        otherCharges: Number(invoice.otherCharges) || 0,
+        additionalNotes: invoice.notes || "",
+        lineItems: items.map((item) => ({
+          description: item.description,
+          hsn_sac: item.hsn_sac || "",
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: Number(item.unitPrice),
+          cgstPercent: Number(invoice.cgstRate) || 0,
+          sgstPercent: Number(invoice.sgstRate) || 0,
+          igstPercent: Number(invoice.igstRate) || 0,
+        })),
+      };
+
+      console.log(`✅ Invoice ${invoice.invoiceNumber} fetched successfully`);
+      res.status(200).json({
+        message: "Invoice fetched successfully",
+        invoice: formattedInvoice,
+      });
+    } catch (error: any) {
+      console.error("❌ Error fetching invoice:", error.message);
+      res.status(500).json({
+        error: "Failed to fetch invoice",
+        details: error.message,
+      });
+    }
+  });
 }

@@ -19,8 +19,8 @@ import {
   users,
   products,
   marketingAttendance,
-  marketing_Todays,
-  marketing_metrics,
+  marketingTodays,
+  marketingMetrics,
   leaveRequests,
 } from "@shared/schema";
 

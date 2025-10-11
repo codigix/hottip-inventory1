@@ -113,6 +113,9 @@ const recalculateItemAmount = (item: InvoiceItem): number => {
 
 export default function InvoiceManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+
   const [lineItems, setLineItems] = useState<InvoiceItem[]>([
     createEmptyLineItem(),
   ]);
@@ -299,9 +302,21 @@ export default function InvoiceManagement() {
     }
   };
 
-  const handleViewInvoice = (invoiceId: string) => {
-    // For now, just download as view
-    handleDownloadInvoice(invoiceId);
+  const handleViewInvoice = async (invoiceId: string) => {
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch invoice");
+      setSelectedInvoice(data.invoice);
+      setIsViewOpen(true);
+    } catch (err) {
+      console.error("View Invoice Error:", err);
+      toast({
+        title: "Error",
+        description: "Unable to view invoice details.",
+        variant: "destructive",
+      });
+    }
   };
 
   const columns = [
@@ -1200,6 +1215,76 @@ export default function InvoiceManagement() {
             searchable={true}
             searchKey="invoiceNumber"
           />
+          {/* ✅ View Invoice Drawer */}
+          <Drawer open={isViewOpen} onOpenChange={setIsViewOpen}>
+            <DrawerContent className="p-6 max-h-[90vh] overflow-y-auto">
+              <DrawerHeader>
+                <DrawerTitle>Invoice Details</DrawerTitle>
+                <DrawerDescription>
+                  View full invoice details.
+                </DrawerDescription>
+              </DrawerHeader>
+
+              {selectedInvoice ? (
+                <div className="space-y-3 text-sm">
+                  <h3 className="text-lg font-semibold">
+                    {selectedInvoice.invoiceNumber} — {selectedInvoice.customer}
+                  </h3>
+                  <p>
+                    <strong>Date:</strong> {selectedInvoice.invoiceDate}
+                  </p>
+                  <p>
+                    <strong>Due:</strong> {selectedInvoice.dueDate}
+                  </p>
+
+                  <div className="border-t pt-2 mt-2">
+                    <h4 className="font-medium">Items</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Unit</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead>Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedInvoice.lineItems?.map(
+                          (item: any, idx: number) => (
+                            <TableRow key={idx}>
+                              <TableCell>{item.description}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{item.unit}</TableCell>
+                              <TableCell>{item.unitPrice}</TableCell>
+                              <TableCell>{item.amount}</TableCell>
+                            </TableRow>
+                          )
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="border-t pt-3 mt-3 text-right">
+                    <p>Subtotal: ₹{selectedInvoice.subtotalAmount}</p>
+                    <p>
+                      CGST ({selectedInvoice.cgstRate}%): ₹
+                      {selectedInvoice.cgstAmount}
+                    </p>
+                    <p>
+                      SGST ({selectedInvoice.sgstRate}%): ₹
+                      {selectedInvoice.sgstAmount}
+                    </p>
+                    <p className="font-semibold text-lg">
+                      Total: ₹{selectedInvoice.totalAmount}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p>Loading...</p>
+              )}
+            </DrawerContent>
+          </Drawer>
         </CardContent>
       </Card>
     </div>
