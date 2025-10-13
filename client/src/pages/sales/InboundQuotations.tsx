@@ -513,19 +513,22 @@ export default function InboundQuotations() {
     });
   };
 
-  const handleViewQuotation = (quotation: any) => {
-    if (!quotation.attachmentPath) {
-      toast({
-        title: "No Attachment",
-        description: "This quotation doesn't have an uploaded file.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleViewQuotation = async (quotationId: string | number) => {
+    try {
+      const res = await axios.get(`/api/inbound-quotations/${quotationId}`);
+      const filePath: unknown = res.data?.attachmentPath;
 
-    // Open PDF in a new tab
-    const pdfUrl = `${API_BASE_URL}${quotation.attachmentPath}`;
-    window.open(pdfUrl, "_blank");
+      if (typeof filePath === "string" && filePath.trim() !== "") {
+        const backendBaseUrl =
+          import.meta.env.VITE_BACKEND_URL || window.location.origin;
+        const pdfUrl = `${backendBaseUrl}${filePath}`;
+        window.open(pdfUrl, "_blank");
+      } else {
+        toast.error("No file attached for this quotation.");
+      }
+    } catch (error) {
+      toast.error("Failed to load quotation details.");
+    }
   };
 
   const updateStatusMutation = useMutation({
@@ -636,7 +639,7 @@ export default function InboundQuotations() {
               size="sm"
               variant="ghost"
               className="hover:bg-muted"
-              onClick={() => handleViewQuotation(quotation)}
+              onClick={() => handleViewQuotation(quotation.id as string)}
               data-testid={`button-view-inbound-${quotation.id}`}
             >
               <Eye className="h-4 w-4" />

@@ -306,20 +306,43 @@ class Storage {
     return await db
       .select({
         id: inboundQuotations.id,
-        number: inboundQuotations.quotationNumber,
+        quotationNumber: inboundQuotations.quotationNumber,
         senderId: inboundQuotations.senderId,
+        senderType: inboundQuotations.senderType,
+        status: inboundQuotations.status,
         quotationDate: inboundQuotations.quotationDate,
         validUntil: inboundQuotations.validUntil,
-        total: inboundQuotations.totalAmount,
+        subject: inboundQuotations.subject,
+        totalAmount: inboundQuotations.totalAmount,
+        notes: inboundQuotations.notes,
+        attachmentPath: inboundQuotations.attachmentPath,
+        attachmentName: inboundQuotations.attachmentName,
+        createdAt: inboundQuotations.createdAt,
       })
       .from(inboundQuotations);
   }
 
   async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
     const [row] = await db
-      .select()
+      .select({
+        id: inboundQuotations.id,
+        quotationNumber: inboundQuotations.quotationNumber,
+        quotationDate: inboundQuotations.quotationDate,
+        validUntil: inboundQuotations.validUntil,
+        subject: inboundQuotations.subject,
+        totalAmount: inboundQuotations.totalAmount,
+        status: inboundQuotations.status,
+        notes: inboundQuotations.notes,
+        senderId: inboundQuotations.senderId,
+        senderType: inboundQuotations.senderType,
+        attachmentPath: inboundQuotations.attachmentPath,
+        attachmentName: inboundQuotations.attachmentName,
+        userId: inboundQuotations.userId,
+        createdAt: inboundQuotations.createdAt,
+      })
       .from(inboundQuotations)
-      .where(eq(inboundQuotations.id, id));
+      .where(eq(inboundQuotations.id, Number(id)))
+      .limit(1);
     return row;
   }
 
