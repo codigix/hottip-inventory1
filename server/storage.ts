@@ -91,11 +91,14 @@ class Storage {
   }
 
   async deleteCustomer(id: string): Promise<void> {
-    const result = await db.delete(customers).where(eq(customers.id, id));
-    // Optionally check if any row was deleted
-    // if (result.rowCount === 0) {
-    //   throw new Error(`Customer with ID '${id}' not found for deletion.`);
-    // }
+    const deleted = await db
+      .delete(customers)
+      .where(eq(customers.id, id))
+      .returning({ id: customers.id });
+
+    if (deleted.length === 0) {
+      throw new Error(`Customer with ID '${id}' not found for deletion.`);
+    }
   }
 
   // Suppliers CRUD
