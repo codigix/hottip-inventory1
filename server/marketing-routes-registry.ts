@@ -979,11 +979,76 @@ export const createMarketingTask = async (
   res: Response
 ): Promise<void> => {
   try {
-    const taskData = insertMarketingTaskSchema.parse(req.body);
+    // Check if user is authenticated
+    if (!req.user) {
+      console.error(
+        "createMarketingTask: No req.user found - authentication failed"
+      );
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
 
-    taskData.assignedBy = req.user!.id;
-    // Note: createdBy field may need to be added to schema
+    console.log("createMarketingTask: Authenticated user:", req.user);
 
+    // Parse and validate client data (without server-side fields)
+    const validatedData = insertMarketingTaskSchema.parse(req.body);
+
+    // Resolve authenticated user's actual UUID (handle dev tokens with username)
+    let authenticatedUserId = req.user.id;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(authenticatedUserId)) {
+      // Not a UUID - treat as username and look up actual user
+      console.log(
+        "createMarketingTask: Looking up user by username:",
+        req.user.username
+      );
+      const user = await storage.getUserByUsername(req.user.username);
+      if (!user) {
+        console.error(
+          "createMarketingTask: User not found in database:",
+          req.user.username
+        );
+        res
+          .status(401)
+          .json({ error: "Authenticated user not found in database" });
+        return;
+      }
+      authenticatedUserId = user.id;
+      console.log(
+        "createMarketingTask: Resolved to UUID:",
+        authenticatedUserId
+      );
+    }
+
+    // Convert date strings to Date objects for Drizzle
+    const taskData: any = {
+      ...validatedData,
+      assignedTo: validatedData.assignedTo || authenticatedUserId, // Default to authenticated user
+      assignedBy: authenticatedUserId,
+      createdBy: authenticatedUserId,
+    };
+
+    // Convert date strings to Date objects
+    if (taskData.dueDate && typeof taskData.dueDate === "string") {
+      taskData.dueDate = new Date(taskData.dueDate);
+    }
+    if (taskData.startedDate && typeof taskData.startedDate === "string") {
+      taskData.startedDate = new Date(taskData.startedDate);
+    }
+    if (taskData.completedDate && typeof taskData.completedDate === "string") {
+      taskData.completedDate = new Date(taskData.completedDate);
+    }
+
+    // Validate assignedTo user exists
+    const assignedUser = await storage.getUser(taskData.assignedTo);
+    if (!assignedUser) {
+      res.status(400).json({ error: "Assigned user not found" });
+      return;
+    }
+
+    // Validate associated lead if provided
     if (taskData.leadId) {
       const lead = await storage.getLead(taskData.leadId);
       if (!lead) {
@@ -992,6 +1057,7 @@ export const createMarketingTask = async (
       }
     }
 
+    // Validate associated field visit if provided
     if (taskData.fieldVisitId) {
       const visit = await storage.getFieldVisit(taskData.fieldVisitId);
       if (!visit) {
@@ -1010,6 +1076,7 @@ export const createMarketingTask = async (
     });
     res.status(201).json(task);
   } catch (error) {
+    console.error("Error creating marketing task:", error);
     if (error instanceof z.ZodError) {
       res
         .status(400)
