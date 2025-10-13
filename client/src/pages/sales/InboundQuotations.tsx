@@ -541,24 +541,40 @@ export default function InboundQuotations() {
     });
   };
 
-  const handleViewQuotation = (quotation: any) => {
+  const handleViewQuotation = async (quotation: any) => {
     try {
       const filePath = normalizeAttachmentPath(quotation?.attachmentPath);
 
-      if (filePath) {
-        const pdfUrl = buildAttachmentUrl(filePath);
-        window.open(pdfUrl, "_blank", "noopener,noreferrer");
-      } else {
+      if (!filePath) {
         toast({
           title: "No attachment",
           description: "This quotation does not have an uploaded file.",
           variant: "destructive",
         });
+        return;
       }
+
+      const pdfUrl = buildAttachmentUrl(filePath);
+      const response = await fetch(pdfUrl, { credentials: "include" });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = quotation.attachmentName || "quotation.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
+      console.error("Failed to download quotation attachment:", error);
       toast({
-        title: "Preview failed",
-        description: "Unable to load the quotation attachment.",
+        title: "Download failed",
+        description: "Unable to download the quotation attachment.",
         variant: "destructive",
       });
     }
