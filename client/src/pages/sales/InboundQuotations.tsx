@@ -513,6 +513,61 @@ export default function InboundQuotations() {
     });
   };
 
+  const handleViewQuotation = (quotation: any) => {
+    if (!quotation.attachmentPath) {
+      toast({
+        title: "No Attachment",
+        description: "This quotation doesn't have an uploaded file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Open PDF in a new tab
+    const pdfUrl = `${API_BASE_URL}${quotation.attachmentPath}`;
+    window.open(pdfUrl, "_blank");
+  };
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({
+      quotationId,
+      status,
+    }: {
+      quotationId: string | number;
+      status: string;
+    }) => {
+      return apiRequest("PUT", `/inbound-quotations/${quotationId}`, {
+        status,
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: `Quotation ${
+          variables.status === "approved" ? "accepted" : "rejected"
+        } successfully.`,
+      });
+      setActionInProgressId(null);
+    },
+    onError: (error: any) => {
+      console.error("Failed to update quotation status:", error);
+      toast({
+        title: "Error",
+        description:
+          error?.data?.error ||
+          "Failed to update quotation status. Please try again.",
+        variant: "destructive",
+      });
+      setActionInProgressId(null);
+    },
+  });
+
+  const handleUpdateStatus = (quotation: any, status: string) => {
+    setActionInProgressId(quotation.id);
+    updateStatusMutation.mutate({ quotationId: quotation.id, status });
+  };
+
   const columns = [
     {
       key: "quotationNumber",
