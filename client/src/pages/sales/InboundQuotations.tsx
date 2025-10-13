@@ -394,12 +394,10 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import {
-  insertInboundQuotationSchema,
-  type InsertInboundQuotation,
-  type Supplier,
-} from "@shared/schema"; // Import Supplier type
+import { insertInboundQuotationSchema, type Supplier } from "@shared/schema"; // Import Supplier type
 import { z } from "zod";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function InboundQuotations() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -407,9 +405,14 @@ export default function InboundQuotations() {
     uploadURL: string;
     fileName: string;
   } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedQuotation, setSelectedQuotation] = useState<any | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState<
+    string | number | null
+  >(null);
   const { toast } = useToast();
 
-  // Fetch inbound quotations
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["/inbound-quotations"],
   });
@@ -455,7 +458,6 @@ export default function InboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
-      // Convert date strings to Date objects for the API call
       const formattedData = {
         ...data,
         quotationDate: new Date(data.quotationDate),
@@ -477,17 +479,13 @@ export default function InboundQuotations() {
       setUploadedFile(null);
     },
     onError: (error: any) => {
-      // Specify error type
       console.error("Failed to create quotation:", error);
-      // Handle Zod validation errors from the server
       if (error?.data?.details) {
         toast({
           title: "Validation Error",
           description: "Please check the form fields for errors.",
           variant: "destructive",
         });
-        // Optionally, set field errors based on server response
-        // This requires mapping server errors back to form fields
       } else {
         toast({
           title: "Error",
@@ -528,8 +526,7 @@ export default function InboundQuotations() {
       header: "Sender",
       cell: (quotation: any) => (
         <div>
-          <div className="font-light">{quotation.senderId || "N/A"}</div>{" "}
-          {/* Display senderId or a name if joined later */}
+          <div className="font-light">{quotation.senderId || "N/A"}</div>
           <div className="text-xs text-muted-foreground">
             {quotation.senderType?.toUpperCase() || "VENDOR"}
           </div>
@@ -573,31 +570,45 @@ export default function InboundQuotations() {
     {
       key: "actions",
       header: "Actions",
-      cell: (quotation: any) => (
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-view-inbound-${quotation.id}`}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-approve-${quotation.id}`}
-          >
-            <CheckCircle className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-reject-${quotation.id}`}
-          >
-            <XCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+      cell: (quotation: any) => {
+        const isApproved = quotation.status === "approved";
+        const isRejected = quotation.status === "rejected";
+        const isProcessing = actionInProgressId === quotation.id;
+
+        return (
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              onClick={() => handleViewQuotation(quotation)}
+              data-testid={`button-view-inbound-${quotation.id}`}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              disabled={isProcessing || isApproved}
+              onClick={() => handleUpdateStatus(quotation, "approved")}
+              data-testid={`button-approve-${quotation.id}`}
+            >
+              <CheckCircle className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              disabled={isProcessing || isRejected}
+              onClick={() => handleUpdateStatus(quotation, "rejected")}
+              data-testid={`button-reject-${quotation.id}`}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
