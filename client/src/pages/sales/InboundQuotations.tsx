@@ -397,7 +397,35 @@ import {
 import { insertInboundQuotationSchema, type Supplier } from "@shared/schema"; // Import Supplier type
 import { z } from "zod";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/$/,
+  ""
+);
+const BACKEND_BASE_URL =
+  API_BASE_URL.replace(/\/api(?:\/)?$/, "") ||
+  (import.meta.env.VITE_BACKEND_URL as string | undefined) ||
+  "";
+
+const normalizeAttachmentPath = (path: string | null | undefined) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const url = new URL(path);
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return path;
+    }
+  }
+  return path.startsWith("/") ? path : `/${path}`;
+};
+
+const buildAttachmentUrl = (path: string) => {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const base = BACKEND_BASE_URL || window.location.origin;
+  return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+};
 
 export default function InboundQuotations() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -462,7 +490,7 @@ export default function InboundQuotations() {
         ...data,
         quotationDate: new Date(data.quotationDate),
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        attachmentPath: uploadedFile ? uploadedFile.uploadURL : null,
+        attachmentPath: normalizeAttachmentPath(uploadedFile?.uploadURL),
         attachmentName: uploadedFile ? uploadedFile.fileName : null,
       };
 
@@ -513,21 +541,26 @@ export default function InboundQuotations() {
     });
   };
 
-  const handleViewQuotation = async (quotationId: string | number) => {
+  const handleViewQuotation = (quotation: any) => {
     try {
-      const res = await axios.get(`/api/inbound-quotations/${quotationId}`);
-      const filePath: unknown = res.data?.attachmentPath;
+      const filePath = normalizeAttachmentPath(quotation?.attachmentPath);
 
-      if (typeof filePath === "string" && filePath.trim() !== "") {
-        const backendBaseUrl =
-          import.meta.env.VITE_BACKEND_URL || window.location.origin;
-        const pdfUrl = `${backendBaseUrl}${filePath}`;
-        window.open(pdfUrl, "_blank");
+      if (filePath) {
+        const pdfUrl = buildAttachmentUrl(filePath);
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
       } else {
-        toast.error("No file attached for this quotation.");
+        toast({
+          title: "No attachment",
+          description: "This quotation does not have an uploaded file.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      toast.error("Failed to load quotation details.");
+      toast({
+        title: "Preview failed",
+        description: "Unable to load the quotation attachment.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -639,7 +672,7 @@ export default function InboundQuotations() {
               size="sm"
               variant="ghost"
               className="hover:bg-muted"
-              onClick={() => handleViewQuotation(quotation.id as string)}
+              onClick={() => handleViewQuotation(quotation)}
               data-testid={`button-view-inbound-${quotation.id}`}
             >
               <Eye className="h-4 w-4" />

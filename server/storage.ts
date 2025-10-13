@@ -344,7 +344,7 @@ class Storage {
         createdAt: inboundQuotations.createdAt,
       })
       .from(inboundQuotations)
-      .where(eq(inboundQuotations.id, Number(id)))
+      .where(eq(inboundQuotations.id, id))
       .limit(1);
     return row;
   }
