@@ -30,7 +30,9 @@ export function FileUploader({
     if (file.size > maxFileSize) {
       toast({
         title: "File too large",
-        description: `File size must be less than ${Math.round(maxFileSize / (1024 * 1024))}MB`,
+        description: `File size must be less than ${Math.round(
+          maxFileSize / (1024 * 1024)
+        )}MB`,
         variant: "destructive",
       });
       return;
@@ -74,14 +76,26 @@ export function FileUploader({
       // Handle upload completion
       xhr.addEventListener("load", () => {
         if (xhr.status >= 200 && xhr.status < 300) {
+          // Try to parse the response to get the actual file path
+          let filePath = uploadURL;
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.path) {
+              filePath = response.path;
+            }
+          } catch (e) {
+            // If parsing fails, use the original uploadURL
+            console.warn("Could not parse upload response, using uploadURL");
+          }
+
           toast({
             title: "Upload successful",
             description: `${selectedFile.name} has been uploaded successfully.`,
           });
 
-          // Call completion callback
+          // Call completion callback with the actual file path
           onUploadComplete?.({
-            uploadURL,
+            uploadURL: filePath,
             fileName: selectedFile.name,
           });
 
@@ -103,7 +117,8 @@ export function FileUploader({
       xhr.addEventListener("error", () => {
         toast({
           title: "Upload failed",
-          description: "Network error occurred during upload. Please try again.",
+          description:
+            "Network error occurred during upload. Please try again.",
           variant: "destructive",
         });
         setIsUploading(false);
@@ -125,12 +140,12 @@ export function FileUploader({
       xhr.open("PUT", uploadURL);
       xhr.setRequestHeader("Content-Type", selectedFile.type);
       xhr.send(selectedFile);
-
     } catch (error) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your file. Please try again.",
+        description:
+          "There was an error uploading your file. Please try again.",
         variant: "destructive",
       });
       setIsUploading(false);
@@ -202,7 +217,11 @@ export function FileUploader({
             <span>Uploading...</span>
             <span>{Math.round(uploadProgress)}%</span>
           </div>
-          <Progress value={uploadProgress} className="w-full" data-testid="progress-upload" />
+          <Progress
+            value={uploadProgress}
+            className="w-full"
+            data-testid="progress-upload"
+          />
         </div>
       )}
 

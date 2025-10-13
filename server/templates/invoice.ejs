@@ -5,147 +5,350 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tax Invoice - <%= invoice.invoiceNumber %></title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
             color: #000;
+            padding: 15px;
+            max-width: 210mm;
+            margin: 0 auto;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            border-bottom: 3px solid #333;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
         }
-        .company-info, .buyer-info {
-            margin-bottom: 20px;
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            color: #1a1a1a;
         }
-        .invoice-details {
+        .header .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2563eb;
+        }
+        .company-info {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 10px;
+        }
+        .company-details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-top: 6px;
+            padding: 4px 0;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+        .two-column {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .column {
+            flex: 1;
+            border: 1.5px solid #333;
+            padding: 10px;
+        }
+        .column h3 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #2563eb;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 3px;
+        }
+        .buyer-info p, .invoice-info p {
+            margin: 3px 0;
+            font-size: 10px;
+        }
+        .invoice-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px 10px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            border: 1.5px solid #333;
         }
-        th, td {
-            border: 1px solid #000;
-            padding: 8px;
+        table th {
+            background-color: #e5e7eb;
+            font-weight: bold;
+            padding: 8px 6px;
             text-align: left;
+            border: 1px solid #333;
+            font-size: 10px;
         }
-        th {
-            background-color: #f0f0f0;
+        table td {
+            padding: 6px;
+            border: 1px solid #999;
+            font-size: 10px;
+        }
+        table th.text-center, table td.text-center {
+            text-align: center;
+        }
+        table th.text-right, table td.text-right {
+            text-align: right;
+        }
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .bottom-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+        .bank-details {
+            flex: 1;
+            border: 1.5px solid #333;
+            padding: 10px;
+        }
+        .bank-details h3 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+        .bank-details p {
+            margin: 3px 0;
+            font-size: 10px;
         }
         .totals {
-            text-align: right;
+            flex: 1;
+            border: 1.5px solid #333;
+            padding: 10px;
+        }
+        .totals .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 11px;
+        }
+        .totals .row.total {
+            border-top: 2px solid #333;
+            margin-top: 6px;
+            padding-top: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #16a34a;
+        }
+        .amount-words {
+            border: 1.5px solid #333;
+            padding: 8px;
+            margin-bottom: 12px;
+            background-color: #f9fafb;
+            font-size: 10px;
+        }
+        .amount-words strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 11px;
         }
         .declaration {
-            margin-top: 20px;
+            border: 1.5px solid #333;
+            padding: 8px;
+            margin-bottom: 12px;
+            font-size: 10px;
         }
-        .signature {
-            margin-top: 40px;
+        .declaration strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .signature-box {
             text-align: right;
+            padding: 8px;
+        }
+        .signature-box p {
+            margin: 3px 0;
+            font-size: 11px;
+        }
+        .signature-space {
+            height: 50px;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 6px;
+            font-style: italic;
+        }
+        strong {
+            font-weight: 600;
+        }
+        .bold {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
-        <h1>Tax Invoice</h1>
+        <h1><%= company.name %></h1>
+        <p class="title">TAX INVOICE</p>
     </div>
 
+    <!-- Company Info -->
     <div class="company-info">
-        <strong><%= company.name %></strong><br>
-        <%= company.address %><br>
-        GST NO: <%= company.gstNo %><br>
-        State Name: <%= company.stateName %>, Code: <%= company.stateCode %><br>
-        E-Mail: <%= company.email %>
+        <%= company.address %>
+    </div>
+    <div class="company-details">
+        <div><strong>GSTIN:</strong> <%= company.gstNo %></div>
+        <div><strong>State:</strong> <%= company.stateName %>, Code: <%= company.stateCode %></div>
+        <div><strong>Email:</strong> <%= company.email %></div>
     </div>
 
-    <div class="buyer-info">
-        <strong>Buyer (Bill to)</strong><br>
-        <%= buyer.name %><br>
-        <%= buyer.address %><br>
-        GSTIN/UIN: <%= buyer.gstNo %><br>
-        State Name: <%= buyer.stateName %>, Code: <%= buyer.stateCode %>
-    </div>
-
-    <div class="invoice-details">
-        <div>
-            Invoice No.: <%= invoice.invoiceNumber %><br>
-            Date: <%= invoice.date %><br>
-            Payment Terms: <%= invoice.paymentTerms %><br>
-            Buyer's Order No.: <%= invoice.orderNo %><br>
-            Reference No. & Date: <%= invoice.referenceNo %>
+    <!-- Buyer and Invoice Details -->
+    <div class="two-column">
+        <div class="column buyer-info">
+            <h3>Bill To</h3>
+            <p><strong><%= buyer.name %></strong></p>
+            <p><%= buyer.address %></p>
+            <p><strong>GSTIN/UIN:</strong> <%= buyer.gstNo %></p>
+            <p><strong>Place of Supply:</strong> <%= buyer.stateName %><% if (buyer.stateCode !== 'N/A') { %>, Code: <%= buyer.stateCode %><% } %></p>
+        </div>
+        <div class="column">
+            <h3>Invoice Details</h3>
+            <div class="invoice-info">
+                <div><strong>Invoice No:</strong></div>
+                <div style="color: #2563eb; font-weight: bold;"><%= invoice.invoiceNumber %></div>
+                
+                <div><strong>Invoice Date:</strong></div>
+                <div><%= invoice.date %></div>
+                
+                <div><strong>Payment Terms:</strong></div>
+                <div><%= invoice.paymentTerms %></div>
+                
+                <% if (invoice.orderNo) { %>
+                <div><strong>Order No:</strong></div>
+                <div><%= invoice.orderNo %></div>
+                <% } %>
+                
+                <% if (invoice.referenceNo) { %>
+                <div><strong>Reference:</strong></div>
+                <div><%= invoice.referenceNo %></div>
+                <% } %>
+            </div>
         </div>
     </div>
 
-    <h3>Description of Goods</h3>
-    <table>
+    <!-- Items Table -->
+    <table class="items-table">
         <thead>
             <tr>
-                <th>Sr.</th>
-                <th>Description of Goods</th>
-                <th>HSN/SAC</th>
-                <th>Quantity</th>
-                <th>Rate</th>
-                <th>Amount (₹)</th>
+                <th style="width: 5%;" class="text-center">Sr.</th>
+                <th style="width: 35%;">Description of Goods</th>
+                <th style="width: 12%;" class="text-center">HSN/SAC</th>
+                <th style="width: 8%;" class="text-center">Qty</th>
+                <th style="width: 10%;" class="text-center">Unit</th>
+                <th style="width: 15%;" class="text-right">Rate (₹)</th>
+                <th style="width: 15%;" class="text-right">Amount (₹)</th>
             </tr>
         </thead>
         <tbody>
             <% invoice.items.forEach(function(item, i) { %>
             <tr>
-                <td><%= i + 1 %></td>
+                <td class="text-center bold"><%= i + 1 %></td>
                 <td><%= item.description %></td>
-                <td><%= item.hsn %></td>
-                <td><%= item.quantity %></td>
-                <td><%= item.rate.toFixed(2) %></td>
-                <td><%= item.amount.toFixed(2) %></td>
+                <td class="text-center"><%= item.hsn || '-' %></td>
+                <td class="text-center"><%= item.quantity %></td>
+                <td class="text-center"><%= item.unit || 'pcs' %></td>
+                <td class="text-right"><%= item.rate.toFixed(2) %></td>
+                <td class="text-right bold"><%= item.amount.toFixed(2) %></td>
             </tr>
             <% }) %>
         </tbody>
     </table>
 
-    <div class="totals">
-        <% if (invoice.cgstAmount > 0) { %>
-        Subtotal: ₹ <%= invoice.subtotal.toFixed(2) %><br>
-        Discount: ₹ <%= invoice.discount.toFixed(2) %><br>
-        CGST (<%= invoice.cgstRate %>%): ₹ <%= invoice.cgstAmount.toFixed(2) %><br>
-        SGST (<%= invoice.sgstRate %>%): ₹ <%= invoice.sgstAmount.toFixed(2) %><br>
-        Total Amount: ₹ <%= invoice.total.toFixed(2) %>
-        <% } else if (invoice.igstAmount > 0) { %>
-        Subtotal: ₹ <%= invoice.subtotal.toFixed(2) %><br>
-        Discount: ₹ <%= invoice.discount.toFixed(2) %><br>
-        IGST (<%= invoice.igstRate %>%): ₹ <%= invoice.igstAmount.toFixed(2) %><br>
-        Total Amount: ₹ <%= invoice.total.toFixed(2) %>
-        <% } %>
+    <!-- Bank Details and Totals -->
+    <div class="bottom-section">
+        <div class="bank-details">
+            <h3>Company's Bank Details</h3>
+            <p><strong>Bank Name:</strong> <%= company.bankName %></p>
+            <p><strong>A/c No:</strong> <%= company.accountNo %></p>
+            <p><strong>Branch:</strong> <%= company.branch %></p>
+            <p><strong>IFSC Code:</strong> <%= company.ifsc %></p>
+        </div>
+        <div class="totals">
+            <div class="row">
+                <span>Subtotal:</span>
+                <span>₹ <%= invoice.subtotal.toFixed(2) %></span>
+            </div>
+            <% if (invoice.discount > 0) { %>
+            <div class="row" style="color: #dc2626;">
+                <span>Discount:</span>
+                <span>-₹ <%= invoice.discount.toFixed(2) %></span>
+            </div>
+            <% } %>
+            <% if (invoice.cgstAmount > 0) { %>
+            <div class="row">
+                <span>CGST (<%= invoice.cgstRate %>%):</span>
+                <span>₹ <%= invoice.cgstAmount.toFixed(2) %></span>
+            </div>
+            <div class="row">
+                <span>SGST (<%= invoice.sgstRate %>%):</span>
+                <span>₹ <%= invoice.sgstAmount.toFixed(2) %></span>
+            </div>
+            <% } %>
+            <% if (invoice.igstAmount > 0) { %>
+            <div class="row">
+                <span>IGST (<%= invoice.igstRate %>%):</span>
+                <span>₹ <%= invoice.igstAmount.toFixed(2) %></span>
+            </div>
+            <% } %>
+            <div class="row total">
+                <span>Total Amount:</span>
+                <span>₹ <%= invoice.total.toFixed(2) %></span>
+            </div>
+        </div>
     </div>
 
-    <div>
-        Amount Chargeable (in words):<br>
-        INR <%= invoice.amountInWords %> Only
+    <!-- Amount in Words -->
+    <div class="amount-words">
+        <strong>Amount Chargeable (in words):</strong>
+        <span>INR <%= invoice.amountInWords %> Only</span>
     </div>
 
+    <!-- Declaration -->
     <div class="declaration">
-        <strong>Declaration:</strong><br>
-        We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+        <strong>Declaration:</strong>
+        <p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>
     </div>
 
-    <div>
-        <strong>Company's Bank Details</strong><br>
-        Bank Name: <%= company.bankName %><br>
-        A/c No: <%= company.accountNo %><br>
-        Branch & IFSC Code: <%= company.branch %> & <%= company.ifsc %>
+    <!-- Signature -->
+    <div class="signature-section">
+        <div></div>
+        <div class="signature-box">
+            <p><strong>For <%= company.name %></strong></p>
+            <div class="signature-space"></div>
+            <p>Authorised Signatory</p>
+        </div>
     </div>
 
-    <div class="signature">
-        for <%= company.name %><br><br>
-        Authorised Signatory
-    </div>
-
-    <div>
-        This is a Computer Generated Invoice.
+    <!-- Footer -->
+    <div class="footer">
+        This is a Computer Generated Invoice
     </div>
 </body>
 </html>

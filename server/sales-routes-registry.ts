@@ -1,11 +1,16 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import { db } from "./db";
 import {
   customers as customersTable,
   outboundQuotations,
   insertOutboundQuotationSchema,
   invoices,
+  invoiceItems,
+  insertInvoiceSchema,
   invoiceStatus,
+  customers,
+  users,
 } from "@shared/schema";
 import { storage } from "./storage";
 import puppeteer from "puppeteer";
@@ -13,6 +18,7 @@ import ejs from "ejs";
 import path from "path";
 import * as XLSX from "xlsx";
 import { generateInvoicePDF } from "./pdf-generator";
+import { and, eq } from "drizzle-orm";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -29,6 +35,224 @@ export function registerSalesRoutes(
   }
 ) {
   const { requireAuth } = middleware;
+
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    console.log("🟢 Received POST /api/invoices");
+
+    try {
+      const payload = insertInvoiceSchema.parse(req.body);
+      console.log("✅ Invoice data validated");
+
+      const createdInvoice = await db.transaction(async (tx) => {
+        const [invoiceRow] = await tx
+          .insert(invoices)
+          .values({
+            invoiceNumber: payload.invoiceNumber,
+            quotationId: payload.quotationId ?? null,
+            customerId: payload.customerId,
+            userId: payload.userId,
+            status: payload.status ?? "draft",
+            invoiceDate: new Date(payload.invoiceDate),
+            dueDate: new Date(payload.dueDate),
+            subtotalAmount: payload.subtotalAmount,
+            cgstRate: payload.cgstRate ?? 0,
+            cgstAmount: payload.cgstAmount ?? 0,
+            sgstRate: payload.sgstRate ?? 0,
+            sgstAmount: payload.sgstAmount ?? 0,
+            igstRate: payload.igstRate ?? 0,
+            igstAmount: payload.igstAmount ?? 0,
+            discountAmount: payload.discountAmount ?? 0,
+            totalAmount: payload.totalAmount,
+            balanceAmount: payload.balanceAmount ?? payload.totalAmount,
+            billingAddress: payload.billingAddress ?? null,
+            shippingAddress: payload.shippingAddress ?? null,
+            billingGstNumber: payload.billingGstNumber ?? null,
+            placeOfSupply: payload.placeOfSupply ?? null,
+            paymentTerms: payload.paymentTerms ?? null,
+            deliveryTerms: payload.deliveryTerms ?? null,
+            transporterName: payload.transporterName ?? null,
+            ewayBillNumber: payload.ewayBillNumber ?? null,
+            amountInWords: payload.amountInWords ?? null,
+            notes: payload.notes ?? null,
+            packingFee: payload.packingFee ?? 0,
+            shippingFee: payload.shippingFee ?? 0,
+            otherCharges: payload.otherCharges ?? 0,
+          })
+          .returning();
+
+        console.log("💾 Invoice created with ID:", invoiceRow.id);
+
+        const lineItems = payload.lineItems ?? [];
+        if (lineItems.length > 0) {
+          const itemsToInsert = lineItems.map((item) => ({
+            invoiceId: invoiceRow.id,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit ?? "pcs",
+            unitPrice: item.unitPrice,
+            hsnSac: item.hsnSac ?? null,
+            cgstRate: item.cgstRate ?? null,
+            sgstRate: item.sgstRate ?? null,
+            igstRate: item.igstRate ?? null,
+            amount: item.amount ?? item.unitPrice * item.quantity,
+          }));
+
+          await tx.insert(invoiceItems).values(itemsToInsert);
+          console.log(`📦 ${itemsToInsert.length} line item(s) added`);
+        } else {
+          console.log("ℹ️ No line items provided, skipping insert");
+        }
+
+        return invoiceRow.id;
+      });
+
+      console.log("✅ Transaction committed successfully");
+
+      const invoiceWithDetails = await db.query.invoices.findFirst({
+        where: (invoice, { eq }) => eq(invoice.id, createdInvoice),
+        with: {
+          invoiceItems: true,
+        },
+      });
+
+      if (!invoiceWithDetails) {
+        throw new Error("Invoice retrieval failed after insert");
+      }
+
+      const normalizeNumber = (value: unknown) => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === "number") return value;
+        if (typeof value === "bigint") return Number(value);
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      };
+
+      const formatDate = (value: Date | string | null | undefined) => {
+        if (!value) return "";
+        const date = value instanceof Date ? value : new Date(value);
+        return Number.isNaN(date.getTime())
+          ? ""
+          : date.toISOString().split("T")[0];
+      };
+
+      const responsePayload = {
+        invoiceNumber: invoiceWithDetails.invoiceNumber,
+        customerId: invoiceWithDetails.customerId,
+        userId: invoiceWithDetails.userId,
+        invoiceDate: formatDate(invoiceWithDetails.invoiceDate),
+        dueDate: formatDate(invoiceWithDetails.dueDate),
+        subtotalAmount: normalizeNumber(
+          invoiceWithDetails.subtotalAmount ?? payload.subtotalAmount ?? 0
+        ),
+        discountAmount: normalizeNumber(
+          invoiceWithDetails.discountAmount ?? payload.discountAmount ?? 0
+        ),
+        cgstRate: normalizeNumber(
+          invoiceWithDetails.cgstRate ?? payload.cgstRate ?? 0
+        ),
+        cgstAmount: normalizeNumber(
+          invoiceWithDetails.cgstAmount ?? payload.cgstAmount ?? 0
+        ),
+        sgstRate: normalizeNumber(
+          invoiceWithDetails.sgstRate ?? payload.sgstRate ?? 0
+        ),
+        sgstAmount: normalizeNumber(
+          invoiceWithDetails.sgstAmount ?? payload.sgstAmount ?? 0
+        ),
+        igstRate: normalizeNumber(
+          invoiceWithDetails.igstRate ?? payload.igstRate ?? 0
+        ),
+        igstAmount: normalizeNumber(
+          invoiceWithDetails.igstAmount ?? payload.igstAmount ?? 0
+        ),
+        totalAmount: normalizeNumber(
+          invoiceWithDetails.totalAmount ?? payload.totalAmount ?? 0
+        ),
+        balanceAmount: normalizeNumber(
+          invoiceWithDetails.balanceAmount ?? payload.balanceAmount ?? 0
+        ),
+        billingAddress:
+          invoiceWithDetails.billingAddress ?? payload.billingAddress ?? "",
+        shippingAddress:
+          invoiceWithDetails.shippingAddress ?? payload.shippingAddress ?? "",
+        billingGstNumber:
+          invoiceWithDetails.billingGstNumber ?? payload.billingGstNumber ?? "",
+        placeOfSupply:
+          invoiceWithDetails.placeOfSupply ?? payload.placeOfSupply ?? "",
+        paymentTerms:
+          invoiceWithDetails.paymentTerms ?? payload.paymentTerms ?? "",
+        deliveryTerms:
+          invoiceWithDetails.deliveryTerms ?? payload.deliveryTerms ?? "",
+        transporterName:
+          invoiceWithDetails.transporterName ?? payload.transporterName ?? "",
+        ewayBillNumber:
+          invoiceWithDetails.ewayBillNumber ?? payload.ewayBillNumber ?? "",
+        amountInWords:
+          invoiceWithDetails.amountInWords ?? payload.amountInWords ?? "",
+        notes: invoiceWithDetails.notes ?? payload.notes ?? "",
+        packingFee: normalizeNumber(
+          invoiceWithDetails.packingFee ?? payload.packingFee ?? 0
+        ),
+        shippingFee: normalizeNumber(
+          invoiceWithDetails.shippingFee ?? payload.shippingFee ?? 0
+        ),
+        otherCharges: normalizeNumber(
+          invoiceWithDetails.otherCharges ?? payload.otherCharges ?? 0
+        ),
+        lineItems: invoiceWithDetails.invoiceItems.map((item) => ({
+          description: item.description,
+          hsnSac: item.hsnSac ?? "",
+          quantity: normalizeNumber(item.quantity),
+          unit: item.unit ?? "pcs",
+          unitPrice: normalizeNumber(item.unitPrice),
+          cgstRate: normalizeNumber(item.cgstRate),
+          sgstRate: normalizeNumber(item.sgstRate),
+          igstRate: normalizeNumber(item.igstRate),
+          amount:
+            item.amount !== undefined && item.amount !== null
+              ? normalizeNumber(item.amount)
+              : normalizeNumber(item.unitPrice) *
+                normalizeNumber(item.quantity),
+        })),
+      };
+
+      res.status(201).json({
+        message: "Invoice created successfully",
+        invoice: responsePayload,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        console.error("❌ Validation error:", error.errors);
+        res.status(400).json({
+          error: "Invalid invoice data",
+          details: error.errors,
+        });
+        return;
+      }
+
+      if (error?.code === "23505") {
+        const attemptedInvoiceNumber = req.body?.invoiceNumber;
+        console.error(
+          "❌ Duplicate invoice number detected:",
+          attemptedInvoiceNumber,
+          error.detail
+        );
+        res.status(409).json({
+          error: "Invoice number already exists",
+          details: attemptedInvoiceNumber
+            ? `Invoice number ${attemptedInvoiceNumber} is already in use.`
+            : "Invoice number is already in use.",
+        });
+        return;
+      }
+
+      console.error("❌ Internal error creating invoice:", error);
+      res.status(500).json({
+        error: "Failed to create invoice",
+        details: error.message,
+      });
+    }
+  });
 
   // Sales dashboard minimal endpoints
   // Customers CRUD
@@ -731,25 +955,40 @@ export function registerSalesRoutes(
         stateCode: invoice.placeOfSupply?.split(",")[1]?.trim() || "N/A",
       };
 
-      // Prepare invoice items (assuming invoice has items, but schema doesn't have invoice_items yet)
-      // For now, assume items are in quotation or something
-      // Placeholder
-      const items = [
-        {
-          description: "Sample Item",
-          hsn: "85149000",
+      // Fetch actual invoice items from database
+      const invoiceItemsData = await db
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
+
+      // Prepare invoice items for PDF
+      const items = invoiceItemsData.map((item) => ({
+        description: item.description,
+        hsn: item.hsnSac || "",
+        quantity: item.quantity,
+        unit: item.unit || "pcs",
+        rate: Number(item.unitPrice) || 0,
+        amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
+      }));
+
+      // If no items found, use a placeholder
+      if (items.length === 0) {
+        items.push({
+          description: "Invoice Item",
+          hsn: "",
           quantity: 1,
+          unit: "pcs",
           rate: Number(invoice.subtotalAmount) || 0,
           amount: Number(invoice.subtotalAmount) || 0,
-        },
-      ];
+        });
+      }
 
       // Prepare invoice data
       const invoiceData = {
         invoiceNumber: invoice.invoiceNumber,
         date: new Date(invoice.invoiceDate).toLocaleDateString("en-IN"),
         paymentTerms: invoice.paymentTerms || "100% ADVANCE",
-        orderNo: "", // from quotation?
+        orderNo: invoice.quotationId || "",
         referenceNo: "",
         subtotal: Number(invoice.subtotalAmount) || 0,
         discount: Number(invoice.discountAmount) || 0,
@@ -760,7 +999,7 @@ export function registerSalesRoutes(
         igstRate: Number(invoice.igstRate) || 0,
         igstAmount: Number(invoice.igstAmount) || 0,
         total: Number(invoice.totalAmount) || 0,
-        amountInWords: invoice.amountInWords || "Eleven Thousand Eight Hundred",
+        amountInWords: invoice.amountInWords || "Zero",
         items: items,
       };
 
@@ -787,6 +1026,147 @@ export function registerSalesRoutes(
       console.error("❌ Error in GET /api/invoices/:id/pdf:", error);
       res.status(500).json({
         error: "Failed to generate invoice PDF",
+        details: error.message,
+      });
+    }
+  });
+  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
+    console.log("🟢 Received GET /api/invoices/:id");
+
+    try {
+      const { id } = req.params;
+
+      // ✅ Fetch main invoice
+      const [invoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, id));
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // ✅ Fetch customer name (optional)
+      let customerName = "";
+      try {
+        const [customer] = await db
+          .select({ name: customers.name })
+          .from(customers)
+          .where(eq(customers.id, invoice.customerId));
+        customerName = customer?.name || "Unknown Customer";
+      } catch {
+        customerName = "Unknown Customer";
+      }
+
+      // ✅ Fetch line items
+      const items = await db
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
+
+      // ✅ Format structured response
+      const formattedInvoice = {
+        invoiceNumber: invoice.invoiceNumber,
+        customer: customerName,
+        invoiceDate: invoice.invoiceDate?.toISOString().split("T")[0] || "",
+        dueDate: invoice.dueDate?.toISOString().split("T")[0] || "",
+        subtotalAmount: Number(invoice.subtotalAmount) || 0,
+        discountAmount: Number(invoice.discountAmount) || 0,
+        cgstRate: Number(invoice.cgstRate) || 0,
+        cgstAmount: Number(invoice.cgstAmount) || 0,
+        sgstRate: Number(invoice.sgstRate) || 0,
+        sgstAmount: Number(invoice.sgstAmount) || 0,
+        igstRate: Number(invoice.igstRate) || 0,
+        igstAmount: Number(invoice.igstAmount) || 0,
+        totalAmount: Number(invoice.totalAmount) || 0,
+        balanceAmount: Number(invoice.balanceAmount) || 0,
+        billingAddress: invoice.billingAddress || "",
+        shippingAddress: invoice.shippingAddress || "",
+        clientGSTIN: invoice.billingGstNumber || "",
+        placeOfSupply: invoice.placeOfSupply || "",
+        paymentTerms: invoice.paymentTerms || "",
+        deliveryTerms: invoice.deliveryTerms || "",
+        transporter: invoice.transporterName || "",
+        ewayBillNumber: invoice.ewayBillNumber || "",
+        amountInWords: invoice.amountInWords || "",
+        packingCharges: Number(invoice.packingFee) || 0,
+        shippingCharges: Number(invoice.shippingFee) || 0,
+        otherCharges: Number(invoice.otherCharges) || 0,
+        additionalNotes: invoice.notes || "",
+        lineItems: items.map((item) => ({
+          description: item.description,
+          hsn_sac: item.hsnSac || "",
+          hsnSac: item.hsnSac || "",
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: Number(item.unitPrice),
+          amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
+          cgstPercent: Number(invoice.cgstRate) || 0,
+          sgstPercent: Number(invoice.sgstRate) || 0,
+          igstPercent: Number(invoice.igstRate) || 0,
+        })),
+      };
+
+      console.log(`✅ Invoice ${invoice.invoiceNumber} fetched successfully`);
+      res.status(200).json({
+        message: "Invoice fetched successfully",
+        invoice: formattedInvoice,
+      });
+    } catch (error: any) {
+      console.error("❌ Error fetching invoice:", error.message);
+      res.status(500).json({
+        error: "Failed to fetch invoice",
+        details: error.message,
+      });
+    }
+  });
+
+  // ✅ PATCH /api/invoices/:id/status - Update invoice status
+  app.patch("/api/invoices/:id/status", requireAuth, async (req, res) => {
+    console.log("🟢 Received PATCH /api/invoices/:id/status");
+
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      if (
+        !status ||
+        !["draft", "sent", "paid", "overdue", "cancelled"].includes(status)
+      ) {
+        return res.status(400).json({
+          error: "Invalid status",
+          details:
+            "Status must be one of: draft, sent, paid, overdue, cancelled",
+        });
+      }
+
+      // Check if invoice exists
+      const [existingInvoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, id));
+
+      if (!existingInvoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // Update status
+      await db
+        .update(invoices)
+        .set({ status: status as any })
+        .where(eq(invoices.id, id));
+
+      console.log(
+        `✅ Invoice ${existingInvoice.invoiceNumber} status updated to ${status}`
+      );
+      res.status(200).json({
+        message: "Invoice status updated successfully",
+        status,
+      });
+    } catch (error: any) {
+      console.error("❌ Error updating invoice status:", error.message);
+      res.status(500).json({
+        error: "Failed to update invoice status",
         details: error.message,
       });
     }
