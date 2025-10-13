@@ -13,6 +13,7 @@ import {
   users,
 } from "@shared/schema";
 import { storage } from "./storage";
+import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
 import puppeteer from "puppeteer";
 import ejs from "ejs";
 import path from "path";
@@ -35,6 +36,85 @@ export function registerSalesRoutes(
   }
 ) {
   const { requireAuth } = middleware;
+  const objectStorage = new ObjectStorageService();
+
+  app.get("/api/inbound-quotations", requireAuth, async (_req, res) => {
+    try {
+      const quotations = await storage.getInboundQuotations();
+      res.json(quotations);
+    } catch (error) {
+      console.error("❌ Error in GET /api/inbound-quotations:", error);
+      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+    }
+  });
+
+  app.get("/api/inbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const quotation = await storage.getInboundQuotation(id);
+
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+
+      if (!quotation.attachmentPath) {
+        return res
+          .status(404)
+          .json({ error: "Quotation attachment not available" });
+      }
+
+      try {
+        const file = await objectStorage.getObjectEntityFile(
+          quotation.attachmentPath
+        );
+        const [metadata] = await file.getMetadata();
+
+        // Set response headers for inline PDF viewing
+        res.setHeader(
+          "Content-Type",
+          metadata.contentType || "application/pdf"
+        );
+        if (metadata.size) {
+          res.setHeader("Content-Length", metadata.size.toString());
+        }
+        const filename = quotation.attachmentName || "quotation.pdf";
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename="${filename.replace(/"/g, "")}"`
+        );
+
+        const stream = file.createReadStream();
+
+        stream.on("error", (error) => {
+          console.error("❌ Error streaming quotation attachment:", error);
+          if (!res.headersSent) {
+            res
+              .status(500)
+              .json({ error: "Failed to stream quotation attachment" });
+          }
+        });
+
+        stream.pipe(res);
+      } catch (error) {
+        if (error instanceof ObjectNotFoundError) {
+          console.warn(
+            `⚠️ Inbound quotation attachment missing for quotation ${id}`
+          );
+          return res
+            .status(404)
+            .json({ error: "Quotation attachment not found" });
+        }
+
+        console.error("❌ Unexpected error loading attachment:", error);
+        return res
+          .status(500)
+          .json({ error: "Failed to load quotation attachment" });
+      }
+    } catch (error) {
+      console.error("❌ Error in GET /api/inbound-quotations/:id:", error);
+      res.status(500).json({ error: "Failed to fetch inbound quotation" });
+    }
+  });
 
   app.post("/api/invoices", requireAuth, async (req, res) => {
     console.log("🟢 Received POST /api/invoices");

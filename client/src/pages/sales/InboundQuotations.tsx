@@ -394,12 +394,38 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import {
-  insertInboundQuotationSchema,
-  type InsertInboundQuotation,
-  type Supplier,
-} from "@shared/schema"; // Import Supplier type
+import { insertInboundQuotationSchema, type Supplier } from "@shared/schema"; // Import Supplier type
 import { z } from "zod";
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/$/,
+  ""
+);
+const BACKEND_BASE_URL =
+  API_BASE_URL.replace(/\/api(?:\/)?$/, "") ||
+  (import.meta.env.VITE_BACKEND_URL as string | undefined) ||
+  "";
+
+const normalizeAttachmentPath = (path: string | null | undefined) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const url = new URL(path);
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return path;
+    }
+  }
+  return path.startsWith("/") ? path : `/${path}`;
+};
+
+const buildAttachmentUrl = (path: string) => {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const base = BACKEND_BASE_URL || window.location.origin;
+  return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+};
 
 export default function InboundQuotations() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -407,9 +433,14 @@ export default function InboundQuotations() {
     uploadURL: string;
     fileName: string;
   } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedQuotation, setSelectedQuotation] = useState<any | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState<
+    string | number | null
+  >(null);
   const { toast } = useToast();
 
-  // Fetch inbound quotations
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["/inbound-quotations"],
   });
@@ -455,13 +486,12 @@ export default function InboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
-      // Convert date strings to Date objects for the API call
       const formattedData = {
         ...data,
         userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Development user ID
         quotationDate: new Date(data.quotationDate),
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        attachmentPath: uploadedFile ? uploadedFile.uploadURL : null,
+        attachmentPath: normalizeAttachmentPath(uploadedFile?.uploadURL),
         attachmentName: uploadedFile ? uploadedFile.fileName : null,
       };
 
@@ -478,17 +508,13 @@ export default function InboundQuotations() {
       setUploadedFile(null);
     },
     onError: (error: any) => {
-      // Specify error type
       console.error("Failed to create quotation:", error);
-      // Handle Zod validation errors from the server
       if (error?.data?.details) {
         toast({
           title: "Validation Error",
           description: "Please check the form fields for errors.",
           variant: "destructive",
         });
-        // Optionally, set field errors based on server response
-        // This requires mapping server errors back to form fields
       } else {
         toast({
           title: "Error",
@@ -516,6 +542,85 @@ export default function InboundQuotations() {
     });
   };
 
+  const handleViewQuotation = async (quotation: any) => {
+    try {
+      const filePath = normalizeAttachmentPath(quotation?.attachmentPath);
+
+      if (!filePath) {
+        toast({
+          title: "No attachment",
+          description: "This quotation does not have an uploaded file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const pdfUrl = buildAttachmentUrl(filePath);
+      const response = await fetch(pdfUrl, { credentials: "include" });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = quotation.attachmentName || "quotation.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download quotation attachment:", error);
+      toast({
+        title: "Download failed",
+        description: "Unable to download the quotation attachment.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({
+      quotationId,
+      status,
+    }: {
+      quotationId: string | number;
+      status: string;
+    }) => {
+      return apiRequest("PUT", `/inbound-quotations/${quotationId}`, {
+        status,
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: `Quotation ${
+          variables.status === "approved" ? "accepted" : "rejected"
+        } successfully.`,
+      });
+      setActionInProgressId(null);
+    },
+    onError: (error: any) => {
+      console.error("Failed to update quotation status:", error);
+      toast({
+        title: "Error",
+        description:
+          error?.data?.error ||
+          "Failed to update quotation status. Please try again.",
+        variant: "destructive",
+      });
+      setActionInProgressId(null);
+    },
+  });
+
+  const handleUpdateStatus = (quotation: any, status: string) => {
+    setActionInProgressId(quotation.id);
+    updateStatusMutation.mutate({ quotationId: quotation.id, status });
+  };
+
   const columns = [
     {
       key: "quotationNumber",
@@ -529,8 +634,7 @@ export default function InboundQuotations() {
       header: "Sender",
       cell: (quotation: any) => (
         <div>
-          <div className="font-light">{quotation.senderId || "N/A"}</div>{" "}
-          {/* Display senderId or a name if joined later */}
+          <div className="font-light">{quotation.senderId || "N/A"}</div>
           <div className="text-xs text-muted-foreground">
             {quotation.senderType?.toUpperCase() || "VENDOR"}
           </div>
@@ -574,31 +678,45 @@ export default function InboundQuotations() {
     {
       key: "actions",
       header: "Actions",
-      cell: (quotation: any) => (
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-view-inbound-${quotation.id}`}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-approve-${quotation.id}`}
-          >
-            <CheckCircle className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-reject-${quotation.id}`}
-          >
-            <XCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+      cell: (quotation: any) => {
+        const isApproved = quotation.status === "approved";
+        const isRejected = quotation.status === "rejected";
+        const isProcessing = actionInProgressId === quotation.id;
+
+        return (
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              onClick={() => handleViewQuotation(quotation)}
+              data-testid={`button-view-inbound-${quotation.id}`}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              disabled={isProcessing || isApproved}
+              onClick={() => handleUpdateStatus(quotation, "approved")}
+              data-testid={`button-approve-${quotation.id}`}
+            >
+              <CheckCircle className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              disabled={isProcessing || isRejected}
+              onClick={() => handleUpdateStatus(quotation, "rejected")}
+              data-testid={`button-reject-${quotation.id}`}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
