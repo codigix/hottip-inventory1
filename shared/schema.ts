@@ -20,6 +20,31 @@ import { z } from "zod";
 // =====================
 // USERS
 export const userRole = pgEnum("user_role", ["employee", "admin"]);
+
+// =====================
+// MARKETING ENUMS
+// =====================
+export const marketingTaskType = pgEnum("marketing_task_type", [
+  "demo",
+  "email_campaign",
+  "follow_up",
+  "market_research",
+  "other",
+  "phone_call",
+  "presentation",
+  "proposal",
+  "visit_client",
+]);
+
+export const marketingTaskStatus = pgEnum("marketing_task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+
+export const leadPriority = pgEnum("lead_priority", ["low", "medium", "high"]);
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   username: text("username").notNull(),
@@ -227,14 +252,33 @@ export const leads = pgTable("leads", {
 // MARKETING TASKS
 // =====================
 export const marketingTasks = pgTable("marketing_tasks", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 100 }).notNull(),
-  status: varchar("status", { length: 20 }).default("pending"),
-  priority: varchar("priority", { length: 20 }).default("medium"),
-  assignedToUserId: integer("assigned_to").references(() => users.id),
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: marketingTaskType("type").notNull().default("follow_up"),
+  assignedTo: uuid("assignedTo")
+    .notNull()
+    .references(() => users.id),
+  assignedBy: uuid("assignedBy")
+    .notNull()
+    .references(() => users.id),
+  createdBy: uuid("createdBy")
+    .notNull()
+    .references(() => users.id),
+  priority: leadPriority("priority").notNull().default("medium"),
+  status: marketingTaskStatus("status").notNull().default("pending"),
+  dueDate: timestamp("dueDate"),
+  startedDate: timestamp("startedDate"),
+  completedDate: timestamp("completedDate"),
+  leadId: uuid("leadId").references(() => leads.id),
+  fieldVisitId: uuid("fieldVisitId").references(() => fieldVisits.id),
+  customerId: uuid("customerId").references(() => customers.id),
+  estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
+  tags: text("tags").array(),
+  isRecurring: boolean("isRecurring").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-  dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
+  completed_date: timestamp("completed_date"),
+  is_recurring: boolean("is_recurring").default(false),
 });
 
 // =====================
@@ -1248,16 +1292,34 @@ export const insertFieldVisitSchema = z.object({
 });
 
 export const insertMarketingTaskSchema = z.object({
-  title: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedToUserId: z.any().optional(),
-  createdAt: z.string().optional(),
-  dueDate: z.string().optional(),
-  completedDate: z.string().optional(),
-  leadId: z.any().optional(),
-  fieldVisitId: z.any().optional(),
-  assignedBy: z.any().optional(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: z.enum([
+    "demo",
+    "email_campaign",
+    "follow_up",
+    "market_research",
+    "other",
+    "phone_call",
+    "presentation",
+    "proposal",
+    "visit_client",
+  ]),
+  assignedTo: z.string().uuid("assignedTo must be a valid UUID").optional(),
+  // assignedBy and createdBy are server-side only - set in route handler from req.user
+  priority: z.enum(["low", "medium", "high"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
+  dueDate: z.string().datetime().optional().or(z.string().optional()),
+  startedDate: z.string().datetime().optional().or(z.string().optional()),
+  completedDate: z.string().datetime().optional().or(z.string().optional()),
+  leadId: z.string().uuid().optional().or(z.null()),
+  fieldVisitId: z.string().uuid().optional().or(z.null()),
+  customerId: z.string().uuid().optional().or(z.null()),
+  estimatedHours: z.number().optional().or(z.string().optional()),
+  tags: z.array(z.string()).optional(),
+  isRecurring: z.boolean().optional(),
 });
 
 export const insertMarketingAttendanceSchema = z.object({

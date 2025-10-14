@@ -22,6 +22,9 @@ import {
   marketingTodays,
   marketingMetrics,
   leaveRequests,
+  leads,
+  fieldVisits,
+  marketingTasks,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -33,6 +36,12 @@ export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
 export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = typeof leads.$inferInsert;
+export type FieldVisit = typeof fieldVisits.$inferSelect;
+export type InsertFieldVisit = typeof fieldVisits.$inferInsert;
+export type MarketingTask = typeof marketingTasks.$inferSelect;
+export type InsertMarketingTask = typeof marketingTasks.$inferInsert;
 
 import {
   suppliers,
@@ -983,6 +992,128 @@ class Storage {
 
   async deleteInvoice(id: string | number): Promise<void> {
     await db.delete(invoices).where(eq(invoices.id, id));
+  }
+
+  // =====================
+  // MARKETING TASKS CRUD
+  // =====================
+  async getMarketingTasks(): Promise<MarketingTask[]> {
+    return await db
+      .select()
+      .from(marketingTasks)
+      .orderBy(desc(marketingTasks.createdAt));
+  }
+
+  async getMarketingTask(id: string): Promise<MarketingTask | undefined> {
+    const [row] = await db
+      .select()
+      .from(marketingTasks)
+      .where(eq(marketingTasks.id, id));
+    return row;
+  }
+
+  async createMarketingTask(
+    insertTask: InsertMarketingTask
+  ): Promise<MarketingTask> {
+    const [row] = await db
+      .insert(marketingTasks)
+      .values(insertTask)
+      .returning();
+    return row;
+  }
+
+  async updateMarketingTask(
+    id: string,
+    update: Partial<InsertMarketingTask>
+  ): Promise<MarketingTask> {
+    const [row] = await db
+      .update(marketingTasks)
+      .set(update)
+      .where(eq(marketingTasks.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Marketing task with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async deleteMarketingTask(id: string): Promise<void> {
+    await db.delete(marketingTasks).where(eq(marketingTasks.id, id));
+  }
+
+  // =====================
+  // LEADS CRUD
+  // =====================
+  async getLeads(): Promise<Lead[]> {
+    return await db.select().from(leads).orderBy(desc(leads.createdAt));
+  }
+
+  async getLead(id: string): Promise<Lead | undefined> {
+    const [row] = await db.select().from(leads).where(eq(leads.id, id));
+    return row;
+  }
+
+  async createLead(insertLead: InsertLead): Promise<Lead> {
+    const [row] = await db.insert(leads).values(insertLead).returning();
+    return row;
+  }
+
+  async updateLead(id: string, update: Partial<InsertLead>): Promise<Lead> {
+    const [row] = await db
+      .update(leads)
+      .set(update)
+      .where(eq(leads.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Lead with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    await db.delete(leads).where(eq(leads.id, id));
+  }
+
+  // =====================
+  // FIELD VISITS CRUD
+  // =====================
+  async getFieldVisits(): Promise<FieldVisit[]> {
+    return await db
+      .select()
+      .from(fieldVisits)
+      .orderBy(desc(fieldVisits.createdAt));
+  }
+
+  async getFieldVisit(id: string): Promise<FieldVisit | undefined> {
+    const [row] = await db
+      .select()
+      .from(fieldVisits)
+      .where(eq(fieldVisits.id, id));
+    return row;
+  }
+
+  async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
+    const [row] = await db.insert(fieldVisits).values(insertVisit).returning();
+    return row;
+  }
+
+  async updateFieldVisit(
+    id: string,
+    update: Partial<InsertFieldVisit>
+  ): Promise<FieldVisit> {
+    const [row] = await db
+      .update(fieldVisits)
+      .set(update)
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Field visit with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async deleteFieldVisit(id: string): Promise<void> {
+    await db.delete(fieldVisits).where(eq(fieldVisits.id, id));
   }
 }
 
