@@ -3,6 +3,36 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { ObjectStorageService } from "./objectStorage";
 
+function resolveBaseUrl(): string {
+  return (
+    process.env.OBJECT_BASE_URL ||
+    process.env.API_BASE_URL ||
+    process.env.CLIENT_ORIGIN ||
+    "http://localhost:5000"
+  );
+}
+
+function buildAbsoluteUrl(relativePath: string): string {
+  if (/^https?:\/\//i.test(relativePath)) {
+    return relativePath;
+  }
+
+  const base = resolveBaseUrl();
+  try {
+    return new URL(relativePath, base).toString();
+  } catch {
+    const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const normalizedPath = relativePath.startsWith("/")
+      ? relativePath
+      : `/${relativePath}`;
+    return `${trimmedBase}${normalizedPath}`;
+  }
+}
+
+function isLocalStorageBackend(): boolean {
+  return (process.env.STORAGE_BACKEND || "").trim().toLowerCase() === "local";
+}
+
 export function registerFileUploadRoutes(
   app: Express,
   requireAuth: (req: Request, res: Response, next: any) => void
@@ -10,17 +40,19 @@ export function registerFileUploadRoutes(
   // File uploads (generic upload URL)
   app.post("/api/objects/upload", requireAuth, async (_req, res) => {
     try {
-      // Check if object storage is configured (Replit environment)
-      const hasObjectStorage = process.env.PRIVATE_OBJECT_DIR;
+      const usingLocalStorage = isLocalStorageBackend();
+      const hasObjectStorage =
+        Boolean(process.env.PRIVATE_OBJECT_DIR) && !usingLocalStorage;
 
       if (hasObjectStorage) {
         const objectStorage = new ObjectStorageService();
         const uploadURL = await objectStorage.getObjectEntityUploadURL();
         res.json({ uploadURL });
       } else {
-        // Local development: generate a unique ID for the upload
+        // Local file system upload flow
         const uploadId = uuidv4();
-        const uploadURL = `http://localhost:5000/api/objects/local-upload/${uploadId}`;
+        const uploadPath = `/api/objects/local-upload/${uploadId}`;
+        const uploadURL = buildAbsoluteUrl(uploadPath);
         res.json({ uploadURL });
       }
     } catch (e: any) {
@@ -41,8 +73,14 @@ export function registerFileUploadRoutes(
         const path = await import("path");
         const { uploadId } = req.params;
 
+        const envUploadsDir = process.env.PRIVATE_OBJECT_DIR;
+        const uploadsDir = envUploadsDir
+          ? path.isAbsolute(envUploadsDir)
+            ? envUploadsDir
+            : path.join(process.cwd(), envUploadsDir)
+          : path.join(process.cwd(), "uploads");
+
         // Ensure uploads directory exists
-        const uploadsDir = path.join(process.cwd(), "uploads");
         await fs.mkdir(uploadsDir, { recursive: true });
 
         // Save the file (req.body will be a Buffer thanks to express.raw())
@@ -58,7 +96,7 @@ export function registerFileUploadRoutes(
         const localPath = `/objects/uploads/${uploadId}`;
         res.json({
           path: localPath,
-          url: `http://localhost:5000${localPath}`,
+          url: buildAbsoluteUrl(localPath),
         });
       } catch (error: any) {
         console.error("Local upload error:", error);
@@ -76,7 +114,13 @@ export function registerFileUploadRoutes(
       const path = await import("path");
       const { uploadId } = req.params;
 
-      const uploadsDir = path.join(process.cwd(), "uploads");
+      const envUploadsDir = process.env.PRIVATE_OBJECT_DIR;
+      const uploadsDir = envUploadsDir
+        ? path.isAbsolute(envUploadsDir)
+          ? envUploadsDir
+          : path.join(process.cwd(), envUploadsDir)
+        : path.join(process.cwd(), "uploads");
+
       const filePath = path.join(uploadsDir, uploadId);
 
       // Check if file exists
