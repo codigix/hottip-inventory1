@@ -14,6 +14,7 @@ import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
+import { insertLeadSchema } from "../shared/schema";
 import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
@@ -2963,58 +2964,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/marketing/leads", async (req, res) => {
     try {
-      const {
-        firstName,
-        lastName,
-        companyName,
-        email,
-        phone,
-        alternatePhone,
-        address,
-        city,
-        state,
-        zipCode,
-        country,
-        source,
-        sourceDetails,
-        referredBy,
-        requirementDescription,
-        estimatedBudget,
-      } = req.body;
-
-      const validSources = [
-        "other",
-        "referral",
-        "website",
-        "email",
-        "social_media",
-      ];
-      const leadSource = validSources.includes(source) ? source : "other";
+      const leadData = insertLeadSchema.parse(req.body);
 
       const [newLead] = await db
         .insert(leads)
-        .values({
-          firstName,
-          lastName,
-          companyName: companyName || null,
-          email,
-          phone,
-          alternatePhone: alternatePhone || null,
-          address: address || null,
-          city: city || null,
-          state: state || null,
-          zipCode: zipCode || null,
-          country: country || "India",
-          source: leadSource,
-          sourceDetails: sourceDetails || null,
-          referredBy: referredBy || null,
-          requirementDescription: requirementDescription || null,
-          estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
-        })
+        .values(leadData)
         .returning();
 
       res.status(201).json({ message: "Lead created", lead: newLead });
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid lead data", details: err.errors });
+        return;
+      }
       console.error("Error creating lead:", err);
       res.status(500).json({ error: "Failed to create lead" });
     }

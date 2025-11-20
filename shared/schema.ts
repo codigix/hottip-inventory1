@@ -224,7 +224,7 @@ export const insertAdminBackupSchema = z.object({
 // LEADS
 
 export const leads = pgTable("leads", {
-  id: text("id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   firstName: text("firstName").notNull(),
   lastName: text("lastName").notNull(),
   companyName: text("companyName"),
@@ -241,7 +241,7 @@ export const leads = pgTable("leads", {
   referredBy: text("referredBy"),
   requirementDescription: text("requirementDescription"),
   estimatedBudget: numeric("estimatedBudget"),
-  assignedTo: text("assignedTo").references(() => users.id),
+  assignedTo: uuid("assignedTo").references(() => users.id),
   status: text("status").default("new"),
   priority: text("priority").default("medium"),
   createdAt: timestamp("createdAt").defaultNow(),
@@ -400,7 +400,7 @@ export const insertAccountTaskSchema = z.object({
 export const fieldVisits = pgTable("field_visits", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
-  leadId: uuid("leadId") // match exact DB column
+  leadId: text("leadId") // match exact DB column
     .references(() => leads.id)
     .notNull(),
   plannedDate: timestamp("plannedDate").notNull(),
@@ -425,7 +425,7 @@ export const fieldVisits = pgTable("field_visits", {
 // =====================
 export const deliveries = pgTable("deliveries", {
   id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").references(() => suppliers.id),
+  vendorId: uuid("vendor_id").references(() => suppliers.id),
   date: timestamp("date").defaultNow(),
   volume: numeric("volume"),
   status: varchar("status", { length: 20 }).default("pending"),
@@ -694,7 +694,7 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 export const accountsPayables = pgTable("accounts_payables", {
   id: uuid("id").defaultRandom().primaryKey(),
   poId: uuid("poId"),
-  inboundQuotationId: uuid("inboundQuotationId").references(
+  inboundQuotationId: integer("inboundQuotationId").references(
     () => inboundQuotations.id
   ),
   supplierId: uuid("supplierId")
@@ -1265,16 +1265,28 @@ export const fieldVisitCheckOutSchema = z.object({
 
 // Insert missing schemas for registry imports
 export const insertLeadSchema = z.object({
-  firstName: z.string(),
-  lastName: z.string(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   companyName: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
+  alternatePhone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  country: z.string().optional(),
+  source: z.enum(["other", "referral", "website", "email", "social_media"]).optional(),
+  sourceDetails: z.string().optional(),
+  referredBy: z.string().optional(),
+  requirementDescription: z.string().optional(),
+  estimatedBudget: z.string().optional(),
+  assignedTo: z.string().uuid().optional(),
   status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedTo: z.any().optional(),
-  createdBy: z.any().optional(),
-  assignedBy: z.any().optional(),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+  followUpDate: z.string().optional(),
+  createdBy: z.string().uuid().optional(),
+  assignedBy: z.string().uuid().optional(),
 });
 
 export const updateLeadSchema = insertLeadSchema.partial();
@@ -1578,10 +1590,10 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(), // use serial for auto-increment
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: integer("assignedTo")
+  assignedTo: uuid("assignedTo")
     .notNull()
     .references(() => users.id),
-  assignedBy: integer("assignedBy")
+  assignedBy: uuid("assignedBy")
     .notNull()
     .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),
