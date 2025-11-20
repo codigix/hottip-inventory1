@@ -400,7 +400,7 @@ export const insertAccountTaskSchema = z.object({
 export const fieldVisits = pgTable("field_visits", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
-  leadId: uuid("leadId") // match exact DB column
+  leadId: text("leadId") // match exact DB column
     .references(() => leads.id)
     .notNull(),
   plannedDate: timestamp("plannedDate").notNull(),
@@ -425,7 +425,7 @@ export const fieldVisits = pgTable("field_visits", {
 // =====================
 export const deliveries = pgTable("deliveries", {
   id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").references(() => suppliers.id),
+  vendorId: uuid("vendor_id").references(() => suppliers.id),
   date: timestamp("date").defaultNow(),
   volume: numeric("volume"),
   status: varchar("status", { length: 20 }).default("pending"),
@@ -688,7 +688,7 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 export const accountsPayables = pgTable("accounts_payables", {
   id: uuid("id").defaultRandom().primaryKey(),
   poId: uuid("poId"),
-  inboundQuotationId: uuid("inboundQuotationId").references(
+  inboundQuotationId: integer("inboundQuotationId").references(
     () => inboundQuotations.id
   ),
   supplierId: uuid("supplierId")
@@ -1582,10 +1582,10 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(), // use serial for auto-increment
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: integer("assignedTo")
+  assignedTo: uuid("assignedTo")
     .notNull()
     .references(() => users.id),
-  assignedBy: integer("assignedBy")
+  assignedBy: uuid("assignedBy")
     .notNull()
     .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),
