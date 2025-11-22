@@ -1312,4 +1312,228 @@ export function registerAccountsRoutes(app: Express) {
       }
     }
   );
+
+  // Get all account tasks
+  app.get("/api/account-tasks", requireAuth, async (req, res) => {
+    try {
+      const tasks = await db
+        .select({
+          id: accountTasks.id,
+          title: accountTasks.title,
+          description: accountTasks.description,
+          type: accountTasks.type,
+          status: accountTasks.status,
+          priority: accountTasks.priority,
+          dueDate: accountTasks.dueDate,
+          completedDate: accountTasks.completedDate,
+          relatedType: accountTasks.relatedType,
+          relatedId: accountTasks.relatedId,
+          notes: accountTasks.notes,
+          createdAt: accountTasks.createdAt,
+          updatedAt: accountTasks.updatedAt,
+          assignedTo: accountTasks.assignedTo,
+          assignedBy: accountTasks.assignedBy,
+          assignee: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            department: users.department,
+          },
+          assigner: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(accountTasks)
+        .leftJoin(users, eq(accountTasks.assignedTo, users.id))
+        .orderBy(accountTasks.createdAt);
+
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching account tasks:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get single account task
+  app.get("/api/account-tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const task = await db
+        .select({
+          id: accountTasks.id,
+          title: accountTasks.title,
+          description: accountTasks.description,
+          type: accountTasks.type,
+          status: accountTasks.status,
+          priority: accountTasks.priority,
+          dueDate: accountTasks.dueDate,
+          completedDate: accountTasks.completedDate,
+          relatedType: accountTasks.relatedType,
+          relatedId: accountTasks.relatedId,
+          notes: accountTasks.notes,
+          createdAt: accountTasks.createdAt,
+          updatedAt: accountTasks.updatedAt,
+          assignedTo: accountTasks.assignedTo,
+          assignedBy: accountTasks.assignedBy,
+        })
+        .from(accountTasks)
+        .where(eq(accountTasks.id, id))
+        .limit(1);
+
+      if (task.length === 0) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      res.json(task[0]);
+    } catch (error) {
+      console.error("Error fetching account task:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create new account task
+  app.post("/api/account-tasks", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertAccountTaskSchema.parse(req.body);
+
+      // Ensure assignedBy user exists
+      if (data.assignedBy) {
+        const userExists = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.id, data.assignedBy))
+          .limit(1);
+
+        if (userExists.length === 0) {
+          // Create dev user if it doesn't exist (for development only)
+          if (process.env.NODE_ENV === "development" && data.assignedBy === "550e8400-e29b-41d4-a716-446655440000") {
+            try {
+              await db.insert(users).values({
+                id: "550e8400-e29b-41d4-a716-446655440000",
+                username: "dev_admin",
+                email: "dev@example.com",
+                password: "hashedpassword",
+                firstName: "Dev",
+                lastName: "Admin",
+                role: "admin",
+                department: "Administration",
+                isActive: true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            } catch (insertError) {
+              // User already exists, continue
+            }
+          } else {
+            return res.status(400).json({ error: "Assigned by user does not exist" });
+          }
+        }
+      }
+
+      // Ensure assignedTo user exists
+      if (data.assignedTo) {
+        const assigneeExists = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.id, data.assignedTo))
+          .limit(1);
+
+        if (assigneeExists.length === 0) {
+          return res.status(400).json({ error: "Assigned to user does not exist" });
+        }
+      }
+
+      const [newTask] = await db
+        .insert(accountTasks)
+        .values({
+          ...data,
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          relatedId: data.relatedId && data.relatedId !== "" ? data.relatedId : null,
+          relatedType: data.relatedType || null,
+        })
+        .returning();
+
+      res.status(201).json(newTask);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
+        });
+      }
+      console.error("Error creating account task:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update account task
+  app.put("/api/account-tasks/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertAccountTaskSchema.partial().parse(req.body);
+
+      const updateData: any = {
+        ...data,
+        updatedAt: new Date(),
+      };
+
+      if (data.dueDate) {
+        updateData.dueDate = new Date(data.dueDate);
+      }
+      
+      if (data.relatedId !== undefined) {
+        updateData.relatedId = data.relatedId && data.relatedId !== "" ? data.relatedId : null;
+      }
+      
+      if (data.relatedType !== undefined) {
+        updateData.relatedType = data.relatedType || null;
+      }
+
+      const [updatedTask] = await db
+        .update(accountTasks)
+        .set(updateData)
+        .where(eq(accountTasks.id, id))
+        .returning();
+
+      if (!updatedTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
+        });
+      }
+      console.error("Error updating account task:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete account task
+  app.delete("/api/account-tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const [deletedTask] = await db
+        .delete(accountTasks)
+        .where(eq(accountTasks.id, id))
+        .returning();
+
+      if (!deletedTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      res.json({ message: "Task deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting account task:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 }

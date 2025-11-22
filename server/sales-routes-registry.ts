@@ -123,6 +123,44 @@ export function registerSalesRoutes(
       const payload = insertInvoiceSchema.parse(req.body);
       console.log("✅ Invoice data validated");
 
+      const userExists = await db.query.users.findFirst({
+        where: (user, { eq }) => eq(user.id, payload.userId),
+      });
+
+      if (!userExists) {
+        console.error("❌ User not found:", payload.userId);
+        return res.status(400).json({
+          error: "Invalid user ID",
+          details: `User with ID ${payload.userId} does not exist.`,
+        });
+      }
+
+      const customerExists = await db.query.customers.findFirst({
+        where: (customer, { eq }) => eq(customer.id, payload.customerId),
+      });
+
+      if (!customerExists) {
+        console.error("❌ Customer not found:", payload.customerId);
+        return res.status(400).json({
+          error: "Invalid customer ID",
+          details: `Customer with ID ${payload.customerId} does not exist.`,
+        });
+      }
+
+      if (payload.quotationId) {
+        const quotationExists = await db.query.outboundQuotations.findFirst({
+          where: (quotation, { eq }) => eq(quotation.id, payload.quotationId),
+        });
+
+        if (!quotationExists) {
+          console.error("❌ Quotation not found:", payload.quotationId);
+          return res.status(400).json({
+            error: "Invalid quotation ID",
+            details: `Quotation with ID ${payload.quotationId} does not exist.`,
+          });
+        }
+      }
+
       const createdInvoice = await db.transaction(async (tx) => {
         const [invoiceRow] = await tx
           .insert(invoices)

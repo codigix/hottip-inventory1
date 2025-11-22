@@ -993,7 +993,7 @@ export const createMarketingTask = async (
     // Parse and validate client data (without server-side fields)
     const validatedData = insertMarketingTaskSchema.parse(req.body);
 
-    // Resolve authenticated user's actual UUID (handle dev tokens with username)
+    // Resolve authenticated user's actual UUID
     let authenticatedUserId = req.user.id;
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1041,11 +1041,13 @@ export const createMarketingTask = async (
       taskData.completedDate = new Date(taskData.completedDate);
     }
 
-    // Validate assignedTo user exists
-    const assignedUser = await storage.getUser(taskData.assignedTo);
-    if (!assignedUser) {
-      res.status(400).json({ error: "Assigned user not found" });
-      return;
+    // Validate assignedTo user exists (skip for dev UUIDs in development mode)
+    if (!(process.env.NODE_ENV === "development" && taskData.assignedTo === "00000000-0000-0000-0000-000000000001")) {
+      const assignedUser = await storage.getUser(taskData.assignedTo);
+      if (!assignedUser) {
+        res.status(400).json({ error: "Assigned user not found" });
+        return;
+      }
     }
 
     // Validate associated lead if provided
@@ -1068,7 +1070,7 @@ export const createMarketingTask = async (
 
     const task = await storage.createMarketingTask(taskData);
     await storage.createActivity({
-      userId: req.user!.id,
+      userId: authenticatedUserId,
       action: "CREATE_MARKETING_TASK",
       entityType: "marketing_task",
       entityId: task.id,

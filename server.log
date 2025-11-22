@@ -1,0 +1,113 @@
+📋 Registering 47 marketing routes from registry...
+✅ Marketing routes registry registration complete: 47 routes
+📊 Marketing routes registered:
+  GET /api/leads [1 middleware]
+  GET /api/leads/:id [2 middleware]
+  POST /api/leads [1 middleware]
+  PUT /api/leads/:id [2 middleware]
+  DELETE /api/leads/:id [2 middleware]
+  PUT /api/leads/:id/status [2 middleware]
+  POST /api/leads/:id/convert [2 middleware]
+  GET /api/leads/metrics [2 middleware]
+  GET /api/leads/search [1 middleware]
+  GET /api/field-visits [1 middleware]
+  GET /api/field-visits/:id [2 middleware]
+  PUT /api/field-visits/:id [2 middleware]
+  DELETE /api/field-visits/:id [2 middleware]
+  POST /api/field-visits/:id/check-in [2 middleware]
+  POST /api/field-visits/:id/check-out [2 middleware]
+  PUT /api/field-visits/:id/status [2 middleware]
+  GET /api/field-visits/today [1 middleware]
+  GET /api/field-visits/metrics [2 middleware]
+  GET /api/marketing-tasks [1 middleware]
+  GET /api/marketing-tasks/:id [2 middleware]
+  POST /api/marketing-tasks [1 middleware]
+  PUT /api/marketing-tasks/:id [2 middleware]
+  DELETE /api/marketing-tasks/:id [2 middleware]
+  PUT /api/marketing-tasks/:id/status [2 middleware]
+  POST /api/marketing-tasks/:id/complete [2 middleware]
+  GET /api/marketing-tasks/today [1 middleware]
+  GET /api/marketing-tasks/metrics [2 middleware]
+  GET /api/marketing-attendance/today [1 middleware]
+  GET /api/marketing-attendance/metrics [2 middleware]
+  POST /api/marketing-attendance/check-in [1 middleware]
+  POST /api/marketing-attendance/check-out [1 middleware]
+  GET /api/marketing-attendance [1 middleware]
+  GET /api/marketing-attendance/:id [2 middleware]
+  POST /api/marketing-attendance [1 middleware]
+  PUT /api/marketing-attendance/:id [2 middleware]
+  DELETE /api/marketing-attendance/:id [2 middleware]
+  POST /api/marketing-attendance/photo/upload-url [1 middleware]
+  GET /api/leave-requests [1 middleware]
+  GET /api/leave-requests/:id [1 middleware]
+  POST /api/leave-requests [1 middleware]
+  PUT /api/leave-requests/:id [1 middleware]
+  DELETE /api/leave-requests/:id [1 middleware]
+  GET /api/leave-requests/status/:status [1 middleware]
+  GET /api/marketing/dashboard [2 middleware]
+  GET /api/marketing/conversion-rates [2 middleware]
+  GET /api/marketing/team-performance [2 middleware]
+  GET /api/marketing/visit-success-rates [2 middleware]
+⚠️  Marketing route count mismatch: Expected 42, found 47
+📋 Registering 43 logistics routes from registry...
+✅ Logistics routes registry registration complete: 43 routes
+📊 Logistics routes registered:
+  GET /api/logistics/shipments [1 middleware]
+  GET /api/logistics/shipments/active [1 middleware]
+  GET /api/logistics/shipments/overdue [1 middleware]
+  GET /api/logistics/shipments/search [1 middleware]
+  GET /api/logistics/shipments/:id [2 middleware]
+  POST /api/logistics/shipments [1 middleware]
+  PUT /api/logistics/shipments/:id [2 middleware]
+  DELETE /api/logistics/shipments/:id [2 middleware]
+  PUT /api/logistics/shipments/:id/status [2 middleware]
+  GET /api/logistics/shipments/:id/timeline [1 middleware]
+  POST /api/logistics/shipments/:id/close [2 middleware]
+  POST /api/logistics/pod/upload-url [1 middleware]
+  POST /api/logistics/attendance/photo/upload-url [1 middleware]
+  GET /api/logistics/status-updates [1 middleware]
+  POST /api/logistics/status-updates [1 middleware]
+  GET /api/logistics/status-updates/shipment/:shipmentId [1 middleware]
+  GET /api/logistics/checkpoints [1 middleware]
+  POST /api/logistics/checkpoints [1 middleware]
+  GET /api/logistics/checkpoints/shipment/:shipmentId [1 middleware]
+  GET /api/logistics/tasks [1 middleware]
+  GET /api/logistics/tasks/:id [1 middleware]
+  POST /api/logistics/tasks [1 middleware]
+  PUT /api/logistics/tasks/:id [1 middleware]
+  DELETE /api/logistics/tasks/:id [1 middleware]
+  GET /api/logistics/attendance [1 middleware]
+  GET /api/logistics/attendance/today [1 middleware]
+  GET /api/logistics/attendance/metrics [1 middleware]
+  POST /api/logistics/attendance/check-in [1 middleware]
+  PUT /api/logistics/attendance/:id/check-out [1 middleware]
+  POST /api/logistics/attendance/photo/upload-url [1 middleware]
+  PUT /api/logistics/attendance/:id/photo [1 middleware]
+  GET /api/logistics/dashboard [1 middleware]
+  GET /api/logistics/reports/daily [1 middleware]
+  GET /api/logistics/reports/delivery-time [1 middleware]
+  GET /api/logistics/reports/vendor-performance [1 middleware]
+  GET /api/logistics/reports/volume [1 middleware]
+  GET /api/logistics/reports/performance [1 middleware]
+  GET /api/logistics/reports/daily/export [1 middleware]
+  GET /api/logistics/reports/vendor-performance/export [1 middleware]
+  GET /api/logistics/reports/volume/export [1 middleware]
+  GET /api/logistics/reports/performance/export [1 middleware]
+  GET /api/logistics/reports/comprehensive/export [1 middleware]
+  GET /api/logistics/health [0 middleware]
+🔍 Verifying critical status workflow routes:
+  ✅ PUT /api/logistics/shipments/:id/status
+  ✅ POST /api/logistics/shipments/:id/close
+  ✅ POST /api/logistics/pod/upload-url
+Uncaught Exception: Error: listen EADDRINUSE: address already in use :::5000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at start (c:\Users\admin\Desktop\inventory\hottip-inventory1\server\index.ts:62:10) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 5000
+}
+✅ Successfully connected to PostgreSQL

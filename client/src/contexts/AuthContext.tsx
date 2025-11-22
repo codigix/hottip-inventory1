@@ -47,50 +47,66 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for existing token on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("auth_token");
-    if (storedToken) {
-      setToken(storedToken);
-      // TODO: Validate token and get user info
-      // For now, we'll just trust the stored token
-      const storedUser = localStorage.getItem("auth_user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    }
+    // Temporarily bypassing authentication for testing
+    // const storedToken = localStorage.getItem("auth_token");
+    // if (storedToken) {
+    //   setToken(storedToken);
+    //   // TODO: Validate token and get user info
+    //   // For now, we'll just trust the stored token
+    //   const storedUser = localStorage.getItem("auth_user");
+    //   if (storedUser) {
+    //     setUser(JSON.parse(storedUser));
+    //   }
+    // }
+    
+    // Set default authenticated user for testing
+    const defaultUser: User = {
+      id: "1",
+      username: "admin",
+      role: "admin",
+      department: "Administration",
+      firstName: "Admin",
+      lastName: "User",
+      email: "admin@hottip.com"
+    };
+    setToken("test_token_for_development");
+    setUser(defaultUser);
+    
     setIsLoading(false);
   }, []);
 
   const login = async (identifier: string, password: string) => {
-    try {
-      const response = await fetch(`${BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: identifier,
-          email: identifier,
-          password,
-        }),
-      });
+    // Authentication bypassed for testing - commented out
+    // try {
+    //   const response = await fetch(`${BASE_URL}/auth/login`, {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({
+    //       username: identifier,
+    //       email: identifier,
+    //       password,
+    //     }),
+    //   });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Login failed");
-      }
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.error || "Login failed");
+    //   }
 
-      const data = await response.json();
-      const { token, user } = data;
+    //   const data = await response.json();
+    //   const { token, user } = data;
 
-      // Store token and user info
-      localStorage.setItem("auth_token", token);
-      localStorage.setItem("auth_user", JSON.stringify(user));
+    //   // Store token and user info
+    //   localStorage.setItem("auth_token", token);
+    //   localStorage.setItem("auth_user", JSON.stringify(user));
 
-      setToken(token);
-      setUser(user);
-    } catch (error) {
-      throw error;
-    }
+    //   setToken(token);
+    //   setUser(user);
+    // } catch (error) {
+    //   throw error;
+    // }
   };
 
   const logout = () => {

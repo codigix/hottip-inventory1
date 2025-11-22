@@ -82,6 +82,7 @@ import {
 // Schemas - Use shared schemas from drizzle-zod with proper validation
 const taskFormSchema = insertAccountTaskSchema.extend({
   dueDate: z.coerce.date().optional(),
+  relatedId: z.string().refine(val => val === "" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val), "Invalid UUID format").optional(),
 });
 
 const completeTaskSchema = z.object({
@@ -329,12 +330,21 @@ export default function AccountsTasks() {
 
   // Handlers
   const handleCreateSubmit = (data: TaskFormData) => {
-    createTaskMutation.mutate(data);
+    createTaskMutation.mutate({
+      ...data,
+      relatedId: data.relatedId && data.relatedId !== "" ? data.relatedId : undefined,
+      relatedType: data.relatedType && data.relatedType !== "" ? data.relatedType : undefined,
+    });
   };
 
   const handleEditSubmit = (data: TaskFormData) => {
     if (selectedTask) {
-      updateTaskMutation.mutate({ ...data, id: selectedTask.id });
+      updateTaskMutation.mutate({
+        ...data,
+        id: selectedTask.id,
+        relatedId: data.relatedId && data.relatedId !== "" ? data.relatedId : undefined,
+        relatedType: data.relatedType && data.relatedType !== "" ? data.relatedType : undefined,
+      });
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -60,17 +60,13 @@ export default function InventoryTasks() {
     queryKey: ["/api/inventory-tasks"],
   });
 
-  const [employees, setEmployees] = useState<any[]>([]);
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/users`)
-      .then((res) => res.json())
-      .then((data) => setEmployees(data))
-      .catch((err) => console.error(err));
-  }, []);
+  const { data: employees = [] } = useQuery({
+    queryKey: ["/users"],
+  });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: any) =>
-      apiRequest("POST", "/api/inventory-tasks", data),
+      apiRequest("POST", "/inventory-tasks", data),
     onSuccess: () => {
       toast({ title: "Success", description: "Task created successfully" });
       setIsTaskDialogOpen(false);
@@ -88,7 +84,7 @@ export default function InventoryTasks() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async (data: any) =>
-      apiRequest("PUT", `/api/inventory-tasks/${data.id}`, data),
+      apiRequest("PUT", `/inventory-tasks/${data.id}`, data),
     onSuccess: () => {
       toast({ title: "Success", description: "Task updated successfully" });
       setIsUpdateTaskDialogOpen(false);
@@ -329,14 +325,11 @@ export default function InventoryTasks() {
                         <SelectValue placeholder="Select employee..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {employees
-                          .filter((emp) => emp.role === "employee") // optional: only employees
-                          .map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.firstName} {emp.lastName}{" "}
-                              {/* combine firstName + lastName */}
-                            </SelectItem>
-                          ))}
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.firstName} {emp.lastName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

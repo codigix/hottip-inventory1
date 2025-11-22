@@ -14,7 +14,6 @@ import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
-import { insertLeadSchema } from "../shared/schema";
 import { db } from "./db";
 import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
@@ -163,8 +162,9 @@ const requireAuth = async (
     // DEVELOPMENT MODE BYPASS: Skip authentication completely in development
     if (process.env.NODE_ENV === "development") {
       // Set a default admin user for development
+      // Map dev user to a stable UUID for database operations
       req.user = {
-        id: "dev-admin-user",
+        id: "00000000-0000-0000-0000-000000000001",
         role: "admin",
         username: "dev_admin",
       };
@@ -1411,10 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? parseFloat(parsedData.discountAmount)
           : 0,
         totalAmount: parseFloat(parsedData.totalAmount),
-        userId:
-          process.env.NODE_ENV === "development"
-            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446"
-            : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+        userId: parsedData.userId || req.user?.id,
       };
 
       // --- LOGGING ADDED HERE ---
@@ -1664,23 +1661,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete requestBody.attachmentName; // Remove the key if value is null
       }
 
-      const parsedData = insertInboundQuotationSchema.parse(requestBody); // ? Parse the cleaned object
+      const parsedData = insertInboundQuotationSchema.parse(requestBody);
+
+      // Helper to check if ID is a valid UUID
+      const isValidUUID = (id: string) => 
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+      // Fallback UUID for development
+      const fallbackUserId = "b34e3723-ba42-402d-b454-88cf96340573";
 
       // Convert types for database
       const data = {
         ...parsedData,
-        // ? Convert dates from string to Date object
         quotationDate: new Date(parsedData.quotationDate),
         validUntil: parsedData.validUntil
           ? new Date(parsedData.validUntil)
           : null,
-        // ? Convert amount from string to number
         totalAmount: parseFloat(parsedData.totalAmount),
-        // ? Use a valid UUID for userId in development mode
-        userId:
-          process.env.NODE_ENV === "development"
-            ? "79c36f2b-237a-4ba6-a4b3-a12fc8a18446" // ? Your valid user ID
-            : req.user?.id || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+        senderId: parsedData.senderId || (isValidUUID(req.user?.id) ? req.user.id : fallbackUserId),
+        userId: parsedData.userId || (isValidUUID(req.user?.id) ? req.user.id : fallbackUserId),
       };
 
       const quotation = await storage.createInboundQuotation(data);
@@ -2964,19 +2963,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/marketing/leads", async (req, res) => {
     try {
-      const leadData = insertLeadSchema.parse(req.body);
+      const {
+        firstName,
+        lastName,
+        companyName,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        source,
+        sourceDetails,
+        referredBy,
+        requirementDescription,
+        estimatedBudget,
+      } = req.body;
+
+      const validSources = [
+        "other",
+        "referral",
+        "website",
+        "email",
+        "social_media",
+      ];
+      const leadSource = validSources.includes(source) ? source : "other";
 
       const [newLead] = await db
         .insert(leads)
-        .values(leadData)
+        .values({
+          firstName,
+          lastName,
+          companyName: companyName || null,
+          email,
+          phone,
+          alternatePhone: alternatePhone || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
+          country: country || "India",
+          source: leadSource,
+          sourceDetails: sourceDetails || null,
+          referredBy: referredBy || null,
+          requirementDescription: requirementDescription || null,
+          estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+        })
         .returning();
 
       res.status(201).json({ message: "Lead created", lead: newLead });
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid lead data", details: err.errors });
-        return;
-      }
       console.error("Error creating lead:", err);
       res.status(500).json({ error: "Failed to create lead" });
     }

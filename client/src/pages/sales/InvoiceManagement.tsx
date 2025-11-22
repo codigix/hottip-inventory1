@@ -162,7 +162,7 @@ export default function InvoiceManagement() {
       balanceAmount: 0,
       invoiceNumber: "",
       customerId: "",
-      userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Default user ID
+      userId: "b34e3723-ba42-402d-b454-88cf96340573", // Default user ID
       billingAddress: "",
       shippingAddress: "",
       billingGstNumber: "",

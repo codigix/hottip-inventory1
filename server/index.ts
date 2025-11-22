@@ -5,10 +5,47 @@ import morgan from "morgan";
 import helmet from "helmet";
 import compression from "compression";
 import { registerRoutes } from "./routes";
+import { db } from "./db";
+import { users } from "../shared/schema";
+import { eq } from "drizzle-orm";
 
 // Ensure development mode by default for local running to enable dev auth bypass
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = "development";
+}
+
+async function ensureDevUserExists() {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  const devUserId = "00000000-0000-0000-0000-000000000001";
+  try {
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, devUserId))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return;
+    }
+
+    await db.insert(users).values({
+      id: devUserId,
+      username: "dev_admin",
+      email: "dev@example.com",
+      password: "dev",
+      role: "admin",
+      firstName: "Dev",
+      lastName: "Admin",
+      isActive: true,
+    });
+
+    console.log("✅ Development user created successfully");
+  } catch (error) {
+    console.warn("⚠️ Failed to ensure dev user exists:", error);
+  }
 }
 
 async function start() {
@@ -43,6 +80,9 @@ async function start() {
 
   // Register all application routes (auth, marketing, logistics, etc.)
   const server = await registerRoutes(app);
+
+  // Ensure dev user exists in development mode
+  await ensureDevUserExists();
 
   // Global error handler (fallback)
   app.use(
