@@ -117,7 +117,7 @@ export default function OutboundQuotations() {
       totalAmount: "0.00",
       quotationNumber: "",
       customerId: "",
-      userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
+      userId: "b34e3723-ba42-402d-b454-88cf96340573", // Real user ID from database
       deliveryTerms: "",
       paymentTerms: "",
       bankingDetails: "",
@@ -242,7 +242,7 @@ export default function OutboundQuotations() {
     mutationFn: (data: z.infer<typeof quotationFormSchema>) =>
       apiRequest("POST", "/outbound-quotations", {
         ...data,
-        userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
+        userId: "b34e3723-ba42-402d-b454-88cf96340573", // Real user ID from database
         moldDetails,
         quotationItems,
       }),
@@ -308,7 +308,7 @@ export default function OutboundQuotations() {
       discountAmount: String(quotation.discountAmount),
       totalAmount: String(quotation.totalAmount),
       customerId: quotation.customerId || "",
-      userId: quotation.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446",
+      userId: quotation.userId || "b34e3723-ba42-402d-b454-88cf96340573",
       status: quotation.status || "draft",
       projectIncharge: quotation.projectIncharge || "",
       bankingDetails: quotation.bankingDetails || "",
@@ -409,7 +409,7 @@ export default function OutboundQuotations() {
         invoiceNumber,
         quotationId: quotation.id,
         customerId: quotation.customerId,
-        userId: quotation.userId || "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Default user ID
+        userId: quotation.userId || "b34e3723-ba42-402d-b454-88cf96340573", // Default user ID
         status: "draft" as const,
         invoiceDate,
         dueDate,
@@ -2253,7 +2253,7 @@ export default function OutboundQuotations() {
                   `/outbound-quotations/${selectedQuotation.id}`,
                   {
                     ...data,
-                    userId: "79c36f2b-237a-4ba6-a4b3-a12fc8a18446", // Real user ID from database
+                    userId: "b34e3723-ba42-402d-b454-88cf96340573", // Real user ID from database
                   }
                 )
                   .then(() => {

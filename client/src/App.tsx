@@ -25,14 +25,14 @@ function AppRouter() {
   if (isLoading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
 
   // Public routes
-  if (location === "/login") return <Login />;
-  if (location === "/register") return <Register />;
+  // if (location === "/login") return <Login />;
+  // if (location === "/register") return <Register />;
 
   // If not authenticated, redirect to login
-  if (!isAuthenticated) {
-    setTimeout(() => setLocation("/login"), 0);
-    return null;
-  }
+  // if (!isAuthenticated) {
+  //   setTimeout(() => setLocation("/login"), 0);
+  //   return null;
+  // }
 
   // Authenticated routes
   return (

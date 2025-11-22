@@ -70,11 +70,20 @@ import { insertAccountsPayableSchema } from "@shared/schema";
 import type { AccountsPayable, InsertAccountsPayable } from "@shared/schema";
 import { z } from "zod";
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Schemas
 const payableFormSchema = insertAccountsPayableSchema.extend({
+  poId: z.string().optional(),
+  inboundQuotationId: z.string().optional(),
   amountDue: z.string().min(1, "Amount due is required"),
   dueDate: z.string().min(1, "Due date is required"),
 });
+
+const isValidUUID = (val: string): boolean => {
+  if (!val || !val.trim()) return true;
+  return uuidRegex.test(val);
+};
 
 type PayableFormData = z.infer<typeof payableFormSchema>;
 
@@ -160,15 +169,24 @@ export default function AccountsPayables() {
   // Mutations
   const createPayableMutation = useMutation({
     mutationFn: (data: PayableFormData) => {
+      const poIdTrimmed = data.poId?.trim() || "";
+      const quotationIdTrimmed = data.inboundQuotationId?.trim() || "";
+
+      if (!isValidUUID(poIdTrimmed)) {
+        throw new Error("PO ID must be a valid UUID or empty");
+      }
+      if (!isValidUUID(quotationIdTrimmed)) {
+        throw new Error("Quotation ID must be a valid UUID or empty");
+      }
+
       const payload: any = {
         supplierId: data.supplierId,
         amountDue: parseFloat(data.amountDue),
         dueDate: new Date(data.dueDate).toISOString(),
         notes: data.notes,
+        poId: poIdTrimmed,
+        inboundQuotationId: quotationIdTrimmed,
       };
-      if (data.poId && data.poId !== "none") payload.poId = data.poId;
-      if (data.inboundQuotationId && data.inboundQuotationId !== "none")
-        payload.inboundQuotationId = data.inboundQuotationId;
       return apiRequest("/accounts-payables", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -184,10 +202,11 @@ export default function AccountsPayables() {
       setIsCreateOpen(false);
       createForm.reset();
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to create payable";
       toast({
         title: "Error",
-        description: "Failed to create payable",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -195,15 +214,24 @@ export default function AccountsPayables() {
 
   const updatePayableMutation = useMutation({
     mutationFn: ({ id, ...data }: PayableFormData & { id: string }) => {
+      const poIdTrimmed = data.poId?.trim() || "";
+      const quotationIdTrimmed = data.inboundQuotationId?.trim() || "";
+
+      if (!isValidUUID(poIdTrimmed)) {
+        throw new Error("PO ID must be a valid UUID or empty");
+      }
+      if (!isValidUUID(quotationIdTrimmed)) {
+        throw new Error("Quotation ID must be a valid UUID or empty");
+      }
+
       const payload: any = {
         supplierId: data.supplierId,
         amountDue: parseFloat(data.amountDue),
         dueDate: new Date(data.dueDate).toISOString(),
         notes: data.notes,
+        poId: poIdTrimmed,
+        inboundQuotationId: quotationIdTrimmed,
       };
-      if (data.poId && data.poId !== "none") payload.poId = data.poId;
-      if (data.inboundQuotationId && data.inboundQuotationId !== "none")
-        payload.inboundQuotationId = data.inboundQuotationId;
       return apiRequest(`/accounts-payables/${id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
@@ -219,10 +247,11 @@ export default function AccountsPayables() {
       setIsEditOpen(false);
       setSelectedPayable(null);
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to update payable";
       toast({
         title: "Error",
-        description: "Failed to update payable",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -301,8 +330,8 @@ export default function AccountsPayables() {
     setSelectedPayable(payable);
     editForm.reset({
       supplierId: payable.supplierId,
-      poId: payable.poId || "",
-      inboundQuotationId: payable.inboundQuotationId || "",
+      poId: payable.poId ? String(payable.poId) : "",
+      inboundQuotationId: payable.inboundQuotationId ? String(payable.inboundQuotationId) : "",
       amountDue: payable.amountDue.toString(),
       dueDate: payable.dueDate.split("T")[0],
       notes: payable.notes || "",
@@ -434,24 +463,14 @@ export default function AccountsPayables() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Purchase Order (Optional)</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-po">
-                            <SelectValue placeholder="Select PO" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No PO</SelectItem>
-                          {purchaseOrders.map((po: any) => (
-                            <SelectItem key={po.id} value={po.id}>
-                              {po.number} - ₹{po.total}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="Enter PO ID or leave empty"
+                          data-testid="input-po-id"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -462,24 +481,14 @@ export default function AccountsPayables() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Inbound Quotation (Optional)</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-quotation">
-                            <SelectValue placeholder="Select quotation" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Quotation</SelectItem>
-                          {inboundQuotations.map((quotation: any) => (
-                            <SelectItem key={quotation.id} value={quotation.id}>
-                              {quotation.number} - ₹{quotation.total}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="Enter Quotation ID or leave empty"
+                          data-testid="input-quotation-id"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

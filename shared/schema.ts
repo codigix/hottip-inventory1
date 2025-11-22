@@ -224,7 +224,7 @@ export const insertAdminBackupSchema = z.object({
 // LEADS
 
 export const leads = pgTable("leads", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id").primaryKey(),
   firstName: text("firstName").notNull(),
   lastName: text("lastName").notNull(),
   companyName: text("companyName"),
@@ -241,7 +241,7 @@ export const leads = pgTable("leads", {
   referredBy: text("referredBy"),
   requirementDescription: text("requirementDescription"),
   estimatedBudget: numeric("estimatedBudget"),
-  assignedTo: uuid("assignedTo").references(() => users.id),
+  assignedTo: text("assignedTo").references(() => users.id),
   status: text("status").default("new"),
   priority: text("priority").default("medium"),
   createdAt: timestamp("createdAt").defaultNow(),
@@ -385,13 +385,13 @@ export const insertAccountTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   type: z.string().optional(),
-  assignedTo: z.string().uuid("Assigned To must be a valid UUID"),
+  assignedTo: z.union([z.string().uuid(), z.literal("")]).refine(val => val !== "", "Assigned To is required"),
   assignedBy: z.string().uuid("Assigned By must be a valid UUID"),
   status: z.enum(["open", "in_progress", "done"]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   dueDate: z.string().optional(),
   relatedType: z.string().optional(),
-  relatedId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  relatedId: z.string().refine(val => val === "" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val), "Invalid UUID format").optional(),
   notes: z.string().optional(),
 });
 // =====================
@@ -400,7 +400,7 @@ export const insertAccountTaskSchema = z.object({
 export const fieldVisits = pgTable("field_visits", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
-  leadId: text("leadId") // match exact DB column
+  leadId: uuid("leadId") // match exact DB column
     .references(() => leads.id)
     .notNull(),
   plannedDate: timestamp("plannedDate").notNull(),
@@ -425,7 +425,7 @@ export const fieldVisits = pgTable("field_visits", {
 // =====================
 export const deliveries = pgTable("deliveries", {
   id: serial("id").primaryKey(),
-  vendorId: uuid("vendor_id").references(() => suppliers.id),
+  vendorId: integer("vendor_id").references(() => suppliers.id),
   date: timestamp("date").defaultNow(),
   volume: numeric("volume"),
   status: varchar("status", { length: 20 }).default("pending"),
@@ -462,38 +462,33 @@ export const gstTypeEnum = pgEnum("gst_type", ["IGST", "CGST_SGST"]);
 export const outboundQuotations = pgTable("outbound_quotations", {
   id: serial("id").primaryKey(),
   quotationNumber: text("quotationNumber").notNull(),
-  // Change this line:
-  customerId: uuid("customerId").references(() => customers.id), // Use uuid, not integer
-  userId: uuid("userId").notNull(),
+  customerId: uuid("customerId").references(() => customers.id),
+  userId: uuid("userId").notNull().references(() => users.id),
   status: text("status"),
   quotationDate: timestamp("quotationDate").notNull(),
   validUntil: timestamp("validUntil"),
   jobCardNumber: text("jobCardNumber"),
   partNumber: text("partNumber"),
   subtotalAmount: numeric("subtotalAmount").notNull(),
-  taxAmount: numeric("taxamount"),
-  discountAmount: numeric("discountamount"),
-  totalAmount: numeric("totalamount").notNull(),
-  paymentTerms: text("paymentterms"),
-  deliveryTerms: text("deliveryterms"),
+  taxAmount: numeric("taxAmount"),
+  discountAmount: numeric("discountAmount"),
+  totalAmount: numeric("totalAmount").notNull(),
+  paymentTerms: text("paymentTerms"),
+  deliveryTerms: text("deliveryTerms"),
   packaging: text("packaging"),
   notes: text("notes"),
-  // New fields for detailed quotation
   projectIncharge: text("projectIncharge"),
-  moldDetails: jsonb("moldDetails"), // Array of mold/part details
-  quotationItems: jsonb("quotationItems"), // Array of quotation line items
+  moldDetails: jsonb("moldDetails"),
+  quotationItems: jsonb("quotationItems"),
   termsConditions: text("termsConditions"),
-  // GST Details
   gstType: gstTypeEnum("gstType").default("IGST"),
   gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default(
     "18"
   ),
-  // Banking Details (separate fields)
   bankName: text("bankName"),
   bankAccountNo: text("bankAccountNo"),
   bankIfscCode: text("bankIfscCode"),
   bankBranch: text("bankBranch"),
-  // Company Details (for PDF header)
   companyName: text("companyName"),
   companyAddress: text("companyAddress"),
   companyGstin: text("companyGstin"),
@@ -520,19 +515,21 @@ const quotationStatus = pgEnum("quotation_status", [
   "rejected",
 ]);
 export const inboundQuotations = pgTable("inbound_quotations", {
-  id: serial("id").primaryKey(), // Matches migration: serial
-  quotationNumber: varchar("quotationNumber", { length: 50 }).notNull(), // Matches DB column
-  quotationDate: timestamp("quotationDate").notNull(), // Matches DB column
-  validUntil: timestamp("validUntil"), // Matches DB column
-  subject: text("subject"), // Matches DB column
-  totalAmount: numeric("totalAmount").notNull(), // Matches DB column
-  status: varchar("status", { length: 20 }).notNull().default("received"), // Matches DB column
-  notes: text("notes"), // Matches DB column
-  attachmentPath: text("attachmentPath"), // Matches DB column
-  attachmentName: text("attachmentName"), // Matches DB column
-  senderId: uuid("senderId").references(() => users.id), // Matches DB column
-  senderType: varchar("senderType", { length: 20 }).notNull().default("vendor"), // Matches DB column
-  createdAt: timestamp("createdAt").defaultNow(), // Matches DB column
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationNumber: text("quotationNumber").notNull(),
+  quotationDate: timestamp("quotationDate").notNull(),
+  validUntil: timestamp("validUntil"),
+  subject: text("subject"),
+  totalAmount: numeric("totalAmount"),
+  status: text("status").notNull().default("received"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  attachmentName: text("attachmentName"),
+  senderId: uuid("senderId").notNull().references(() => users.id),
+  userId: uuid("userId").notNull().references(() => users.id),
+  senderType: text("senderType").notNull().default("vendor"),
+  quotationRef: text("quotationRef"),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 
 // =====================
@@ -593,8 +590,8 @@ export const products = pgTable("products", {
   category: text("category").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull().default(0),
   stock: integer("stock").notNull().default(0),
-  costPrice: decimal("cost_price", { precision: 10, scale: 2 }).default(0),
-  lowStockThreshold: integer("low_stock_threshold").default(0),
+  costPrice: decimal("costPrice", { precision: 10, scale: 2 }).default(0),
+  lowStockThreshold: integer("lowStockThreshold").default(0),
   unit: text("unit"),
 });
 
@@ -688,7 +685,7 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 export const accountsPayables = pgTable("accounts_payables", {
   id: uuid("id").defaultRandom().primaryKey(),
   poId: uuid("poId"),
-  inboundQuotationId: integer("inboundQuotationId").references(
+  inboundQuotationId: uuid("inboundQuotationId").references(
     () => inboundQuotations.id
   ),
   supplierId: uuid("supplierId")
@@ -962,22 +959,22 @@ export const insertOutboundQuotationSchema = z.object({
     .optional(),
 });
 export const insertInboundQuotationSchema = z.object({
-  // ✅ Use UUID for senderId
-  senderId: z.string().uuid("Sender ID must be a valid UUID"),
-  // ✅ Add all required fields
+  senderId: z.string().uuid("Sender ID must be a valid UUID").optional(),
+  userId: z.string().uuid("User ID must be a valid UUID").optional(),
   quotationNumber: z.string().min(1, "Quotation number is required"),
-  quotationDate: z.string().or(z.date()), // Accept string or Date
-  validUntil: z.string().or(z.date()).optional(), // Accept string or Date
+  quotationDate: z.string().or(z.date()),
+  validUntil: z.string().or(z.date()).optional(),
   subject: z.string().optional(),
   totalAmount: z.string().min(1, "Total amount is required"),
   status: z
     .enum(["received", "under_review", "approved", "rejected"])
+    .optional()
     .default("received"),
   notes: z.string().optional(),
-  senderType: z.enum(["client", "vendor", "supplier"]).default("vendor"),
-  // ✅ Add attachment fields
+  senderType: z.enum(["client", "vendor", "supplier"]).optional().default("vendor"),
   attachmentPath: z.string().optional(),
   attachmentName: z.string().optional(),
+  quotationRef: z.string().optional(),
 });
 export const insertInvoiceSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),
@@ -1182,8 +1179,8 @@ export const insertGstReturnSchema = z.object({
 
 // Accounts Payable schema
 export const insertAccountsPayableSchema = z.object({
-  poId: z.string().uuid().optional(),
-  inboundQuotationId: z.string().uuid().optional(),
+  poId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  inboundQuotationId: z.union([z.string().uuid(), z.literal("")]).optional(),
   supplierId: z.string().uuid(),
   amountDue: z.number().positive(),
   dueDate: z.string(),
@@ -1257,28 +1254,16 @@ export const fieldVisitCheckOutSchema = z.object({
 
 // Insert missing schemas for registry imports
 export const insertLeadSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
+  firstName: z.string(),
+  lastName: z.string(),
   companyName: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().email().optional(),
   phone: z.string().optional(),
-  alternatePhone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  country: z.string().optional(),
-  source: z.enum(["other", "referral", "website", "email", "social_media"]).optional(),
-  sourceDetails: z.string().optional(),
-  referredBy: z.string().optional(),
-  requirementDescription: z.string().optional(),
-  estimatedBudget: z.string().optional(),
-  assignedTo: z.string().uuid().optional(),
   status: z.string().optional(),
-  priority: z.enum(["low", "medium", "high"]).optional(),
-  followUpDate: z.string().optional(),
-  createdBy: z.string().uuid().optional(),
-  assignedBy: z.string().uuid().optional(),
+  priority: z.string().optional(),
+  assignedTo: z.any().optional(),
+  createdBy: z.any().optional(),
+  assignedBy: z.any().optional(),
 });
 
 export const updateLeadSchema = insertLeadSchema.partial();
@@ -1582,10 +1567,10 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(), // use serial for auto-increment
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: uuid("assignedTo")
+  assignedTo: integer("assignedTo")
     .notNull()
     .references(() => users.id),
-  assignedBy: uuid("assignedBy")
+  assignedBy: integer("assignedBy")
     .notNull()
     .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),
