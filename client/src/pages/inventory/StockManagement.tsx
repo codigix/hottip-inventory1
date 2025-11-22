@@ -68,39 +68,39 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
         <div className="space-y-3">
           <div>
             <Label>Name</Label>
-            <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-tour="inventory-edit-name-input" />
           </div>
           <div>
             <Label>SKU</Label>
-            <Input value={form.sku || ''} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} />
+            <Input value={form.sku || ''} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} data-tour="inventory-edit-sku-input" />
           </div>
           <div>
             <Label>Category</Label>
-            <Input value={form.category || ''} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
+            <Input value={form.category || ''} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} data-tour="inventory-edit-category-input" />
           </div>
           <div>
             <Label>Current Stock</Label>
-            <Input type="number" value={form.stock ?? ''} onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} />
+            <Input type="number" value={form.stock ?? ''} onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} data-tour="inventory-edit-stock-input" />
           </div>
           <div>
             <Label>Low Stock Threshold</Label>
-            <Input type="number" value={form.lowStockThreshold ?? ''} onChange={e => setForm(f => ({ ...f, lowStockThreshold: Number(e.target.value) }))} />
+            <Input type="number" value={form.lowStockThreshold ?? ''} onChange={e => setForm(f => ({ ...f, lowStockThreshold: Number(e.target.value) }))} data-tour="inventory-edit-threshold-input" />
           </div>
           <div>
             <Label>Unit</Label>
-            <Input value={form.unit || ''} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
+            <Input value={form.unit || ''} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} data-tour="inventory-edit-unit-input" />
           </div>
           <div>
             <Label>Price</Label>
-            <Input type="number" value={form.price ?? ''} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+            <Input type="number" value={form.price ?? ''} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-tour="inventory-edit-price-input" />
           </div>
           <div>
             <Label>Description</Label>
-            <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-tour="inventory-edit-description-textarea" />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={() => onSave(form)}>Save</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)} data-tour="inventory-edit-cancel-button">Cancel</Button>
+            <Button onClick={() => onSave(form)} data-tour="inventory-edit-save-button">Save</Button>
           </div>
         </div>
       </DialogContent>
@@ -112,6 +112,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StartTourButton } from "@/components/StartTourButton";
+import { inventoryStockManagementTour } from "@/components/tours/dashboardTour";
 import { Plus, Package, TrendingDown, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function StockManagement() {
@@ -357,10 +359,11 @@ export default function StockManagement() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Stock Management</h1>
           <p className="text-muted-foreground">Manage stock in/out, track balances, and monitor low-stock alerts</p>
         </div>
+        <StartTourButton tourConfig={inventoryStockManagementTour} tourName="inventory-stock-management" />
         <div className="flex items-center space-x-4">
           <Dialog open={isStockTransactionDialogOpen} onOpenChange={setIsStockTransactionDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-stock-in">
+              <Button data-testid="button-stock-in" data-tour="inventory-stock-in-button">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Stock In
               </Button>
@@ -373,7 +376,7 @@ export default function StockManagement() {
                 <div>
                   <Label htmlFor="transaction-type">Transaction Type</Label>
                   <Select value={transactionType} onValueChange={setTransactionType as any}>
-                    <SelectTrigger>
+                    <SelectTrigger data-tour="inventory-transaction-type-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -385,7 +388,7 @@ export default function StockManagement() {
                 <div>
                   <Label htmlFor="product">Product</Label>
                   <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                    <SelectTrigger>
+                    <SelectTrigger data-tour="inventory-product-select">
                       <SelectValue placeholder="Select product..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -399,19 +402,20 @@ export default function StockManagement() {
                 </div>
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>
-                  <Input 
-                    id="quantity" 
-                    type="number" 
-                    placeholder="Enter quantity" 
+                  <Input
+                    id="quantity"
+                    type="number"
+                    placeholder="Enter quantity"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     data-testid="input-quantity"
+                    data-tour="inventory-quantity-input"
                   />
                 </div>
                 <div>
                   <Label htmlFor="reason">Reason *</Label>
                   <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger>
+                    <SelectTrigger data-tour="inventory-reason-select">
                       <SelectValue placeholder="Select reason..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -426,30 +430,33 @@ export default function StockManagement() {
                 </div>
                 <div>
                   <Label htmlFor="referenceNumber">Reference Number</Label>
-                  <Input 
-                    id="referenceNumber" 
-                    placeholder="PO/Invoice number" 
+                  <Input
+                    id="referenceNumber"
+                    placeholder="PO/Invoice number"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
+                    data-tour="inventory-reference-input"
                   />
                 </div>
                 <div>
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea 
-                    id="notes" 
-                    placeholder="Additional notes..." 
+                  <Textarea
+                    id="notes"
+                    placeholder="Additional notes..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
+                    data-tour="inventory-notes-textarea"
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsStockTransactionDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsStockTransactionDialogOpen(false)} data-tour="inventory-cancel-transaction-button">
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleStockTransaction}
                     disabled={stockTransactionMutation.isPending}
                     data-testid="button-save-transaction"
+                    data-tour="inventory-save-transaction-button"
                   >
                     {stockTransactionMutation.isPending ? "Processing..." : "Record Transaction"}
                   </Button>
@@ -458,21 +465,23 @@ export default function StockManagement() {
             </DialogContent>
           </Dialog>
           
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => {
               setTransactionType('out');
               setIsStockTransactionDialogOpen(true);
             }}
             data-testid="button-stock-out"
+            data-tour="inventory-stock-out-button"
           >
             <TrendingDown className="h-4 w-4 mr-2" />
             Stock Out
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleRefresh}
             data-testid="button-refresh-stock"
+            data-tour="inventory-refresh-button"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -562,6 +571,9 @@ export default function StockManagement() {
                 setViewProduct(product);
                 setIsDetailsModalOpen(true);
               }}
+              actionsTourId="inventory-product-actions"
+              viewTourId="inventory-product-view"
+              editTourId="inventory-product-edit"
             />
             <StockDetailsModal
               open={isDetailsModalOpen}
@@ -602,6 +614,8 @@ export default function StockManagement() {
                     setViewTransaction(transaction);
                     setIsTransactionModalOpen(true);
                   }}
+                  actionsTourId="inventory-transaction-actions"
+                  viewTourId="inventory-transaction-view"
                 />
                 <TransactionDetailsModal
                   open={isTransactionModalOpen}

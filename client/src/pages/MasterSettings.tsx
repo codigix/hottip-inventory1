@@ -1,6 +1,8 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { adminSettingsTour } from "@/components/tours/dashboardTour";
 
 const fetchSettings = async () => {
   const res = await fetch("/api/admin/settings");
@@ -65,6 +67,7 @@ const MasterSettings: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Master Settings</h1>
           <p className="text-muted-foreground">Manage global system settings and configuration for all departments.</p>
         </div>
+        <StartTourButton tourConfig={adminSettingsTour} tourName="admin-settings" />
       </div>
       <div className="bg-white rounded-xl shadow-lg p-6">
         {isLoading ? (
@@ -81,6 +84,7 @@ const MasterSettings: React.FC = () => {
                 name="gstNumber"
                 value={form.gstNumber}
                 onChange={handleChange}
+                data-tour="admin-settings-gst-input"
               />
             </div>
             <div>
@@ -92,6 +96,7 @@ const MasterSettings: React.FC = () => {
                 name="taxRate"
                 value={form.taxRate}
                 onChange={handleChange}
+                data-tour="admin-settings-tax-rate-input"
               />
             </div>
             <div>
@@ -102,6 +107,7 @@ const MasterSettings: React.FC = () => {
                 name="bankAccount"
                 value={form.bankAccount}
                 onChange={handleChange}
+                data-tour="admin-settings-bank-account-input"
               />
             </div>
             <div>
@@ -112,12 +118,14 @@ const MasterSettings: React.FC = () => {
                 name="paymentTerms"
                 value={form.paymentTerms}
                 onChange={handleChange}
+                data-tour="admin-settings-payment-terms-input"
               />
             </div>
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded"
               type="submit"
               disabled={mutation.isPending}
+              data-tour="admin-settings-save-button"
             >
               {mutation.isPending ? "Saving..." : "Save Settings"}
             </button>

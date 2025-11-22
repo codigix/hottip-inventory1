@@ -719,7 +719,7 @@ export default function OutboundQuotations() {
       key: "actions",
       header: "Actions",
       cell: (quotation: any) => (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" data-tour="sales-quotation-actions">
           {/* View Button */}
           <Button
             size="sm"
@@ -2744,7 +2744,7 @@ export default function OutboundQuotations() {
       </Dialog>
 
       <Card>
-        <CardHeader>
+        <CardHeader data-tour="sales-quotation-header">
           <CardTitle className="flex items-center space-x-2">
             <FileText className="h-5 w-5" />
             <span>All Outbound Quotations</span>
@@ -2755,6 +2755,7 @@ export default function OutboundQuotations() {
               className="ml-auto"
               onClick={handleExportAll}
               data-testid="button-export-all-main"
+              data-tour="sales-quotation-export-button"
             >
               <Filter className="h-4 w-4 mr-2" />
               Export All
@@ -2766,14 +2767,14 @@ export default function OutboundQuotations() {
         </CardHeader>
         <CardContent>
           {/* Filter Section */}
-          <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50" data-tour="sales-quotation-filter-section">
             <h3 className="text-sm font-semibold mb-4 flex items-center">
               <Filter className="h-4 w-4 mr-2" />
               Filter Quotations
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Customer Filter */}
-              <div>
+              <div data-tour="sales-quotation-customer-filter">
                 <label className="text-sm font-medium mb-2 block">
                   Customer
                 </label>
@@ -2798,7 +2799,7 @@ export default function OutboundQuotations() {
               </div>
 
               {/* Status Filter */}
-              <div>
+              <div data-tour="sales-quotation-status-filter">
                 <label className="text-sm font-medium mb-2 block">Status</label>
                 <Select
                   value={mainFilters.status}
@@ -2873,12 +2874,14 @@ export default function OutboundQuotations() {
           </div>
 
           {/* Data Table */}
-          <DataTable
-            data={displayedQuotations || []}
-            columns={columns}
-            searchable={true}
-            searchKey="quotationNumber"
-          />
+          <div data-tour="sales-quotation-list">
+            <DataTable
+              data={displayedQuotations || []}
+              columns={columns}
+              searchable={true}
+              searchKey="quotationNumber"
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

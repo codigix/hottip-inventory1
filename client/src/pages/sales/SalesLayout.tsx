@@ -15,6 +15,16 @@ import {
   Search,
   Filter
 } from "lucide-react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { 
+  salesTour, 
+  salesInvoiceManagementTour,
+  salesQuotationManagementTour,
+  salesClientManagementTour,
+  salesVendorManagementTour,
+  salesReportsTour
+} from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import individual pages (will create these next)
 import OutboundQuotations from "./OutboundQuotations";
@@ -31,54 +41,85 @@ const sidebarItems = [
     label: 'Dashboard',
     icon: BarChart3,
     path: '/sales',
-    description: 'Sales overview and metrics'
+    description: 'Sales overview and metrics',
+    tourConfig: null,
   },
   {
     id: 'outbound-quotations',
     label: 'Outbound Quotations',
     icon: FileText,
     path: '/sales/outbound-quotations',
-    description: 'Company → Client quotations'
+    description: 'Company → Client quotations',
+    tourConfig: salesQuotationManagementTour,
   },
   {
     id: 'inbound-quotations', 
     label: 'Inbound Quotations',
     icon: FileDown,
     path: '/sales/inbound-quotations',
-    description: 'Client/Vendor → Company quotations'
+    description: 'Client/Vendor → Company quotations',
+    tourConfig: salesQuotationManagementTour,
   },
   {
     id: 'invoices',
     label: 'Invoice Management',
     icon: Receipt,
     path: '/sales/invoices',
-    description: 'GST invoices and billing'
+    description: 'GST invoices and billing',
+    tourConfig: salesInvoiceManagementTour,
   },
   {
     id: 'clients',
     label: 'Client Database',
     icon: Users,
     path: '/sales/clients', 
-    description: 'Customer management and history'
+    description: 'Customer management and history',
+    tourConfig: salesClientManagementTour,
   },
   {
     id: 'vendors',
     label: 'Vendor Database',
     icon: Building2,
     path: '/sales/vendors',
-    description: 'Supplier management and history'
+    description: 'Supplier management and history',
+    tourConfig: salesVendorManagementTour,
   },
   {
     id: 'reports',
     label: 'Sales Reports',
     icon: BarChart3,
     path: '/sales/reports',
-    description: 'Analytics and export options'
+    description: 'Analytics and export options',
+    tourConfig: salesReportsTour,
   }
 ];
 
 export default function SalesLayout() {
   const [location] = useLocation();
+  const { navigationHandler } = useTourNavigation(sidebarItems);
+  
+  const tourConfigWithNavigation = {
+    ...salesTour,
+    steps: salesTour.steps.map((step) => {
+      if (step.navigation) {
+        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
+        if (tourIdMatch) {
+          const tourId = tourIdMatch[1];
+          const sidebarItem = sidebarItems.find((item) => `sales-${item.id}` === tourId);
+          if (sidebarItem) {
+            return {
+              ...step,
+              navigation: {
+                path: sidebarItem.path,
+                tourConfig: sidebarItem.tourConfig,
+              },
+            };
+          }
+        }
+      }
+      return step;
+    }),
+  };
   
   const getActiveSidebarItem = () => {
     if (location === '/sales') return 'dashboard';
@@ -96,7 +137,10 @@ export default function SalesLayout() {
       {/* Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Sales Dashboard</h1>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-foreground" data-tour="sales-header">Sales Dashboard</h1>
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-module" navigationHandler={navigationHandler} />
+          </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive quotation and invoice management
           </p>
@@ -112,20 +156,24 @@ export default function SalesLayout() {
                 data-testid={`sidebar-${item.id}`}
                 className={`
                   flex items-start space-x-3 p-4 rounded-[0.3rem] transition-colors cursor-pointer
-                  ${getActiveSidebarItem() === item.id 
-                    ? 'bg-primary/10 border border-primary/20 text-primary' 
+                  ${getActiveSidebarItem() === item.id
+                    ? 'bg-primary/10 border border-primary/20 text-primary'
                     : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
                   }
                 `}
               >
-                <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[0.875rem] leading-5">
-                    {item.label}
+                <div
+                  data-tour={`sales-${item.id}`}
+                >
+                  <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[0.875rem] leading-5">
+                      {item.label}
+                    </div>
+                    {/* <div className="text-xs text-muted-foreground mt-1">
+                      {item.description}
+                    </div> */}
                   </div>
-                  {/* <div className="text-xs text-muted-foreground mt-1">
-                    {item.description}
-                  </div> */}
                 </div>
               </Link>
             );

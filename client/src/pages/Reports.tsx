@@ -1,6 +1,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { adminReportsTour } from "@/components/tours/dashboardTour";
 
 const fetchReports = async () => {
   const res = await fetch("/api/admin/reports");
@@ -21,6 +23,7 @@ const Reports: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Reports</h1>
           <p className="text-muted-foreground">View and export company-wide reports, KPIs, and analytics.</p>
         </div>
+        <StartTourButton tourConfig={adminReportsTour} tourName="admin-reports" />
       </div>
       <div className="bg-white rounded-xl shadow-lg p-6 space-y-8">
         {isLoading ? (
@@ -43,7 +46,7 @@ const Reports: React.FC = () => {
         )}
         <div className="pt-8">
           <h2 className="font-semibold mb-2 text-lg">Export</h2>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700">Export as CSV</button>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700" data-tour="admin-reports-export-button">Export as CSV</button>
         </div>
       </div>
     </main>

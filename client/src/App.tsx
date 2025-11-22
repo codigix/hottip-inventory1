@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlobalNavbar } from "@/components/GlobalNavbar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { TourProvider } from "@/contexts/TourContext";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Dashboard from "@/pages/Dashboard";
@@ -64,9 +65,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
+        <TourProvider>
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
+        </TourProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

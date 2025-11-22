@@ -37,7 +37,7 @@ export default function AdminLayout({
               Comprehensive management system
             </p>
           </div>
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1" data-tour="navigation-menu">
             {adminPages.map((item) => (
               <Link
                 key={item.path}
@@ -47,6 +47,7 @@ export default function AdminLayout({
                     ? "bg-indigo-600 text-white shadow-md"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
+                data-tour={`nav-${item.path.replace('/admin/', '').replace('/admin', 'dashboard')}`}
               >
                 {item.icon && (
                   <item.icon

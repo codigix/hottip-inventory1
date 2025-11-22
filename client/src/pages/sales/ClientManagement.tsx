@@ -198,7 +198,7 @@ export default function ClientManagement() {
       key: "name",
       header: "Client Name",
       cell: (customer: any) => (
-        <div>
+        <div data-tour="sales-client-name-column">
           <div className="font-light">{customer.name}</div>
           <div className="text-xs text-muted-foreground">
             {customer.companyType || "Individual"}
@@ -210,7 +210,7 @@ export default function ClientManagement() {
       key: "email",
       header: "Contact",
       cell: (customer: any) => (
-        <div>
+        <div data-tour="sales-client-contact-column">
           <div className="text-sm">{customer.email}</div>
           <div className="text-xs text-muted-foreground">{customer.phone}</div>
         </div>
@@ -244,22 +244,24 @@ export default function ClientManagement() {
       key: "status",
       header: "Status",
       cell: (customer: any) => (
-        <Badge
-          className={
-            customer.isActive
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }
-        >
-          {customer.isActive ? "ACTIVE" : "INACTIVE"}
-        </Badge>
+        <div data-tour="sales-client-status-column">
+          <Badge
+            className={
+              customer.isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }
+          >
+            {customer.isActive ? "ACTIVE" : "INACTIVE"}
+          </Badge>
+        </div>
       ),
     },
     {
       key: "actions",
       header: "Actions",
       cell: (customer: any) => (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" data-tour="sales-client-actions">
           <Button
             size="sm"
             variant="ghost"
@@ -328,7 +330,7 @@ export default function ClientManagement() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <div>
+        <div data-tour="sales-client-header">
           <h1
             className="text-3xl font-bold tracking-tight"
             data-testid="text-client-management-title"
@@ -341,7 +343,7 @@ export default function ClientManagement() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-client">
+            <Button data-testid="button-new-client" data-tour="sales-add-client-button">
               <Plus className="h-4 w-4 mr-2" /> Add Client
             </Button>
           </DialogTrigger>
@@ -553,7 +555,7 @@ export default function ClientManagement() {
         </Dialog>
       </div>
       <Card>
-        <CardContent>
+        <CardContent data-tour="sales-client-list">
           <DataTable
             data={customers || []}
             columns={columns}

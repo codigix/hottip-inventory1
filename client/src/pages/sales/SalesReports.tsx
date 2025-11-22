@@ -41,7 +41,7 @@ export default function SalesReports() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <div>
+        <div data-tour="sales-reports-header">
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-sales-reports-title">
             Sales Reports
           </h1>
@@ -51,7 +51,7 @@ export default function SalesReports() {
         </div>
         <div className="flex items-center space-x-4">
           <Select value={reportType} onValueChange={setReportType}>
-            <SelectTrigger className="w-[180px]" data-testid="select-report-type">
+            <SelectTrigger className="w-[180px]" data-testid="select-report-type" data-tour="sales-report-type-selector">
               <SelectValue placeholder="Select report type" />
             </SelectTrigger>
             <SelectContent>
@@ -63,7 +63,7 @@ export default function SalesReports() {
           </Select>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" data-testid="button-date-range">
+              <Button variant="outline" data-testid="button-date-range" data-tour="sales-report-date-range">
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {dateRange ? format(dateRange, "PPP") : "Pick a date"}
               </Button>
@@ -77,7 +77,7 @@ export default function SalesReports() {
               />
             </PopoverContent>
           </Popover>
-          <Button data-testid="button-export-report">
+          <Button data-testid="button-export-report" data-tour="sales-report-export-button">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -85,8 +85,8 @@ export default function SalesReports() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8" data-tour="sales-key-metrics">
+        <Card data-tour="sales-quotations-sent-metric">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Quotations Sent</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -99,7 +99,7 @@ export default function SalesReports() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="sales-conversion-rate-metric">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -112,7 +112,7 @@ export default function SalesReports() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="sales-total-revenue-metric">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Revenue Generated</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -127,7 +127,7 @@ export default function SalesReports() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="sales-invoices-generated-metric">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Pending Revenue</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />

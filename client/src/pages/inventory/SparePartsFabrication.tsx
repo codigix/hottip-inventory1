@@ -170,13 +170,13 @@ export default function SparePartsFabrication() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Spare Parts & Fabrication</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-spare-parts-header">Spare Parts & Fabrication</h1>
           <p className="text-muted-foreground">Track part status and fabrication workflow</p>
         </div>
         <div className="flex items-center space-x-4">
           <Dialog open={isSparePartDialogOpen} onOpenChange={setIsSparePartDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-add-spare-part">
+              <Button data-testid="button-add-spare-part" data-tour="inventory-add-spare-part-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Spare Part
               </Button>
@@ -239,7 +239,7 @@ export default function SparePartsFabrication() {
           </Dialog>
           <Dialog open={isFabOrderDialogOpen} onOpenChange={setIsFabOrderDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-fabrication-order">
+              <Button variant="outline" data-testid="button-fabrication-order" data-tour="inventory-add-fabrication-order-button">
                 <Settings className="h-4 w-4 mr-2" />
                 New Fabrication Order
               </Button>
@@ -363,7 +363,7 @@ export default function SparePartsFabrication() {
       <Tabs defaultValue="parts" className="space-y-6">
         <TabsList>
           <TabsTrigger value="parts">Spare Parts Inventory</TabsTrigger>
-          <TabsTrigger value="fabrication">Fabrication Orders</TabsTrigger>
+          <TabsTrigger value="fabrication" data-tour="inventory-fabrication-orders-tab">Fabrication Orders</TabsTrigger>
           <TabsTrigger value="quality">Quality Control</TabsTrigger>
         </TabsList>
 
@@ -375,7 +375,7 @@ export default function SparePartsFabrication() {
                 <span>Spare Parts Inventory</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent data-tour="inventory-spare-parts-table">
               <DataTable
                 data={spareParts}
                 columns={sparePartColumns}
@@ -389,7 +389,7 @@ export default function SparePartsFabrication() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="fabrication">
+        <TabsContent value="fabrication" data-tour="inventory-fabrication-orders-table">
           <Card>
             <CardHeader>
               <CardTitle>Fabrication Orders</CardTitle>

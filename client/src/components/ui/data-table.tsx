@@ -31,6 +31,10 @@ interface DataTableProps<T> {
   onView?: (item: T) => void;
   searchable?: boolean;
   searchKey?: keyof T;
+  actionsTourId?: string;
+  viewTourId?: string;
+  editTourId?: string;
+  deleteTourId?: string;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -41,6 +45,10 @@ export function DataTable<T extends Record<string, any>>({
   onView,
   searchable = true,
   searchKey,
+  actionsTourId,
+  viewTourId,
+  editTourId,
+  deleteTourId,
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -106,36 +114,40 @@ export function DataTable<T extends Record<string, any>>({
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             className="h-8 w-8 p-0"
                             data-testid={`button-actions-${rowIndex}`}
+                            data-tour={rowIndex === 0 ? actionsTourId : undefined}
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {onView && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => onView(item)}
                               data-testid={`button-view-${rowIndex}`}
+                              data-tour={rowIndex === 0 ? viewTourId : undefined}
                             >
                               View
                             </DropdownMenuItem>
                           )}
                           {onEdit && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => onEdit(item)}
                               data-testid={`button-edit-${rowIndex}`}
+                              data-tour={rowIndex === 0 ? editTourId : undefined}
                             >
                               Edit
                             </DropdownMenuItem>
                           )}
                           {onDelete && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => onDelete(item)}
                               className="text-destructive"
                               data-testid={`button-delete-${rowIndex}`}
+                              data-tour={rowIndex === 0 ? deleteTourId : undefined}
                             >
                               Delete
                             </DropdownMenuItem>

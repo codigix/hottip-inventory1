@@ -15,6 +15,18 @@ import {
   Settings
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StartTourButton } from "@/components/StartTourButton";
+import { 
+  inventoryTour,
+  inventoryStockManagementTour,
+  inventoryVendorManagementTour,
+  inventorySpareToursPrefabricationTour,
+  inventoryBatchBarcodeTour,
+  inventoryTasksTour,
+  inventoryReportsTour,
+  inventoryAttendanceTour
+} from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import inventory pages (will create these next)
 import StockManagement from "./StockManagement";
@@ -32,61 +44,93 @@ const sidebarItems = [
     label: 'Dashboard',
     icon: BarChart3,
     path: '/inventory',
-    description: 'Inventory overview and key metrics'
+    description: 'Inventory overview and key metrics',
+    tourConfig: null,
   },
   {
     id: 'stock-management',
     label: 'Stock Management',
     icon: Package,
     path: '/inventory/stock',
-    description: 'Stock in/out, balances, low-stock alerts'
+    description: 'Stock in/out, balances, low-stock alerts',
+    tourConfig: inventoryStockManagementTour,
   },
   {
     id: 'vendors',
     label: 'Vendors',
     icon: Building2,
     path: '/inventory/vendors',
-    description: 'Vendor CRUD with communication history'
+    description: 'Vendor CRUD with communication history',
+    tourConfig: inventoryVendorManagementTour,
   },
   {
     id: 'spare-parts',
     label: 'Spare Parts & Fabrication',
     icon: Wrench,
     path: '/inventory/spare-parts',
-    description: 'Track part status and fabrication'
+    description: 'Track part status and fabrication',
+    tourConfig: inventorySpareToursPrefabricationTour,
   },
   {
     id: 'batch-barcode',
     label: 'Batch & Barcode',
     icon: QrCode,
     path: '/inventory/batch-barcode',
-    description: 'Lot tracking and QR/barcode scanning'
+    description: 'Lot tracking and QR/barcode scanning',
+    tourConfig: inventoryBatchBarcodeTour,
   },
   {
     id: 'tasks',
     label: 'Tasks',
     icon: ClipboardList,
     path: '/inventory/tasks',
-    description: 'Assign inventory tasks to employees'
+    description: 'Assign inventory tasks to employees',
+    tourConfig: inventoryTasksTour,
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: FileText,
     path: '/inventory/reports',
-    description: 'Stock reports, vendor history, forecasts'
+    description: 'Stock reports, vendor history, forecasts',
+    tourConfig: inventoryReportsTour,
   },
   {
     id: 'attendance',
     label: 'Attendance',
     icon: Clock,
     path: '/inventory/attendance',
-    description: 'Staff attendance and leave management'
+    description: 'Staff attendance and leave management',
+    tourConfig: inventoryAttendanceTour,
   }
 ];
 
 export default function InventoryLayout() {
   const [location] = useLocation();
+  const { navigationHandler } = useTourNavigation(sidebarItems);
+  
+  const tourConfigWithNavigation = {
+    ...inventoryTour,
+    steps: inventoryTour.steps.map((step) => {
+      if (step.navigation) {
+        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
+        if (tourIdMatch) {
+          const tourId = tourIdMatch[1];
+          const sidebarItem = sidebarItems.find((item) => `inventory-${item.id}` === tourId);
+          if (sidebarItem) {
+            return {
+              ...step,
+              navigation: {
+                path: sidebarItem.path,
+                tourConfig: sidebarItem.tourConfig,
+              },
+            };
+          }
+        }
+      }
+      return step;
+    }),
+  };
   
   const getActiveSidebarItem = () => {
     if (location === '/inventory') return 'dashboard';
@@ -105,7 +149,10 @@ export default function InventoryLayout() {
       {/* Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Inventory Dashboard</h1>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-foreground" data-tour="inventory-header">Inventory Dashboard</h1>
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="inventory-module" navigationHandler={navigationHandler} />
+          </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive inventory management system
           </p>
@@ -128,6 +175,7 @@ export default function InventoryLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
+                  data-tour={`inventory-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

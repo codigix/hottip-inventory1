@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Receipt, Eye, Download, Send, Trash2 } from "lucide-react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { salesInvoiceManagementTour } from "@/components/tours/dashboardTour";
 import {
   insertInvoiceSchema,
   insertInvoiceItemSchema,
@@ -367,6 +369,40 @@ export default function InvoiceManagement() {
     }
   };
 
+  // Tour control functions
+  useEffect(() => {
+    window.tourControls = {
+      openCreateInvoice: () => setIsDialogOpen(true),
+      closeCreateInvoice: () => setIsDialogOpen(false),
+      openViewInvoice: () => {
+        // Open view for the first invoice if available
+        if (invoices && invoices.length > 0) {
+          handleViewInvoice(invoices[0].id);
+        }
+      },
+      closeViewInvoice: () => setIsViewOpen(false),
+      openSendDialog: () => {
+        // Open send dialog for the first invoice if available
+        if (invoices && invoices.length > 0) {
+          handleSendInvoice(invoices[0].id);
+        }
+      },
+      closeSendDialog: () => setIsSendDialogOpen(false),
+      closeAll: () => {
+        setIsDialogOpen(false);
+        setIsViewOpen(false);
+        setIsSendDialogOpen(false);
+      },
+    };
+
+    return () => {
+      // Cleanup
+      if (window.tourControls) {
+        delete window.tourControls;
+      }
+    };
+  }, [invoices, handleViewInvoice, handleSendInvoice]);
+
   const columns = [
     {
       key: "invoiceNumber",
@@ -431,13 +467,14 @@ export default function InvoiceManagement() {
     {
       key: "actions",
       header: "Actions",
-      cell: (invoice: any) => (
-        <div className="flex items-center space-x-2">
+      cell: (invoice: any, index: number) => (
+        <div className="flex items-center space-x-2" data-tour={index === 0 ? "sales-invoice-actions" : undefined}>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => handleViewInvoice(invoice.id)}
             data-testid={`button-view-invoice-${invoice.id}`}
+            data-tour={index === 0 ? "sales-view-invoice" : undefined}
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -446,6 +483,7 @@ export default function InvoiceManagement() {
             variant="ghost"
             onClick={() => handleDownloadInvoice(invoice.id)}
             data-testid={`button-download-invoice-${invoice.id}`}
+            data-tour={index === 0 ? "sales-download-invoice" : undefined}
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -454,6 +492,7 @@ export default function InvoiceManagement() {
             variant="ghost"
             onClick={() => handleSendInvoice(invoice.id)}
             data-testid={`button-send-invoice-${invoice.id}`}
+            data-tour={index === 0 ? "sales-send-invoice" : undefined}
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -469,6 +508,7 @@ export default function InvoiceManagement() {
           <h1
             className="text-3xl font-bold tracking-tight"
             data-testid="text-invoice-management-title"
+            data-tour="sales-invoice-header"
           >
             Invoice Management
           </h1>
@@ -476,13 +516,15 @@ export default function InvoiceManagement() {
             GST invoices with tax breakdowns and PDF downloads
           </p>
         </div>
-        <Drawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button data-testid="button-new-invoice">
-              <Plus className="h-4 w-4 mr-2" />
-              New Invoice
-            </Button>
-          </DrawerTrigger>
+        <div className="flex items-center space-x-4">
+          <StartTourButton tourConfig={salesInvoiceManagementTour} tourName="sales-invoice-management" />
+          <Drawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DrawerTrigger asChild>
+              <Button data-testid="button-new-invoice" data-tour="sales-new-invoice-button">
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
+              </Button>
+            </DrawerTrigger>
           <DrawerContent>
             <DrawerHeader className="sticky top-0 bg-background border-b z-10">
               <DrawerTitle>Create New Invoice</DrawerTitle>
@@ -504,7 +546,7 @@ export default function InvoiceManagement() {
                         <FormItem>
                           <FormLabel>Invoice Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="INV-2025-001" {...field} />
+                            <Input placeholder="INV-2025-001" {...field} data-tour="sales-invoice-number" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -519,6 +561,7 @@ export default function InvoiceManagement() {
                           <Select
                             onValueChange={field.onChange}
                             value={field.value}
+                            data-tour="sales-customer-selection"
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -562,6 +605,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(new Date(e.target.value))
                               }
+                              data-tour="sales-invoice-date"
                             />
                           </FormControl>
                           <FormMessage />
@@ -588,6 +632,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(new Date(e.target.value))
                               }
+                              data-tour="sales-due-date"
                             />
                           </FormControl>
                           <FormMessage />
@@ -610,6 +655,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-subtotal-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -630,6 +676,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-discount-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -637,7 +684,7 @@ export default function InvoiceManagement() {
                       )}
                     />
                   </div>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-4 gap-4" data-tour="sales-tax-fields">
                     <FormField
                       control={form.control}
                       name="cgstRate"
@@ -652,6 +699,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-cgst-rate"
                             />
                           </FormControl>
                           <FormMessage />
@@ -672,6 +720,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-cgst-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -692,6 +741,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-sgst-rate"
                             />
                           </FormControl>
                           <FormMessage />
@@ -712,6 +762,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-sgst-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -734,6 +785,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-igst-rate"
                             />
                           </FormControl>
                           <FormMessage />
@@ -754,6 +806,7 @@ export default function InvoiceManagement() {
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
+                              data-tour="sales-igst-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -804,7 +857,7 @@ export default function InvoiceManagement() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4" data-tour="sales-address-fields">
                     <FormField
                       control={form.control}
                       name="billingAddress"
@@ -816,6 +869,7 @@ export default function InvoiceManagement() {
                               rows={3}
                               placeholder="Client billing address"
                               {...field}
+                              data-tour="sales-billing-address"
                             />
                           </FormControl>
                           <FormMessage />
@@ -833,6 +887,7 @@ export default function InvoiceManagement() {
                               rows={3}
                               placeholder="Delivery location"
                               {...field}
+                              data-tour="sales-shipping-address"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1029,36 +1084,37 @@ export default function InvoiceManagement() {
                     )}
                   />
 
-                  <div className="space-y-4">
+                  <div className="space-y-4" data-tour="sales-line-items-section">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Line Items</h3>
+                      <h3 className="text-lg font-semibold" data-tour="sales-line-items-header">Line Items</h3>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={addLineItem}
+                        data-tour="sales-add-line-item"
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Add Item
                       </Button>
                     </div>
 
-                    <div className="rounded-md border">
+                    <div className="rounded-md border" data-tour="sales-line-items-table">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[30%]">
+                            <TableHead className="w-[30%]" data-tour="sales-description-header">
                               Description
                             </TableHead>
-                            <TableHead>HSN/SAC</TableHead>
-                            <TableHead>Qty</TableHead>
-                            <TableHead>Unit</TableHead>
-                            <TableHead>Unit Price</TableHead>
-                            <TableHead>CGST %</TableHead>
-                            <TableHead>SGST %</TableHead>
-                            <TableHead>IGST %</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead className="w-[60px] text-right">
+                            <TableHead data-tour="sales-hsn-header">HSN/SAC</TableHead>
+                            <TableHead data-tour="sales-quantity-header">Qty</TableHead>
+                            <TableHead data-tour="sales-unit-header">Unit</TableHead>
+                            <TableHead data-tour="sales-price-header">Unit Price</TableHead>
+                            <TableHead data-tour="sales-cgst-header">CGST %</TableHead>
+                            <TableHead data-tour="sales-sgst-header">SGST %</TableHead>
+                            <TableHead data-tour="sales-igst-header">IGST %</TableHead>
+                            <TableHead data-tour="sales-amount-header">Amount</TableHead>
+                            <TableHead className="w-[60px] text-right" data-tour="sales-actions-header">
                               Actions
                             </TableHead>
                           </TableRow>
@@ -1074,7 +1130,7 @@ export default function InvoiceManagement() {
                               </TableCell>
                             </TableRow>
                           ) : (
-                            lineItems.map((item) => (
+                            lineItems.map((item, index) => (
                               <TableRow key={item.id}>
                                 <TableCell>
                                   <Input
@@ -1087,6 +1143,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-description" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1100,6 +1157,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-hsn" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1114,6 +1172,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-quantity" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1127,6 +1186,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-unit" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1142,6 +1202,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-price" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1157,6 +1218,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-cgst-rate" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1172,6 +1234,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-sgst-rate" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1187,6 +1250,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-igst-rate" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -1202,6 +1266,7 @@ export default function InvoiceManagement() {
                                         event.target.value
                                       )
                                     }
+                                    data-tour={index === 0 ? "sales-item-amount" : undefined}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -1210,6 +1275,7 @@ export default function InvoiceManagement() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => removeLineItem(item.id)}
+                                    data-tour={index === 0 ? "sales-remove-item" : undefined}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -1222,7 +1288,7 @@ export default function InvoiceManagement() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-2">
+                  <div className="flex justify-end space-x-2" data-tour="sales-form-actions">
                     <Button
                       type="button"
                       variant="outline"
@@ -1230,12 +1296,14 @@ export default function InvoiceManagement() {
                         setIsDialogOpen(false);
                         setLineItems([]);
                       }}
+                      data-tour="sales-cancel-invoice"
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
                       disabled={createInvoiceMutation.isPending}
+                      data-tour="sales-create-invoice"
                     >
                       Create Invoice
                     </Button>
@@ -1245,6 +1313,7 @@ export default function InvoiceManagement() {
             </div>
           </DrawerContent>
         </Drawer>
+        </div>
       </div>
 
       <Card>
@@ -1266,12 +1335,12 @@ export default function InvoiceManagement() {
           />
           {/* ✅ View Invoice Drawer */}
           <Drawer open={isViewOpen} onOpenChange={setIsViewOpen}>
-            <DrawerContent className="p-6 max-h-[90vh] overflow-y-auto">
+            <DrawerContent className="p-6 max-h-[90vh] overflow-y-auto" data-tour="sales-view-invoice-drawer">
               <DrawerHeader>
-                <DrawerTitle className="text-2xl text-center font-bold">
+                <DrawerTitle className="text-2xl text-center font-bold" data-tour="sales-view-invoice-title">
                   TAX INVOICE
                 </DrawerTitle>
-                <DrawerDescription className="text-center">
+                <DrawerDescription className="text-center" data-tour="sales-view-invoice-description">
                   View full invoice details
                 </DrawerDescription>
               </DrawerHeader>
@@ -1279,8 +1348,8 @@ export default function InvoiceManagement() {
               {selectedInvoice ? (
                 <div className="space-y-4 text-sm max-w-5xl mx-auto">
                   {/* Company Details */}
-                  <div className="border-b pb-4">
-                    <h2 className="text-xl font-bold text-center">
+                  <div className="border-b pb-4" data-tour="sales-company-details">
+                    <h2 className="text-xl font-bold text-center" data-tour="sales-company-name">
                       HOTTIP INDIA POLYMERS
                     </h2>
                     <p className="text-center text-xs mt-1">
@@ -1302,9 +1371,9 @@ export default function InvoiceManagement() {
                   </div>
 
                   {/* Invoice & Customer Details */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border p-3 rounded">
-                      <h4 className="font-semibold mb-2 text-blue-700">
+                  <div className="grid grid-cols-2 gap-4" data-tour="sales-invoice-customer-details">
+                    <div className="border p-3 rounded" data-tour="sales-bill-to-section">
+                      <h4 className="font-semibold mb-2 text-blue-700" data-tour="sales-bill-to-header">
                         Bill To
                       </h4>
                       <p className="font-semibold">
@@ -1327,9 +1396,9 @@ export default function InvoiceManagement() {
                         </p>
                       )}
                     </div>
-                    <div className="border p-3 rounded">
+                    <div className="border p-3 rounded" data-tour="sales-invoice-info-section">
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
+                        <div data-tour="sales-invoice-number-display">
                           <strong>Invoice No:</strong>
                           <p className="font-semibold text-blue-600">
                             {selectedInvoice.invoiceNumber}
@@ -1358,11 +1427,11 @@ export default function InvoiceManagement() {
                   </div>
 
                   {/* Line Items */}
-                  <div className="border rounded">
-                    <h4 className="font-semibold p-3 bg-gray-50 border-b">
+                  <div className="border rounded" data-tour="sales-view-line-items">
+                    <h4 className="font-semibold p-3 bg-gray-50 border-b" data-tour="sales-goods-description-header">
                       Description of Goods
                     </h4>
-                    <Table>
+                    <Table data-tour="sales-view-line-items-table">
                       <TableHeader>
                         <TableRow className="bg-gray-50">
                           <TableHead className="font-bold">Sr.</TableHead>
@@ -1428,9 +1497,9 @@ export default function InvoiceManagement() {
                   </div>
 
                   {/* Tax Summary and Total */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border p-3 rounded">
-                      <h4 className="font-semibold mb-2">Bank Details</h4>
+                  <div className="grid grid-cols-2 gap-4" data-tour="sales-tax-summary-section">
+                    <div className="border p-3 rounded" data-tour="sales-bank-details">
+                      <h4 className="font-semibold mb-2" data-tour="sales-bank-details-header">Bank Details</h4>
                       <div className="text-xs space-y-1">
                         <p>
                           <strong>Bank:</strong> ICICI BANK
@@ -1443,8 +1512,8 @@ export default function InvoiceManagement() {
                         </p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
+                    <div className="space-y-2" data-tour="sales-amount-breakdown">
+                      <div className="flex justify-between text-sm" data-tour="sales-subtotal-display">
                         <span>Subtotal:</span>
                         <span>
                           ₹
@@ -1534,7 +1603,7 @@ export default function InvoiceManagement() {
                           </span>
                         </div>
                       )}
-                      <div className="border-t-2 pt-2 flex justify-between font-bold text-lg">
+                      <div className="border-t-2 pt-2 flex justify-between font-bold text-lg" data-tour="sales-total-amount-display">
                         <span>Total Amount:</span>
                         <span className="text-green-700">
                           ₹
@@ -1594,19 +1663,20 @@ export default function InvoiceManagement() {
             open={isSendDialogOpen}
             onOpenChange={setIsSendDialogOpen}
           >
-            <AlertDialogContent>
+            <AlertDialogContent data-tour="sales-send-invoice-dialog">
               <AlertDialogHeader>
-                <AlertDialogTitle>Send Invoice to Client</AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogTitle data-tour="sales-send-dialog-title">Send Invoice to Client</AlertDialogTitle>
+                <AlertDialogDescription data-tour="sales-send-dialog-description">
                   Are you sure you want to send this invoice to the client? The
                   invoice status will be updated to "Sent".
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogFooter data-tour="sales-send-dialog-actions">
+                <AlertDialogCancel data-tour="sales-send-cancel">Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={confirmSendInvoice}
                   disabled={sendInvoiceMutation.isPending}
+                  data-tour="sales-send-confirm"
                 >
                   {sendInvoiceMutation.isPending
                     ? "Sending..."

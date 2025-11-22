@@ -13,6 +13,9 @@ import {
   Calendar
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StartTourButton } from "@/components/StartTourButton";
+import { marketingTour } from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import marketing pages
 import MarketingDashboard from "@/pages/MarketingDashboard";
@@ -28,47 +31,77 @@ const sidebarItems = [
     label: 'Dashboard',
     icon: BarChart3,
     path: '/marketing',
-    description: 'Overview and marketing metrics'
+    description: 'Overview and marketing metrics',
+    tourConfig: null,
   },
   {
     id: 'leads',
     label: 'Leads',
     icon: Users,
     path: '/marketing/leads',
-    description: 'Lead management and status workflow'
+    description: 'Lead management and status workflow',
+    tourConfig: null,
   },
   {
     id: 'field-visits',
     label: 'Field Visits',
     icon: MapPin,
     path: '/marketing/field-visits',
-    description: 'Scheduling and geo-tracking'
+    description: 'Scheduling and geo-tracking',
+    tourConfig: null,
   },
   {
     id: 'tasks',
     label: 'Marketing Tasks',
     icon: ClipboardList,
     path: '/marketing/tasks',
-    description: 'Employee task assignment'
+    description: 'Employee task assignment',
+    tourConfig: null,
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: FileText,
     path: '/marketing/reports',
-    description: 'Conversion rates and analytics'
+    description: 'Conversion rates and analytics',
+    tourConfig: null,
   },
   {
     id: 'attendance',
     label: 'Marketing Attendance',
     icon: Clock,
     path: '/marketing/attendance',
-    description: 'Team attendance and leave tracking'
+    description: 'Team attendance and leave tracking',
+    tourConfig: null,
   }
 ];
 
 export default function MarketingLayout() {
   const [location] = useLocation();
+  const { navigationHandler } = useTourNavigation(sidebarItems);
+  
+  const tourConfigWithNavigation = {
+    ...marketingTour,
+    steps: marketingTour.steps.map((step) => {
+      if (step.navigation) {
+        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
+        if (tourIdMatch) {
+          const tourId = tourIdMatch[1];
+          const sidebarItem = sidebarItems.find((item) => `marketing-${item.id}` === tourId);
+          if (sidebarItem) {
+            return {
+              ...step,
+              navigation: {
+                path: sidebarItem.path,
+                tourConfig: sidebarItem.tourConfig,
+              },
+            };
+          }
+        }
+      }
+      return step;
+    }),
+  };
   
   const getActiveSidebarItem = () => {
     if (location === '/marketing') return 'dashboard';
@@ -85,7 +118,10 @@ export default function MarketingLayout() {
       {/* Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Marketing Dashboard</h1>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-foreground" data-tour="marketing-header">Marketing Dashboard</h1>
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="marketing-module" navigationHandler={navigationHandler} />
+          </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive marketing management system
           </p>
@@ -108,6 +144,9 @@ export default function MarketingLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
+                  data-tour={item.id === 'leads' ? 'leads' :
+                           item.id === 'field-visits' ? 'field-visits' :
+                           item.id === 'tasks' ? 'marketing-tasks' : undefined}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

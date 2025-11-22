@@ -16,6 +16,9 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StartTourButton } from "@/components/StartTourButton";
+import { accountsTour } from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import accounts pages (will create these next)
 import AccountsDashboard from "../AccountsDashboard";
@@ -34,68 +37,101 @@ const sidebarItems = [
     label: 'Dashboard',
     icon: BarChart3,
     path: '/accounts',
-    description: 'Accounts overview and financial metrics'
+    description: 'Accounts overview and financial metrics',
+    tourConfig: null,
   },
   {
     id: 'receivables',
     label: 'Receivables',
     icon: DollarSign,
     path: '/accounts/receivables',
-    description: 'Client payments linked to invoices'
+    description: 'Client payments linked to invoices',
+    tourConfig: null,
   },
   {
     id: 'payables',
     label: 'Payables',
     icon: CreditCard,
     path: '/accounts/payables',
-    description: 'Vendor payments linked to POs/quotations'
+    description: 'Vendor payments linked to POs/quotations',
+    tourConfig: null,
   },
   {
     id: 'tax-gst',
     label: 'Tax & GST',
     icon: Calculator,
     path: '/accounts/tax-gst',
-    description: 'Tax tracking and GST reconciliation'
+    description: 'Tax tracking and GST reconciliation',
+    tourConfig: null,
   },
   {
     id: 'bank-management',
     label: 'Bank Management',
     icon: Landmark,
     path: '/accounts/bank-management',
-    description: 'Bank account details and transactions'
+    description: 'Bank account details and transactions',
+    tourConfig: null,
   },
   {
     id: 'reminders',
     label: 'Reminders',
     icon: Bell,
     path: '/accounts/reminders',
-    description: 'Automated due/overdue payment alerts'
+    description: 'Automated due/overdue payment alerts',
+    tourConfig: null,
   },
   {
     id: 'tasks',
     label: 'Tasks',
     icon: ClipboardList,
     path: '/accounts/tasks',
-    description: 'Assign tasks to accounts staff'
+    description: 'Assign tasks to accounts staff',
+    tourConfig: null,
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: FileText,
     path: '/accounts/reports',
-    description: 'Daily collections, receivables, payables, GST exports'
+    description: 'Daily collections, receivables, payables, GST exports',
+    tourConfig: null,
   },
   {
     id: 'attendance',
     label: 'Attendance',
     icon: Clock,
     path: '/accounts/attendance',
-    description: 'Accounts team attendance tracking'
+    description: 'Accounts team attendance tracking',
+    tourConfig: null,
   }
 ];
 
 export default function AccountsLayout() {
   const [location] = useLocation();
+  const { navigationHandler } = useTourNavigation(sidebarItems);
+  
+  const tourConfigWithNavigation = {
+    ...accountsTour,
+    steps: accountsTour.steps.map((step) => {
+      if (step.navigation) {
+        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
+        if (tourIdMatch) {
+          const tourId = tourIdMatch[1];
+          const sidebarItem = sidebarItems.find((item) => `accounts-${item.id}` === tourId);
+          if (sidebarItem) {
+            return {
+              ...step,
+              navigation: {
+                path: sidebarItem.path,
+                tourConfig: sidebarItem.tourConfig,
+              },
+            };
+          }
+        }
+      }
+      return step;
+    }),
+  };
   
   const getActiveSidebarItem = () => {
     if (location === '/accounts') return 'dashboard';
@@ -115,7 +151,10 @@ export default function AccountsLayout() {
       {/* Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Accounts Dashboard</h1>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-foreground" data-tour="accounts-header">Accounts Dashboard</h1>
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="accounts-module" navigationHandler={navigationHandler} />
+          </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive financial management system
           </p>
@@ -138,6 +177,7 @@ export default function AccountsLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
+                  data-tour={`accounts-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

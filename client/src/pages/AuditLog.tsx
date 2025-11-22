@@ -1,5 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
+import { StartTourButton } from "@/components/StartTourButton";
+import { adminAuditLogTour } from "@/components/tours/dashboardTour";
 
 const fetchAuditLog = async () => {
   const res = await fetch("/api/admin/audit-log");
@@ -15,8 +17,13 @@ const AuditLog: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-3xl font-bold mb-4">Audit Log</h1>
-      <p className="mb-6 text-muted-foreground">View all system activity, changes, and user actions for compliance and traceability.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-4" data-tour="admin-audit-log-header">Audit Log</h1>
+          <p className="text-muted-foreground">View all system activity, changes, and user actions for compliance and traceability.</p>
+        </div>
+        <StartTourButton tourConfig={adminAuditLogTour} tourName="admin-audit-log" />
+      </div>
       <div className="bg-white rounded shadow p-4">
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>

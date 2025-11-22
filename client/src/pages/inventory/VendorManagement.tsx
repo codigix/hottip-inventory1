@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StartTourButton } from "@/components/StartTourButton";
+import { inventoryVendorManagementTour } from "@/components/tours/dashboardTour";
 import { Building2, Phone, Mail, MessageSquare, Calendar, Plus, Eye, Edit } from "lucide-react";
 
 export default function VendorManagement() {
@@ -295,9 +297,10 @@ export default function VendorManagement() {
           <p className="text-muted-foreground">Manage vendor relationships and communication history</p>
         </div>
         <div className="flex items-center space-x-4">
+          <StartTourButton tourConfig={inventoryVendorManagementTour} tourName="inventory-vendor-management" />
           <Dialog open={isVendorDialogOpen} onOpenChange={setIsVendorDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-add-vendor">
+              <Button data-testid="button-add-vendor" data-tour="inventory-add-vendor-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Vendor
               </Button>
@@ -361,7 +364,7 @@ export default function VendorManagement() {
 
           <Dialog open={isCommunicationDialogOpen} onOpenChange={setIsCommunicationDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-add-communication">
+              <Button variant="outline" data-testid="button-add-communication" data-tour="inventory-log-communication-button">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Log Communication
               </Button>

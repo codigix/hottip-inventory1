@@ -970,7 +970,7 @@ export default function InboundQuotations() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader data-tour="sales-quotation-header">
           <CardTitle className="flex items-center space-x-2">
             <FileDown className="h-5 w-5" />
             <span>All Inbound Quotations</span>

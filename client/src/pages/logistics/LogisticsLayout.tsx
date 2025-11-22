@@ -15,6 +15,9 @@ import {
   CheckCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StartTourButton } from "@/components/StartTourButton";
+import { logisticsTour } from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import logistics pages
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
@@ -30,47 +33,77 @@ const sidebarItems = [
     label: 'Dashboard',
     icon: BarChart3,
     path: '/logistics',
-    description: 'Overview and logistics metrics'
+    description: 'Overview and logistics metrics',
+    tourConfig: null,
   },
   {
     id: 'shipments',
     label: 'Shipments',
     icon: Package,
     path: '/logistics/shipments',
-    description: 'Shipment management and tracking'
+    description: 'Shipment management and tracking',
+    tourConfig: null,
   },
   {
     id: 'status-workflow',
     label: 'Status Workflow',
     icon: RouteIcon,
     path: '/logistics/status-workflow',
-    description: 'Status updates and POD management'
+    description: 'Status updates and POD management',
+    tourConfig: null,
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: FileText,
     path: '/logistics/reports',
-    description: 'Delivery analytics and performance'
+    description: 'Delivery analytics and performance',
+    tourConfig: null,
   },
   {
     id: 'tasks',
     label: 'Logistics Tasks',
     icon: ClipboardList,
     path: '/logistics/tasks',
-    description: 'Employee task assignment'
+    description: 'Employee task assignment',
+    tourConfig: null,
   },
   {
     id: 'attendance',
     label: 'Logistics Attendance',
     icon: Clock,
     path: '/logistics/attendance',
-    description: 'Team attendance and GPS tracking'
+    description: 'Team attendance and GPS tracking',
+    tourConfig: null,
   }
 ];
 
 export default function LogisticsLayout() {
   const [location] = useLocation();
+  const { navigationHandler } = useTourNavigation(sidebarItems);
+  
+  const tourConfigWithNavigation = {
+    ...logisticsTour,
+    steps: logisticsTour.steps.map((step) => {
+      if (step.navigation) {
+        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
+        if (tourIdMatch) {
+          const tourId = tourIdMatch[1];
+          const sidebarItem = sidebarItems.find((item) => `logistics-${item.id}` === tourId);
+          if (sidebarItem) {
+            return {
+              ...step,
+              navigation: {
+                path: sidebarItem.path,
+                tourConfig: sidebarItem.tourConfig,
+              },
+            };
+          }
+        }
+      }
+      return step;
+    }),
+  };
   
   const getActiveSidebarItem = () => {
     if (location === '/logistics') return 'dashboard';
@@ -87,7 +120,10 @@ export default function LogisticsLayout() {
       {/* Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Logistics Dashboard</h1>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-foreground" data-tour="logistics-header">Logistics Dashboard</h1>
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="logistics-module" navigationHandler={navigationHandler} />
+          </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive logistics and shipment management system
           </p>
@@ -110,6 +146,9 @@ export default function LogisticsLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
+                  data-tour={item.id === 'shipments' ? 'shipments' :
+                           item.id === 'status-workflow' ? 'status-workflow' :
+                           item.id === 'reports' ? 'logistics-reports' : undefined}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

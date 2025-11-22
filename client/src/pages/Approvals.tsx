@@ -1,6 +1,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { adminApprovalsTour } from "@/components/tours/dashboardTour";
 
 const fetchApprovals = async () => {
   const res = await fetch("/api/admin/approvals");
@@ -32,6 +34,7 @@ const Approvals: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Approvals Console</h1>
           <p className="text-muted-foreground">Manage and approve quotations, purchase orders, leave requests, and payments.</p>
         </div>
+        <StartTourButton tourConfig={adminApprovalsTour} tourName="admin-approvals" />
       </div>
       <div className="bg-white rounded-xl shadow-lg p-6">
         {isLoading ? (
@@ -61,6 +64,7 @@ const Approvals: React.FC = () => {
                           className="bg-green-600 text-white px-2 py-1 rounded-lg shadow-sm"
                           disabled={mutation.isPending}
                           onClick={() => mutation.mutate(req.id)}
+                          data-tour="admin-approvals-approve-button"
                         >
                           {mutation.isPending ? "Approving..." : "Approve"}
                         </button>

@@ -58,6 +58,8 @@ import BackupRecovery from "./BackupRecovery";
 import Reports from "./Reports";
 import TaskConsole from "./TaskConsole";
 import AdminLayout from "../components/AdminLayout";
+import { StartTourButton } from "@/components/StartTourButton";
+import { dashboardTour } from "@/components/tours/dashboardTour";
 
 // Animation variants
 const cardVariants = {
@@ -244,12 +246,17 @@ function DashboardContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          Admin Dashboard
-        </h1>
-        <p className="text-gray-600">
-          System-wide overview with analytics and insights
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2" data-tour="welcome-header">
+              Admin Dashboard
+            </h1>
+            <p className="text-gray-600">
+              System-wide overview with analytics and insights
+            </p>
+          </div>
+          <StartTourButton tourConfig={dashboardTour} tourName="admin-dashboard" />
+        </div>
       </motion.div>
 
       {/* Charts Section */}
@@ -260,6 +267,7 @@ function DashboardContent() {
           animate="visible"
           variants={cardVariants}
           transition={{ duration: 0.6, delay: 0.1 }}
+          data-tour="system-activity"
         >
           <Card className="shadow-lg border-0">
             <CardHeader>
@@ -305,6 +313,7 @@ function DashboardContent() {
           variants={cardVariants}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="lg:col-span-2"
+          data-tour="growth-trends"
         >
           <Card className="shadow-lg border-0">
             <CardHeader>
@@ -382,6 +391,7 @@ function DashboardContent() {
         animate="visible"
         variants={cardVariants}
         transition={{ duration: 0.6, delay: 0.3 }}
+        data-tour="department-activity"
       >
         <Card className="shadow-lg border-0">
           <CardHeader>

@@ -134,13 +134,13 @@ export default function BatchBarcode() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Batch & Barcode Management</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-batch-barcode-header">Batch & Barcode Management</h1>
           <p className="text-muted-foreground">Lot tracking and QR/barcode scanning support</p>
         </div>
         <div className="flex items-center space-x-4">
           <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-batch">
+              <Button data-testid="button-create-batch" data-tour="inventory-create-batch-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Batch
               </Button>
@@ -196,7 +196,7 @@ export default function BatchBarcode() {
 
           <Dialog open={isScanDialogOpen} onOpenChange={setIsScanDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-scan-barcode">
+              <Button variant="outline" data-testid="button-scan-barcode" data-tour="inventory-barcode-scanner">
                 <Scan className="h-4 w-4 mr-2" />
                 Scan Barcode
               </Button>
@@ -221,7 +221,7 @@ export default function BatchBarcode() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" data-testid="button-generate-codes">
+          <Button variant="outline" data-testid="button-generate-codes" data-tour="inventory-generate-qr-button">
             <QrCode className="h-4 w-4 mr-2" />
             Generate Codes
           </Button>
@@ -295,7 +295,7 @@ export default function BatchBarcode() {
                 <span>Batch Tracking</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent data-tour="inventory-batches-table">
               <DataTable
                 data={batches}
                 columns={batchColumns}

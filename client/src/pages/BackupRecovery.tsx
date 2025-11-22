@@ -1,6 +1,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { StartTourButton } from "@/components/StartTourButton";
+import { adminBackupTour } from "@/components/tours/dashboardTour";
 
 // Restore a backup via the API
 const restoreBackup = async (id: string) => {
@@ -43,6 +45,7 @@ function BackupRecovery() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Backup & Recovery</h1>
           <p className="text-muted-foreground">Manage system backups and restore points for disaster recovery.</p>
         </div>
+        <StartTourButton tourConfig={adminBackupTour} tourName="admin-backup" />
       </div>
       <div className="bg-white rounded-xl shadow-lg p-6">
         <div className="flex space-x-2 mb-4">
@@ -50,6 +53,7 @@ function BackupRecovery() {
             className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700"
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending}
+            data-tour="admin-backup-create-button"
           >
             {createMutation.isPending ? "Creating..." : "Create Backup"}
           </button>
@@ -80,6 +84,7 @@ function BackupRecovery() {
                         className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 shadow-sm"
                         onClick={() => restoreMutation.mutate(backup.id)}
                         disabled={restoreMutation.isPending}
+                        data-tour="admin-backup-restore-button"
                       >
                         {restoreMutation.isPending ? "Restoring..." : "Restore"}
                       </button>

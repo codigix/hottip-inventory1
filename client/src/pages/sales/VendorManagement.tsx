@@ -193,7 +193,7 @@ export default function VendorManagement() {
       key: "name",
       header: "Vendor Name",
       cell: (supplier: any) => (
-        <div>
+        <div data-tour="sales-vendor-name-column">
           <div className="font-light">{supplier.name}</div>
           <div className="text-xs text-muted-foreground">
             {supplier.companyType || "Company"}
@@ -205,7 +205,7 @@ export default function VendorManagement() {
       key: "contactPerson",
       header: "Contact Person",
       cell: (supplier: any) => (
-        <div>
+        <div data-tour="sales-vendor-contact-column">
           <div className="text-sm">{supplier.contactPerson}</div>
           <div className="text-xs text-muted-foreground">{supplier.email}</div>
         </div>
@@ -238,22 +238,24 @@ export default function VendorManagement() {
       key: "status",
       header: "Status",
       cell: (supplier: any) => (
-        <Badge
-          className={
-            supplier.isActive
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }
-        >
-          {supplier.isActive ? "ACTIVE" : "INACTIVE"}
-        </Badge>
+        <div data-tour="sales-vendor-status-column">
+          <Badge
+            className={
+              supplier.isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }
+          >
+            {supplier.isActive ? "ACTIVE" : "INACTIVE"}
+          </Badge>
+        </div>
       ),
     },
     {
       key: "actions",
       header: "Actions",
       cell: (supplier: any) => (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" data-tour="sales-vendor-actions">
           <Button
             size="sm"
             variant="ghost"
@@ -286,7 +288,7 @@ export default function VendorManagement() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <div>
+        <div data-tour="sales-vendor-header">
           <h1
             className="text-3xl font-bold tracking-tight"
             data-testid="text-vendor-management-title"
@@ -299,7 +301,7 @@ export default function VendorManagement() {
         </div>
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-vendor" onClick={handleNewVendor}>
+            <Button data-testid="button-new-vendor" data-tour="sales-add-vendor-button" onClick={handleNewVendor}>
               <Plus className="h-4 w-4 mr-2" />
               New Vendor
             </Button>
@@ -660,7 +662,7 @@ export default function VendorManagement() {
             Complete vendor database with GST details and transaction history
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent data-tour="sales-vendor-list">
           <DataTable
             data={suppliers || []}
             columns={columns}

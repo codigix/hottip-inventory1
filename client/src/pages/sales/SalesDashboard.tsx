@@ -68,7 +68,7 @@ export default function SalesDashboard() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
+      <div className="mb-8" data-tour="sales-dashboard">
         <h1 className="text-3xl font-bold tracking-tight" data-testid="text-sales-dashboard-title">
           Sales Dashboard
         </h1>
