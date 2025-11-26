@@ -1,0 +1,17 @@
+diff --git a/client/src/components/tours/dashboardTour.js b/client/src/components/tours/dashboardTour.js
+index 75bd0e9..4822d23 100644
+--- a/client/src/components/tours/dashboardTour.js
++++ b/client/src/components/tours/dashboardTour.js
+@@ -1286,3 +1286,11 @@ export const logisticsTour = {
+     },
+   ],
+ };
++
++export const adminModulesFlowTour = {
++  name: "admin-modules-flow-tour",
++  steps: [
++    ...modulesNavigationTour.steps,
++    ...adminFlowTour.steps,
++  ],
++};
+\ No newline at end of file

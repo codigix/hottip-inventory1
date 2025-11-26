@@ -399,7 +399,7 @@ export default function AccountsPayables() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-payables-header">
         <div>
           <h1
             className="text-3xl font-bold text-foreground"
@@ -413,7 +413,7 @@ export default function AccountsPayables() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-payable">
+            <Button data-testid="button-create-payable" data-tour="accounts-add-payable-button">
               <Plus className="h-4 w-4 mr-2" />
               Add Payable
             </Button>
@@ -641,7 +641,7 @@ export default function AccountsPayables() {
 
       {/* Filters and Search */}
       <Card>
-        <CardHeader>
+        <CardHeader data-tour="accounts-payables-filters">
           <div className="flex items-center justify-between">
             <CardTitle>Payables Management</CardTitle>
             <div className="flex items-center space-x-2">
@@ -687,7 +687,7 @@ export default function AccountsPayables() {
               ))}
             </div>
           ) : (
-            <Table>
+            <Table data-tour="accounts-payables-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Supplier</TableHead>
@@ -696,7 +696,7 @@ export default function AccountsPayables() {
                   <TableHead>Amount Paid</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead data-tour="accounts-payables-actions">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -790,6 +790,7 @@ export default function AccountsPayables() {
                                 size="sm"
                                 onClick={() => handleRecordPayment(payable)}
                                 data-testid={`button-payment-${payable.id}`}
+                                data-tour="accounts-process-payment-button"
                               >
                                 <DollarSign className="h-4 w-4" />
                               </Button>

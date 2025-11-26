@@ -527,7 +527,7 @@ export default function AccountsAttendance() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-attendance-header">
         <div>
           <h1
             className="text-3xl font-bold text-foreground"
@@ -1130,7 +1130,7 @@ export default function AccountsAttendance() {
                 </div>
               ) : (
                 <div className="border rounded-lg">
-                  <Table>
+                  <Table data-tour="accounts-attendance-table">
                     <TableHeader>
                       <TableRow>
                         <TableHead data-testid="header-employee">

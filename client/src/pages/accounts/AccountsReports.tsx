@@ -462,7 +462,7 @@ export default function AccountsReports() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-reports-header">
         <div>
           <h1
             className="text-3xl font-bold text-foreground"
@@ -526,7 +526,7 @@ export default function AccountsReports() {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger data-testid="select-report-type">
+                            <SelectTrigger data-testid="select-report-type" data-tour="accounts-reports-selector">
                               <SelectValue placeholder="Select report type" />
                             </SelectTrigger>
                           </FormControl>
@@ -572,7 +572,7 @@ export default function AccountsReports() {
                       value={selectedDateRange}
                       onValueChange={handleDateRangeChange}
                     >
-                      <SelectTrigger data-testid="select-date-range">
+                      <SelectTrigger data-testid="select-date-range" data-tour="accounts-reports-date-range">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -718,7 +718,7 @@ export default function AccountsReports() {
 
       {/* Metrics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card data-tour="accounts-financial-metrics">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">
               Reports Generated
@@ -1013,7 +1013,7 @@ export default function AccountsReports() {
                                   </Button>
                                   {report.status === "generated" && (
                                     <>
-                                      {exportFormats.map((format) => (
+                                      {exportFormats.map((format, index) => (
                                         <Button
                                           key={format.value}
                                           variant="ghost"
@@ -1028,6 +1028,7 @@ export default function AccountsReports() {
                                             exportReportMutation.isPending
                                           }
                                           data-testid={`button-export-${format.value}-${report.id}`}
+                                          data-tour={index === 0 ? "accounts-reports-export-button" : undefined}
                                         >
                                           <format.icon className="h-4 w-4" />
                                         </Button>

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Link, useLocation } from "wouter";
+import { useTour } from "@/hooks/useTour";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +17,15 @@ import {
   Filter
 } from "lucide-react";
 import { StartTourButton } from "@/components/StartTourButton";
-import { 
-  salesTour, 
+import {
+  salesTour,
+  salesFlowTour,
+  comprehensiveOutboundQuotationsTour,
+  comprehensiveInboundQuotationsTour,
+  comprehensiveInvoicesTour,
+  comprehensiveClientsTour,
+  comprehensiveVendorsTour,
+  comprehensiveReportsTour,
   salesInvoiceManagementTour,
   salesQuotationManagementTour,
   salesClientManagementTour,
@@ -50,7 +58,7 @@ const sidebarItems = [
     icon: FileText,
     path: '/sales/outbound-quotations',
     description: 'Company → Client quotations',
-    tourConfig: salesQuotationManagementTour,
+    tourConfig: comprehensiveOutboundQuotationsTour,
   },
   {
     id: 'inbound-quotations', 
@@ -58,7 +66,7 @@ const sidebarItems = [
     icon: FileDown,
     path: '/sales/inbound-quotations',
     description: 'Client/Vendor → Company quotations',
-    tourConfig: salesQuotationManagementTour,
+    tourConfig: comprehensiveInboundQuotationsTour,
   },
   {
     id: 'invoices',
@@ -98,24 +106,14 @@ export default function SalesLayout() {
   const [location] = useLocation();
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
+  useTour();
+  
   const tourConfigWithNavigation = {
-    ...salesTour,
-    steps: salesTour.steps.map((step) => {
+    ...salesFlowTour,
+    steps: salesFlowTour.steps.map((step) => {
       if (step.navigation) {
-        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
-        if (tourIdMatch) {
-          const tourId = tourIdMatch[1];
-          const sidebarItem = sidebarItems.find((item) => `sales-${item.id}` === tourId);
-          if (sidebarItem) {
-            return {
-              ...step,
-              navigation: {
-                path: sidebarItem.path,
-                tourConfig: sidebarItem.tourConfig,
-              },
-            };
-          }
-        }
+        // For the flow tour, navigation is already embedded in the tour config
+        return step;
       }
       return step;
     }),
@@ -139,7 +137,7 @@ export default function SalesLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="sales-header">Sales Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-module" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-flow-tour" />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive quotation and invoice management

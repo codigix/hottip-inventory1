@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
-import { marketingTour } from "@/components/tours/dashboardTour";
+import { marketingFlowTour } from "@/components/tours/dashboardTour";
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import marketing pages
@@ -81,23 +81,11 @@ export default function MarketingLayout() {
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
   const tourConfigWithNavigation = {
-    ...marketingTour,
-    steps: marketingTour.steps.map((step) => {
+    ...marketingFlowTour,
+    steps: marketingFlowTour.steps.map((step) => {
       if (step.navigation) {
-        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
-        if (tourIdMatch) {
-          const tourId = tourIdMatch[1];
-          const sidebarItem = sidebarItems.find((item) => `marketing-${item.id}` === tourId);
-          if (sidebarItem) {
-            return {
-              ...step,
-              navigation: {
-                path: sidebarItem.path,
-                tourConfig: sidebarItem.tourConfig,
-              },
-            };
-          }
-        }
+        // For the flow tour, navigation is already embedded in the tour config
+        return step;
       }
       return step;
     }),
@@ -120,7 +108,7 @@ export default function MarketingLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="marketing-header">Marketing Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="marketing-module" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="marketing-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive marketing management system
@@ -144,9 +132,7 @@ export default function MarketingLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
-                  data-tour={item.id === 'leads' ? 'leads' :
-                           item.id === 'field-visits' ? 'field-visits' :
-                           item.id === 'tasks' ? 'marketing-tasks' : undefined}
+                  data-tour={`marketing-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

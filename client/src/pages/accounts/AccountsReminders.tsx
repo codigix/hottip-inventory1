@@ -301,7 +301,7 @@ export default function AccountsReminders() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-reminders-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
             Payment Reminders
@@ -312,7 +312,7 @@ export default function AccountsReminders() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-reminder">
+            <Button data-testid="button-create-reminder" data-tour="accounts-create-reminder-button">
               <Plus className="h-4 w-4 mr-2" />
               Create Reminder
             </Button>
@@ -638,7 +638,7 @@ export default function AccountsReminders() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table data-tour="accounts-reminders-table">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Type</TableHead>
@@ -717,6 +717,7 @@ export default function AccountsReminders() {
                                   size="sm"
                                   onClick={() => handleMarkSent(reminder)}
                                   data-testid={`button-mark-sent-${reminder.id}`}
+                                  data-tour="accounts-send-reminder-button"
                                 >
                                   <Send className="h-4 w-4" />
                                 </Button>

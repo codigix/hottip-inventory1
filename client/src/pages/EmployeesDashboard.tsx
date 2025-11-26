@@ -16,6 +16,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
+import { StartTourButton } from "@/components/StartTourButton";
+import { employeesFlowTour } from "@/components/tours/dashboardTour";
+import { useTourNavigation } from "@/hooks/useTourNavigation";
 import {
   Users,
   UserPlus,
@@ -300,6 +303,8 @@ const safeTasks = Array.isArray(tasks) ? tasks : [];
 const completedTasks = safeTasks.filter((t) => t.status === "completed").length;
 const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 'in_progress').length;
 
+  // Since this is a single page, we don't need sidebar navigation
+  const navigationHandler = null;
 
   if (usersLoading) {
     return (
@@ -322,9 +327,10 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Employee Management</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="employees-header">Employee Management</h1>
           <p className="text-muted-foreground">Manage staff, attendance, tasks, and performance</p>
         </div>
+        <StartTourButton tourConfig={employeesFlowTour} tourName="employees-flow-tour" navigationHandler={navigationHandler} />
         <div className="flex space-x-2">
           <Dialog open={isTaskDialogOpen || !!editingTask} onOpenChange={(open) => {
             if (!open) {
@@ -334,7 +340,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
             }
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline" onClick={() => setIsTaskDialogOpen(true)} data-testid="button-assign-task">
+              <Button variant="outline" onClick={() => setIsTaskDialogOpen(true)} data-testid="button-assign-task" data-tour="employees-assign-task-button">
                 <Target className="h-4 w-4 mr-2" />
                 Assign Task
               </Button>
@@ -468,7 +474,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
 
           <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsUserDialogOpen(true)} data-testid="button-add-employee">
+              <Button onClick={() => setIsUserDialogOpen(true)} data-testid="button-add-employee" data-tour="employees-add-employee-button">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add Employee
               </Button>
@@ -629,8 +635,8 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
       </div>
 
       {/* Employee Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" data-tour="employees-dashboard">
+        <Card data-tour="employees-total-employees-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -644,7 +650,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="employees-active-employees-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -658,7 +664,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="employees-active-tasks-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -672,7 +678,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="employees-completed-tasks-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -691,8 +697,8 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Employees Table */}
-          <Card>
-            <CardHeader>
+          <Card data-tour="employees-table">
+            <CardHeader data-tour="employees-table-header">
               <CardTitle>Employees</CardTitle>
               <CardDescription>
                 Manage your team members and their roles

@@ -393,6 +393,7 @@ import {
   Upload,
   CheckCircle,
   XCircle,
+  Filter,
 } from "lucide-react";
 import { insertInboundQuotationSchema, type Supplier } from "@shared/schema"; // Import Supplier type
 import { z } from "zod";
@@ -683,7 +684,7 @@ export default function InboundQuotations() {
         const isProcessing = actionInProgressId === quotation.id;
 
         return (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2" data-tour="sales-quotation-actions">
             <Button
               size="sm"
               variant="ghost"
@@ -974,17 +975,69 @@ export default function InboundQuotations() {
           <CardTitle className="flex items-center space-x-2">
             <FileDown className="h-5 w-5" />
             <span>All Inbound Quotations</span>
+            {/* Export All Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              data-tour="sales-quotation-export-button"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Export All
+            </Button>
           </CardTitle>
           <CardDescription>
             Client/Vendor → Company quotations with review workflow
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filter Section */}
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50" data-tour="sales-quotation-filter-section">
+            <h3 className="text-sm font-semibold mb-4 flex items-center">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter Quotations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Sender Filter */}
+              <div data-tour="sales-quotation-customer-filter">
+                <label className="text-sm font-medium mb-2 block">
+                  Sender
+                </label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Senders" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Senders</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Status Filter */}
+              <div data-tour="sales-quotation-status-filter">
+                <label className="text-sm font-medium mb-2 block">
+                  Status
+                </label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
           <DataTable
             data={quotations}
             columns={columns}
             searchable={true}
             searchKey="quotationNumber"
+            data-tour="sales-quotation-list"
           />
         </CardContent>
       </Card>

@@ -197,7 +197,7 @@ export default function SalesDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Sales Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="sales-header">Sales Dashboard</h1>
           <p className="text-muted-foreground">Manage orders, customers, and sales performance</p>
         </div>
         <Dialog open={isAddDialogOpen || !!editingOrder} onOpenChange={(open) => {
@@ -331,7 +331,7 @@ export default function SalesDashboard() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" data-tour="sales-dashboard">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

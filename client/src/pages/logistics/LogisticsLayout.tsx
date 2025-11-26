@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
-import { logisticsTour } from "@/components/tours/dashboardTour";
+import { logisticsFlowTour } from "@/components/tours/dashboardTour";
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import logistics pages
@@ -83,23 +83,11 @@ export default function LogisticsLayout() {
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
   const tourConfigWithNavigation = {
-    ...logisticsTour,
-    steps: logisticsTour.steps.map((step) => {
+    ...logisticsFlowTour,
+    steps: logisticsFlowTour.steps.map((step) => {
       if (step.navigation) {
-        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
-        if (tourIdMatch) {
-          const tourId = tourIdMatch[1];
-          const sidebarItem = sidebarItems.find((item) => `logistics-${item.id}` === tourId);
-          if (sidebarItem) {
-            return {
-              ...step,
-              navigation: {
-                path: sidebarItem.path,
-                tourConfig: sidebarItem.tourConfig,
-              },
-            };
-          }
-        }
+        // For the flow tour, navigation is already embedded in the tour config
+        return step;
       }
       return step;
     }),
@@ -122,7 +110,7 @@ export default function LogisticsLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="logistics-header">Logistics Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="logistics-module" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="logistics-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive logistics and shipment management system
@@ -146,9 +134,7 @@ export default function LogisticsLayout() {
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
                   }`}
-                  data-tour={item.id === 'shipments' ? 'shipments' :
-                           item.id === 'status-workflow' ? 'status-workflow' :
-                           item.id === 'reports' ? 'logistics-reports' : undefined}
+                  data-tour={`logistics-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />

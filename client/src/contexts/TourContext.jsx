@@ -4,6 +4,7 @@ const TourContext = createContext(undefined);
 
 export function TourProvider({ children }) {
   const [tourStatuses, setTourStatuses] = useState({});
+  const [tourProgress, setTourProgress] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [pendingTour, setPendingTour] = useState(null);
 
@@ -25,6 +26,21 @@ export function TourProvider({ children }) {
     return tourStatuses[tourName] || false;
   };
 
+  const updateTourProgress = (tourName, currentStep, totalSteps) => {
+    setTourProgress((prev) => ({
+      ...prev,
+      [tourName]: {
+        currentStep,
+        totalSteps,
+        percentage: Math.round((currentStep / totalSteps) * 100),
+      },
+    }));
+  };
+
+  const getTourProgress = (tourName) => {
+    return tourProgress[tourName] || { currentStep: 0, totalSteps: 0, percentage: 0 };
+  };
+
   const setPendingNavigationTour = (tourConfig) => {
     setPendingTour(tourConfig);
   };
@@ -43,6 +59,9 @@ export function TourProvider({ children }) {
     updateTourStatus,
     resetTourStatus,
     getTourStatus,
+    tourProgress,
+    updateTourProgress,
+    getTourProgress,
     isLoading,
     setIsLoading,
     pendingTour,

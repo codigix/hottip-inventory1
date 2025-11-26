@@ -11,7 +11,7 @@ export function StartTourButton({ tourConfig, tourName, className = "", navigati
 
   const handleClick = () => {
     resetTourStatus(tourName);
-    startTour(tourConfig, navigationHandler);
+    startTour(tourConfig);
   };
 
   return (

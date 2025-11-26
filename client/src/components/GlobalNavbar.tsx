@@ -51,9 +51,10 @@ export function GlobalNavbar() {
             {departments.map((dept) => {
               const Icon = dept.icon;
               const isActive = location === dept.href;
+              const deptKey = dept.name.toLowerCase();
               
               return (
-                <Link key={dept.href} href={dept.href} data-testid={`link-${dept.name.toLowerCase()}`}>
+                <Link key={dept.href} href={dept.href} data-testid={`link-${deptKey}`} data-tour={`nav-module-${deptKey}`}>
                   <Button
                     variant={isActive ? "default" : "ghost"}
                     className="flex items-center space-x-2"
@@ -99,13 +100,15 @@ export function GlobalNavbar() {
                     {departments.map((dept) => {
                       const Icon = dept.icon;
                       const isActive = location === dept.href;
+                      const deptKey = dept.name.toLowerCase();
                       
                       return (
                         <Link 
                           key={dept.href} 
                           href={dept.href} 
                           onClick={() => setIsMobileMenuOpen(false)}
-                          data-testid={`mobile-link-${dept.name.toLowerCase()}`}
+                          data-testid={`mobile-link-${deptKey}`}
+                          data-tour={`nav-module-${deptKey}`}
                         >
                           <Button
                             variant={isActive ? "default" : "ghost"}

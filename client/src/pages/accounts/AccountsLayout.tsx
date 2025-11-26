@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
-import { accountsTour } from "@/components/tours/dashboardTour";
+import { accountsFlowTour } from "@/components/tours/dashboardTour";
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import accounts pages (will create these next)
@@ -111,23 +111,11 @@ export default function AccountsLayout() {
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
   const tourConfigWithNavigation = {
-    ...accountsTour,
-    steps: accountsTour.steps.map((step) => {
+    ...accountsFlowTour,
+    steps: accountsFlowTour.steps.map((step) => {
       if (step.navigation) {
-        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
-        if (tourIdMatch) {
-          const tourId = tourIdMatch[1];
-          const sidebarItem = sidebarItems.find((item) => `accounts-${item.id}` === tourId);
-          if (sidebarItem) {
-            return {
-              ...step,
-              navigation: {
-                path: sidebarItem.path,
-                tourConfig: sidebarItem.tourConfig,
-              },
-            };
-          }
-        }
+        // For the flow tour, navigation is already embedded in the tour config
+        return step;
       }
       return step;
     }),
@@ -153,7 +141,7 @@ export default function AccountsLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="accounts-header">Accounts Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="accounts-module" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="accounts-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive financial management system

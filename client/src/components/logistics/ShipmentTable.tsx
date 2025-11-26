@@ -117,6 +117,7 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
     {
       key: "actions",
       header: "Actions",
+      dataTour: "logistics-shipment-actions",
       cell: (shipment: LogisticsShipment) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -159,12 +160,14 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
   ];
 
   return (
-    <DataTable
-      data={shipments}
-      columns={columns}
-      searchable={true}
-      searchKey="consignmentNumber"
-      data-testid="table-shipments"
-    />
+    <div data-tour="logistics-shipments-table">
+      <DataTable
+        data={shipments}
+        columns={columns}
+        searchable={true}
+        searchKey="consignmentNumber"
+        data-testid="table-shipments"
+      />
+    </div>
   );
 }

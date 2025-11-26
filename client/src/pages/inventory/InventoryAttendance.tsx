@@ -483,7 +483,7 @@ export default function InventoryAttendance() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-attendance-header">
             Inventory Staff Attendance
           </h1>
           <p className="text-muted-foreground">
@@ -493,7 +493,7 @@ export default function InventoryAttendance() {
         <div className="flex items-center space-x-4">
           <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-request-leave">
+              <Button data-testid="button-request-leave" data-tour="inventory-request-leave-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Request Leave
               </Button>
@@ -590,7 +590,7 @@ export default function InventoryAttendance() {
             onOpenChange={setIsCheckInDialogOpen}
           >
             <DialogTrigger asChild>
-              <Button data-testid="button-check-in">
+              <Button data-testid="button-check-in" data-tour="inventory-mark-attendance-button">
                 <Clock className="h-4 w-4 mr-2" />
                 Check In/Out
               </Button>
@@ -757,9 +757,9 @@ export default function InventoryAttendance() {
 
       {/* Main Content */}
       <Tabs defaultValue="daily-attendance" className="space-y-6">
-        <TabsList>
+        <TabsList data-tour="inventory-attendance-filters">
           <TabsTrigger value="daily-attendance">Daily Attendance</TabsTrigger>
-          <TabsTrigger value="leave-management">Leave Management</TabsTrigger>
+          <TabsTrigger value="leave-management" data-tour="inventory-leave-requests-tab">Leave Management</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="schedules">Schedules</TabsTrigger>
         </TabsList>
@@ -784,7 +784,7 @@ export default function InventoryAttendance() {
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent data-tour="inventory-attendance-table">
               {attendanceLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-muted-foreground">

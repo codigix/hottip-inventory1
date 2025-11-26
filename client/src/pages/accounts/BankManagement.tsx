@@ -379,7 +379,7 @@ export default function BankManagement() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-bank-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
             Bank Management
@@ -492,7 +492,7 @@ export default function BankManagement() {
             </div>
             <Dialog open={isCreateAccountOpen} onOpenChange={setIsCreateAccountOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="button-create-account">
+                <Button data-testid="button-create-account" data-tour="accounts-add-bank-account-button">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Bank Account
                 </Button>
@@ -694,14 +694,14 @@ export default function BankManagement() {
                   </Button>
                 </div>
               ) : (
-                <Table>
+                <Table data-tour="accounts-bank-accounts-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Account Details</TableHead>
                       <TableHead>Bank</TableHead>
                       <TableHead>Balance</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead data-tour="accounts-bank-actions">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1005,7 +1005,7 @@ export default function BankManagement() {
                   </Button>
                 </div>
               ) : (
-                <Table>
+                <Table data-tour="accounts-bank-transactions-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>

@@ -35,6 +35,7 @@ interface DataTableProps<T> {
   viewTourId?: string;
   editTourId?: string;
   deleteTourId?: string;
+  "data-tour"?: string;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -49,6 +50,7 @@ export function DataTable<T extends Record<string, any>>({
   viewTourId,
   editTourId,
   deleteTourId,
+  "data-tour": dataTour,
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -73,7 +75,7 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour={dataTour}>
       {searchable && searchKey && (
         <div className="flex items-center space-x-2">
           <Search className="h-4 w-4 text-muted-foreground" />

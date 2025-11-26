@@ -305,11 +305,11 @@ export default function LogisticsDashboard() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className="max-w-7xl mx-auto px-6 py-8" data-tour="logistics-dashboard">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Logistics Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="logistics-header">Logistics Dashboard</h1>
           <p className="text-muted-foreground">Manage shipments, tracking, and delivery operations</p>
         </div>
         <Dialog open={isShipmentDialogOpen || !!editingShipment} onOpenChange={(open) => {

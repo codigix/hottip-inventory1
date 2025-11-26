@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
-import { 
-  inventoryTour,
+import {
+  inventoryFlowTour,
   inventoryStockManagementTour,
   inventoryVendorManagementTour,
   inventorySpareToursPrefabricationTour,
@@ -110,23 +110,11 @@ export default function InventoryLayout() {
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
   const tourConfigWithNavigation = {
-    ...inventoryTour,
-    steps: inventoryTour.steps.map((step) => {
+    ...inventoryFlowTour,
+    steps: inventoryFlowTour.steps.map((step) => {
       if (step.navigation) {
-        const tourIdMatch = step.element.match(/\[data-tour='([^']+)'\]/);
-        if (tourIdMatch) {
-          const tourId = tourIdMatch[1];
-          const sidebarItem = sidebarItems.find((item) => `inventory-${item.id}` === tourId);
-          if (sidebarItem) {
-            return {
-              ...step,
-              navigation: {
-                path: sidebarItem.path,
-                tourConfig: sidebarItem.tourConfig,
-              },
-            };
-          }
-        }
+        // For the flow tour, navigation is already embedded in the tour config
+        return step;
       }
       return step;
     }),
@@ -151,7 +139,7 @@ export default function InventoryLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="inventory-header">Inventory Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="inventory-module" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="inventory-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive inventory management system

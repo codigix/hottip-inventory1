@@ -125,7 +125,7 @@ export default function Leads() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="marketing-leads-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
             Leads Management
@@ -135,7 +135,7 @@ export default function Leads() {
             auto-handover
           </p>
         </div>
-        <Button onClick={handleAddLead} data-testid="button-add-lead">
+        <Button onClick={handleAddLead} data-testid="button-add-lead" data-tour="marketing-add-lead-button">
           <Plus className="mr-2 h-4 w-4" />
           Add New Lead
         </Button>
@@ -206,7 +206,7 @@ export default function Leads() {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6" data-tour="marketing-leads-filters">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="relative flex-1">
@@ -329,7 +329,7 @@ export default function Leads() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent data-tour="marketing-leads-table">
           <Tabs
             value={selectedStatus}
             onValueChange={(value) =>

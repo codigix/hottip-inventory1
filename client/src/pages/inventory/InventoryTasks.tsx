@@ -275,7 +275,7 @@ export default function InventoryTasks() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-tasks-header">
             Inventory Tasks
           </h1>
           <p className="text-muted-foreground">
@@ -285,7 +285,7 @@ export default function InventoryTasks() {
         <div className="flex items-center space-x-4">
           <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-task">
+              <Button data-testid="button-create-task" data-tour="inventory-create-task-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
@@ -547,7 +547,7 @@ export default function InventoryTasks() {
 
       {/* Main Content */}
       <Tabs defaultValue="all-tasks" className="space-y-6">
-        <TabsList>
+        <TabsList data-tour="inventory-task-filters">
           <TabsTrigger value="all-tasks">All Tasks</TabsTrigger>
           <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
           <TabsTrigger value="urgent">Urgent</TabsTrigger>
@@ -562,7 +562,7 @@ export default function InventoryTasks() {
                 <span>All Inventory Tasks</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent data-tour="inventory-tasks-table">
               <DataTable
                 data={inventoryTasks}
                 columns={taskColumns}
@@ -570,6 +570,7 @@ export default function InventoryTasks() {
                 searchKey="title"
                 onEdit={(task) => openUpdateDialog(task)}
                 onView={() => {}}
+                data-tour="inventory-task-actions"
               />
             </CardContent>
           </Card>

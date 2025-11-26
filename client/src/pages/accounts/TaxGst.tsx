@@ -243,7 +243,7 @@ export default function TaxGst() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-tax-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
             Tax & GST Management
@@ -452,7 +452,7 @@ export default function TaxGst() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="accounts-tax-filing-status">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Filing Status</CardTitle>
             {isAllCurrent ? (
@@ -548,7 +548,7 @@ export default function TaxGst() {
             </div>
           ) : (
             <div className="border">
-              <Table>
+              <Table data-tour="accounts-gst-reports">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Period</TableHead>

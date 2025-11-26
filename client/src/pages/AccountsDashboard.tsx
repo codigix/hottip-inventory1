@@ -16,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
+import { StartTourButton } from "@/components/StartTourButton";
+import { accountsFlowTour } from "@/components/tours/dashboardTour";
 import {
   DollarSign,
   TrendingUp,
@@ -228,21 +230,23 @@ export default function AccountsDashboard() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className="max-w-7xl mx-auto px-6 py-8" data-tour="accounts-dashboard">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Accounts Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="accounts-header">Accounts Dashboard</h1>
           <p className="text-muted-foreground">Manage invoices, payments, and financial reports</p>
         </div>
-        <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsInvoiceDialogOpen(true)} data-testid="button-create-invoice">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+        <div className="flex items-center space-x-2">
+          <StartTourButton tourConfig={accountsFlowTour} tourName="accounts-flow-tour" />
+          <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setIsInvoiceDialogOpen(true)} data-testid="button-create-invoice">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Invoice</DialogTitle>
               <DialogDescription>
@@ -442,6 +446,7 @@ export default function AccountsDashboard() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Financial Metrics Cards */}

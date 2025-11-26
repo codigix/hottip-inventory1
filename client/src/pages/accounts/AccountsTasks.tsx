@@ -459,7 +459,7 @@ export default function AccountsTasks() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-tasks-header">
         <div>
           <h1
             className="text-3xl font-bold text-foreground"
@@ -473,7 +473,7 @@ export default function AccountsTasks() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-task">
+            <Button data-testid="button-create-task" data-tour="accounts-add-task-button">
               <Plus className="h-4 w-4 mr-2" />
               Create Task
             </Button>
@@ -799,7 +799,7 @@ export default function AccountsTasks() {
 
       {/* Tasks Management */}
       <Card>
-        <CardHeader>
+        <CardHeader data-tour="accounts-task-filters">
           <div className="flex items-center justify-between">
             <CardTitle>Task Management</CardTitle>
             <div className="flex items-center space-x-2">
@@ -907,7 +907,7 @@ export default function AccountsTasks() {
                   ))}
                 </div>
               ) : (
-                <Table>
+                <Table data-tour="accounts-tasks-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Task</TableHead>
@@ -916,7 +916,7 @@ export default function AccountsTasks() {
                       <TableHead>Priority</TableHead>
                       <TableHead>Due Date</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead data-tour="accounts-task-actions">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

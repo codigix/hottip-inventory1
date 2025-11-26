@@ -239,7 +239,7 @@ function DashboardContent() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-tour="admin-dashboard">
       {/* Header with Purple/Indigo Theme */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

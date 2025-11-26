@@ -384,7 +384,7 @@ export default function AccountsReceivables() {
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="accounts-receivables-header">
         <div>
           <h1
             className="text-3xl font-bold text-foreground"
@@ -398,7 +398,7 @@ export default function AccountsReceivables() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-receivable">
+            <Button data-testid="button-create-receivable" data-tour="accounts-add-receivable-button">
               <Plus className="h-4 w-4 mr-2" />
               Add Receivable
             </Button>
@@ -623,7 +623,7 @@ export default function AccountsReceivables() {
 
       {/* Filters and Search */}
       <Card>
-        <CardHeader>
+        <CardHeader data-tour="accounts-receivables-filters">
           <div className="flex items-center justify-between">
             <CardTitle>Receivables Management</CardTitle>
             <div className="flex items-center space-x-2">
@@ -669,7 +669,7 @@ export default function AccountsReceivables() {
               ))}
             </div>
           ) : (
-            <Table>
+            <Table data-tour="accounts-receivables-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer</TableHead>
@@ -678,7 +678,7 @@ export default function AccountsReceivables() {
                   <TableHead>Amount Paid</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead data-tour="accounts-receivables-actions">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -767,6 +767,7 @@ export default function AccountsReceivables() {
                                 onClick={() => handleRecordPayment(receivable)}
                                 data-testid={`button-record-payment-${receivable.id}`}
                                 title="Record Payment"
+                                data-tour="accounts-record-payment-button"
                               >
                                 <CreditCard className="h-4 w-4" />
                               </Button>

@@ -847,7 +847,7 @@ export default function OutboundQuotations() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-outbound-quotation">
+            <Button data-testid="button-new-outbound-quotation" data-tour="sales-new-quotation-button">
               <Plus className="h-4 w-4 mr-2" />
               New Quotation
             </Button>

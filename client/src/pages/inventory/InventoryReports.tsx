@@ -187,7 +187,7 @@ export default function InventoryReports() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-reports-header">
             Inventory Reports
           </h1>
           <p className="text-muted-foreground">
@@ -272,11 +272,11 @@ export default function InventoryReports() {
 
       {/* Reports Tabs */}
       <Tabs defaultValue="stock-balance" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="stock-balance">Stock Balance</TabsTrigger>
-          <TabsTrigger value="vendor-analysis">Vendor Analysis</TabsTrigger>
-          <TabsTrigger value="reorder-forecast">Reorder Forecast</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4" data-tour="inventory-reports-tabs">
+          <TabsTrigger value="stock-balance" data-tour="inventory-stock-balance-tab">Stock Balance</TabsTrigger>
+          <TabsTrigger value="vendor-analysis" data-tour="inventory-vendor-history-tab">Vendor Analysis</TabsTrigger>
+          <TabsTrigger value="reorder-forecast" data-tour="inventory-forecast-tab">Reorder Forecast</TabsTrigger>
+          <TabsTrigger value="analytics" data-tour="inventory-analytics-tab">Analytics</TabsTrigger>
         </TabsList>
 
         {/* Stock Balance Report */}
@@ -292,6 +292,7 @@ export default function InventoryReports() {
                   onClick={handleExportStockBalance}
                   size="sm"
                   variant="outline"
+                  data-tour="inventory-export-stock-button"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
@@ -371,6 +372,7 @@ export default function InventoryReports() {
                   onClick={handleExportVendorHistory}
                   size="sm"
                   variant="outline"
+                  data-tour="inventory-export-vendor-button"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV

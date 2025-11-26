@@ -238,7 +238,7 @@ export default function InventoryDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Inventory Management</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-header">Inventory Management</h1>
           <p className="text-muted-foreground">Manage your products and stock levels</p>
         </div>
         <Dialog open={isAddDialogOpen || !!editingProduct} onOpenChange={(open) => {
@@ -429,7 +429,7 @@ export default function InventoryDashboard() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" data-tour="inventory-dashboard">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

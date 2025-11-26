@@ -291,7 +291,7 @@ export default function VendorManagement() {
   return (
     <main className="max-w-7xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8" data-tour="inventory-vendor-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Vendor Management</h1>
           <p className="text-muted-foreground">Manage vendor relationships and communication history</p>

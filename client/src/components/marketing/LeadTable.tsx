@@ -194,12 +194,12 @@ export default function LeadTable({
               <TableHead className="w-[250px]">Lead</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead data-tour="marketing-lead-status-workflow">Status</TableHead>
               <TableHead>Priority</TableHead>
               <TableHead>Budget</TableHead>
               <TableHead>Assigned To</TableHead>
               <TableHead>Last Contact</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right" data-tour="marketing-lead-actions">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -391,7 +391,7 @@ export default function LeadTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusChange}>
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
               {newStatus === "converted" ? "Convert Lead" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>

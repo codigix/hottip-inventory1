@@ -283,14 +283,14 @@ export default function Shipments() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="logistics-shipments-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Shipments Management</h1>
           <p className="text-muted-foreground">
             Manage shipments through the logistics workflow with status tracking and timeline history
           </p>
         </div>
-        <Button onClick={handleAddShipment} data-testid="button-add-shipment">
+        <Button onClick={handleAddShipment} data-testid="button-add-shipment" data-tour="logistics-create-shipment-button">
           <Plus className="mr-2 h-4 w-4" />
           Create Shipment
         </Button>
@@ -362,7 +362,7 @@ export default function Shipments() {
 
         <TabsContent value="list" className="space-y-4">
           {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4" data-tour="logistics-shipments-filters">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />

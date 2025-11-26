@@ -64,7 +64,7 @@ const MasterSettings: React.FC = () => {
     <main className="max-w-7xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Master Settings</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="admin-settings-header">Master Settings</h1>
           <p className="text-muted-foreground">Manage global system settings and configuration for all departments.</p>
         </div>
         <StartTourButton tourConfig={adminSettingsTour} tourName="admin-settings" />
@@ -121,14 +121,31 @@ const MasterSettings: React.FC = () => {
                 data-tour="admin-settings-payment-terms-input"
               />
             </div>
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-              type="submit"
-              disabled={mutation.isPending}
-              data-tour="admin-settings-save-button"
-            >
-              {mutation.isPending ? "Saving..." : "Save Settings"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+                type="submit"
+                disabled={mutation.isPending}
+                data-tour="admin-settings-save-button"
+              >
+                {mutation.isPending ? "Saving..." : "Save Settings"}
+              </button>
+              <button
+                type="button"
+                className="border px-4 py-2 rounded"
+                onClick={() => {
+                  setForm({
+                    gstNumber: data?.gstNumber || "",
+                    taxRate: data?.taxRate?.toString() || "",
+                    bankAccount: data?.bankAccount || "",
+                    paymentTerms: data?.paymentTerms || "",
+                  });
+                }}
+                data-tour="admin-settings-reset-button"
+              >
+                Reset to Defaults
+              </button>
+            </div>
             {mutation.isSuccess && (
               <div className="text-green-600 mt-2">Settings saved successfully.</div>
             )}

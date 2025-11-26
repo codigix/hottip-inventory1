@@ -4,11 +4,11 @@ import { useTourStatus } from "@/contexts/TourContext";
 import { useLocation } from "wouter";
 
 export function useTour() {
-  const { updateTourStatus, getTourStatus, getPendingNavigationTour, clearPendingNavigationTour } = useTourStatus();
-  const [location] = useLocation();
+  const { updateTourStatus, getTourStatus, getPendingNavigationTour, clearPendingNavigationTour, setPendingNavigationTour } = useTourStatus();
+  const [location, setLocation] = useLocation();
 
   const startTour = useCallback(
-    (tourConfig, navigationHandler = null) => {
+    (tourConfig) => {
       if (!tourConfig || !tourConfig.steps || tourConfig.steps.length === 0) {
         console.warn("Invalid tour configuration provided");
         return;
@@ -16,7 +16,14 @@ export function useTour() {
 
       // Close any existing tours
       if (window.currentTour) {
-        window.currentTour.complete();
+        try {
+          window.currentTour.complete();
+        } catch (e) {
+          console.warn('Error completing existing tour:', e);
+          // Force cleanup
+          window.currentTour = null;
+          cleanupShepherdUI();
+        }
       }
 
       const isMobile =
@@ -27,9 +34,15 @@ export function useTour() {
 
       const tour = new Shepherd.Tour({
         useModalOverlay: true,
+        modalOverlayOpeningPadding: 10,
+        modalOverlayOpeningRadius: 5,
         defaultStepOptions: {
           classes: "shepherd-theme-custom",
-          scrollTo: false,
+          scrollTo: { 
+            behavior: 'auto', 
+            block: 'center',
+            align: 'nearest'
+          },
           cancelIcon: {
             enabled: true,
           },
@@ -38,7 +51,36 @@ export function useTour() {
               {
                 name: "offset",
                 options: {
-                  offset: [0, isMobile ? 15 : 10],
+                  offset: [0, isMobile ? 20 : 15],
+                },
+              },
+              {
+                name: "preventOverflow",
+                options: {
+                  boundary: "viewport",
+                  padding: 20,
+                  altBoundary: true,
+                },
+              },
+              {
+                name: "flip",
+                options: {
+                  fallbackPlacements: ["top", "bottom", "left", "right", "top-start", "bottom-start", "top-end", "bottom-end"],
+                  boundary: "viewport",
+                  padding: 10,
+                },
+              },
+              {
+                name: "arrow",
+                options: {
+                  element: ".shepherd-arrow",
+                  padding: 10,
+                },
+              },
+              {
+                name: "computeStyles",
+                options: {
+                  gpuAcceleration: false,
                 },
               },
             ],
@@ -47,8 +89,12 @@ export function useTour() {
       });
 
       const steps = tourConfig.steps.map((step, index) => {
+        const isLastStep = index === tourConfig.steps.length - 1;
+        const nextStep = tourConfig.steps[index + 1];
+        const hasNavigation = step.navigation || (nextStep && nextStep.element);
+
         const stepConfig = {
-          id: `step-${index}`,
+          id: `step-${tourConfig.name}-${index}`,
           title: step.title,
           text: step.text,
           attachTo: {
@@ -58,41 +104,83 @@ export function useTour() {
           buttons: [
             {
               text: index === 0 ? "Start" : "Back",
-              action: index === 0 ? tour.next : tour.back,
-              classes: index === 0 ? "shepherd-button-primary" : "shepherd-button-secondary",
+              action: index === 0 ? () => tour.next() : () => tour.back(),
+              classes: "shepherd-button-secondary",
             },
             {
-              text: index === tourConfig.steps.length - 1 ? "Finish" : "Next",
-              action: index === tourConfig.steps.length - 1 ? tour.complete : tour.next,
+              text: isLastStep ? "Finish" : "Next",
+              action: () => {
+                if (isLastStep) {
+                  tour.complete();
+                } else if (step.navigation) {
+                  // Navigation to next page - don't complete the tour yet
+                  // The pending tour logic will handle showing the next step
+                  setPendingNavigationTour({
+                    path: step.navigation.path,
+                    config: step.navigation.tourConfig || tourConfig,
+                  });
+                  // Hide current modal before navigation
+                  const currentModal = document.querySelector('.shepherd-element');
+                  if (currentModal) {
+                    currentModal.style.display = 'none';
+                  }
+                  setLocation(step.navigation.path);
+                  // Don't complete the tour - let the pending tour logic handle it
+                } else {
+                  tour.next();
+                }
+              },
               classes: "shepherd-button-primary",
             },
           ],
           beforeShowPromise: function() {
             return new Promise((resolve) => {
-              const element = document.querySelector(step.element);
-              if (element) {
-                element.scrollIntoView({ behavior: "smooth", block: "center" });
-              }
-              
-              if (step.beforeShowPromise) {
-                step.beforeShowPromise().then(resolve);
+              // If this step has navigation, execute it first
+              if (step.navigation && location !== step.navigation.path) {
+                console.log(`Navigating to ${step.navigation.path} for tour step`);
+
+                // Hide the current modal temporarily during navigation to prevent flickering
+                const currentModal = document.querySelector('.shepherd-element');
+                if (currentModal) {
+                  currentModal.style.opacity = '0';
+                  currentModal.style.pointerEvents = 'none';
+                }
+
+                setLocation(step.navigation.path);
+
+                // Wait for navigation to complete and page to be ready
+                let navigationAttempts = 0;
+                const maxNavigationAttempts = 100; // 10 seconds max
+
+                const checkNavigation = setInterval(() => {
+                  navigationAttempts++;
+
+                  // Check if we've navigated to the correct path
+                  if (window.location.pathname === step.navigation.path || navigationAttempts >= maxNavigationAttempts) {
+                    clearInterval(checkNavigation);
+
+                    if (navigationAttempts >= maxNavigationAttempts) {
+                      console.warn(`Navigation to ${step.navigation.path} timed out`);
+                    }
+
+                    // Give extra time for the page to render after navigation
+                    setTimeout(() => {
+                      // Restore modal visibility
+                      if (currentModal) {
+                        currentModal.style.opacity = '1';
+                        currentModal.style.pointerEvents = 'auto';
+                      }
+                      waitForElement(step.element, resolve);
+                    }, 500);
+                  }
+                }, 100);
               } else {
-                setTimeout(resolve, 300);
+                // Just wait for element to appear
+                waitForElement(step.element, resolve);
               }
             });
           },
         };
-
-        if (step.navigation && navigationHandler) {
-          const originalNextAction = stepConfig.buttons[1].action;
-          stepConfig.buttons[1].action = () => {
-            if (index === tourConfig.steps.length - 1) {
-              originalNextAction();
-            } else {
-              navigationHandler(step.navigation);
-            }
-          };
-        }
 
         return stepConfig;
       });
@@ -104,24 +192,14 @@ export function useTour() {
 
       // Handle tour completion
       tour.on("complete", () => {
+        console.log(`Tour ${tourConfig.name} completed`);
         updateTourStatus(tourConfig.name, true);
-        window.currentTour = null;
-        document.documentElement.style.position = "";
-        document.documentElement.style.width = "";
-        document.documentElement.style.height = "";
-        document.body.style.position = "";
-        document.body.style.width = "";
-        document.body.style.height = "";
+        cleanupTour();
       });
 
       tour.on("cancel", () => {
-        window.currentTour = null;
-        document.documentElement.style.position = "";
-        document.documentElement.style.width = "";
-        document.documentElement.style.height = "";
-        document.body.style.position = "";
-        document.body.style.width = "";
-        document.body.style.height = "";
+        console.log(`Tour ${tourConfig.name} cancelled`);
+        cleanupTour();
       });
 
       // Start the tour
@@ -130,7 +208,7 @@ export function useTour() {
 
       console.log(`Starting tour: ${tourConfig.name}`);
     },
-    [updateTourStatus]
+    [updateTourStatus, location, setLocation, setPendingNavigationTour]
   );
 
   const completeTour = useCallback(
@@ -146,14 +224,64 @@ export function useTour() {
   useEffect(() => {
     const pendingTour = getPendingNavigationTour();
     if (pendingTour && location === pendingTour.path) {
-      // Restore scroll lock when arriving at new page during tour
-      document.documentElement.classList.add("shepherd-active");
-      document.body.classList.add("shepherd-active");
-      
-      setTimeout(() => {
-        startTour(pendingTour.config);
-        clearPendingNavigationTour();
-      }, 150);
+      console.log(`Continuing tour for path: ${location}`);
+
+      // Wait for page to be fully loaded and elements to be ready
+      const continueTour = () => {
+        // Double-check we're still on the right page
+        if (location === pendingTour.path && getPendingNavigationTour()) {
+          // Add a small delay to ensure DOM is fully updated
+          setTimeout(() => {
+            // Instead of starting a new tour, continue with the existing one
+            if (window.currentTour) {
+              // Show the modal again
+              const modal = document.querySelector('.shepherd-element');
+              if (modal) {
+                modal.style.display = 'block';
+                modal.style.opacity = '1';
+                modal.style.pointerEvents = 'auto';
+              }
+              // The tour should automatically show the next step
+              window.currentTour.next();
+            } else {
+              // Fallback: start a new tour if no current tour exists
+              startTour(pendingTour.config);
+            }
+            clearPendingNavigationTour();
+          }, 300);
+        }
+      };
+
+      // Use multiple readiness checks
+      const checkPageReady = () => {
+        if (document.readyState === 'complete') {
+          // Check if the main content area is loaded
+          const mainContent = document.querySelector('main') || document.body;
+          if (mainContent) {
+            continueTour();
+          } else {
+            // Wait a bit more for content to load
+            setTimeout(continueTour, 500);
+          }
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        checkPageReady();
+      } else {
+        window.addEventListener('load', checkPageReady, { once: true });
+      }
+
+      // Fallback timeout - increased for more complex pages
+      const fallbackTimeout = setTimeout(() => {
+        const currentPendingTour = getPendingNavigationTour();
+        if (currentPendingTour && location === currentPendingTour.path) {
+          console.log('Using fallback timeout for pending tour');
+          continueTour();
+        }
+      }, 2000);
+
+      return () => clearTimeout(fallbackTimeout);
     }
   }, [location, getPendingNavigationTour, clearPendingNavigationTour, startTour]);
 
@@ -162,4 +290,94 @@ export function useTour() {
     completeTour,
     getTourStatus,
   };
+}
+
+function cleanupShepherdUI() {
+  try {
+    document.documentElement.classList.remove("shepherd-active");
+    document.body.classList.remove("shepherd-active");
+    document.documentElement.style.position = "";
+    document.documentElement.style.width = "";
+    document.documentElement.style.height = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+    document.body.style.height = "";
+    
+    const shepherdElements = document.querySelectorAll(
+      '.shepherd-modal-overlay-container, .shepherd-element, .shepherd-popup'
+    );
+    shepherdElements.forEach(el => {
+      try {
+        el.remove();
+      } catch (e) {
+        console.warn('Error removing shepherd element:', e);
+      }
+    });
+  } catch (e) {
+    console.warn('Error cleaning up Shepherd UI:', e);
+  }
+}
+
+function cleanupTour() {
+  window.currentTour = null;
+  cleanupShepherdUI();
+}
+
+function waitForElement(selector, resolve, maxAttempts = 25) {
+  let attempts = 0;
+
+  const checkElement = setInterval(() => {
+    attempts++;
+    const element = document.querySelector(selector);
+
+    if (element && isElementReady(element)) {
+      clearInterval(checkElement);
+      requestAnimationFrame(() => {
+        element.style.visibility = 'visible';
+        resolve();
+      });
+      return;
+    } else if (attempts >= maxAttempts) {
+      clearInterval(checkElement);
+      console.warn(`Element ${selector} not found after ${maxAttempts * 40}ms, proceeding anyway`);
+      resolve();
+    }
+  }, 40);
+}
+
+function isElementReady(element) {
+  // Check if element exists
+  if (!element) return false;
+
+  // Check if element is in DOM
+  if (!document.contains(element)) return false;
+
+  // Check computed style visibility
+  const computedStyle = window.getComputedStyle(element);
+  if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden' || computedStyle.opacity === '0') {
+    return false;
+  }
+
+  // Check if element has dimensions
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) {
+    return false;
+  }
+
+  // Check if element is positioned (has offsetParent or is positioned)
+  if (element.offsetParent === null && computedStyle.position === 'static') {
+    return false;
+  }
+
+  // Additional check: ensure parent elements are also visible
+  let parent = element.parentElement;
+  while (parent) {
+    const parentStyle = window.getComputedStyle(parent);
+    if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
+      return false;
+    }
+    parent = parent.parentElement;
+  }
+
+  return true;
 }
