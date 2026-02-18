@@ -60,6 +60,8 @@ export default function SalesOrders() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [actionInProgressId, setActionInProgressId] = useState<string | number | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
@@ -202,6 +204,11 @@ export default function SalesOrders() {
     updateStatusMutation.mutate({ orderId, status });
   };
 
+  const handleViewDetails = (order: any) => {
+    setSelectedOrder(order);
+    setIsViewDialogOpen(true);
+  };
+
   const onSubmit = (data: SalesOrderFormValues) => {
     // Ensure quotationId is valid or undefined
     const finalData = { ...data };
@@ -262,7 +269,12 @@ export default function SalesOrders() {
         const isProcessing = actionInProgressId === order.id;
         return (
           <div className="flex items-center space-x-2">
-            <Button size="sm" variant="ghost" title="View Details">
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              title="View Details"
+              onClick={() => handleViewDetails(order)}
+            >
               <Eye className="h-4 w-4" />
             </Button>
             {order.status === 'pending' && (
@@ -633,6 +645,86 @@ export default function SalesOrders() {
           />
         </CardContent>
       </Card>
+
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sales Order Details - {selectedOrder?.orderNumber}</DialogTitle>
+            <DialogDescription>
+              Full details for sales order {selectedOrder?.orderNumber}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Customer Details</p>
+                  <p className="font-bold text-lg">{selectedOrder.customer?.name}</p>
+                  <p>{selectedOrder.customer?.address}</p>
+                  <p>GST: {selectedOrder.customer?.gstNumber}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Order Info</p>
+                  <p><strong>Order Date:</strong> {new Date(selectedOrder.orderDate).toLocaleDateString()}</p>
+                  <p><strong>Status:</strong> <Badge className="ml-1 uppercase text-[10px]">{selectedOrder.status}</Badge></p>
+                  <p><strong>Delivery Period:</strong> {selectedOrder.deliveryPeriod}</p>
+                </div>
+              </div>
+
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Item Name</th>
+                      <th className="px-4 py-2 text-right">Qty</th>
+                      <th className="px-4 py-2 text-right">Price</th>
+                      <th className="px-4 py-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {selectedOrder.items?.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2">
+                          <p className="font-medium">{item.itemName}</p>
+                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </td>
+                        <td className="px-4 py-2 text-right">{item.quantity} {item.unit}</td>
+                        <td className="px-4 py-2 text-right">₹{parseFloat(item.unitPrice).toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-2 text-right font-medium">₹{parseFloat(item.amount).toLocaleString("en-IN")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="w-64 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span>₹{parseFloat(selectedOrder.subtotalAmount).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{selectedOrder.gstType} ({selectedOrder.gstPercentage}%):</span>
+                    <span>₹{parseFloat(selectedOrder.gstAmount).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2 font-bold text-lg">
+                    <span>Total:</span>
+                    <span>₹{parseFloat(selectedOrder.totalAmount).toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedOrder.notes && (
+                <div className="space-y-1">
+                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Notes</p>
+                  <p className="text-sm p-3 bg-muted rounded-md">{selectedOrder.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

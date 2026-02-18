@@ -1240,10 +1240,22 @@ class Storage {
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .orderBy(desc(salesOrders.createdAt));
 
-    return result.map((row) => ({
-      ...row.order,
-      customer: row.customer,
-    }));
+    const ordersWithItems = await Promise.all(
+      result.map(async (row) => {
+        const items = await db
+          .select()
+          .from(salesOrderItems)
+          .where(eq(salesOrderItems.salesOrderId, row.order.id));
+
+        return {
+          ...row.order,
+          customer: row.customer,
+          items: items,
+        };
+      })
+    );
+
+    return ordersWithItems;
   }
 
   async getSalesOrder(id: string): Promise<any | undefined> {
@@ -1270,7 +1282,7 @@ class Storage {
     };
   }
 
-  async createSalesOrder(order: any): Promise<SalesOrder> {
+  async createSalesOrder(order: any): Promise<any> {
     const { items, ...orderData } = order;
 
     return await db.transaction(async (tx) => {
@@ -1279,16 +1291,20 @@ class Storage {
         .values(orderData)
         .returning();
 
+      let createdItems = [];
       if (items && items.length > 0) {
-        await tx.insert(salesOrderItems).values(
+        createdItems = await tx.insert(salesOrderItems).values(
           items.map((item: any) => ({
             ...item,
             salesOrderId: newOrder.id,
           }))
-        );
+        ).returning();
       }
 
-      return newOrder;
+      return {
+        ...newOrder,
+        items: createdItems,
+      };
     });
   }
 
