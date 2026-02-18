@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Switch, Route, Link, useLocation } from "wouter";
 import { useTour } from "@/hooks/useTour";
+import { useTourStatus } from "@/contexts/TourContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+
 import { 
   FileText, 
   FileDown, 
@@ -18,16 +19,10 @@ import {
 } from "lucide-react";
 import { StartTourButton } from "@/components/StartTourButton";
 import {
-  salesTour,
   salesFlowTour,
   comprehensiveOutboundQuotationsTour,
   comprehensiveInboundQuotationsTour,
-  comprehensiveInvoicesTour,
-  comprehensiveClientsTour,
-  comprehensiveVendorsTour,
-  comprehensiveReportsTour,
   salesInvoiceManagementTour,
-  salesQuotationManagementTour,
   salesClientManagementTour,
   salesVendorManagementTour,
   salesReportsTour
@@ -105,12 +100,25 @@ const sidebarItems = [
 export default function SalesLayout() {
   const [location] = useLocation();
   const { navigationHandler } = useTourNavigation(sidebarItems);
+  const { startTour } = useTour();
+  const { getPendingNavigationTour, clearPendingNavigationTour } = useTourStatus();
   
-  useTour();
+  useEffect(() => {
+    const pendingTour = getPendingNavigationTour();
+    if (pendingTour && location === pendingTour.path) {
+      setTimeout(() => {
+        clearPendingNavigationTour();
+        if (pendingTour.config) {
+          startTour(pendingTour.config);
+        }
+      }, 300);
+    }
+  }, [location, getPendingNavigationTour, clearPendingNavigationTour, startTour]);
+
   
   const tourConfigWithNavigation = {
     ...salesFlowTour,
-    steps: salesFlowTour.steps.map((step) => {
+    steps: salesFlowTour.steps.map((step: any) => {
       if (step.navigation) {
         // For the flow tour, navigation is already embedded in the tour config
         return step;
@@ -137,7 +145,7 @@ export default function SalesLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="sales-header">Sales Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-flow-tour" />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive quotation and invoice management

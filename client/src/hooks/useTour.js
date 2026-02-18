@@ -90,6 +90,7 @@ export function useTour() {
 
       const steps = tourConfig.steps.map((step, index) => {
         const isLastStep = index === tourConfig.steps.length - 1;
+        const isLastStepWithoutNavigation = isLastStep && !step.navigation;
         const nextStep = tourConfig.steps[index + 1];
         const hasNavigation = step.navigation || (nextStep && nextStep.element);
 
@@ -108,9 +109,9 @@ export function useTour() {
               classes: "shepherd-button-secondary",
             },
             {
-              text: isLastStep ? "Finish" : "Next",
+              text: isLastStepWithoutNavigation ? "Finish" : "Next",
               action: () => {
-                if (isLastStep) {
+                if (isLastStepWithoutNavigation) {
                   tour.complete();
                 } else if (step.navigation) {
                   // Navigation to next page - don't complete the tour yet

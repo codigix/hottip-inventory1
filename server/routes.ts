@@ -6,6 +6,7 @@ import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { registerSalesRoutes } from "./sales-routes-registry";
 import { registerFileUploadRoutes } from "./file-upload-routes";
+import { registerTourRoutes } from "./tour-routes";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -4019,6 +4020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   registerFileUploadRoutes(app, requireAuth);
+  registerTourRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

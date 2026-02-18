@@ -64,6 +64,25 @@ export const users = pgTable("users", {
 });
 
 // =====================
+// TOUR TRACKING
+// =====================
+export const tourTracking = pgTable("tour_tracking", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dashboardTourDone: boolean("dashboard_tour_done").default(false).notNull(),
+  notesTourDone: boolean("notes_tour_done").default(false).notNull(),
+  eventsTourDone: boolean("events_tour_done").default(false).notNull(),
+  studentmartTourDone: boolean("studentmart_tour_done").default(false).notNull(),
+  chatroomTourDone: boolean("chatroom_tour_done").default(false).notNull(),
+  createdAt: timestamp("created_at")
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .default(sql`now()`)
+    .notNull(),
+});
+
+// =====================
 // FABRICATION ORDERS
 // =====================
 

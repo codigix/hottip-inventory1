@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
 import {
-  inventoryFlowTour,
+  inventoryTour,
   inventoryStockManagementTour,
   inventoryVendorManagementTour,
   inventorySpareToursPrefabricationTour,
@@ -110,10 +110,10 @@ export default function InventoryLayout() {
   const { navigationHandler } = useTourNavigation(sidebarItems);
   
   const tourConfigWithNavigation = {
-    ...inventoryFlowTour,
-    steps: inventoryFlowTour.steps.map((step) => {
+    ...inventoryTour,
+    steps: inventoryTour.steps.map((step) => {
       if (step.navigation) {
-        // For the flow tour, navigation is already embedded in the tour config
+        // For the inventory tour, navigation is already embedded in the tour config
         return step;
       }
       return step;
@@ -139,7 +139,7 @@ export default function InventoryLayout() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-2xl font-bold text-foreground" data-tour="inventory-header">Inventory Dashboard</h1>
-            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="inventory-flow-tour" navigationHandler={navigationHandler} />
+            <StartTourButton tourConfig={tourConfigWithNavigation} tourName="inventory-module" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
             Comprehensive inventory management system
