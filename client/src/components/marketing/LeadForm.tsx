@@ -107,13 +107,13 @@ export default function LeadForm({
 
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["api/users"],
+    queryKey: ["/users"],
     enabled: open,
   });
 
   // Fetch existing lead data if editing
   const { data: existingLead } = useQuery({
-    queryKey: ["api/marketing/leads", leadId],
+    queryKey: ["/marketing/leads", leadId],
     enabled: !!leadId && open,
   });
 
@@ -145,12 +145,12 @@ export default function LeadForm({
 
   const createMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest("/marketing/leads ", {
+      apiRequest("/marketing/leads", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({ title: "Lead created successfully!" });
       onOpenChange(false);
       form.reset();
@@ -166,14 +166,14 @@ export default function LeadForm({
 
   const updateMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest(`api/marketing/leads /${leadId}`, {
+      apiRequest(`/marketing/leads/${leadId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api/marketing/leads "] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       queryClient.invalidateQueries({
-        queryKey: ["api/marketing/leads ", leadId],
+        queryKey: ["/marketing/leads", leadId],
       });
       toast({ title: "Lead updated successfully!" });
       onOpenChange(false);
@@ -624,6 +624,7 @@ export default function LeadForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="null">Unassigned</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}

@@ -385,6 +385,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { FileUploader } from "@/components/FileUploader";
 import {
   Plus,
@@ -441,6 +442,7 @@ export default function InboundQuotations() {
     string | number | null
   >(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["/inbound-quotations"],
@@ -489,6 +491,7 @@ export default function InboundQuotations() {
     mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
       const formattedData = {
         ...data,
+        userId: user?.id || "00000000-0000-0000-0000-000000000001",
         quotationDate: new Date(data.quotationDate),
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         attachmentPath: normalizeAttachmentPath(uploadedFile?.uploadURL),

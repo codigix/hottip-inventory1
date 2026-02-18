@@ -59,9 +59,13 @@ import { StatusBadge, PriorityBadge } from "./StatusBadge";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
 export default function LeadTable({
+  leads = [],
+  isLoading = false,
   onEdit,
   onView,
 }: {
+  leads?: LeadWithAssignee[];
+  isLoading?: boolean;
   onEdit: (lead: LeadWithAssignee) => void;
   onView: (lead: LeadWithAssignee) => void;
 }) {
@@ -75,18 +79,12 @@ export default function LeadTable({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // ✅ Fetch leads
-  const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
-    queryKey: ["/api/marketing/leads"],
-    queryFn: () => apiRequest("/api/marketing/leads"),
-  });
-
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
+      apiRequest(`/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -95,12 +93,12 @@ export default function LeadTable({
   // ✅ Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/api/marketing/leads/${id}/status`, {
+      apiRequest(`/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({
         title:
           variables.status === "converted"
@@ -115,9 +113,9 @@ export default function LeadTable({
   // ✅ Convert lead mutation
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
+      apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({
         title: "Lead converted and handed over to Sales!",
       });

@@ -243,7 +243,7 @@ export const insertAdminBackupSchema = z.object({
 // LEADS
 
 export const leads = pgTable("leads", {
-  id: text("id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   firstName: text("firstName").notNull(),
   lastName: text("lastName").notNull(),
   companyName: text("companyName"),
@@ -260,11 +260,16 @@ export const leads = pgTable("leads", {
   referredBy: text("referredBy"),
   requirementDescription: text("requirementDescription"),
   estimatedBudget: numeric("estimatedBudget"),
-  assignedTo: text("assignedTo").references(() => users.id),
+  assignedTo: uuid("assignedTo").references(() => users.id),
   status: text("status").default("new"),
   priority: text("priority").default("medium"),
   createdAt: timestamp("createdAt").defaultNow(),
   followUpDate: timestamp("followUpDate"), // matches your DB exactly
+  budgetRange: text("budgetRange"),
+  expectedClosingDate: timestamp("expectedClosingDate"),
+  notes: text("notes"),
+  assignedBy: uuid("assignedBy").references(() => users.id),
+  createdBy: uuid("createdBy").references(() => users.id),
 });
 
 // =====================
@@ -478,12 +483,22 @@ export const deliveries = pgTable("deliveries", {
 
 export const gstTypeEnum = pgEnum("gst_type", ["IGST", "CGST_SGST"]);
 
+export const quotationStatus = pgEnum("quotation_status", [
+  "draft",
+  "sent",
+  "pending",
+  "approved",
+  "rejected",
+  "received",
+  "under_review",
+]);
+
 export const outboundQuotations = pgTable("outbound_quotations", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").defaultRandom().primaryKey(),
   quotationNumber: text("quotationNumber").notNull(),
   customerId: uuid("customerId").references(() => customers.id),
   userId: uuid("userId").notNull().references(() => users.id),
-  status: text("status"),
+  status: quotationStatus("status"),
   quotationDate: timestamp("quotationDate").notNull(),
   validUntil: timestamp("validUntil"),
   jobCardNumber: text("jobCardNumber"),
@@ -519,20 +534,6 @@ export const outboundQuotations = pgTable("outbound_quotations", {
 // =====================
 // INBOUND QUOTATIONS
 // =====================
-// export const inboundQuotations = pgTable("inbound_quotations", {
-//   id: serial("id").primaryKey(),
-//   supplierId: integer("supplier_id").references(() => suppliers.id),
-//   quotationNumber: varchar("quotation_number", { length: 50 }),
-//   totalAmount: numeric("total_amount"),
-//   status: varchar("status", { length: 20 }),
-//   createdAt: timestamp("created_at").defaultNow(),
-// });
-const quotationStatus = pgEnum("quotation_status", [
-  "received",
-  "under_review",
-  "approved",
-  "rejected",
-]);
 export const inboundQuotations = pgTable("inbound_quotations", {
   id: uuid("id").defaultRandom().primaryKey(),
   quotationNumber: text("quotationNumber").notNull(),
@@ -540,7 +541,7 @@ export const inboundQuotations = pgTable("inbound_quotations", {
   validUntil: timestamp("validUntil"),
   subject: text("subject"),
   totalAmount: numeric("totalAmount"),
-  status: text("status").notNull().default("received"),
+  status: quotationStatus("status").notNull().default("received"),
   notes: text("notes"),
   attachmentPath: text("attachmentPath"),
   attachmentName: text("attachmentName"),
@@ -550,6 +551,9 @@ export const inboundQuotations = pgTable("inbound_quotations", {
   quotationRef: text("quotationRef"),
   createdAt: timestamp("createdAt").defaultNow(),
 });
+
+export type InboundQuotation = typeof inboundQuotations.$inferSelect;
+export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
 
 // =====================
 // INVOICES
@@ -1093,6 +1097,123 @@ export const invoiceItemRelations = relations(invoiceItems, ({ one }) => ({
   }),
 }));
 
+// =====================
+// SALES ORDERS
+// =====================
+export const salesOrderStatus = pgEnum("sales_order_status", [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+export const salesOrders = pgTable("sales_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orderNumber: text("orderNumber").notNull().unique(),
+  customerId: uuid("customerId").references(() => customers.id).notNull(),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  userId: uuid("userId").references(() => users.id).notNull(),
+  orderDate: timestamp("orderDate").notNull().defaultNow(),
+  expectedDeliveryDate: timestamp("expectedDeliveryDate"),
+  deliveryPeriod: text("deliveryPeriod"),
+  status: salesOrderStatus("status").notNull().default("pending"),
+  subtotalAmount: numeric("subtotalAmount", { precision: 12, scale: 2 }).notNull(),
+  gstType: gstTypeEnum("gstType").default("IGST"),
+  gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default("18"),
+  gstAmount: numeric("gstAmount", { precision: 12, scale: 2 }).notNull(),
+  totalAmount: numeric("totalAmount", { precision: 12, scale: 2 }).notNull(),
+  notes: text("notes"),
+  shippingAddress: text("shippingAddress"),
+  billingAddress: text("billingAddress"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export const salesOrderItems = pgTable("sales_order_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  salesOrderId: uuid("salesOrderId")
+    .notNull()
+    .references(() => salesOrders.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
+  itemName: text("itemName"),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull().default("pcs"),
+  unitPrice: numeric("unitPrice", { precision: 12, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
+});
+
+export const salesOrderRelations = relations(salesOrders, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [salesOrders.customerId],
+    references: [customers.id],
+  }),
+  user: one(users, {
+    fields: [salesOrders.userId],
+    references: [users.id],
+  }),
+  items: many(salesOrderItems),
+}));
+
+export const salesOrderItemRelations = relations(
+  salesOrderItems,
+  ({ one }) => ({
+    salesOrder: one(salesOrders, {
+      fields: [salesOrderItems.salesOrderId],
+      references: [salesOrders.id],
+    }),
+  })
+);
+
+export const insertSalesOrderSchema = z.object({
+  orderNumber: z.string().min(1, "Order number is required"),
+  customerId: z.string().uuid("Customer is required"),
+  quotationId: z.string().uuid().optional(),
+  userId: z.string().uuid("User is required"),
+  orderDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+  expectedDeliveryDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date().optional()
+  ),
+  deliveryPeriod: z.string().optional(),
+  status: z
+    .enum([
+      "pending",
+      "confirmed",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+    ])
+    .default("pending"),
+  subtotalAmount: z.coerce.number().min(0),
+  gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
+  gstPercentage: z.coerce.number().default(18),
+  gstAmount: z.coerce.number().min(0),
+  totalAmount: z.coerce.number().min(0, "Total amount must be positive"),
+  notes: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  billingAddress: z.string().optional(),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().uuid().optional(),
+        itemName: z.string().optional(),
+        description: z.string().min(1, "Description is required"),
+        quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+        unit: z.string().optional().default("pcs"),
+        unitPrice: z.coerce.number().min(0),
+        amount: z.coerce.number().optional(),
+      })
+    )
+    .default([]),
+});
+
 // Invoice Item schema
 export const insertInvoiceItemSchema = z.object({
   invoiceId: z.string().uuid(),
@@ -1273,16 +1394,31 @@ export const fieldVisitCheckOutSchema = z.object({
 
 // Insert missing schemas for registry imports
 export const insertLeadSchema = z.object({
-  firstName: z.string(),
-  lastName: z.string(),
-  companyName: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  assignedTo: z.any().optional(),
-  createdBy: z.any().optional(),
-  assignedBy: z.any().optional(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  companyName: z.string().optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  alternatePhone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  state: z.string().optional().or(z.literal("")),
+  zipCode: z.string().optional().or(z.literal("")),
+  country: z.string().optional().default("India"),
+  source: z.string().optional().default("other"),
+  sourceDetails: z.string().optional().or(z.literal("")),
+  referredBy: z.string().optional().or(z.literal("")),
+  requirementDescription: z.string().optional().or(z.literal("")),
+  estimatedBudget: z.coerce.number().optional().default(0),
+  budgetRange: z.string().optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
+  status: z.string().optional().default("new"),
+  priority: z.string().optional().default("medium"),
+  assignedTo: z.preprocess((val) => (val === "" || val === "null" || val === undefined) ? null : val, z.string().uuid().nullable().optional()),
+  followUpDate: z.preprocess((val) => (val === "" || val === "null" || val === undefined) ? null : (typeof val === 'string' ? new Date(val) : val), z.date().nullable().optional()),
+  expectedClosingDate: z.preprocess((val) => (val === "" || val === "null" || val === undefined) ? null : (typeof val === 'string' ? new Date(val) : val), z.date().nullable().optional()),
+  createdBy: z.string().uuid().optional(),
+  assignedBy: z.string().uuid().optional(),
 });
 
 export const updateLeadSchema = insertLeadSchema.partial();
@@ -1702,6 +1838,30 @@ export const insertAccountReminderSchema = z.object({
   template: z.string().optional(),
   frequency: z.number().default(7),
 });
+
+// =====================
+// ACTIVITIES
+// =====================
+export const activities = pgTable("activities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId").notNull().references(() => users.id),
+  action: text("action").notNull(),
+  entityType: text("entityType").notNull(),
+  entityId: text("entityId").notNull(),
+  details: text("details"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const insertActivitySchema = z.object({
+  userId: z.string().uuid(),
+  action: z.string(),
+  entityType: z.string(),
+  entityId: z.string(),
+  details: z.string().optional(),
+});
+
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = typeof activities.$inferInsert;
 
 // =====================
 // ACCOUNT REPORTS

@@ -5,6 +5,7 @@ import { registerMarketingRoutes } from "./marketing-routes-registry";
 import { registerLogisticsRoutes } from "./logistics-routes-registry";
 import { registerInventoryRoutes } from "./inventory-routes-registry";
 import { registerSalesRoutes } from "./sales-routes-registry";
+import { registerSalesOrderRoutes } from "./sales-order-routes";
 import { registerFileUploadRoutes } from "./file-upload-routes";
 import { registerTourRoutes } from "./tour-routes";
 import { createServer, type Server } from "http";
@@ -371,6 +372,31 @@ const inMemoryLogisticsShipments: any[] = [];
 const inMemoryLogisticsTasks: any[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Normalize accidental double /api prefix from client (e.g., /api/api/...)
+  app.use((req, _res, next) => {
+    let u = req.url;
+    const originalUrl = u;
+    // Fix double API prefixes and missing slash variants
+    if (u.startsWith("/api/api/")) u = u.replace("/api/api/", "/api/");
+    if (u === "/api/api") u = "/api";
+    if (u.startsWith("/apiapi/")) u = u.replace("/apiapi/", "/api/");
+    if (u.startsWith("/api%20")) u = u.replace("/api%20", "/api"); // handle stray encoded spaces
+    // Strip trailing encoded spaces
+    u = u.replace(/%20+$/g, "");
+    
+    if (u !== originalUrl) {
+      console.log(`🌐 Normalized ${req.method} ${originalUrl} -> ${u}`);
+    } else {
+      console.log(`🌐 ${req.method} ${u}`);
+    }
+    
+    req.url = u;
+    next();
+  });
+
+  // TEST ENDPOINT
+  app.get("/api/ping", (_req, res) => res.json({ message: "pong", time: new Date().toISOString() }));
+
   // User registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
@@ -456,20 +482,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ error: "Failed to create client", details: error.message });
     }
   });
-  // Normalize accidental double /api prefix from client (e.g., /api/api/...)
-  app.use((req, _res, next) => {
-    let u = req.url;
-    // Fix double API prefixes and missing slash variants
-    if (u.startsWith("/api/api/")) u = u.replace("/api/api/", "/api/");
-    if (u === "/api/api") u = "/api";
-    if (u.startsWith("/apiapi/")) u = u.replace("/apiapi/", "/api/");
-    if (u.startsWith("/api%20")) u = u.replace("/api%20", "/api"); // handle stray encoded spaces
-    // Strip trailing encoded spaces
-    u = u.replace(/%20+$/g, "");
-    req.url = u;
-    next();
-  });
-
   // Authentication endpoints (public routes)
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -4002,6 +4014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register additional routes from registries
+  console.log("🚀 Initializing registries...");
   registerAdminRoutes(app, { requireAuth });
   registerAccountsRoutes(app);
   registerMarketingRoutes(app, {
@@ -4015,9 +4028,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerInventoryRoutes(app, {
     requireAuth,
   });
-  registerSalesRoutes(app, {
-    requireAuth,
-  });
+
+  console.log("🛒 Initializing sales registries...");
+  registerSalesRoutes(app, { requireAuth });
+  registerSalesOrderRoutes(app, { requireAuth });
 
   registerFileUploadRoutes(app, requireAuth);
   registerTourRoutes(app);

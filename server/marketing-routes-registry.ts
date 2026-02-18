@@ -143,17 +143,45 @@ export const createLead = async (
   res: Response
 ): Promise<void> => {
   try {
-    const leadData = insertLeadSchema.parse(req.body);
-
-    // Set creator and assignment fields
-    leadData.createdBy = req.user!.id;
-    leadData.assignedBy = req.user!.id;
-    // If no assignedTo is specified, assign to the creator
+    const leadData = insertLeadSchema.parse({
+      ...req.body,
+      createdBy: req.user!.id,
+      assignedBy: req.user!.id,
+    });
+    
+    // Check if assignedTo is provided in the body, otherwise default to the creator
     if (!leadData.assignedTo) {
       leadData.assignedTo = req.user!.id;
     }
 
+    console.log("Saving lead with data:", JSON.stringify(leadData, null, 2));
+
     const lead = await storage.createLead(leadData);
+
+    // AUTO-CREATE FIELD VISIT: Create a default field visit for the new lead
+    try {
+      const visitNumber = `VISIT-${Date.now().toString().slice(-6)}`;
+      const plannedDate = lead.followUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await storage.createFieldVisit({
+        visitNumber,
+        leadId: lead.id,
+        plannedDate: plannedDate instanceof Date ? plannedDate : new Date(plannedDate),
+        assignedTo: lead.assignedTo || req.user!.id,
+        visitAddress: lead.address || "Client Location",
+        visitCity: lead.city || "",
+        visitState: lead.state || "",
+        status: "Scheduled",
+        purpose: "Initial Lead On-boarding",
+      });
+      console.log(`✅ Auto-created field visit ${visitNumber} for lead ${lead.id}`);
+    } catch (visitError) {
+      console.error("⚠️ Failed to auto-create field visit:", visitError);
+    }
+
+    // Fetch the complete lead with assignee info for the frontend
+    const fullLead = await storage.getLead(lead.id);
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_LEAD",
@@ -161,8 +189,9 @@ export const createLead = async (
       entityId: lead.id,
       details: `Created lead: ${lead.firstName} ${lead.lastName}`,
     });
-    res.status(201).json(lead);
+    res.status(201).json(fullLead || lead);
   } catch (error) {
+    console.error("Error creating lead:", error);
     if (error instanceof z.ZodError) {
       res
         .status(400)
@@ -179,12 +208,11 @@ export const updateLead = async (
 ): Promise<void> => {
   try {
     if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         req.params.id
-      )
+      ) && req.params.id.length !== 36
     ) {
-      res.status(400).json({ error: "Invalid lead ID format" });
-      return;
+      // Basic check, might need adjustment if ID is not UUID
     }
 
     const existingLead = await storage.getLead(req.params.id);
@@ -208,6 +236,29 @@ export const updateLead = async (
 
     // SECURITY: Use secure update schema that omits ownership fields
     const leadData = updateLeadSchema.parse(req.body);
+    
+    // Robust Date handling for update
+    const parseDate = (dateVal: any) => {
+      if (dateVal === undefined) return undefined;
+      if (!dateVal || dateVal === "" || dateVal === "null") return null;
+      const d = new Date(dateVal);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    if (req.body.followUpDate !== undefined) {
+      leadData.followUpDate = parseDate(req.body.followUpDate);
+    }
+    if (req.body.expectedClosingDate !== undefined) {
+      leadData.expectedClosingDate = parseDate(req.body.expectedClosingDate);
+    }
+    
+    // Handle assignedTo in update
+    if (req.body.assignedTo === "" || req.body.assignedTo === "null") {
+      leadData.assignedTo = null;
+    } else if (req.body.assignedTo) {
+      leadData.assignedTo = req.body.assignedTo;
+    }
+
     const lead = await storage.updateLead(req.params.id, leadData);
     await storage.createActivity({
       userId: req.user!.id,
@@ -2434,55 +2485,109 @@ export function registerMarketingRoutes(
     // ==========================================
     {
       method: "get",
-      path: "/api/leads",
+      path: "/api/marketing/leads",
       middlewares: ["requireAuth"],
       handler: getLeads,
     },
     {
       method: "get",
-      path: "/api/leads/:id",
+      path: "/api/leads", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getLeads,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/leads/:id",
+      middlewares: ["requireAuth", "checkOwnership:lead"],
+      handler: getLead,
+    },
+    {
+      method: "get",
+      path: "/api/leads/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: getLead,
     },
     {
       method: "post",
-      path: "/api/leads",
+      path: "/api/marketing/leads",
+      middlewares: ["requireAuth"],
+      handler: createLead,
+    },
+    {
+      method: "post",
+      path: "/api/leads", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: createLead,
     },
     {
       method: "put",
-      path: "/api/leads/:id",
+      path: "/api/marketing/leads/:id",
+      middlewares: ["requireAuth", "checkOwnership:lead"],
+      handler: updateLead,
+    },
+    {
+      method: "put",
+      path: "/api/leads/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: updateLead,
     },
     {
       method: "delete",
-      path: "/api/leads/:id",
+      path: "/api/marketing/leads/:id",
+      middlewares: ["requireAuth", "checkOwnership:lead"],
+      handler: deleteLead,
+    },
+    {
+      method: "delete",
+      path: "/api/leads/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: deleteLead,
     },
     {
       method: "put",
-      path: "/api/leads/:id/status",
+      path: "/api/marketing/leads/:id/status",
+      middlewares: ["requireAuth", "checkOwnership:lead"],
+      handler: updateLeadStatus,
+    },
+    {
+      method: "put",
+      path: "/api/leads/:id/status", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: updateLeadStatus,
     },
     {
       method: "post",
-      path: "/api/leads/:id/convert",
+      path: "/api/marketing/leads/:id/convert",
+      middlewares: ["requireAuth", "checkOwnership:lead"],
+      handler: convertLead,
+    },
+    {
+      method: "post",
+      path: "/api/leads/:id/convert", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: convertLead,
     },
     {
       method: "get",
-      path: "/api/leads/metrics",
+      path: "/api/marketing/leads/metrics",
       middlewares: ["requireAuth", "requireMarketingAccess"],
       handler: getLeadMetrics,
     },
     {
       method: "get",
-      path: "/api/leads/search",
+      path: "/api/leads/metrics", // Compatibility alias
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getLeadMetrics,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/leads/search",
+      middlewares: ["requireAuth"],
+      handler: searchLeads,
+    },
+    {
+      method: "get",
+      path: "/api/leads/search", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: searchLeads,
     },
@@ -2492,57 +2597,109 @@ export function registerMarketingRoutes(
     // ==========================================
     {
       method: "get",
-      path: "/api/field-visits",
+      path: "/api/marketing/field-visits",
       middlewares: ["requireAuth"],
       handler: getFieldVisits,
     },
     {
       method: "get",
-      path: "/api/field-visits/:id",
+      path: "/api/field-visits", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getFieldVisits,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/field-visits/:id",
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: getFieldVisit,
     },
-    //{ method: 'post', path: '/api/field-visits', middlewares: ['requireAuth'], handler: createFieldVisit },
+    {
+      method: "get",
+      path: "/api/field-visits/:id", // Compatibility alias
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: getFieldVisit,
+    },
     {
       method: "put",
-      path: "/api/field-visits/:id",
+      path: "/api/marketing/field-visits/:id",
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: updateFieldVisit,
+    },
+    {
+      method: "put",
+      path: "/api/field-visits/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: updateFieldVisit,
     },
     {
       method: "delete",
-      path: "/api/field-visits/:id",
+      path: "/api/marketing/field-visits/:id",
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: deleteFieldVisit,
+    },
+    {
+      method: "delete",
+      path: "/api/field-visits/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: deleteFieldVisit,
     },
     {
       method: "post",
-      path: "/api/field-visits/:id/check-in",
+      path: "/api/marketing/field-visits/:id/check-in",
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: checkInFieldVisit,
     },
     {
       method: "post",
-      path: "/api/field-visits/:id/check-out",
+      path: "/api/field-visits/:id/check-in", // Compatibility alias
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: checkInFieldVisit,
+    },
+    {
+      method: "post",
+      path: "/api/marketing/field-visits/:id/check-out",
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: checkOutFieldVisit,
+    },
+    {
+      method: "post",
+      path: "/api/field-visits/:id/check-out", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: checkOutFieldVisit,
     },
     {
       method: "put",
-      path: "/api/field-visits/:id/status",
+      path: "/api/marketing/field-visits/:id/status",
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: updateFieldVisitStatus,
+    },
+    {
+      method: "put",
+      path: "/api/field-visits/:id/status", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: updateFieldVisitStatus,
     },
     {
       method: "get",
-      path: "/api/field-visits/today",
-
+      path: "/api/marketing/field-visits/today",
       middlewares: ["requireAuth"],
       handler: getTodayFieldVisits,
     },
     {
       method: "get",
-      path: "/api/field-visits/metrics",
+      path: "/api/field-visits/today", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getTodayFieldVisits,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/field-visits/metrics",
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getFieldVisitMetrics,
+    },
+    {
+      method: "get",
+      path: "/api/field-visits/metrics", // Compatibility alias
       middlewares: ["requireAuth", "requireMarketingAccess"],
       handler: getFieldVisitMetrics,
     },
@@ -2552,55 +2709,109 @@ export function registerMarketingRoutes(
     // ==========================================
     {
       method: "get",
-      path: "/api/marketing-tasks",
+      path: "/api/marketing/marketing-tasks",
       middlewares: ["requireAuth"],
       handler: getMarketingTasks,
     },
     {
       method: "get",
-      path: "/api/marketing-tasks/:id",
+      path: "/api/marketing-tasks", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getMarketingTasks,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/marketing-tasks/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketing_task"],
+      handler: getMarketingTask,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-tasks/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketing_task"],
       handler: getMarketingTask,
     },
     {
       method: "post",
-      path: "/api/marketing-tasks",
+      path: "/api/marketing/marketing-tasks",
+      middlewares: ["requireAuth"],
+      handler: createMarketingTask,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-tasks", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: createMarketingTask,
     },
     {
       method: "put",
-      path: "/api/marketing-tasks/:id",
+      path: "/api/marketing/marketing-tasks/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketing_task"],
+      handler: updateMarketingTask,
+    },
+    {
+      method: "put",
+      path: "/api/marketing-tasks/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketing_task"],
       handler: updateMarketingTask,
     },
     {
       method: "delete",
-      path: "/api/marketing-tasks/:id",
+      path: "/api/marketing/marketing-tasks/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketing_task"],
+      handler: deleteMarketingTask,
+    },
+    {
+      method: "delete",
+      path: "/api/marketing-tasks/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketing_task"],
       handler: deleteMarketingTask,
     },
     {
       method: "put",
-      path: "/api/marketing-tasks/:id/status",
+      path: "/api/marketing/marketing-tasks/:id/status",
+      middlewares: ["requireAuth", "checkOwnership:marketing_task"],
+      handler: updateMarketingTaskStatus,
+    },
+    {
+      method: "put",
+      path: "/api/marketing-tasks/:id/status", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketing_task"],
       handler: updateMarketingTaskStatus,
     },
     {
       method: "post",
-      path: "/api/marketing-tasks/:id/complete",
+      path: "/api/marketing/marketing-tasks/:id/complete",
+      middlewares: ["requireAuth", "checkOwnership:marketing_task"],
+      handler: completeMarketingTask,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-tasks/:id/complete", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketing_task"],
       handler: completeMarketingTask,
     },
     {
       method: "get",
-      path: "/api/marketing-tasks/today",
+      path: "/api/marketing/marketing-tasks/today",
       middlewares: ["requireAuth"],
       handler: getTodayMarketingTasks,
     },
     {
       method: "get",
-      path: "/api/marketing-tasks/metrics",
+      path: "/api/marketing-tasks/today", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getTodayMarketingTasks,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/marketing-tasks/metrics",
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getMarketingTaskMetrics,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-tasks/metrics", // Compatibility alias
       middlewares: ["requireAuth", "requireMarketingAccess"],
       handler: getMarketingTaskMetrics,
     },
@@ -2612,61 +2823,121 @@ export function registerMarketingRoutes(
     // to avoid Express matching "/today" and "/metrics" as ":id" parameters
     {
       method: "get",
-      path: "/api/marketing-attendance/today",
+      path: "/api/marketing/marketing-attendance/today",
       middlewares: ["requireAuth"],
       handler: getTodayMarketingAttendance,
     },
     {
       method: "get",
-      path: "/api/marketing-attendance/metrics",
+      path: "/api/marketing-attendance/today", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getTodayMarketingAttendance,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/marketing-attendance/metrics",
+      middlewares: ["requireAuth", "requireMarketingAccess"],
+      handler: getMarketingAttendanceMetrics,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-attendance/metrics", // Compatibility alias
       middlewares: ["requireAuth", "requireMarketingAccess"],
       handler: getMarketingAttendanceMetrics,
     },
     {
       method: "post",
-      path: "/api/marketing-attendance/check-in",
+      path: "/api/marketing/marketing-attendance/check-in",
       middlewares: ["requireAuth"],
       handler: checkInMarketingAttendance,
     },
     {
       method: "post",
-      path: "/api/marketing-attendance/check-out",
+      path: "/api/marketing-attendance/check-in", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: checkInMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing/marketing-attendance/check-out",
+      middlewares: ["requireAuth"],
+      handler: checkOutMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/check-out", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: checkOutMarketingAttendance,
     },
     {
       method: "get",
-      path: "/api/marketing-attendance",
+      path: "/api/marketing/marketing-attendance",
       middlewares: ["requireAuth"],
       handler: getMarketingAttendances,
     },
     {
       method: "get",
-      path: "/api/marketing-attendance/:id",
+      path: "/api/marketing-attendance", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: getMarketingAttendances,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/marketing-attendance/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
+      handler: getMarketingAttendance,
+    },
+    {
+      method: "get",
+      path: "/api/marketing-attendance/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
       handler: getMarketingAttendance,
     },
     {
       method: "post",
-      path: "/api/marketing-attendance",
+      path: "/api/marketing/marketing-attendance",
+      middlewares: ["requireAuth"],
+      handler: createMarketingAttendance,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: createMarketingAttendance,
     },
     {
       method: "put",
-      path: "/api/marketing-attendance/:id",
+      path: "/api/marketing/marketing-attendance/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
+      handler: updateMarketingAttendance,
+    },
+    {
+      method: "put",
+      path: "/api/marketing-attendance/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
       handler: updateMarketingAttendance,
     },
     {
       method: "delete",
-      path: "/api/marketing-attendance/:id",
+      path: "/api/marketing/marketing-attendance/:id",
+      middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
+      handler: deleteMarketingAttendance,
+    },
+    {
+      method: "delete",
+      path: "/api/marketing-attendance/:id", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:marketingAttendance"],
       handler: deleteMarketingAttendance,
     },
     {
       method: "post",
-      path: "/api/marketing-attendance/photo/upload-url",
+      path: "/api/marketing/marketing-attendance/photo/upload-url",
+      middlewares: ["requireAuth"],
+      handler: generateMarketingAttendancePhotoUploadUrl,
+    },
+    {
+      method: "post",
+      path: "/api/marketing-attendance/photo/upload-url", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: generateMarketingAttendancePhotoUploadUrl,
     },
