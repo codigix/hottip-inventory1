@@ -61,7 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     // Set default authenticated user for testing
     const defaultUser: User = {
-      id: "1",
+      id: "00000000-0000-0000-0000-000000000001",
       username: "admin",
       role: "admin",
       department: "Administration",

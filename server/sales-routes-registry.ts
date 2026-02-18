@@ -11,6 +11,7 @@ import {
   invoiceStatus,
   customers,
   users,
+  insertSalesOrderSchema,
 } from "@shared/schema";
 import { storage } from "./storage";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
@@ -35,6 +36,7 @@ export function registerSalesRoutes(
     ) => Promise<void>;
   }
 ) {
+  console.log("🛒 Registering sales routes...");
   const { requireAuth } = middleware;
   const objectStorage = new ObjectStorageService();
 
@@ -1288,5 +1290,9 @@ export function registerSalesRoutes(
         details: error.message,
       });
     }
+  });
+
+  app.get("/api/sales-orders/test", (req, res) => {
+    res.json({ message: "Sales routes are working!" });
   });
 }

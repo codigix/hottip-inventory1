@@ -25,6 +25,7 @@ import {
   leads,
   fieldVisits,
   marketingTasks,
+  activities,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -50,6 +51,8 @@ import {
   invoices,
   invoiceItems,
   purchaseOrders,
+  salesOrders,
+  salesOrderItems,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -64,6 +67,8 @@ export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type SalesOrder = typeof salesOrders.$inferSelect;
+export type InsertSalesOrder = typeof salesOrders.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -1044,13 +1049,87 @@ class Storage {
   // =====================
   // LEADS CRUD
   // =====================
-  async getLeads(): Promise<Lead[]> {
-    return await db.select().from(leads).orderBy(desc(leads.createdAt));
+  async getLeads(filters?: any): Promise<any[]> {
+    let query = db
+      .select({
+        lead: leads,
+        assignee: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+      })
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id));
+
+    const conditions = [];
+
+    if (filters?.status) {
+      conditions.push(eq(leads.status, filters.status));
+    }
+
+    if (filters?.source) {
+      conditions.push(eq(leads.source, filters.source));
+    }
+
+    if (filters?.priority) {
+      conditions.push(eq(leads.priority, filters.priority));
+    }
+
+    if (filters?.assignedTo) {
+      conditions.push(eq(leads.assignedTo, filters.assignedTo));
+    }
+
+    if (filters?.search) {
+      conditions.push(
+        sql`(${leads.firstName} ILIKE ${`%${filters.search}%`} OR 
+             ${leads.lastName} ILIKE ${`%${filters.search}%`} OR 
+             ${leads.companyName} ILIKE ${`%${filters.search}%`} OR 
+             ${leads.email} ILIKE ${`%${filters.search}%`})`
+      );
+    }
+
+    if (filters?.userScope?.showOnlyUserLeads) {
+      conditions.push(
+        sql`(${leads.createdBy} = ${filters.userScope.userId} OR 
+             ${leads.assignedTo} = ${filters.userScope.userId})`
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const result = await query.orderBy(desc(leads.createdAt));
+
+    return result.map((row) => ({
+      ...row.lead,
+      assignee: row.assignee,
+    }));
   }
 
-  async getLead(id: string): Promise<Lead | undefined> {
-    const [row] = await db.select().from(leads).where(eq(leads.id, id));
-    return row;
+  async getLead(id: string): Promise<any | undefined> {
+    const [row] = await db
+      .select({
+        lead: leads,
+        assignee: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+      })
+      .from(leads)
+      .leftJoin(users, eq(leads.assignedTo, users.id))
+      .where(eq(leads.id, id));
+    
+    if (!row) return undefined;
+
+    return {
+      ...row.lead,
+      assignee: row.assignee,
+    };
   }
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
@@ -1072,6 +1151,40 @@ class Storage {
 
   async deleteLead(id: string): Promise<void> {
     await db.delete(leads).where(eq(leads.id, id));
+  }
+
+  async convertLeadToCustomer(leadId: string): Promise<Customer> {
+    const lead = await this.getLead(leadId);
+    if (!lead) {
+      throw new Error(`Lead with ID '${leadId}' not found for conversion.`);
+    }
+
+    const insertCustomer: InsertCustomer = {
+      name: `${lead.firstName} ${lead.lastName}`,
+      company: lead.companyName,
+      email: lead.email,
+      phone: lead.phone,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state,
+      zipCode: lead.zipCode,
+      country: lead.country || "India",
+    };
+
+    const customer = await this.createCustomer(insertCustomer);
+    await this.updateLead(leadId, { status: "converted" });
+    return customer;
+  }
+
+  // =====================
+  // ACTIVITIES CRUD
+  // =====================
+  async createActivity(insertActivity: any): Promise<any> {
+    const [row] = await db
+      .insert(activities)
+      .values(insertActivity)
+      .returning();
+    return row;
   }
 
   // =====================
@@ -1114,6 +1227,81 @@ class Storage {
 
   async deleteFieldVisit(id: string): Promise<void> {
     await db.delete(fieldVisits).where(eq(fieldVisits.id, id));
+  }
+
+  // Sales Order Methods
+  async getSalesOrders(): Promise<any[]> {
+    const result = await db
+      .select({
+        order: salesOrders,
+        customer: customers,
+      })
+      .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .orderBy(desc(salesOrders.createdAt));
+
+    return result.map((row) => ({
+      ...row.order,
+      customer: row.customer,
+    }));
+  }
+
+  async getSalesOrder(id: string): Promise<any | undefined> {
+    const [row] = await db
+      .select({
+        order: salesOrders,
+        customer: customers,
+      })
+      .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .where(eq(salesOrders.id, id));
+
+    if (!row) return undefined;
+
+    const items = await db
+      .select()
+      .from(salesOrderItems)
+      .where(eq(salesOrderItems.salesOrderId, id));
+
+    return {
+      ...row.order,
+      customer: row.customer,
+      items: items,
+    };
+  }
+
+  async createSalesOrder(order: any): Promise<SalesOrder> {
+    const { items, ...orderData } = order;
+
+    return await db.transaction(async (tx) => {
+      const [newOrder] = await tx
+        .insert(salesOrders)
+        .values(orderData)
+        .returning();
+
+      if (items && items.length > 0) {
+        await tx.insert(salesOrderItems).values(
+          items.map((item: any) => ({
+            ...item,
+            salesOrderId: newOrder.id,
+          }))
+        );
+      }
+
+      return newOrder;
+    });
+  }
+
+  async updateSalesOrderStatus(id: string, status: string): Promise<SalesOrder> {
+    const [row] = await db
+      .update(salesOrders)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(salesOrders.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Sales order with ID '${id}' not found for update.`);
+    }
+    return row;
   }
 }
 

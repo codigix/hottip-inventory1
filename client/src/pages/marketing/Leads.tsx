@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
+import { apiRequest } from "@/lib/queryClient";
 import LeadTable from "@/components/marketing/LeadTable";
 import LeadForm from "@/components/marketing/LeadForm";
 import type {
@@ -81,7 +82,7 @@ export default function Leads() {
       const url = queryParams
         ? `/marketing/leads?${queryParams}`
         : "/marketing/leads";
-      return fetch(url).then((res) => res.json());
+      return apiRequest(url);
     },
   });
 

@@ -19,6 +19,7 @@ import {
 // Import individual pages (will create these next)
 import OutboundQuotations from "./OutboundQuotations";
 import InboundQuotations from "./InboundQuotations";
+import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
 import ClientManagement from "./ClientManagement";
 import VendorManagement from "./VendorManagement";
@@ -46,6 +47,13 @@ const sidebarItems = [
     icon: FileDown,
     path: '/sales/inbound-quotations',
     description: 'Client/Vendor → Company quotations'
+  },
+  {
+    id: 'sales-orders',
+    label: 'Sales Orders',
+    icon: FileText,
+    path: '/sales/orders',
+    description: 'Manage confirmed sales orders'
   },
   {
     id: 'invoices',
@@ -84,6 +92,7 @@ export default function SalesLayout() {
     if (location === '/sales') return 'dashboard';
     if (location.includes('/outbound-quotations')) return 'outbound-quotations';
     if (location.includes('/inbound-quotations')) return 'inbound-quotations';
+    if (location.includes('/orders')) return 'sales-orders';
     if (location.includes('/invoices')) return 'invoices';
     if (location.includes('/clients')) return 'clients';
     if (location.includes('/vendors')) return 'vendors';
@@ -160,6 +169,7 @@ export default function SalesLayout() {
           <Route path="/sales" component={SalesDashboard} />
           <Route path="/sales/outbound-quotations" component={OutboundQuotations} />
           <Route path="/sales/inbound-quotations" component={InboundQuotations} />
+          <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
           <Route path="/sales/clients" component={ClientManagement} />
           <Route path="/sales/vendors" component={VendorManagement} />
