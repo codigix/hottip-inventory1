@@ -130,7 +130,7 @@ export default function CheckInModal({
   const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
     try {
       const response = await fetch(
-        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+        `${import.meta.env.VITE_BIGDATACLOUD_API_URL || "https://api.bigdatacloud.net/data/reverse-geocode-client"}?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
       );
       
       if (!response.ok) {

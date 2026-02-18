@@ -85,12 +85,6 @@ export default function LogisticsDashboard() {
 
   const { data: customersData = [], isLoading: customersLoading } = useQuery({
     queryKey: ["/customers"],
-    queryFn: async () => {
-      const res = await fetch(`${apiBaseUrl}//customers`);
-      if (!res.ok) throw new Error("Failed to fetch customers");
-      const json = await res.json();
-      return Array.isArray(json.customers) ? json.customers : [];
-    },
   });
 
   // Normalize after fetching

@@ -8,7 +8,7 @@ function resolveBaseUrl(): string {
     process.env.OBJECT_BASE_URL ||
     process.env.API_BASE_URL ||
     process.env.CLIENT_ORIGIN ||
-    "http://localhost:5000"
+    `http://localhost:${process.env.PORT || 5000}`
   );
 }
 

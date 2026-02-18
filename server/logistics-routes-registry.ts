@@ -1960,7 +1960,7 @@ export const generatePodUploadUrl = async (
         expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
       };
       const response = await fetch(
-        `http://127.0.0.1:1106/object-storage/signed-object-url`,
+        `${process.env.REPLIT_SIDECAR_ENDPOINT || "http://127.0.0.1:1106"}/object-storage/signed-object-url`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -124,7 +124,7 @@ export default function CheckInModal({
     try {
       // Using a free geocoding service (you might want to replace with your preferred service)
       const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=YOUR_API_KEY`
+        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${import.meta.env.VITE_OPENCAGE_API_KEY || "YOUR_API_KEY"}`
       );
       
       if (response.ok) {
