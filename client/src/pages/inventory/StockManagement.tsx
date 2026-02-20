@@ -22,13 +22,31 @@ function TransactionDetailsModal({ open, onOpenChange, transaction }: { open: bo
 }
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+const productFormSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  description: z.string().optional(),
+  sku: z.string().min(1, "SKU is required"),
+  category: z.string().min(1, "Category is required"),
+  price: z.string().min(1, "Price is required"),
+  costPrice: z.string().min(1, "Cost price is required"),
+  stock: z.number().min(0, "Stock cannot be negative"),
+  lowStockThreshold: z.number().min(0, "Threshold cannot be negative"),
+  unit: z.string().min(1, "Unit is required"),
+});
+
+type ProductForm = z.infer<typeof productFormSchema>;
 // Stock Details Modal
 function StockDetailsModal({ open, onOpenChange, product }: { open: boolean; onOpenChange: (v: boolean) => void; product: any }) {
   if (!product) return null;
@@ -113,11 +131,55 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Package, TrendingDown, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function StockManagement() {
   const [isStockTransactionDialogOpen, setIsStockTransactionDialogOpen] = useState(false);
+  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'in' | 'out'>('in');
+  
+  const productForm = useForm<ProductForm>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      sku: "",
+      category: "",
+      price: "",
+      costPrice: "",
+      stock: 0,
+      lowStockThreshold: 10,
+      unit: "pcs",
+    },
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: async (data: ProductForm) => {
+      return await apiRequest("POST", "/products", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      setIsAddProductDialogOpen(false);
+      productForm.reset();
+      toast({
+        title: "Success",
+        description: "Product created successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onAddProductSubmit = (data: ProductForm) => {
+    createProductMutation.mutate(data);
+  };
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedPo, setSelectedPo] = useState('');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -165,6 +227,12 @@ export default function StockManagement() {
     queryKey: ["/reorder-points"],
   });
 
+  // Fetch purchase orders for "Stock In"
+  const { data: purchaseOrders } = useQuery({
+    queryKey: ["/purchase-orders"],
+    enabled: transactionType === 'in',
+  });
+
   // Stock transaction mutation
   const stockTransactionMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -193,11 +261,14 @@ export default function StockManagement() {
 
   const resetForm = () => {
     setSelectedProduct('');
+    setSelectedPo('');
     setQuantity('');
     setReason('');
     setReferenceNumber('');
     setNotes('');
   };
+
+  const { user } = useAuth();
 
   const handleStockTransaction = () => {
     if (!selectedProduct || !quantity || !reason) {
@@ -210,7 +281,7 @@ export default function StockManagement() {
     }
 
     const transactionData = {
-      userId: 'current-user', // Default user for now - should be from auth context in production
+      userId: user?.id || null, 
       productId: selectedProduct,
       type: transactionType,
       quantity: parseInt(quantity),
@@ -297,7 +368,7 @@ export default function StockManagement() {
       ),
     },
     {
-      key: "product.name",
+      key: "productName",
       header: "Product",
     },
     {
@@ -327,9 +398,11 @@ export default function StockManagement() {
   const stockTransactionsArray = Array.isArray(stockTransactions) ? stockTransactions : [];
   
   const totalProducts = productsArray.length;
-  const lowStockProducts = productsArray.filter((p: any) => p.stock <= p.lowStockThreshold).length;
+  const lowStockProducts = productsArray.filter((p: any) => p.stock <= (p.lowStockThreshold || 0)).length;
   const totalValue = productsArray.reduce((sum: number, product: any) => {
-    return sum + (parseFloat(product.price || 0) * (product.stock || 0));
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : (product.price || 0);
+    const stock = typeof product.stock === 'string' ? parseInt(product.stock) : (product.stock || 0);
+    return sum + (price * stock);
   }, 0);
   const totalTransactions = stockTransactionsArray.length;
 
@@ -358,6 +431,168 @@ export default function StockManagement() {
           <p className="text-muted-foreground">Manage stock in/out, track balances, and monitor low-stock alerts</p>
         </div>
         <div className="flex items-center space-x-4">
+          <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+              </DialogHeader>
+              <Form {...productForm}>
+                <form onSubmit={productForm.handleSubmit(onAddProductSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={productForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Product Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={productForm.control}
+                      name="sku"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SKU</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={productForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={productForm.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={productForm.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price (₹)</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" step="0.01" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={productForm.control}
+                      name="costPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cost Price (₹)</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" step="0.01" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={productForm.control}
+                      name="stock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Stock</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={productForm.control}
+                      name="lowStockThreshold"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Low Stock Alert</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={productForm.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="pcs">Pieces</SelectItem>
+                              <SelectItem value="kg">Kilograms</SelectItem>
+                              <SelectItem value="liters">Liters</SelectItem>
+                              <SelectItem value="meters">Meters</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsAddProductDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createProductMutation.isPending}>
+                      {createProductMutation.isPending ? "Creating..." : "Create Product"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isStockTransactionDialogOpen} onOpenChange={setIsStockTransactionDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-stock-in">
@@ -382,6 +617,49 @@ export default function StockManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+                {transactionType === 'in' && (
+                  <div>
+                    <Label htmlFor="purchase-order">Reference Purchase Order (Optional)</Label>
+                    <Select 
+                      value={selectedPo} 
+                      onValueChange={(val) => {
+                        setSelectedPo(val);
+                        const po = (purchaseOrders || []).find((p: any) => p.id === val);
+                        if (po) {
+                          setReferenceNumber(po.poNumber);
+                          setReason('purchase');
+                          // If PO has items, try to select the first item's product
+                          if (po.items && po.items.length > 0) {
+                            const firstItem = po.items[0];
+                            if (firstItem.productId) {
+                              setSelectedProduct(firstItem.productId);
+                              setQuantity(firstItem.quantity.toString());
+                            } else {
+                              // If no productId, try to find product by name
+                              const product = productsArray.find((p: any) => p.name === firstItem.itemName);
+                              if (product) {
+                                setSelectedProduct(product.id);
+                                setQuantity(firstItem.quantity.toString());
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select PO to auto-fill..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None (Manual)</SelectItem>
+                        {(purchaseOrders || []).map((po: any) => (
+                          <SelectItem key={po.id} value={po.id}>
+                            {po.poNumber} - {po.supplier?.name || 'Manual'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="product">Product</Label>
                   <Select value={selectedProduct} onValueChange={setSelectedProduct}>

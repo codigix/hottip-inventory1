@@ -79,6 +79,7 @@ const purchaseOrderFormSchema = z.object({
   items: z
     .array(
       z.object({
+        productId: z.string().uuid().optional().nullable(),
         itemName: z.string().min(1, "Item name is required"),
         description: z.string().optional(),
         quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
@@ -117,11 +118,33 @@ export default function PurchaseOrders() {
     if (!open) {
       form.reset();
       setEditingPoId(null);
+    } else if (!editingPoId) {
+      // Auto-generate PO Number when opening for new order
+      const year = new Date().getFullYear();
+      let nextCount = 1;
+      if (purchaseOrders && purchaseOrders.length > 0) {
+        const poNumbers = purchaseOrders
+          .map((po: any) => po.poNumber)
+          .filter((num: string) => num && typeof num === 'string' && num.startsWith(`PO-${year}-`));
+        
+        if (poNumbers.length > 0) {
+          const counts = poNumbers.map((num: string) => {
+            const parts = num.split("-");
+            return parseInt(parts[parts.length - 1]) || 0;
+          });
+          nextCount = Math.max(...counts) + 1;
+        }
+      }
+      form.setValue("poNumber", `PO-${year}-${String(nextCount).padStart(3, "0")}`);
     }
   };
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["/suppliers"],
+  });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["/products"],
   });
 
   const { data: inboundQuotations = [] } = useQuery({
@@ -169,29 +192,7 @@ export default function PurchaseOrders() {
     if (user?.id) {
       form.setValue("userId", user.id);
     }
-    if (!isLoading && isDialogOpen && !form.getValues("poNumber")) {
-      const year = new Date().getFullYear();
-      
-      // Find the highest existing PO number for the current year to avoid collisions
-      let nextCount = 1;
-      if (purchaseOrders && purchaseOrders.length > 0) {
-        const poNumbers = purchaseOrders
-          .map((po: any) => po.poNumber)
-          .filter((num: string) => num && typeof num === 'string' && num.startsWith(`PO-${year}-`));
-        
-        if (poNumbers.length > 0) {
-          const counts = poNumbers.map((num: string) => {
-            const parts = num.split("-");
-            return parseInt(parts[parts.length - 1]) || 0;
-          });
-          nextCount = Math.max(...counts) + 1;
-        }
-      }
-      
-      const poNumber = `PO-${year}-${String(nextCount).padStart(3, "0")}`;
-      form.setValue("poNumber", poNumber);
-    }
-  }, [isDialogOpen, purchaseOrders, form, isLoading]);
+  }, [user, form]);
 
   const selectedQuotationId = form.watch("quotationId");
 
@@ -210,22 +211,37 @@ export default function PurchaseOrders() {
         if (quotation.type === 'Inbound' && quotation.senderId) {
           form.setValue("supplierId", quotation.senderId);
         } else if (quotation.type === 'Outbound' && quotation.customerId) {
-          // If we have a customerId, it might not be in the suppliers list
-          // But we'll try to set it if it exists
-          form.setValue("supplierId", quotation.customerId);
+          // Check if this customer also exists as a supplier
+          const supplierMatch = suppliers.find((s: any) => s.id === quotation.customerId);
+          if (supplierMatch) {
+            form.setValue("supplierId", quotation.customerId);
+          } else {
+            // Reset supplierId if no match found to avoid FK errors
+            form.setValue("supplierId", "");
+          }
         }
         
         // Map items if available
         const items = quotation.quotationItems || quotation.items || [];
         if (items.length > 0) {
-          const mappedItems = items.map((item: any) => ({
-            itemName: item.partName || item.itemName || "",
-            description: item.partDescription || item.description || "",
-            quantity: item.qty || item.quantity || 1,
-            unit: item.uom || item.unit || "pcs",
-            unitPrice: item.unitPrice || 0,
-            amount: item.amount || 0,
-          }));
+          const mappedItems = items.map((item: any) => {
+            const itemName = item.partName || item.itemName || "";
+            // Try to find matching product for stock tracking
+            const matchedProduct = products.find((p: any) => 
+              p.name.toLowerCase() === itemName.toLowerCase() || 
+              p.sku.toLowerCase() === itemName.toLowerCase()
+            );
+
+            return {
+              productId: matchedProduct?.id || null,
+              itemName: itemName,
+              description: item.partDescription || item.description || "",
+              quantity: item.qty || item.quantity || 1,
+              unit: item.uom || item.unit || "pcs",
+              unitPrice: item.unitPrice || 0,
+              amount: item.amount || 0,
+            };
+          });
           replace(mappedItems);
         }
       }
@@ -312,6 +328,16 @@ export default function PurchaseOrders() {
   });
 
   const onSubmit = (data: PurchaseOrderFormValues) => {
+    // Basic validation to avoid foreign key errors
+    if (!data.supplierId || data.supplierId === "") {
+      toast({
+        title: "Validation Error",
+        description: "Please select a valid supplier.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Transform "none" to null for quotationId to avoid UUID validation errors
     const submissionData = {
       ...data,
@@ -342,6 +368,7 @@ export default function PurchaseOrders() {
       totalAmount: parseFloat(po.totalAmount),
       notes: po.notes,
       items: po.items.map((item: any) => ({
+        productId: item.productId,
         itemName: item.itemName,
         description: item.description,
         quantity: item.quantity,
@@ -492,6 +519,30 @@ export default function PurchaseOrders() {
                   />
                   <FormField
                     control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="shipped">Shipped</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="supplierId"
                     render={({ field }) => (
                       <FormItem>
@@ -561,7 +612,7 @@ export default function PurchaseOrders() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Order Items</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ itemName: "", description: "", quantity: 1, unit: "pcs", unitPrice: 0, amount: 0 })}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ productId: null, itemName: "", description: "", quantity: 1, unit: "pcs", unitPrice: 0, amount: 0 })}>
                       <Plus className="h-4 w-4 mr-2" />Add Item
                     </Button>
                   </div>
@@ -569,6 +620,7 @@ export default function PurchaseOrders() {
                     <table className="w-full text-sm text-left">
                       <thead>
                         <tr className="bg-muted/50 border-b">
+                          <th className="p-2 font-medium w-48">Product</th>
                           <th className="p-2 font-medium">Item Name</th>
                           <th className="p-2 font-medium">Description</th>
                           <th className="p-2 font-medium w-20">Qty</th>
@@ -581,6 +633,34 @@ export default function PurchaseOrders() {
                       <tbody>
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
+                            <td className="p-2">
+                              <Select 
+                                onValueChange={(val) => {
+                                  const prod = products.find((p: any) => p.id === val);
+                                  if (prod) {
+                                    form.setValue(`items.${index}.productId`, prod.id);
+                                    form.setValue(`items.${index}.itemName`, prod.name);
+                                    form.setValue(`items.${index}.description`, prod.description || "");
+                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
+                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
+                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
+                                  } else {
+                                    form.setValue(`items.${index}.productId`, null);
+                                  }
+                                }}
+                                value={form.watch(`items.${index}.productId`) || "manual"}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Manual Entry" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="manual">Manual Entry</SelectItem>
+                                  {products.map((p: any) => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
                             <td className="p-2"><Input {...form.register(`items.${index}.itemName`)} placeholder="Item Name" /></td>
                             <td className="p-2"><Input {...form.register(`items.${index}.description`)} placeholder="Description" /></td>
                             <td className="p-2">

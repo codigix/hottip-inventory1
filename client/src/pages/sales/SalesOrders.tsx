@@ -51,6 +51,7 @@ import {
   Truck,
   XCircle,
   Trash2,
+  Box,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -80,15 +81,12 @@ export default function SalesOrders() {
     queryKey: ["/customers"],
   });
 
+  const { data: products = [] } = useQuery({
+    queryKey: ["/products"],
+  });
+
   const allReferences = useMemo(() => {
     return [
-      ...quotations.map((q: any) => ({ 
-        id: `Quotation:${q.id}`, 
-        originalId: q.id,
-        number: q.quotationNumber, 
-        type: 'Quotation', 
-        data: q 
-      })),
       ...purchaseOrders.map((p: any) => ({ 
         id: `PO:${p.id}`, 
         originalId: p.id,
@@ -97,7 +95,7 @@ export default function SalesOrders() {
         data: p 
       }))
     ];
-  }, [quotations, purchaseOrders]);
+  }, [purchaseOrders]);
 
   const form = useForm<SalesOrderFormValues>({
     resolver: zodResolver(insertSalesOrderSchema),
@@ -128,13 +126,10 @@ export default function SalesOrders() {
 
   // Auto-generate Order Number
   useEffect(() => {
-    if (isDialogOpen && !form.getValues("orderNumber")) {
-      const year = new Date().getFullYear();
-      const count = (orders?.length || 0) + 1;
-      const soNumber = `SO-${year}-${String(count).padStart(3, "0")}`;
-      form.setValue("orderNumber", soNumber);
+    if (user?.id) {
+      form.setValue("userId", user.id);
     }
-  }, [isDialogOpen, orders, form]);
+  }, [user, form]);
 
   const selectedQuotationId = form.watch("quotationId");
   const selectedPurchaseOrderId = form.watch("purchaseOrderId");
@@ -149,7 +144,9 @@ export default function SalesOrders() {
     }
 
     if (reference) {
-      form.setValue("customerId", reference.customerId || reference.supplierId || "");
+      if (reference.customerId) {
+        form.setValue("customerId", reference.customerId);
+      }
       form.setValue("gstType", reference.gstType || "IGST");
       form.setValue("gstPercentage", parseFloat(reference.gstPercentage) || 18);
       form.setValue("subtotalAmount", parseFloat(reference.subtotalAmount) || 0);
@@ -158,14 +155,24 @@ export default function SalesOrders() {
       
       const items = reference.items || reference.quotationItems || [];
       if (Array.isArray(items)) {
-        const mappedItems = items.map((item: any) => ({
-          itemName: item.partName || item.itemName || "",
-          description: item.partDescription || item.description || "",
-          quantity: item.qty || item.quantity || 1,
-          unit: item.uom || item.unit || "NOS",
-          unitPrice: parseFloat(item.unitPrice) || 0,
-          amount: parseFloat(item.amount) || 0,
-        }));
+        const mappedItems = items.map((item: any) => {
+          const itemName = item.partName || item.itemName || "";
+          // Try to find matching product for stock tracking
+          const matchedProduct = products.find((p: any) => 
+            p.name.toLowerCase() === itemName.toLowerCase() || 
+            p.sku.toLowerCase() === itemName.toLowerCase()
+          );
+
+          return {
+            productId: matchedProduct?.id || null,
+            itemName: itemName,
+            description: item.partDescription || item.description || "",
+            quantity: item.qty || item.quantity || 1,
+            unit: item.uom || item.unit || "NOS",
+            unitPrice: parseFloat(item.unitPrice) || 0,
+            amount: parseFloat(item.amount) || 0,
+          };
+        });
         replace(mappedItems);
       }
     }
@@ -242,12 +249,16 @@ export default function SalesOrders() {
   const onSubmit = (data: SalesOrderFormValues) => {
     // Ensure quotationId and purchaseOrderId are valid or null
     const finalData = { ...data };
+    if (!finalData.userId && user?.id) {
+      finalData.userId = user.id;
+    }
     if (finalData.quotationId === "none" || !finalData.quotationId) {
       finalData.quotationId = null;
     }
     if (finalData.purchaseOrderId === "none" || !finalData.purchaseOrderId) {
       finalData.purchaseOrderId = null;
     }
+    console.log("Submitting order data:", finalData);
     createOrderMutation.mutate(finalData);
   };
 
@@ -283,14 +294,20 @@ export default function SalesOrders() {
         const statusColors: Record<string, string> = {
           pending: "bg-yellow-100 text-yellow-800",
           confirmed: "bg-blue-100 text-blue-800",
+          material_released: "bg-green-100 text-green-800",
           processing: "bg-purple-100 text-purple-800",
           shipped: "bg-orange-100 text-orange-800",
           delivered: "bg-green-100 text-green-800",
           cancelled: "bg-red-100 text-red-800",
         };
+
+        const displayStatus = (order.status === 'confirmed' && order.materialReleased) 
+          ? 'material_released' 
+          : order.status;
+
         return (
-          <Badge className={statusColors[order.status] || "bg-gray-100"}>
-            {order.status.toUpperCase()}
+          <Badge className={statusColors[displayStatus] || "bg-gray-100"}>
+            {displayStatus.toUpperCase().replace('_', ' ')}
           </Badge>
         );
       },
@@ -300,6 +317,8 @@ export default function SalesOrders() {
       header: "Actions",
       cell: (order: any) => {
         const isProcessing = actionInProgressId === order.id;
+        const isMaterialReleased = order.materialReleased;
+
         return (
           <div className="flex items-center space-x-2">
             <Button 
@@ -321,7 +340,18 @@ export default function SalesOrders() {
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </Button>
             )}
-            {order.status === 'confirmed' && (
+            {order.status === 'confirmed' && !isMaterialReleased && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => handleUpdateStatus(order.id, 'material_released')}
+                disabled={isProcessing}
+                title="Release Material"
+              >
+                <Box className="h-4 w-4 text-orange-600" />
+              </Button>
+            )}
+            {(order.status === 'confirmed' && isMaterialReleased) && (
               <Button 
                 size="sm" 
                 variant="ghost" 
@@ -331,6 +361,17 @@ export default function SalesOrders() {
               >
                 <Truck className="h-4 w-4 text-blue-600" />
               </Button>
+            )}
+            {order.status === 'processing' && (
+               <Button 
+               size="sm" 
+               variant="ghost" 
+               onClick={() => handleUpdateStatus(order.id, 'shipped')}
+               disabled={isProcessing}
+               title="Ship Order"
+             >
+               <Truck className="h-4 w-4 text-orange-600" />
+             </Button>
             )}
             {order.status !== 'cancelled' && order.status !== 'delivered' && (
               <Button 
@@ -349,6 +390,30 @@ export default function SalesOrders() {
     },
   ];
 
+  const handleOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      form.reset();
+    } else if (!form.getValues("orderNumber")) {
+      const year = new Date().getFullYear();
+      let nextCount = 1;
+      if (orders && orders.length > 0) {
+        const soNumbers = orders
+          .map((o: any) => o.orderNumber)
+          .filter((num: string) => num && typeof num === 'string' && num.startsWith(`SO-${year}-`));
+        
+        if (soNumbers.length > 0) {
+          const counts = soNumbers.map((num: string) => {
+            const parts = num.split("-");
+            return parseInt(parts[parts.length - 1]) || 0;
+          });
+          nextCount = Math.max(...counts) + 1;
+        }
+      }
+      form.setValue("orderNumber", `SO-${year}-${String(nextCount).padStart(3, "0")}`);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
@@ -358,7 +423,7 @@ export default function SalesOrders() {
             Manage confirmed customer orders and fulfillment
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -374,7 +439,17 @@ export default function SalesOrders() {
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form 
+                onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                  console.error("Form validation errors:", errors);
+                  toast({
+                    title: "Validation Error",
+                    description: "Please check the form for errors.",
+                    variant: "destructive",
+                  });
+                })} 
+                className="space-y-6"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -395,7 +470,7 @@ export default function SalesOrders() {
                     name="quotationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reference (Quotation/PO)</FormLabel>
+                        <FormLabel>Reference Quotation</FormLabel>
                         <Select 
                           onValueChange={(val) => {
                             if (val === "none") {
@@ -413,7 +488,7 @@ export default function SalesOrders() {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select reference" />
+                              <SelectValue placeholder="Select quotation" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -544,6 +619,7 @@ export default function SalesOrders() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
+                          <th className="p-2 text-left font-medium w-48">Product</th>
                           <th className="p-2 text-left font-medium">Item Name</th>
                           <th className="p-2 text-left font-medium">Description</th>
                           <th className="p-2 text-left font-medium w-20">Qty</th>
@@ -557,15 +633,45 @@ export default function SalesOrders() {
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
                             <td className="p-2">
+                              <Select 
+                                onValueChange={(val) => {
+                                  const prod = products.find((p: any) => p.id === val);
+                                  if (prod) {
+                                    form.setValue(`items.${index}.productId`, prod.id);
+                                    form.setValue(`items.${index}.itemName`, prod.name);
+                                    form.setValue(`items.${index}.description`, prod.description || "");
+                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
+                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
+                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
+                                  } else {
+                                    form.setValue(`items.${index}.productId`, null);
+                                  }
+                                }}
+                                value={form.watch(`items.${index}.productId`) || "manual"}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Manual Entry" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="manual">Manual Entry</SelectItem>
+                                  {products.map((p: any) => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-2">
                               <Input
                                 {...form.register(`items.${index}.itemName`)}
                                 placeholder="Item Name"
+                                className={form.formState.errors.items?.[index]?.itemName ? "border-destructive" : ""}
                               />
                             </td>
                             <td className="p-2">
                               <Input
                                 {...form.register(`items.${index}.description`)}
                                 placeholder="Description"
+                                className={form.formState.errors.items?.[index]?.description ? "border-destructive" : ""}
                               />
                             </td>
                             <td className="p-2">
@@ -579,10 +685,14 @@ export default function SalesOrders() {
                                     form.setValue(`items.${index}.amount`, qty * rate);
                                   }
                                 })}
+                                className={form.formState.errors.items?.[index]?.quantity ? "border-destructive" : ""}
                               />
                             </td>
                             <td className="p-2">
-                              <Input {...form.register(`items.${index}.unit`)} />
+                              <Input 
+                                {...form.register(`items.${index}.unit`)} 
+                                className={form.formState.errors.items?.[index]?.unit ? "border-destructive" : ""}
+                              />
                             </td>
                             <td className="p-2">
                               <Input
@@ -595,6 +705,7 @@ export default function SalesOrders() {
                                     form.setValue(`items.${index}.amount`, qty * rate);
                                   }
                                 })}
+                                className={form.formState.errors.items?.[index]?.unitPrice ? "border-destructive" : ""}
                               />
                             </td>
                             <td className="p-2">
@@ -664,6 +775,18 @@ export default function SalesOrders() {
                 </div>
 
                 <div className="flex justify-end space-x-4">
+                  <div className="flex-1">
+                    {Object.keys(form.formState.errors).length > 0 && (
+                      <p className="text-destructive text-sm font-medium">
+                        Please fix the errors in the form before submitting.
+                        {Object.entries(form.formState.errors).map(([key, error]: any) => (
+                          <span key={key} className="block text-[10px]">
+                            {key}: {error.message || (typeof error === 'object' ? 'Invalid field' : error)}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </div>
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
@@ -719,6 +842,9 @@ export default function SalesOrders() {
                 <div className="space-y-1 text-right">
                   <p className="text-muted-foreground font-medium uppercase text-[10px]">Order Info</p>
                   <p><strong>Order Date:</strong> {new Date(selectedOrder.orderDate).toLocaleDateString()}</p>
+                  {(selectedOrder.quotation || selectedOrder.purchaseOrder) && (
+                    <p><strong>Reference:</strong> {selectedOrder.quotation?.quotationNumber || selectedOrder.purchaseOrder?.poNumber}</p>
+                  )}
                   <p><strong>Status:</strong> <Badge className="ml-1 uppercase text-[10px]">{selectedOrder.status}</Badge></p>
                   <p><strong>Delivery Period:</strong> {selectedOrder.deliveryPeriod}</p>
                 </div>

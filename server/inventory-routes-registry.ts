@@ -222,20 +222,35 @@ export function registerInventoryRoutes(
         realUserId = "b34e3723-ba42-402d-b454-88cf96340573";
       }
 
-      const [row] = await db
-        .insert(stockTransactions)
-        .values({
-          userId: realUserId,
-          productId,
-          batchId: null,
-          type,
-          reason,
-          quantity: Number(quantity),
-          unitCost: Number(unitCost || 0),
-          notes,
-          referenceNumber,
-        })
-        .returning();
+      // Update product stock within a transaction
+      const [row] = await db.transaction(async (tx) => {
+        const [transactionRow] = await tx
+          .insert(stockTransactions)
+          .values({
+            userId: realUserId,
+            productId,
+            batchId: null,
+            type,
+            reason,
+            quantity: Number(quantity),
+            unitCost: Number(unitCost || 0),
+            notes,
+            referenceNumber,
+          })
+          .returning();
+
+        // Update product stock balance
+        const stockAdjustment = type === 'in' ? Number(quantity) : -Number(quantity);
+        await tx
+          .update(products)
+          .set({
+            stock: sql`${products.stock} + ${stockAdjustment}`,
+            updatedAt: new Date()
+          })
+          .where(eq(products.id, productId));
+
+        return [transactionRow];
+      });
 
       res.status(201).json(row);
     } catch (error) {
@@ -249,7 +264,24 @@ export function registerInventoryRoutes(
     requireAuth,
     async (_req: Request, res: Response) => {
       try {
-        const rows = await db.select().from(stockTransactions);
+        const rows = await db
+          .select({
+            id: stockTransactions.id,
+            productId: stockTransactions.productId,
+            batchId: stockTransactions.batchId,
+            type: stockTransactions.type,
+            reason: stockTransactions.reason,
+            quantity: stockTransactions.quantity,
+            unitCost: stockTransactions.unitCost,
+            userId: stockTransactions.userId,
+            referenceNumber: stockTransactions.referenceNumber,
+            notes: stockTransactions.notes,
+            createdAt: stockTransactions.createdAt,
+            productName: products.name,
+            productSku: products.sku,
+          })
+          .from(stockTransactions)
+          .leftJoin(products, eq(stockTransactions.productId, products.id));
         res.status(200).json(rows);
       } catch (error) {
         console.error("Error fetching stock transactions:", error);
@@ -266,9 +298,24 @@ export function registerInventoryRoutes(
       try {
         const { productId } = req.params;
         const rows = await db
-          .select()
+          .select({
+            id: stockTransactions.id,
+            productId: stockTransactions.productId,
+            batchId: stockTransactions.batchId,
+            type: stockTransactions.type,
+            reason: stockTransactions.reason,
+            quantity: stockTransactions.quantity,
+            unitCost: stockTransactions.unitCost,
+            userId: stockTransactions.userId,
+            referenceNumber: stockTransactions.referenceNumber,
+            notes: stockTransactions.notes,
+            createdAt: stockTransactions.createdAt,
+            productName: products.name,
+            productSku: products.sku,
+          })
           .from(stockTransactions)
-          .where(eq(stockTransactions.productId, productId)); // ✅ fixed
+          .leftJoin(products, eq(stockTransactions.productId, products.id))
+          .where(eq(stockTransactions.productId, productId));
         res.status(200).json(rows);
       } catch (error) {
         console.error("Error fetching stock transactions by product:", error);

@@ -2,6 +2,7 @@ import "dotenv/config"; // loads environment variables from .env
 import pg from "pg";
 const { Pool } = pg;
 import { drizzle } from "drizzle-orm/node-postgres";
+import { sql } from "drizzle-orm";
 import * as schema from "@shared/schema"; // adjust the path to your schema
 
 // Ensure DATABASE_URL is set

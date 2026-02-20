@@ -597,6 +597,8 @@ export const products = pgTable("products", {
   costPrice: decimal("costPrice", { precision: 10, scale: 2 }).default(0),
   lowStockThreshold: integer("lowStockThreshold").default(0),
   unit: text("unit"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 // =====================
@@ -773,6 +775,7 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
   purchaseOrderId: uuid("purchaseOrderId")
     .notNull()
     .references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
   itemName: text("itemName").notNull(),
   description: text("description"),
   quantity: integer("quantity").notNull(),
@@ -829,6 +832,7 @@ export const insertPurchaseOrderSchema = z.object({
   items: z
     .array(
       z.object({
+        productId: z.string().uuid().optional().nullable(),
         itemName: z.string().min(1, "Item name is required"),
         description: z.string().optional().nullable(),
         quantity: z.coerce.number().min(1),
@@ -1094,7 +1098,7 @@ export const insertInvoiceSchema = z.object({
   lineItems: z
     .array(
       z.object({
-        productId: z.string().uuid().optional(),
+        productId: z.string().uuid().optional().nullable(),
         description: z.string().min(1, "Description is required"),
         quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
         unit: z.string().optional(),
@@ -1177,6 +1181,8 @@ export const salesOrders = pgTable("sales_orders", {
   notes: text("notes"),
   shippingAddress: text("shippingAddress"),
   billingAddress: text("billingAddress"),
+  materialReleased: boolean("materialReleased").default(false).notNull(),
+  stockDeducted: boolean("stockDeducted").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
@@ -1250,6 +1256,7 @@ export const insertSalesOrderSchema = z.object({
       "cancelled",
     ])
     .default("pending"),
+  materialReleased: z.boolean().default(false),
   subtotalAmount: z.coerce.number().min(0),
   gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
   gstPercentage: z.coerce.number().default(18),
@@ -1261,7 +1268,7 @@ export const insertSalesOrderSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().uuid().optional(),
+        productId: z.string().uuid().optional().nullable(),
         itemName: z.string().optional(),
         description: z.string().min(1, "Description is required"),
         quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
@@ -1815,6 +1822,7 @@ export const stockTransactions = pgTable("stock_transactions", {
   userId: uuid("userId"),
   referenceNumber: text("referenceNumber"),
   notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 export const attendance = pgTable("attendance", {
   id: uuid("id").defaultRandom().primaryKey(),

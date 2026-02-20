@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Drawer,
   DrawerContent,
   DrawerDescription,
@@ -139,6 +147,10 @@ export default function InvoiceManagement() {
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/customers"],
+  });
+
+  const { data: salesOrders = [] } = useQuery({
+    queryKey: ["/sales-orders"],
   });
 
   const form = useForm<z.infer<typeof insertInvoiceSchema>>({
@@ -476,26 +488,112 @@ export default function InvoiceManagement() {
             GST invoices with tax breakdowns and PDF downloads
           </p>
         </div>
-        <Drawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
             <Button data-testid="button-new-invoice">
               <Plus className="h-4 w-4 mr-2" />
               New Invoice
             </Button>
-          </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader className="sticky top-0 bg-background border-b z-10">
-              <DrawerTitle>Create New Invoice</DrawerTitle>
-              <DrawerDescription>
+          </DialogTrigger>
+          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-background border-b z-10">
+              <DialogTitle>Create New Invoice</DialogTitle>
+              <DialogDescription>
                 Enter the invoice details below.
-              </DrawerDescription>
-            </DrawerHeader>
+              </DialogDescription>
+            </DialogHeader>
             <div className="flex-1 overflow-y-auto p-4">
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-4"
                 >
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormItem>
+                      <FormLabel>Reference PO (Optional)</FormLabel>
+                      <Select
+                        onValueChange={(val) => {
+                          const order = salesOrders.find((o: any) => o.id === val);
+                          if (order) {
+                            form.setValue("customerId", order.customerId);
+                            form.setValue("billingAddress", order.billingAddress || "");
+                            form.setValue("shippingAddress", order.shippingAddress || "");
+                            form.setValue("billingGstNumber", order.customer?.gstNumber || "");
+                            form.setValue("subtotalAmount", parseFloat(order.subtotalAmount) || 0);
+                            
+                            if (order.gstType === "IGST") {
+                              form.setValue("igstRate", parseFloat(order.gstPercentage) || 18);
+                              form.setValue("igstAmount", parseFloat(order.gstAmount) || 0);
+                              form.setValue("cgstRate", 0);
+                              form.setValue("cgstAmount", 0);
+                              form.setValue("sgstRate", 0);
+                              form.setValue("sgstAmount", 0);
+                            } else {
+                              form.setValue("cgstRate", (parseFloat(order.gstPercentage) / 2) || 9);
+                              form.setValue("cgstAmount", (parseFloat(order.gstAmount) / 2) || 0);
+                              form.setValue("sgstRate", (parseFloat(order.gstPercentage) / 2) || 9);
+                              form.setValue("sgstAmount", (parseFloat(order.gstAmount) / 2) || 0);
+                              form.setValue("igstRate", 0);
+                              form.setValue("igstAmount", 0);
+                            }
+
+                            form.setValue("totalAmount", parseFloat(order.totalAmount) || 0);
+                            form.setValue("balanceAmount", parseFloat(order.totalAmount) || 0);
+                            
+                            const city = order.customer?.city || "";
+                            const state = order.customer?.state || "";
+                            form.setValue("placeOfSupply", city && state ? `${city}, ${state}` : (city || state || ""));
+                            
+                            // Map items
+                            if (order.items && Array.isArray(order.items)) {
+                              const mappedLineItems = order.items.map((item: any) => {
+                                const baseAmount = parseFloat(item.amount) || (parseFloat(item.unitPrice) * item.quantity) || 0;
+                                let itemCgstRate = 0;
+                                let itemSgstRate = 0;
+                                let itemIgstRate = 0;
+                                
+                                if (order.gstType === "IGST") {
+                                  itemIgstRate = parseFloat(order.gstPercentage) || 18;
+                                } else {
+                                  itemCgstRate = (parseFloat(order.gstPercentage) / 2) || 9;
+                                  itemSgstRate = (parseFloat(order.gstPercentage) / 2) || 9;
+                                }
+
+                                return {
+                                  id: generateLineItemId(),
+                                  description: item.description || item.itemName || "N/A",
+                                  hsnSac: "",
+                                  quantity: Number(item.quantity) || 1,
+                                  unitPrice: parseFloat(item.unitPrice) || 0,
+                                  unit: item.unit || "pcs",
+                                  cgstRate: itemCgstRate,
+                                  sgstRate: itemSgstRate,
+                                  igstRate: itemIgstRate,
+                                  amount: baseAmount + (baseAmount * (itemCgstRate + itemSgstRate + itemIgstRate) / 100)
+                                };
+                              });
+                              setLineItems(mappedLineItems);
+                            }
+                          }
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a Sales Order to auto-fill..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None (Manual)</SelectItem>
+                          {salesOrders.map((order: any) => (
+                            <SelectItem key={order.id} value={order.id}>
+                              {order.orderNumber} - {order.customer?.name} (₹{parseFloat(order.totalAmount).toLocaleString()})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -1243,8 +1341,8 @@ export default function InvoiceManagement() {
                 </form>
               </Form>
             </div>
-          </DrawerContent>
-        </Drawer>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -1264,17 +1362,17 @@ export default function InvoiceManagement() {
             searchable={true}
             searchKey="invoiceNumber"
           />
-          {/* ✅ View Invoice Drawer */}
-          <Drawer open={isViewOpen} onOpenChange={setIsViewOpen}>
-            <DrawerContent className="p-6 max-h-[90vh] overflow-y-auto">
-              <DrawerHeader>
-                <DrawerTitle className="text-2xl text-center font-bold">
+          {/* ✅ View Invoice Dialog */}
+          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+            <DialogContent className="p-6 max-w-5xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-2xl text-center font-bold">
                   TAX INVOICE
-                </DrawerTitle>
-                <DrawerDescription className="text-center">
+                </DialogTitle>
+                <DialogDescription className="text-center">
                   View full invoice details
-                </DrawerDescription>
-              </DrawerHeader>
+                </DialogDescription>
+              </DialogHeader>
 
               {selectedInvoice ? (
                 <div className="space-y-4 text-sm max-w-5xl mx-auto">
@@ -1586,8 +1684,8 @@ export default function InvoiceManagement() {
               ) : (
                 <p>Loading...</p>
               )}
-            </DrawerContent>
-          </Drawer>
+            </DialogContent>
+          </Dialog>
 
           {/* ✅ Send Invoice Confirmation Dialog */}
           <AlertDialog
