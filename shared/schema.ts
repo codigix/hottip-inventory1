@@ -747,16 +747,61 @@ export const orderStatus = pgEnum("order_status", [
 
 export const purchaseOrders = pgTable("purchase_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
-  poNumber: text("poNumber").notNull(),
+  poNumber: text("poNumber").notNull().unique(),
   supplierId: uuid("supplierId")
     .notNull()
     .references(() => suppliers.id),
+  quotationId: uuid("quotationId"),
   userId: uuid("userId")
     .notNull()
     .references(() => users.id),
+  orderDate: timestamp("orderDate").notNull().defaultNow(),
+  deliveryPeriod: text("deliveryPeriod"),
   status: orderStatus("status").notNull().default("pending"),
-  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
+  subtotalAmount: numeric("subtotalAmount", { precision: 12, scale: 2 }),
+  gstType: gstTypeEnum("gstType").default("IGST"),
+  gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default("18"),
+  gstAmount: numeric("gstAmount", { precision: 12, scale: 2 }),
+  totalAmount: numeric("totalAmount", { precision: 12, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  purchaseOrderId: uuid("purchaseOrderId")
+    .notNull()
+    .references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  itemName: text("itemName").notNull(),
+  description: text("description"),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").default("pcs"),
+  unitPrice: numeric("unitPrice", { precision: 12, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
+});
+
+export const purchaseOrderRelations = relations(purchaseOrders, ({ one, many }) => ({
+  supplier: one(suppliers, {
+    fields: [purchaseOrders.supplierId],
+    references: [suppliers.id],
+  }),
+  user: one(users, {
+    fields: [purchaseOrders.userId],
+    references: [users.id],
+  }),
+  items: many(purchaseOrderItems),
+}));
+
+export const purchaseOrderItemRelations = relations(
+  purchaseOrderItems,
+  ({ one }) => ({
+    purchaseOrder: one(purchaseOrders, {
+      fields: [purchaseOrderItems.purchaseOrderId],
+      references: [purchaseOrders.id],
+    }),
+  })
+);
 
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
@@ -764,12 +809,35 @@ export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
 export const insertPurchaseOrderSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
   supplierId: z.string().uuid("Invalid supplier ID"),
+  quotationId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid("Invalid user ID"),
+  orderDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+  deliveryPeriod: z.string().optional().nullable(),
   status: z
     .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
     .optional()
     .default("pending"),
-  totalAmount: z.number().positive().optional(),
+  subtotalAmount: z.coerce.number().min(0),
+  gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
+  gstPercentage: z.coerce.number().default(18),
+  gstAmount: z.coerce.number().min(0),
+  totalAmount: z.coerce.number().min(0),
+  notes: z.string().optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        itemName: z.string().min(1, "Item name is required"),
+        description: z.string().optional().nullable(),
+        quantity: z.coerce.number().min(1),
+        unit: z.string().optional().default("pcs"),
+        unitPrice: z.coerce.number().min(0),
+        amount: z.coerce.number().optional(),
+      })
+    )
+    .min(1, "At least one item is required"),
 });
 
 // =====================
@@ -1095,6 +1163,7 @@ export const salesOrders = pgTable("sales_orders", {
   orderNumber: text("orderNumber").notNull().unique(),
   customerId: uuid("customerId").references(() => customers.id).notNull(),
   quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  purchaseOrderId: uuid("purchaseOrderId").references(() => purchaseOrders.id),
   userId: uuid("userId").references(() => users.id).notNull(),
   orderDate: timestamp("orderDate").notNull().defaultNow(),
   expectedDeliveryDate: timestamp("expectedDeliveryDate"),
@@ -1135,6 +1204,14 @@ export const salesOrderRelations = relations(salesOrders, ({ one, many }) => ({
     fields: [salesOrders.userId],
     references: [users.id],
   }),
+  quotation: one(outboundQuotations, {
+    fields: [salesOrders.quotationId],
+    references: [outboundQuotations.id],
+  }),
+  purchaseOrder: one(purchaseOrders, {
+    fields: [salesOrders.purchaseOrderId],
+    references: [purchaseOrders.id],
+  }),
   items: many(salesOrderItems),
 }));
 
@@ -1151,7 +1228,8 @@ export const salesOrderItemRelations = relations(
 export const insertSalesOrderSchema = z.object({
   orderNumber: z.string().min(1, "Order number is required"),
   customerId: z.string().uuid("Customer is required"),
-  quotationId: z.string().uuid().optional(),
+  quotationId: z.string().uuid().optional().nullable(),
+  purchaseOrderId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid("User is required"),
   orderDate: z.preprocess(
     (val) => (val ? new Date(val as string) : undefined),

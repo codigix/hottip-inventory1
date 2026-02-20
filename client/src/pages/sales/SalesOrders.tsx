@@ -72,16 +72,40 @@ export default function SalesOrders() {
     queryKey: ["/outbound-quotations"],
   });
 
+  const { data: purchaseOrders = [] } = useQuery({
+    queryKey: ["/purchase-orders"],
+  });
+
   const { data: customers = [] } = useQuery({
     queryKey: ["/customers"],
   });
+
+  const allReferences = useMemo(() => {
+    return [
+      ...quotations.map((q: any) => ({ 
+        id: `Quotation:${q.id}`, 
+        originalId: q.id,
+        number: q.quotationNumber, 
+        type: 'Quotation', 
+        data: q 
+      })),
+      ...purchaseOrders.map((p: any) => ({ 
+        id: `PO:${p.id}`, 
+        originalId: p.id,
+        number: p.poNumber, 
+        type: 'PO', 
+        data: p 
+      }))
+    ];
+  }, [quotations, purchaseOrders]);
 
   const form = useForm<SalesOrderFormValues>({
     resolver: zodResolver(insertSalesOrderSchema),
     defaultValues: {
       orderNumber: "",
       customerId: "",
-      quotationId: undefined,
+      quotationId: null,
+      purchaseOrderId: null,
       userId: user?.id || "",
       orderDate: new Date(),
       expectedDeliveryDate: undefined,
@@ -113,33 +137,39 @@ export default function SalesOrders() {
   }, [isDialogOpen, orders, form]);
 
   const selectedQuotationId = form.watch("quotationId");
+  const selectedPurchaseOrderId = form.watch("purchaseOrderId");
 
-  // Handle Quotation Selection
+  // Handle Reference Selection
   useEffect(() => {
+    let reference = null;
     if (selectedQuotationId && selectedQuotationId !== "none") {
-      const quotation = quotations.find((q: any) => q.id === selectedQuotationId);
-      if (quotation) {
-        form.setValue("customerId", quotation.customerId);
-        form.setValue("gstType", quotation.gstType || "IGST");
-        form.setValue("gstPercentage", parseFloat(quotation.gstPercentage) || 18);
-        form.setValue("subtotalAmount", parseFloat(quotation.subtotalAmount) || 0);
-        form.setValue("gstAmount", parseFloat(quotation.taxAmount) || 0);
-        form.setValue("totalAmount", parseFloat(quotation.totalAmount) || 0);
-        
-        if (quotation.quotationItems && Array.isArray(quotation.quotationItems)) {
-          const items = quotation.quotationItems.map((item: any) => ({
-            itemName: item.partName || "",
-            description: item.partDescription || "",
-            quantity: item.qty || 1,
-            unit: item.uom || "NOS",
-            unitPrice: item.unitPrice || 0,
-            amount: item.amount || 0,
-          }));
-          replace(items);
-        }
+      reference = quotations.find((q: any) => q.id === selectedQuotationId);
+    } else if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
+      reference = purchaseOrders.find((p: any) => p.id === selectedPurchaseOrderId);
+    }
+
+    if (reference) {
+      form.setValue("customerId", reference.customerId || reference.supplierId || "");
+      form.setValue("gstType", reference.gstType || "IGST");
+      form.setValue("gstPercentage", parseFloat(reference.gstPercentage) || 18);
+      form.setValue("subtotalAmount", parseFloat(reference.subtotalAmount) || 0);
+      form.setValue("gstAmount", parseFloat(reference.gstAmount || reference.taxAmount) || 0);
+      form.setValue("totalAmount", parseFloat(reference.totalAmount) || 0);
+      
+      const items = reference.items || reference.quotationItems || [];
+      if (Array.isArray(items)) {
+        const mappedItems = items.map((item: any) => ({
+          itemName: item.partName || item.itemName || "",
+          description: item.partDescription || item.description || "",
+          quantity: item.qty || item.quantity || 1,
+          unit: item.uom || item.unit || "NOS",
+          unitPrice: parseFloat(item.unitPrice) || 0,
+          amount: parseFloat(item.amount) || 0,
+        }));
+        replace(mappedItems);
       }
     }
-  }, [selectedQuotationId, quotations, form, replace]);
+  }, [selectedQuotationId, selectedPurchaseOrderId, quotations, purchaseOrders, form, replace]);
 
   // Calculate Totals
   const watchItems = form.watch("items");
@@ -210,10 +240,13 @@ export default function SalesOrders() {
   };
 
   const onSubmit = (data: SalesOrderFormValues) => {
-    // Ensure quotationId is valid or undefined
+    // Ensure quotationId and purchaseOrderId are valid or null
     const finalData = { ...data };
     if (finalData.quotationId === "none" || !finalData.quotationId) {
-      delete finalData.quotationId;
+      finalData.quotationId = null;
+    }
+    if (finalData.purchaseOrderId === "none" || !finalData.purchaseOrderId) {
+      finalData.purchaseOrderId = null;
     }
     createOrderMutation.mutate(finalData);
   };
@@ -362,18 +395,37 @@ export default function SalesOrders() {
                     name="quotationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reference Quotation</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormLabel>Reference (Quotation/PO)</FormLabel>
+                        <Select 
+                          onValueChange={(val) => {
+                            if (val === "none") {
+                              form.setValue("quotationId", null);
+                              form.setValue("purchaseOrderId", null);
+                            } else if (val.startsWith("Quotation:")) {
+                              form.setValue("quotationId", val.split(":")[1]);
+                              form.setValue("purchaseOrderId", null);
+                            } else if (val.startsWith("PO:")) {
+                              form.setValue("quotationId", null);
+                              form.setValue("purchaseOrderId", val.split(":")[1]);
+                            }
+                          }} 
+                          value={selectedQuotationId ? `Quotation:${selectedQuotationId}` : (selectedPurchaseOrderId ? `PO:${selectedPurchaseOrderId}` : "none")}
+                        >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select quotation" />
+                              <SelectValue placeholder="Select reference" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">None (Manual)</SelectItem>
-                            {quotations.map((q: any) => (
-                              <SelectItem key={q.id} value={q.id}>
-                                {q.quotationNumber}
+                            {allReferences.map((ref: any) => (
+                              <SelectItem key={ref.id} value={ref.id}>
+                                <div className="flex justify-between items-center w-full min-w-[200px]">
+                                  <span>{ref.number}</span>
+                                  <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
+                                    {ref.type}
+                                  </Badge>
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
