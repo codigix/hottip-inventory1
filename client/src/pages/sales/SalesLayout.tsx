@@ -174,30 +174,32 @@ export default function SalesLayout() {
         <div className="space-y-2">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
+            const isActive = getActiveSidebarItem() === item.id;
+            
             return (
               <Link
                 key={item.id}
                 href={item.path}
                 data-testid={`sidebar-${item.id}`}
-                className={`
-                  flex items-start space-x-3 p-4 rounded-[0.3rem] transition-colors cursor-pointer
-                  ${getActiveSidebarItem() === item.id
-                    ? 'bg-primary/10 border border-primary/20 text-primary'
-                    : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
-                  }
-                `}
               >
                 <div
+                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted/50'
+                  }`}
                   data-tour={`sales-${item.id}`}
                 >
-                  <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[0.875rem] leading-5">
-                      {item.label}
+                  <div className="flex items-center space-x-3">
+                    <Icon className="h-5 w-5" />
+                    <div>
+                      <div className="text-[0.875rem]">{item.label}</div>
+                      <div className={`text-xs ${
+                        isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                      }`}>
+                        {/* {item.description} */}
+                      </div>
                     </div>
-                    {/* <div className="text-xs text-muted-foreground mt-1">
-                      {item.description}
-                    </div> */}
                   </div>
                 </div>
               </Link>
