@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import Shepherd from "shepherd.js";
+import "shepherd.js/dist/css/shepherd.css";
 import { useTourStatus } from "@/contexts/TourContext";
 import { useLocation } from "wouter";
 

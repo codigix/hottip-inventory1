@@ -68,7 +68,7 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className="space-y-4" data-tour={dataTour}>
+    <div className="space-y-4">
       {searchable && searchKey && (
         <div className="flex items-center space-x-2">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -128,7 +128,6 @@ export function DataTable<T extends Record<string, any>>({
                             variant="ghost"
                             className="h-8 w-8 p-0"
                             data-testid={`button-actions-${rowIndex}`}
-                            data-tour={rowIndex === 0 ? actionsTourId : undefined}
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -138,7 +137,6 @@ export function DataTable<T extends Record<string, any>>({
                             <DropdownMenuItem
                               onClick={() => onView(item)}
                               data-testid={`button-view-${rowIndex}`}
-                              data-tour={rowIndex === 0 ? viewTourId : undefined}
                             >
                               View
                             </DropdownMenuItem>
@@ -147,7 +145,6 @@ export function DataTable<T extends Record<string, any>>({
                             <DropdownMenuItem
                               onClick={() => onEdit(item)}
                               data-testid={`button-edit-${rowIndex}`}
-                              data-tour={rowIndex === 0 ? editTourId : undefined}
                             >
                               Edit
                             </DropdownMenuItem>
@@ -157,7 +154,6 @@ export function DataTable<T extends Record<string, any>>({
                               onClick={() => onDelete(item)}
                               className="text-destructive"
                               data-testid={`button-delete-${rowIndex}`}
-                              data-tour={rowIndex === 0 ? deleteTourId : undefined}
                             >
                               Delete
                             </DropdownMenuItem>
