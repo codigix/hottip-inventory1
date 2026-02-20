@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MoreHorizontal, Search } from "lucide-react";
 
 interface Column<T> {
@@ -31,11 +32,7 @@ interface DataTableProps<T> {
   onView?: (item: T) => void;
   searchable?: boolean;
   searchKey?: keyof T;
-  actionsTourId?: string;
-  viewTourId?: string;
-  editTourId?: string;
-  deleteTourId?: string;
-  "data-tour"?: string;
+  isLoading?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -46,11 +43,7 @@ export function DataTable<T extends Record<string, any>>({
   onView,
   searchable = true,
   searchKey,
-  actionsTourId,
-  viewTourId,
-  editTourId,
-  deleteTourId,
-  "data-tour": dataTour,
+  isLoading = false,
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -102,7 +95,22 @@ export function DataTable<T extends Record<string, any>>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.length > 0 ? (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                  {(onEdit || onDelete || onView) && (
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            ) : filteredData.length > 0 ? (
               filteredData.map((item, rowIndex) => (
                 <TableRow key={item.id || rowIndex}>
                   {columns.map((column, colIndex) => (

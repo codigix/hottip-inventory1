@@ -1886,10 +1886,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchase-orders", requireAuth, async (req, res) => {
+  app.post("/api/purchase-orders", requireAuth, async (req: any, res) => {
     try {
       const { insertPurchaseOrderSchema } = await import("../shared/schema");
-      const parsedData = insertPurchaseOrderSchema.parse(req.body);
+      // Inject user ID from session to ensure security and prevent errors if client sends empty userId
+      const data = { ...req.body, userId: req.user.id };
+      const parsedData = insertPurchaseOrderSchema.parse(data);
       const purchaseOrder = await storage.createPurchaseOrder(parsedData);
       res.status(201).json(purchaseOrder);
     } catch (error) {
@@ -1924,6 +1926,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({
         error: "Failed to update purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.delete("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deletePurchaseOrder(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to delete purchase order",
         details: error.message,
       });
     }

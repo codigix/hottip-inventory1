@@ -26,6 +26,7 @@ import {
   fieldVisits,
   marketingTasks,
   activities,
+  stockTransactions,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -51,6 +52,7 @@ import {
   invoices,
   invoiceItems,
   purchaseOrders,
+  purchaseOrderItems,
   salesOrders,
   salesOrderItems,
 } from "@shared/schema";
@@ -383,15 +385,25 @@ class Storage {
   }
 
   // Purchase Orders CRUD
-  async getPurchaseOrders(): Promise<PurchaseOrder[]> {
-    return await db
+  async getPurchaseOrders(): Promise<any[]> {
+    const orders = await db
       .select({
         id: purchaseOrders.id,
-        number: purchaseOrders.poNumber,
+        poNumber: purchaseOrders.poNumber,
         supplierId: purchaseOrders.supplierId,
+        quotationId: purchaseOrders.quotationId,
         userId: purchaseOrders.userId,
+        orderDate: purchaseOrders.orderDate,
+        deliveryPeriod: purchaseOrders.deliveryPeriod,
         status: purchaseOrders.status,
-        total: purchaseOrders.totalAmount,
+        subtotalAmount: purchaseOrders.subtotalAmount,
+        gstType: purchaseOrders.gstType,
+        gstPercentage: purchaseOrders.gstPercentage,
+        gstAmount: purchaseOrders.gstAmount,
+        totalAmount: purchaseOrders.totalAmount,
+        notes: purchaseOrders.notes,
+        createdAt: purchaseOrders.createdAt,
+        updatedAt: purchaseOrders.updatedAt,
         supplier: {
           id: suppliers.id,
           name: suppliers.name,
@@ -408,23 +420,47 @@ class Storage {
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
-      .orderBy(purchaseOrders.poNumber);
+      .orderBy(desc(purchaseOrders.createdAt));
+
+    // Fetch items for each order
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await db
+          .select()
+          .from(purchaseOrderItems)
+          .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
+        return { ...order, items };
+      })
+    );
+
+    return ordersWithItems;
   }
 
-  async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
-    const [row] = await db
+  async getPurchaseOrder(id: string): Promise<any | undefined> {
+    const [order] = await db
       .select({
         id: purchaseOrders.id,
         poNumber: purchaseOrders.poNumber,
         supplierId: purchaseOrders.supplierId,
+        quotationId: purchaseOrders.quotationId,
         userId: purchaseOrders.userId,
+        orderDate: purchaseOrders.orderDate,
+        deliveryPeriod: purchaseOrders.deliveryPeriod,
         status: purchaseOrders.status,
+        subtotalAmount: purchaseOrders.subtotalAmount,
+        gstType: purchaseOrders.gstType,
+        gstPercentage: purchaseOrders.gstPercentage,
+        gstAmount: purchaseOrders.gstAmount,
         totalAmount: purchaseOrders.totalAmount,
+        notes: purchaseOrders.notes,
+        createdAt: purchaseOrders.createdAt,
+        updatedAt: purchaseOrders.updatedAt,
         supplier: {
           id: suppliers.id,
           name: suppliers.name,
           email: suppliers.email,
           phone: suppliers.phone,
+          address: suppliers.address,
         },
         user: {
           id: users.id,
@@ -437,26 +473,150 @@ class Storage {
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
       .where(eq(purchaseOrders.id, id));
-    return row;
+
+    if (!order) return undefined;
+
+    const items = await db
+      .select()
+      .from(purchaseOrderItems)
+      .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
+
+    return { ...order, items };
   }
 
   async createPurchaseOrder(
-    insertPO: InsertPurchaseOrder
-  ): Promise<PurchaseOrder> {
-    const [row] = await db.insert(purchaseOrders).values(insertPO).returning();
-    return row;
+    insertPO: any
+  ): Promise<any> {
+    try {
+      console.log("💾 [STORAGE] createPurchaseOrder - Input:", JSON.stringify(insertPO, null, 2));
+      const { items, ...poData } = insertPO;
+      
+      const [row] = await db.insert(purchaseOrders).values(poData).returning();
+      console.log("💾 [STORAGE] createPurchaseOrder - PO Row created:", row.id);
+      
+      if (items && items.length > 0) {
+        const itemsToInsert = items.map((item: any) => ({
+          ...item,
+          purchaseOrderId: row.id,
+        }));
+        await db.insert(purchaseOrderItems).values(itemsToInsert);
+        console.log(`💾 [STORAGE] createPurchaseOrder - ${items.length} items created`);
+      }
+      
+      const purchaseOrder = await this.getPurchaseOrder(row.id);
+
+      // Stock update logic: if created with 'delivered' status
+      if (purchaseOrder.status === "delivered") {
+        await this.updateStockFromPo(purchaseOrder);
+      }
+      
+      return purchaseOrder;
+    } catch (error) {
+      console.error("💥 [STORAGE] createPurchaseOrder - Error:", error);
+      throw error;
+    }
+  }
+
+  private async updateStockFromPo(purchaseOrder: any) {
+    try {
+      console.log(`📦 [STORAGE] PO ${purchaseOrder.poNumber} marked as delivered. Updating stock...`);
+      for (const item of purchaseOrder.items) {
+        if (item.productId) {
+          console.log(`📦 [STORAGE] Processing item: ${item.itemName} (ID: ${item.productId})`);
+          await db.transaction(async (tx) => {
+            // Create stock transaction
+            const transactionData = {
+              userId: purchaseOrder.userId,
+              productId: item.productId,
+              type: "in" as const,
+              reason: "Purchase Order Receipt",
+              quantity: item.quantity,
+              unitCost: item.unitPrice,
+              referenceNumber: purchaseOrder.poNumber,
+              notes: `Received from PO: ${purchaseOrder.poNumber}`,
+            };
+            console.log(`📦 [STORAGE] Creating stock transaction:`, JSON.stringify(transactionData, null, 2));
+            await tx.insert(stockTransactions).values(transactionData);
+
+            // Update product stock
+            console.log(`📦 [STORAGE] Updating product stock for: ${item.productId}`);
+            await tx
+              .update(products)
+              .set({
+                stock: sql`${products.stock} + ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(products.id, item.productId));
+            
+            console.log(`✅ [STORAGE] Updated stock for product ${item.productId} (+${item.quantity})`);
+          });
+        } else {
+          console.log(`⚠️ [STORAGE] Skipping item ${item.itemName} as it has no productId`);
+        }
+      }
+    } catch (error) {
+      console.error("💥 [STORAGE] Error in updateStockFromPo:", error);
+      throw error;
+    }
   }
 
   async updatePurchaseOrder(
     id: string,
-    update: Partial<InsertPurchaseOrder>
-  ): Promise<PurchaseOrder> {
-    const [row] = await db
-      .update(purchaseOrders)
-      .set(update)
-      .where(eq(purchaseOrders.id, id))
-      .returning();
-    return row;
+    update: any
+  ): Promise<any> {
+    const oldPo = await this.getPurchaseOrder(id);
+    if (!oldPo) throw new Error("Purchase order not found");
+
+    const { items, ...poData } = update;
+    
+    console.log(`💾 [STORAGE] Updating PO ${id} with poData:`, JSON.stringify(poData, null, 2));
+    if (Object.keys(poData).length > 0) {
+      try {
+        await db
+          .update(purchaseOrders)
+          .set({ ...poData, updatedAt: new Date() })
+          .where(eq(purchaseOrders.id, id));
+      } catch (e) {
+        console.error(`❌ [STORAGE] Error updating PO ${id}:`, e);
+        throw e;
+      }
+    }
+    
+    if (items) {
+      console.log(`💾 [STORAGE] Updating PO ${id} with ${items.length} items`);
+      try {
+        // Simple strategy: delete and re-insert items
+        await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+        if (items.length > 0) {
+          const itemsToInsert = items.map((item: any) => ({
+            ...item,
+            purchaseOrderId: id,
+          }));
+          await db.insert(purchaseOrderItems).values(itemsToInsert);
+        }
+      } catch (e) {
+        console.error(`❌ [STORAGE] Error updating items for PO ${id}:`, e);
+        throw e;
+      }
+    }
+    
+    const updatedPo = await this.getPurchaseOrder(id);
+
+    // Stock update logic: if status changed to 'delivered'
+    if (oldPo.status !== "delivered" && updatedPo.status === "delivered") {
+      try {
+        await this.updateStockFromPo(updatedPo);
+      } catch (e) {
+        console.error("❌ [STORAGE] Error updating stock from PO:", e);
+        throw e;
+      }
+    }
+    
+    return updatedPo;
+  }
+
+  async deletePurchaseOrder(id: string): Promise<void> {
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
   }
 
   // Users
@@ -1235,9 +1395,13 @@ class Storage {
       .select({
         order: salesOrders,
         customer: customers,
+        quotation: outboundQuotations,
+        purchaseOrder: purchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
+      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
       .orderBy(desc(salesOrders.createdAt));
 
     const ordersWithItems = await Promise.all(
@@ -1250,6 +1414,8 @@ class Storage {
         return {
           ...row.order,
           customer: row.customer,
+          quotation: row.quotation,
+          purchaseOrder: row.purchaseOrder,
           items: items,
         };
       })
@@ -1263,9 +1429,13 @@ class Storage {
       .select({
         order: salesOrders,
         customer: customers,
+        quotation: outboundQuotations,
+        purchaseOrder: purchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
+      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
       .where(eq(salesOrders.id, id));
 
     if (!row) return undefined;
@@ -1278,6 +1448,8 @@ class Storage {
     return {
       ...row.order,
       customer: row.customer,
+      quotation: row.quotation,
+      purchaseOrder: row.purchaseOrder,
       items: items,
     };
   }
@@ -1308,16 +1480,132 @@ class Storage {
     });
   }
 
-  async updateSalesOrderStatus(id: string, status: string): Promise<SalesOrder> {
+  async updateSalesOrderStatus(id: string, status: string): Promise<any> {
+    console.log(`💾 [STORAGE] updateSalesOrderStatus hit for ID: ${id}, status: ${status}`);
+    const oldOrder = await this.getSalesOrder(id);
+    if (!oldOrder) throw new Error(`Sales order with ID '${id}' not found.`);
+
+    console.log(`💾 [STORAGE] Old Order Status: ${oldOrder.status}, materialReleased: ${oldOrder.materialReleased}`);
+
+    let dbStatus = status;
+    let materialReleasedUpdate = false;
+
+    // Handle the virtual 'material_released' status
+    if (status === "material_released") {
+      dbStatus = "confirmed"; // Map back to valid DB enum
+      materialReleasedUpdate = true;
+    }
+
+    console.log(`💾 [STORAGE] Updating DB with status: ${dbStatus}, materialReleased: ${materialReleasedUpdate || oldOrder.materialReleased}`);
+
     const [row] = await db
       .update(salesOrders)
-      .set({ status: status as any, updatedAt: new Date() })
+      .set({ 
+        status: dbStatus as any, 
+        materialReleased: materialReleasedUpdate ? true : oldOrder.materialReleased,
+        updatedAt: new Date() 
+      })
       .where(eq(salesOrders.id, id))
       .returning();
+
     if (!row) {
       throw new Error(`Sales order with ID '${id}' not found for update.`);
     }
-    return row;
+
+    const updatedOrder = await this.getSalesOrder(id);
+    console.log(`💾 [STORAGE] Updated Order Status: ${updatedOrder.status}, materialReleased: ${updatedOrder.materialReleased}`);
+
+    // Stock deduction logic: trigger if materialReleased just became true, OR if status changed from pending to confirmed/processing
+    const becameReleased = !oldOrder.materialReleased && updatedOrder.materialReleased;
+    const statusDeductionTriggers = ["confirmed", "processing"];
+    const statusJustTriggered = oldOrder.status === "pending" && statusDeductionTriggers.includes(updatedOrder.status);
+
+    console.log(`💾 [STORAGE] Stock deduction trigger check - becameReleased: ${becameReleased}, statusJustTriggered: ${statusJustTriggered}, alreadyDeducted: ${oldOrder.stockDeducted}`);
+
+    if ((becameReleased || statusJustTriggered) && !oldOrder.stockDeducted) {
+      await this.deductStockFromSalesOrder(updatedOrder);
+      // Mark as deducted
+      await db.update(salesOrders).set({ stockDeducted: true }).where(eq(salesOrders.id, id));
+    }
+
+    return updatedOrder;
+  }
+
+  private async deductStockFromSalesOrder(order: any) {
+    try {
+      console.log(`📦 [STORAGE] Sales Order ${order.orderNumber} confirmed. Deducting stock...`);
+      
+      // Ensure we have items
+      if (!order.items || order.items.length === 0) {
+        console.warn(`⚠️ [STORAGE] Sales Order ${order.orderNumber} has no items. Nothing to deduct.`);
+        return;
+      }
+
+      for (const item of order.items) {
+        let productId = item.productId;
+        
+        // If productId is missing, try to find product by name or SKU as a fallback
+        if (!productId) {
+          console.log(`🔍 [STORAGE] item.productId is null for "${item.itemName}". Attempting fallback lookup...`);
+          
+          // Debug: log all products to see if they exist
+          const allProds = await db.select().from(products);
+          console.log(`🔍 [STORAGE] Debug: Total products in DB: ${allProds.length}`);
+          allProds.forEach(p => console.log(`   - Product: "${p.name}", SKU: "${p.sku}"`));
+
+          const [matchedProduct] = await db
+            .select()
+            .from(products)
+            .where(
+              sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${item.itemName})) OR LOWER(TRIM(${products.sku})) = LOWER(TRIM(${item.itemName}))`
+            )
+            .limit(1);
+          
+          if (matchedProduct) {
+            productId = matchedProduct.id;
+            console.log(`✅ [STORAGE] Fallback match found for "${item.itemName}": ${productId}`);
+          } else {
+            console.log(`❌ [STORAGE] No fallback match found for "${item.itemName}"`);
+          }
+        }
+
+        if (productId) {
+          console.log(`📦 [STORAGE] Processing item: ${item.itemName} (ID: ${productId})`);
+          await db.transaction(async (tx) => {
+            // Create stock transaction (Stock Out)
+            const transactionData = {
+              userId: order.userId,
+              productId: productId,
+              type: "out" as const,
+              reason: "sale",
+              quantity: item.quantity,
+              unitCost: item.unitPrice,
+              referenceNumber: order.orderNumber,
+              notes: `Deducted for SO: ${order.orderNumber}`,
+            };
+            console.log(`📦 [STORAGE] Creating stock transaction (OUT):`, JSON.stringify(transactionData, null, 2));
+            await tx.insert(stockTransactions).values(transactionData);
+
+            // Update product stock (decrease)
+            console.log(`📦 [STORAGE] Updating product stock for: ${productId} (-${item.quantity})`);
+            await tx
+              .update(products)
+              .set({
+                stock: sql`${products.stock} - ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(products.id, productId));
+            
+            console.log(`✅ [STORAGE] Deducted stock for product ${productId} (-${item.quantity})`);
+          });
+        } else {
+          console.warn(`⚠️ [STORAGE] Skipping item "${item.itemName}" as it has no productId linked and no matching product found by name/SKU`);
+        }
+      }
+    } catch (error) {
+      console.error("💥 [STORAGE] Error in deductStockFromSalesOrder:", error);
+      throw error;
+    }
   }
 }
 

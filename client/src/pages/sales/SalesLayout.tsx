@@ -15,7 +15,8 @@ import {
   BarChart3,
   Plus,
   Search,
-  Filter
+  Filter,
+  ShoppingCart
 } from "lucide-react";
 import { StartTourButton } from "@/components/StartTourButton";
 import {
@@ -32,6 +33,7 @@ import { useTourNavigation } from "@/hooks/useTourNavigation";
 // Import individual pages (will create these next)
 import OutboundQuotations from "./OutboundQuotations";
 import InboundQuotations from "./InboundQuotations";
+import PurchaseOrders from "./PurchaseOrders";
 import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
 import ClientManagement from "./ClientManagement";
@@ -63,6 +65,13 @@ const sidebarItems = [
     path: '/sales/inbound-quotations',
     description: 'Client/Vendor → Company quotations',
     tourConfig: comprehensiveInboundQuotationsTour,
+  },
+  {
+    id: 'purchase-orders',
+    label: 'Purchase Orders',
+    icon: ShoppingCart,
+    path: '/sales/purchase-orders',
+    description: 'Manage purchase orders to vendors'
   },
   {
     id: 'sales-orders',
@@ -139,6 +148,7 @@ export default function SalesLayout() {
     if (location === '/sales') return 'dashboard';
     if (location.includes('/outbound-quotations')) return 'outbound-quotations';
     if (location.includes('/inbound-quotations')) return 'inbound-quotations';
+    if (location.includes('/purchase-orders')) return 'purchase-orders';
     if (location.includes('/orders')) return 'sales-orders';
     if (location.includes('/invoices')) return 'invoices';
     if (location.includes('/clients')) return 'clients';
@@ -223,6 +233,7 @@ export default function SalesLayout() {
           <Route path="/sales" component={SalesDashboard} />
           <Route path="/sales/outbound-quotations" component={OutboundQuotations} />
           <Route path="/sales/inbound-quotations" component={InboundQuotations} />
+          <Route path="/sales/purchase-orders" component={PurchaseOrders} />
           <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
           <Route path="/sales/clients" component={ClientManagement} />
