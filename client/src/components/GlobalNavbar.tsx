@@ -41,7 +41,7 @@ export function GlobalNavbar() {
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <Building className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-semibold text-foreground">BusinessOps</span>
+                <span className="text-xl font-semibold text-foreground bg-green-500">BusinessOps</span>
               </div>
             </div>
           </Link>
