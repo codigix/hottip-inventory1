@@ -274,9 +274,14 @@ export default function StockManagement() {
 
   const handleStockTransaction = () => {
     if (!selectedProduct || !quantity || !reason) {
+      let missingField = "";
+      if (!selectedProduct) missingField = "Product";
+      else if (!quantity) missingField = "Quantity";
+      else if (!reason) missingField = "Reason";
+      
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: `Please fill in the ${missingField} field`,
         variant: "destructive",
       });
       return;
@@ -664,19 +669,25 @@ export default function StockManagement() {
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="product">Product</Label>
-                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                    <SelectTrigger data-tour="inventory-product-select">
-                      <SelectValue placeholder="Select product..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productsArray.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {product.sku}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="product">Product *</Label>
+                  {productsArray.length === 0 ? (
+                    <div className="w-full p-3 border border-red-300 bg-red-50 rounded-md text-sm text-red-700">
+                      <span className="font-semibold">No products available.</span> Please add a product first using the "Add Product" button.
+                    </div>
+                  ) : (
+                    <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                      <SelectTrigger data-tour="inventory-product-select">
+                        <SelectValue placeholder="Select product..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {productsArray.map((product: any) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - {product.sku}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>
@@ -732,7 +743,7 @@ export default function StockManagement() {
                   </Button>
                   <Button
                     onClick={handleStockTransaction}
-                    disabled={stockTransactionMutation.isPending}
+                    disabled={stockTransactionMutation.isPending || productsArray.length === 0 || !selectedProduct || !quantity || !reason}
                     data-testid="button-save-transaction"
                     data-tour="inventory-save-transaction-button"
                   >

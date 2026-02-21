@@ -239,13 +239,31 @@ export default function OutboundQuotations() {
   }, [quotations]);
 
   const createQuotationMutation = useMutation({
-    mutationFn: (data: z.infer<typeof quotationFormSchema>) =>
-      apiRequest("POST", "/outbound-quotations", {
+    mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
+      // Calculate totalAmount from items if quotationItems exists
+      let totalAmount = parseFloat(data.totalAmount) || 0;
+      let subtotalAmount = parseFloat(data.subtotalAmount) || 0;
+      
+      // If there are quotation items and totalAmount is 0, calculate from items
+      if (quotationItems.length > 0 && totalAmount === 0) {
+        subtotalAmount = quotationItems.reduce((sum, item) => {
+          return sum + (parseFloat(item.unitPrice || 0) * (item.quantity || 0));
+        }, 0);
+        
+        const taxAmount = parseFloat(data.taxAmount) || 0;
+        const discountAmount = parseFloat(data.discountAmount) || 0;
+        totalAmount = subtotalAmount + taxAmount - discountAmount;
+      }
+      
+      return apiRequest("POST", "/outbound-quotations", {
         ...data,
+        subtotalAmount: String(subtotalAmount),
+        totalAmount: String(totalAmount),
         userId: "b34e3723-ba42-402d-b454-88cf96340573", // Real user ID from database
         moldDetails,
         quotationItems,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/outbound-quotations"] });
       toast({
@@ -689,8 +707,19 @@ export default function OutboundQuotations() {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (quotation: any) =>
-        `₹${parseFloat(quotation.totalAmount).toLocaleString("en-IN")}`,
+      cell: (quotation: any) => {
+        let total = parseFloat(quotation.totalAmount) || 0;
+        
+        // If totalAmount is 0 but there is subtotalAmount, use that
+        if (total === 0 && quotation.subtotalAmount) {
+          total = parseFloat(quotation.subtotalAmount) || 0;
+        }
+        
+        return `₹${total.toLocaleString("en-IN", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        })}`;
+      },
     },
     {
       key: "status",
@@ -803,8 +832,19 @@ export default function OutboundQuotations() {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (quotation: any) =>
-        `₹${parseFloat(quotation.totalAmount).toLocaleString("en-IN")}`,
+      cell: (quotation: any) => {
+        let total = parseFloat(quotation.totalAmount) || 0;
+        
+        // If totalAmount is 0 but there is subtotalAmount, use that
+        if (total === 0 && quotation.subtotalAmount) {
+          total = parseFloat(quotation.subtotalAmount) || 0;
+        }
+        
+        return `₹${total.toLocaleString("en-IN", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        })}`;
+      },
     },
     {
       key: "status",
