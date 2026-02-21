@@ -377,6 +377,14 @@ export default function StockManagement() {
     {
       key: "productName",
       header: "Product",
+      cell: (transaction: any) => (
+        <div className="flex flex-col">
+          <span className="font-medium">{transaction.productName || '-'}</span>
+          {transaction.productSku && (
+            <span className="text-xs text-muted-foreground">{transaction.productSku}</span>
+          )}
+        </div>
+      ),
     },
     {
       key: "quantity",
