@@ -379,7 +379,11 @@ export default function StockManagement() {
       header: "Product",
       cell: (transaction: any) => (
         <div className="flex flex-col">
-          <span className="font-medium">{transaction.productName || '-'}</span>
+          <span className="font-medium">
+            {transaction.productName || (
+              <span className="text-red-600 text-xs">[Product Deleted: {transaction.productId?.slice(0, 8)}...]</span>
+            )}
+          </span>
           {transaction.productSku && (
             <span className="text-xs text-muted-foreground">{transaction.productSku}</span>
           )}
