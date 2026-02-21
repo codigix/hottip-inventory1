@@ -1826,14 +1826,23 @@ class Storage {
     }
   }
 
-  async updateShipmentStatus(id: string, status: string): Promise<any> {
+  async updateShipmentStatus(id: string, statusData: any): Promise<any> {
     try {
+      const updateSet: any = {
+        currentStatus: statusData.status || statusData,
+        updatedAt: new Date(),
+      };
+      
+      if (statusData.currentLocation) {
+        updateSet.currentLocation = statusData.currentLocation;
+      }
+      if (statusData.notes) {
+        updateSet.notes = statusData.notes;
+      }
+      
       const [shipment] = await db
         .update(logisticsShipments)
-        .set({
-          currentStatus: status,
-          updatedAt: new Date(),
-        })
+        .set(updateSet)
         .where(eq(logisticsShipments.id, id))
         .returning();
       return {
