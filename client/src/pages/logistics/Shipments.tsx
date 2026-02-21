@@ -224,6 +224,17 @@ export default function Shipments() {
 
   const handleAddShipment = () => {
     setEditingShipment(null);
+    const consignmentNumber = `SHP-${Date.now()}`;
+    form.reset({
+      consignmentNumber,
+      source: "",
+      destination: "",
+      clientId: "",
+      vendorId: "",
+      dispatchDate: "",
+      expectedDeliveryDate: "",
+      notes: "",
+    });
     setIsFormOpen(true);
   };
 

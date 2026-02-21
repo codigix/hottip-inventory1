@@ -27,6 +27,7 @@ import {
   marketingTasks,
   activities,
   stockTransactions,
+  logisticsShipments,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -1528,6 +1529,27 @@ class Storage {
       await db.update(salesOrders).set({ stockDeducted: true }).where(eq(salesOrders.id, id));
     }
 
+    // Auto-create shipment when status changes to 'shipped'
+    if (status === 'shipped' && oldOrder.status !== 'shipped') {
+      console.log(`📦 [STORAGE] Creating shipment for SO: ${updatedOrder.orderNumber}`);
+      try {
+        const shipmentData = {
+          consignmentNumber: `SHP-${updatedOrder.orderNumber}-${Date.now()}`,
+          source: updatedOrder.source || 'Warehouse',
+          destination: updatedOrder.destination || (updatedOrder.customer?.address || 'To Be Determined'),
+          clientId: updatedOrder.customerId,
+          dispatchDate: new Date().toISOString(),
+          currentStatus: 'packed',
+          notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
+        };
+        await this.createLogisticsShipment(shipmentData);
+        console.log(`✅ [STORAGE] Shipment created successfully for SO: ${updatedOrder.orderNumber}`);
+      } catch (shipmentError) {
+        console.error(`❌ [STORAGE] Failed to create shipment for SO: ${updatedOrder.orderNumber}`, shipmentError);
+        // Don't fail the status update if shipment creation fails
+      }
+    }
+
     return updatedOrder;
   }
 
@@ -1605,6 +1627,339 @@ class Storage {
     } catch (error) {
       console.error("💥 [STORAGE] Error in deductStockFromSalesOrder:", error);
       throw error;
+    }
+  }
+
+  async createLogisticsShipment(shipmentData: any): Promise<any> {
+    try {
+      console.log(`📦 [STORAGE] Creating logistics shipment:`, shipmentData);
+      
+      const insertData: any = { ...shipmentData, createdAt: new Date(), updatedAt: new Date() };
+      
+      if (shipmentData.dispatchDate && typeof shipmentData.dispatchDate === 'string') {
+        insertData.dispatchDate = new Date(shipmentData.dispatchDate);
+      }
+      if (shipmentData.expectedDeliveryDate && typeof shipmentData.expectedDeliveryDate === 'string') {
+        insertData.expectedDeliveryDate = new Date(shipmentData.expectedDeliveryDate);
+      }
+      if (shipmentData.deliveredAt && typeof shipmentData.deliveredAt === 'string') {
+        insertData.deliveredAt = new Date(shipmentData.deliveredAt);
+      }
+      if (shipmentData.closedAt && typeof shipmentData.closedAt === 'string') {
+        insertData.closedAt = new Date(shipmentData.closedAt);
+      }
+      
+      const [shipment] = await db
+        .insert(logisticsShipments)
+        .values(insertData)
+        .returning();
+      
+      console.log(`✅ [STORAGE] Shipment created:`, shipment.id);
+      return {
+        ...shipment,
+        currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+      };
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error creating shipment:`, error);
+      throw error;
+    }
+  }
+
+  async getLogisticsShipments(): Promise<any[]> {
+    try {
+      const shipments = await db.select().from(logisticsShipments);
+      return shipments.map(s => ({
+        ...s,
+        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsShipment(id: string): Promise<any> {
+    try {
+      const [shipment] = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.id, id));
+      if (shipment) {
+        return {
+          ...shipment,
+          currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipment:`, error);
+      return null;
+    }
+  }
+
+  async updateLogisticsShipment(id: string, data: any): Promise<any> {
+    try {
+      console.log(`📦 [STORAGE] Updating shipment ${id}:`, data);
+      
+      const updateData: any = { ...data, updatedAt: new Date() };
+      
+      if (data.dispatchDate && typeof data.dispatchDate === 'string') {
+        updateData.dispatchDate = new Date(data.dispatchDate);
+      }
+      if (data.expectedDeliveryDate && typeof data.expectedDeliveryDate === 'string') {
+        updateData.expectedDeliveryDate = new Date(data.expectedDeliveryDate);
+      }
+      if (data.deliveredAt && typeof data.deliveredAt === 'string') {
+        updateData.deliveredAt = new Date(data.deliveredAt);
+      }
+      if (data.closedAt && typeof data.closedAt === 'string') {
+        updateData.closedAt = new Date(data.closedAt);
+      }
+      
+      const [shipment] = await db
+        .update(logisticsShipments)
+        .set(updateData)
+        .where(eq(logisticsShipments.id, id))
+        .returning();
+      
+      return {
+        ...shipment,
+        currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+      };
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error updating shipment:`, error);
+      throw error;
+    }
+  }
+
+  async deleteLogisticsShipment(id: string): Promise<void> {
+    try {
+      console.log(`📦 [STORAGE] Deleting shipment ${id}`);
+      await db.delete(logisticsShipments).where(eq(logisticsShipments.id, id));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error deleting shipment:`, error);
+      throw error;
+    }
+  }
+
+  async getLogisticsShipmentsByStatus(status: string): Promise<any[]> {
+    try {
+      const shipments = await db.select().from(logisticsShipments);
+      return shipments
+        .filter(s => s.currentStatus?.toLowerCase() === status.toLowerCase())
+        .map(s => ({
+          ...s,
+          currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments by status:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsShipmentsByEmployee(employeeId: string): Promise<any[]> {
+    try {
+      const shipments = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.assignedTo, employeeId));
+      return shipments.map(s => ({
+        ...s,
+        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments by employee:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsShipmentsByClient(clientId: string): Promise<any[]> {
+    try {
+      const shipments = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.clientId, clientId));
+      return shipments.map(s => ({
+        ...s,
+        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments by client:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsShipmentsByVendor(vendorId: string): Promise<any[]> {
+    try {
+      const shipments = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.vendorId, vendorId));
+      return shipments.map(s => ({
+        ...s,
+        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments by vendor:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsShipmentsByDateRange(startDate: string, endDate: string): Promise<any[]> {
+    try {
+      const shipments = await db
+        .select()
+        .from(logisticsShipments)
+        .where(
+          and(
+            gte(logisticsShipments.dispatchDate, startDate),
+            lte(logisticsShipments.dispatchDate, endDate)
+          )
+        );
+      return shipments.map(s => ({
+        ...s,
+        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipments by date range:`, error);
+      return [];
+    }
+  }
+
+  async updateShipmentStatus(id: string, status: string): Promise<any> {
+    try {
+      const [shipment] = await db
+        .update(logisticsShipments)
+        .set({
+          currentStatus: status,
+          updatedAt: new Date(),
+        })
+        .where(eq(logisticsShipments.id, id))
+        .returning();
+      return {
+        ...shipment,
+        currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+      };
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error updating shipment status:`, error);
+      throw error;
+    }
+  }
+
+  async getShipmentTimeline(id: string): Promise<any[]> {
+    try {
+      // For now, return empty array - timeline would need a separate table
+      return [];
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipment timeline:`, error);
+      return [];
+    }
+  }
+
+  async closeShipment(id: string, podData: any): Promise<any> {
+    try {
+      const [shipment] = await db
+        .update(logisticsShipments)
+        .set({
+          currentStatus: 'closed',
+          closedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(logisticsShipments.id, id))
+        .returning();
+      return {
+        ...shipment,
+        currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+      };
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error closing shipment:`, error);
+      throw error;
+    }
+  }
+
+  async getActiveShipments(): Promise<any[]> {
+    try {
+      const shipments = await db.select().from(logisticsShipments);
+      return shipments
+        .filter(s => {
+          const status = s.currentStatus?.toLowerCase();
+          return status !== 'closed' && status !== 'delivered';
+        })
+        .map(s => ({
+          ...s,
+          currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching active shipments:`, error);
+      return [];
+    }
+  }
+
+  async getOverdueShipments(): Promise<any[]> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const shipments = await db.select().from(logisticsShipments);
+      return shipments
+        .filter(s => {
+          const status = s.currentStatus?.toLowerCase();
+          return s.expectedDeliveryDate && s.expectedDeliveryDate < today && status !== 'delivered';
+        })
+        .map(s => ({
+          ...s,
+          currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching overdue shipments:`, error);
+      return [];
+    }
+  }
+
+  async searchShipments(query: string): Promise<any[]> {
+    try {
+      const shipments = await db.select().from(logisticsShipments);
+      const lowerQuery = query.toLowerCase();
+      return shipments
+        .filter(s => 
+          s.consignmentNumber?.toLowerCase().includes(lowerQuery) ||
+          s.source?.toLowerCase().includes(lowerQuery) ||
+          s.destination?.toLowerCase().includes(lowerQuery)
+        )
+        .map(s => ({
+          ...s,
+          currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error searching shipments:`, error);
+      return [];
+    }
+  }
+
+  async getLogisticsStatusUpdates(): Promise<any[]> {
+    try {
+      // Placeholder - would need a separate table for status updates
+      return [];
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching status updates:`, error);
+      return [];
+    }
+  }
+
+  async createLogisticsStatusUpdate(data: any): Promise<any> {
+    try {
+      // Placeholder - would need a separate table for status updates
+      return data;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error creating status update:`, error);
+      throw error;
+    }
+  }
+
+  async createActivity(data: any): Promise<void> {
+    try {
+      // Placeholder for activity logging
+      console.log(`📋 [STORAGE] Activity: ${data.action} - ${data.details}`);
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error creating activity:`, error);
     }
   }
 }

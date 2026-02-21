@@ -32,39 +32,37 @@ export default function StatusWorkflow() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch shipments data
- const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
-  queryKey: ["/logistics/shipments"],
-  queryFn: async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}/logistics/shipments`);
-    if (!res.ok) throw new Error("Failed to fetch shipments");
-    const data = await res.json();
-
-    // If your API returns { shipments: [...] }, return the array
-    return data.shipments ?? [];
-  },
-});
+  const { data: shipments = [], isLoading, error } = useQuery<LogisticsShipment[]>({
+    queryKey: ["/logistics/shipments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/logistics/shipments`);
+      if (!res.ok) throw new Error("Failed to fetch shipments");
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.shipments ?? [];
+    },
+  });
 
   // Filter shipments based on status and search
   const filteredShipments = (shipments ?? []).filter((shipment) => {
-  const matchesStatus = statusFilter === "all" || shipment.currentStatus === statusFilter;
-  const matchesSearch = searchTerm === "" || 
-    shipment.consignmentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shipment.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shipment.destination.toLowerCase().includes(searchTerm.toLowerCase());
-  
-  return matchesStatus && matchesSearch;
-});
+    const matchesStatus = statusFilter === "all" || (shipment.currentStatus?.toLowerCase() === statusFilter.toLowerCase());
+    const matchesSearch = searchTerm === "" || 
+      shipment.consignmentNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.source?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.destination?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesStatus && matchesSearch;
+  });
 
   // Calculate workflow metrics
   const workflowMetrics = LOGISTICS_SHIPMENT_STATUSES.reduce((acc, status) => {
-    acc[status] = shipments.filter(s => s.currentStatus === status).length;
+    acc[status] = shipments.filter(s => s.currentStatus?.toLowerCase() === status.toLowerCase()).length;
     return acc;
   }, {} as Record<string, number>);
 
   const totalShipments = shipments.length;
-  const activeShipments = shipments.filter(s => !['delivered', 'closed'].includes(s.currentStatus)).length;
+  const activeShipments = shipments.filter(s => !['delivered', 'closed'].includes(s.currentStatus?.toLowerCase() || '')).length;
   const completedToday = shipments.filter(s => 
-    s.currentStatus === 'delivered' && 
+    s.currentStatus?.toLowerCase() === 'delivered' && 
     new Date(s.updatedAt).toDateString() === new Date().toDateString()
   ).length;
 
