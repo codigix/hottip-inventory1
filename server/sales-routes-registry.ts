@@ -12,6 +12,8 @@ import {
   customers,
   users,
   insertSalesOrderSchema,
+  moldDetailsTable,
+  insertMoldDetailSchema,
 } from "@shared/schema";
 import { storage } from "./storage";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
@@ -748,8 +750,8 @@ export function registerSalesRoutes(
     } catch (error: any) {
       console.error("❌ Error in DELETE /api/outbound-quotations/:id:", error);
       res.status(400).json({
-        error: "Failed to delete outbound quotation",
-        details: error.errors || error.message,
+        error: error.message || "Failed to delete outbound quotation",
+        details: error.errors,
       });
     }
   });
@@ -1294,5 +1296,114 @@ export function registerSalesRoutes(
 
   app.get("/api/sales-orders/test", (req, res) => {
     res.json({ message: "Sales routes are working!" });
+  });
+
+  // Mold Details Endpoints
+  app.get("/api/mold-details", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const moldDetails = await db
+        .select()
+        .from(moldDetailsTable)
+        .where(eq(moldDetailsTable.userId, req.user!.id));
+      res.json(moldDetails);
+    } catch (error) {
+      console.error("❌ Error fetching mold details:", error);
+      res.status(500).json({ error: "Failed to fetch mold details" });
+    }
+  });
+
+  app.post("/api/mold-details", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const moldDetailData = insertMoldDetailSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+      });
+      const moldDetail = await db
+        .insert(moldDetailsTable)
+        .values(moldDetailData)
+        .returning();
+      res.status(201).json(moldDetail[0]);
+    } catch (error: any) {
+      console.error("❌ Error creating mold detail:", error);
+      res.status(400).json({
+        error: "Failed to create mold detail",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.get("/api/mold-details/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const moldDetail = await db
+        .select()
+        .from(moldDetailsTable)
+        .where(
+          and(
+            eq(moldDetailsTable.id, req.params.id),
+            eq(moldDetailsTable.userId, req.user!.id)
+          )
+        );
+      if (!moldDetail.length) {
+        return res.status(404).json({ error: "Mold detail not found" });
+      }
+      res.json(moldDetail[0]);
+    } catch (error) {
+      console.error("❌ Error fetching mold detail:", error);
+      res.status(500).json({ error: "Failed to fetch mold detail" });
+    }
+  });
+
+  app.put("/api/mold-details/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const moldDetail = await db
+        .select()
+        .from(moldDetailsTable)
+        .where(
+          and(
+            eq(moldDetailsTable.id, req.params.id),
+            eq(moldDetailsTable.userId, req.user!.id)
+          )
+        );
+      if (!moldDetail.length) {
+        return res.status(404).json({ error: "Mold detail not found" });
+      }
+
+      const moldDetailData = insertMoldDetailSchema.parse(req.body);
+      const updated = await db
+        .update(moldDetailsTable)
+        .set(moldDetailData)
+        .where(eq(moldDetailsTable.id, req.params.id))
+        .returning();
+      res.json(updated[0]);
+    } catch (error: any) {
+      console.error("❌ Error updating mold detail:", error);
+      res.status(400).json({
+        error: "Failed to update mold detail",
+        details: error.errors || error.message,
+      });
+    }
+  });
+
+  app.delete("/api/mold-details/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const moldDetail = await db
+        .select()
+        .from(moldDetailsTable)
+        .where(
+          and(
+            eq(moldDetailsTable.id, req.params.id),
+            eq(moldDetailsTable.userId, req.user!.id)
+          )
+        );
+      if (!moldDetail.length) {
+        return res.status(404).json({ error: "Mold detail not found" });
+      }
+
+      await db.delete(moldDetailsTable).where(eq(moldDetailsTable.id, req.params.id));
+      res.json({ message: "Mold detail deleted successfully" });
+    } catch (error: any) {
+      console.error("❌ Error deleting mold detail:", error);
+      res.status(500).json({ error: "Failed to delete mold detail" });
+    }
   });
 }

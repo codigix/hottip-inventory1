@@ -1043,6 +1043,7 @@ export const insertOutboundQuotationSchema = z.object({
     .array(
       z.object({
         no: z.number(),
+        moldIndex: z.number().optional(),
         partName: z.string(),
         partDescription: z.string(),
         uom: z.string(),
@@ -1992,4 +1993,49 @@ export const insertAccountReportSchema = z.object({
   parameters: z.string().optional(),
   summary: z.string().optional(),
   expiresAt: z.string().optional(),
+});
+
+// =====================
+// MOLD DETAILS
+// =====================
+export const moldDetailsTable = pgTable("mold_details", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  partName: text("partName"),
+  mouldNo: text("mouldNo"),
+  plasticMaterial: text("plasticMaterial"),
+  colourChange: text("colourChange"),
+  mfi: text("mfi"),
+  wallThickness: text("wallThickness"),
+  noOfCavity: integer("noOfCavity"),
+  gfPercent: text("gfPercent"),
+  mfPercent: text("mfPercent"),
+  partWeight: numeric("partWeight"),
+  systemSuggested: text("systemSuggested"),
+  noOfDrops: integer("noOfDrops"),
+  trialDate: text("trialDate"),
+  quotationFor: text("quotationFor"),
+  userId: uuid("userId").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export type MoldDetail = typeof moldDetailsTable.$inferSelect;
+export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;
+
+export const insertMoldDetailSchema = z.object({
+  partName: z.string().optional(),
+  mouldNo: z.string().optional(),
+  plasticMaterial: z.string().optional(),
+  colourChange: z.string().optional(),
+  mfi: z.string().optional(),
+  wallThickness: z.string().optional(),
+  noOfCavity: z.number().optional(),
+  gfPercent: z.string().optional(),
+  mfPercent: z.string().optional(),
+  partWeight: z.number().optional(),
+  systemSuggested: z.string().optional(),
+  noOfDrops: z.number().optional(),
+  trialDate: z.string().optional(),
+  quotationFor: z.string().optional(),
+  userId: z.string().uuid().optional(),
 });

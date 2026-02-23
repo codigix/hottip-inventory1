@@ -356,7 +356,12 @@
       <div class="quotation-for-title">Quotation For <%= mold.partName || 'Part ' + (moldIndex+1) %> <%= mold.quotationFor ? '- ' + mold.quotationFor : '' %></div>
 
       <!-- Quotation Items Table -->
-      <% var moldItems = quotation.quotationItems ? quotation.quotationItems.filter(function(item) { return item.partName === mold.partName || item.no === mold.no; }) : []; %>
+      <% var moldItems = quotation.quotationItems ? quotation.quotationItems.filter(function(item) { 
+        if (item.moldIndex !== undefined && item.moldIndex !== null) {
+          return item.moldIndex === moldIndex;
+        }
+        return item.partName === mold.partName || item.mouldNo === mold.mouldNo;
+      }) : []; %>
       <% if (moldItems.length > 0) { %>
       <table class="items-table">
         <thead>

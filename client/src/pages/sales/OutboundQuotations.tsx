@@ -75,6 +75,13 @@ export default function OutboundQuotations() {
   // State for dynamic form sections
   const [moldDetails, setMoldDetails] = useState<any[]>([]);
   const [quotationItems, setQuotationItems] = useState<any[]>([]);
+  const [newItemForm, setNewItemForm] = useState<any>({
+    partName: "",
+    partDescription: "",
+    uom: "NOS",
+    qty: 1,
+    unitPrice: 0,
+  });
 
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
     queryKey: ["/outbound-quotations"],
@@ -82,6 +89,10 @@ export default function OutboundQuotations() {
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/customers"],
+  });
+
+  const { data: savedMoldDetails = [] } = useQuery<any[]>({
+    queryKey: ["/mold-details"],
   });
 
   // Use shared schema with enhanced validation messages
@@ -247,7 +258,7 @@ export default function OutboundQuotations() {
       // If there are quotation items and totalAmount is 0, calculate from items
       if (quotationItems.length > 0 && totalAmount === 0) {
         subtotalAmount = quotationItems.reduce((sum, item) => {
-          return sum + (parseFloat(item.unitPrice || 0) * (item.quantity || 0));
+          return sum + (parseFloat(item.unitPrice || 0) * (item.qty || 0));
         }, 0);
         
         const taxAmount = parseFloat(data.taxAmount) || 0;
@@ -467,6 +478,31 @@ export default function OutboundQuotations() {
     }
   };
 
+  // Handler for Delete action
+  const handleDeleteQuotation = async (quotation: OutboundQuotation) => {
+    if (!window.confirm(`Are you sure you want to delete quotation ${quotation.quotationNumber}?`)) {
+      return;
+    }
+
+    try {
+      await apiRequest("DELETE", `/outbound-quotations/${quotation.id}`);
+
+      toast({
+        title: "Success",
+        description: "Quotation deleted successfully",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["/outbound-quotations"] });
+    } catch (error: any) {
+      console.error("Failed to delete quotation:", error);
+      toast({
+        title: "Error",
+        description: error?.data?.error || "Failed to delete quotation",
+        variant: "destructive",
+      });
+    }
+  };
+
   // --- EXPORT ALL FUNCTIONALITY ---
   // Handler for Export All action (opens dialog)
   const handleExportAll = () => {
@@ -638,20 +674,93 @@ export default function OutboundQuotations() {
     setMoldDetails(updated);
   };
 
+  const saveMoldDetailMutation = useMutation({
+    mutationFn: (moldData: any) =>
+      apiRequest("POST", "/mold-details", moldData),
+    onSuccess: () => {
+      toast({
+        title: "✅ Success",
+        description: "Mold detail saved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/mold-details"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Error",
+        description:
+          error?.message || "Failed to save mold detail",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveMoldDetail = (index: number) => {
+    const moldDetail = moldDetails[index];
+    if (!moldDetail || !moldDetail.partName) {
+      toast({
+        title: "⚠️ Validation Error",
+        description: "Please fill in the Part Name field",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    saveMoldDetailMutation.mutate({
+      partName: moldDetail.partName,
+      mouldNo: moldDetail.mouldNo,
+      plasticMaterial: moldDetail.plasticMaterial,
+      colourChange: moldDetail.colourChange,
+      mfi: moldDetail.mfi,
+      wallThickness: moldDetail.wallThickness,
+      noOfCavity: moldDetail.noOfCavity,
+      gfPercent: moldDetail.gfPercent,
+      mfPercent: moldDetail.mfPercent,
+      partWeight: moldDetail.partWeight,
+      systemSuggested: moldDetail.systemSuggested,
+      noOfDrops: moldDetail.noOfDrops,
+      trialDate: moldDetail.trialDate,
+      quotationFor: moldDetail.quotationFor,
+      onSuccess: () => {
+        setTimeout(() => {
+          const display = document.getElementById(`mold-display-${index}`);
+          const edit = document.getElementById(`mold-edit-${index}`);
+          const btn = document.getElementById(`edit-toggle-${index}`);
+          
+          if (display && edit && btn) {
+            display.style.display = 'block';
+            edit.style.display = 'none';
+            btn.style.display = 'block';
+            btn.textContent = 'Edit';
+          }
+        }, 300);
+      }
+    });
+  };
+
   // Helper functions for Quotation Items
-  const addQuotationItem = () => {
+  const addQuotationItem = (moldIndex?: number) => {
+    const amount = (newItemForm.qty || 0) * (newItemForm.unitPrice || 0);
     setQuotationItems([
       ...quotationItems,
       {
         no: quotationItems.length + 1,
-        partName: "",
-        partDescription: "",
-        uom: "NOS",
-        qty: 1,
-        unitPrice: 0,
-        amount: 0,
+        moldIndex: moldIndex !== undefined ? moldIndex : -1,
+        partName: newItemForm.partName,
+        partDescription: newItemForm.partDescription,
+        uom: newItemForm.uom,
+        qty: newItemForm.qty,
+        unitPrice: newItemForm.unitPrice,
+        amount: amount,
+        tasks: [],
       },
     ]);
+    setNewItemForm({
+      partName: "",
+      partDescription: "",
+      uom: "NOS",
+      qty: 1,
+      unitPrice: 0,
+    });
   };
 
   const removeQuotationItem = (index: number) => {
@@ -675,6 +784,40 @@ export default function OutboundQuotations() {
       updated[index].amount = qty * unitPrice;
     }
 
+    setQuotationItems(updated);
+  };
+
+  const addItemTask = (itemIndex: number, taskName: string) => {
+    if (!taskName.trim()) return;
+    const updated = [...quotationItems];
+    if (!updated[itemIndex].tasks) {
+      updated[itemIndex].tasks = [];
+    }
+    updated[itemIndex].tasks.push({
+      id: Date.now(),
+      name: taskName,
+      completed: false,
+    });
+    setQuotationItems(updated);
+  };
+
+  const completeItemTask = (itemIndex: number, taskId: number) => {
+    const updated = [...quotationItems];
+    if (updated[itemIndex].tasks) {
+      updated[itemIndex].tasks = updated[itemIndex].tasks.map((task: any) =>
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      );
+    }
+    setQuotationItems(updated);
+  };
+
+  const deleteItemTask = (itemIndex: number, taskId: number) => {
+    const updated = [...quotationItems];
+    if (updated[itemIndex].tasks) {
+      updated[itemIndex].tasks = updated[itemIndex].tasks.filter(
+        (task: any) => task.id !== taskId
+      );
+    }
     setQuotationItems(updated);
   };
 
@@ -800,6 +943,16 @@ export default function OutboundQuotations() {
               <Receipt className="h-4 w-4" />
             </Button>
           )}
+
+          {/* Delete Button */}
+          <Button
+            size="sm"
+            variant="ghost"
+            data-testid={`button-delete-${quotation.id}`}
+            onClick={() => handleDeleteQuotation(quotation)}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
         </div>
       ),
     },
@@ -892,7 +1045,7 @@ export default function OutboundQuotations() {
               New Quotation
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Quotation</DialogTitle>
               <DialogDescription>
@@ -1450,31 +1603,129 @@ export default function OutboundQuotations() {
                   </div>
 
                   {moldDetails.length > 0 && (
-                    <div className="space-y-4">
-                      {moldDetails.map((mold, index) => (
+                    <div className="space-y-6">
+                      {moldDetails.map((mold, index) => {
+                        const moldItems = quotationItems.filter(item => item.moldIndex === index);
+                        const moldTotal = moldItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+                        return (
                         <div
                           key={index}
-                          className="border rounded-lg p-4 space-y-4 bg-gray-50"
+                          className="border-2 border-gray-300 rounded-lg p-6 bg-white"
                         >
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-semibold">
-                              Mold Detail #{mold.no}
-                            </h4>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => removeMoldDetail(index)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                          <div className="flex justify-between items-start mb-4 pb-3 border-b-2 border-gray-200">
+                            <h3 className="text-xl font-bold">
+                              MODEL {mold.no} – {mold.partName || "New Model"} {mold.mouldNo && `(${mold.mouldNo})`}
+                            </h3>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                id={`edit-toggle-${index}`}
+                                onClick={() => {
+                                  const display = document.getElementById(`mold-display-${index}`);
+                                  const edit = document.getElementById(`mold-edit-${index}`);
+                                  const btn = document.getElementById(`edit-toggle-${index}`);
+                                  const isEditing = display?.style.display === 'none';
+                                  
+                                  if (isEditing) {
+                                    display!.style.display = 'block';
+                                    edit!.style.display = 'none';
+                                    btn!.textContent = 'Edit';
+                                  } else {
+                                    display!.style.display = 'none';
+                                    edit!.style.display = 'grid';
+                                    btn!.textContent = 'Close Edit';
+                                  }
+                                }}
+                                style={{ display: !mold.partName ? 'none' : 'block' }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeMoldDetail(index)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="text-sm font-medium">
-                                Part Name
-                              </label>
+                          {/* Display Mode - Always Visible on Left, with Edit Form on Right when Editing */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            {/* Left: Display Mode - Hidden if no partName */}
+                            <div id={`mold-display-${index}`} className="space-y-3" style={{ display: !mold.partName ? 'none' : 'block' }}>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Part Name:</span>
+                                <span className="text-gray-900">{mold.partName || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Mould No:</span>
+                                <span className="text-gray-900">{mold.mouldNo || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Plastic Material:</span>
+                                <span className="text-gray-900">{mold.plasticMaterial || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Colour Change:</span>
+                                <span className="text-gray-900">{mold.colourChange || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">MFI:</span>
+                                <span className="text-gray-900">{mold.mfi || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Wall Thickness:</span>
+                                <span className="text-gray-900">{mold.wallThickness || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">No. of Cavity:</span>
+                                <span className="text-gray-900">{mold.noOfCavity || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">No. of Drops:</span>
+                                <span className="text-gray-900">{mold.noOfDrops || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">System Suggested:</span>
+                                <span className="text-gray-900">{mold.systemSuggested || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Trial Date:</span>
+                                <span className="text-gray-900">{mold.trialDate || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between border-b pb-2">
+                                <span className="font-medium text-gray-700">Part Weight:</span>
+                                <span className="text-gray-900">{mold.partWeight ? `${mold.partWeight}g` : 'N/A'}</span>
+                              </div>
+                              {mold.gfPercent && (
+                                <div className="flex justify-between border-b pb-2">
+                                  <span className="font-medium text-gray-700">GF% + MP%:</span>
+                                  <span className="text-gray-900">{mold.gfPercent} + {mold.mfPercent}</span>
+                                </div>
+                              )}
+                            </div>
+                            {mold.quotationFor && (
+                              <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                <span className="font-medium text-gray-700">Quotation For:</span>
+                                <p className="text-gray-900 mt-1">{mold.quotationFor}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                          {/* Right: Edit Mode - Visible by default if no partName */}
+                          <div id={`mold-edit-${index}`} style={{ display: mold.partName ? 'none' : 'grid' }} className="pb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <label className="text-sm font-medium">
+                                  Part Name
+                                </label>
                               <Input
                                 value={mold.partName}
                                 onChange={(e) =>
@@ -1702,178 +1953,201 @@ export default function OutboundQuotations() {
                                 placeholder="TTC-161 250ML JAR SINGLE DROP NEEDLE VALAVE GATE PNEUMATIC HOT SPRUE - JK25051740-C"
                               />
                             </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                {/* Quotation Items Section */}
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-semibold">Quotation Items</h3>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={addQuotationItem}
-                    >
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
+                          {/* Items Section */}
+                          <div className="mt-6 mb-6">
+                            <h5 className="font-semibold text-lg mb-4">Items for this Model</h5>
+                            
+                            {/* Add Item Form - Always at Top */}
+                            <div className="bg-blue-50 p-4 rounded border border-blue-200 mb-4">
+                              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                                <div>
+                                  <label className="text-sm font-medium block mb-1">Part Name</label>
+                                  <Input
+                                    placeholder="Hot Runner"
+                                    value={newItemForm.partName}
+                                    onChange={(e) => setNewItemForm({ ...newItemForm, partName: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium block mb-1">Description</label>
+                                  <Input
+                                    placeholder="AMP-D15-26120"
+                                    value={newItemForm.partDescription}
+                                    onChange={(e) => setNewItemForm({ ...newItemForm, partDescription: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium block mb-1">UOM</label>
+                                  <select
+                                    value={newItemForm.uom}
+                                    onChange={(e) => setNewItemForm({ ...newItemForm, uom: e.target.value })}
+                                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                                  >
+                                    <option value="NOS">NOS</option>
+                                    <option value="PCS">PCS</option>
+                                    <option value="SET">SET</option>
+                                    <option value="KG">KG</option>
+                                    <option value="L">L</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium block mb-1">Qty</label>
+                                  <Input
+                                    type="number"
+                                    placeholder="1"
+                                    value={newItemForm.qty}
+                                    onChange={(e) => setNewItemForm({ ...newItemForm, qty: parseFloat(e.target.value) || 0 })}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium block mb-1">Rate</label>
+                                  <Input
+                                    type="number"
+                                    placeholder="18000"
+                                    value={newItemForm.unitPrice}
+                                    onChange={(e) => setNewItemForm({ ...newItemForm, unitPrice: parseFloat(e.target.value) || 0 })}
+                                  />
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => addQuotationItem(index)}
+                                className="mt-3 w-full bg-blue-600 hover:bg-blue-700"
+                              >
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Add Item
+                              </Button>
+                            </div>
+                            
+                            {/* Items Table - Below */}
+                            {moldItems.length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="w-full border-collapse border border-gray-300">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-gray-300 p-2 text-left text-sm">No</th>
+                                      <th className="border border-gray-300 p-2 text-left text-sm">Part Name</th>
+                                      <th className="border border-gray-300 p-2 text-left text-sm">Description</th>
+                                      <th className="border border-gray-300 p-2 text-left text-sm">UOM</th>
+                                      <th className="border border-gray-300 p-2 text-right text-sm">Qty</th>
+                                      <th className="border border-gray-300 p-2 text-right text-sm">Rate</th>
+                                      <th className="border border-gray-300 p-2 text-right text-sm">Amount</th>
+                                      <th className="border border-gray-300 p-2 text-center text-sm">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {moldItems.map((item, itemIndex) => {
+                                      const actualIndex = quotationItems.findIndex(qi => qi === item);
+                                      return (
+                                        <tr key={actualIndex} className="border border-gray-300 hover:bg-gray-50">
+                                          <td className="border border-gray-300 p-2 text-sm">{item.no}</td>
+                                          <td className="border border-gray-300 p-2 text-sm">{item.partName}</td>
+                                          <td className="border border-gray-300 p-2 text-sm">{item.partDescription}</td>
+                                          <td className="border border-gray-300 p-2 text-sm">{item.uom}</td>
+                                          <td className="border border-gray-300 p-2 text-right text-sm">{item.qty}</td>
+                                          <td className="border border-gray-300 p-2 text-right text-sm">₹{item.unitPrice?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                          <td className="border border-gray-300 p-2 text-right text-sm font-semibold">₹{item.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                          <td className="border border-gray-300 p-2 text-center">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => removeQuotationItem(actualIndex)}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">No items added yet</p>
+                            )}
+                          </div>
 
-                  {quotationItems.length > 0 && (
-                    <div className="space-y-4">
-                      {quotationItems.map((item, index) => (
-                        <div
-                          key={index}
-                          className="border rounded-lg p-4 space-y-4 bg-gray-50"
-                        >
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-semibold">Item #{item.no}</h4>
+                          {/* Model Subtotal */}
+                          <div className="bg-blue-50 p-4 rounded border-2 border-blue-200 mb-6">
+                            <div className="flex justify-end">
+                              <div className="w-64">
+                                <div className="flex justify-between text-lg font-bold">
+                                  <span>Model {mold.no} Total:</span>
+                                  <span>₹{moldTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 pt-4 border-t-2 border-gray-200">
                             <Button
                               type="button"
                               size="sm"
-                              variant="ghost"
-                              onClick={() => removeQuotationItem(index)}
+                              onClick={() => saveMoldDetail(index)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700"
                             >
-                              <Trash2 className="h-4 w-4 text-red-500" />
+                              Save Mold Detail
                             </Button>
                           </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="text-sm font-medium">
-                                Part Name
-                              </label>
-                              <Input
-                                value={item.partName}
-                                onChange={(e) =>
-                                  updateQuotationItem(
-                                    index,
-                                    "partName",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="VALVE TYPE NOZZLE"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="text-sm font-medium">
-                                Part Description
-                              </label>
-                              <Input
-                                value={item.partDescription}
-                                onChange={(e) =>
-                                  updateQuotationItem(
-                                    index,
-                                    "partDescription",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="AMP-D15-26120"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium">UOM</label>
-                              <Select
-                                value={item.uom}
-                                onValueChange={(value) =>
-                                  updateQuotationItem(index, "uom", value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select UOM" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="NOS">NOS</SelectItem>
-                                  <SelectItem value="KG">KG</SelectItem>
-                                  <SelectItem value="PCS">PCS</SelectItem>
-                                  <SelectItem value="SET">SET</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium">
-                                Quantity
-                              </label>
-                              <Input
-                                type="number"
-                                value={item.qty}
-                                onChange={(e) =>
-                                  updateQuotationItem(
-                                    index,
-                                    "qty",
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                placeholder="1"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium">
-                                Unit Price (INR)
-                              </label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.unitPrice}
-                                onChange={(e) =>
-                                  updateQuotationItem(
-                                    index,
-                                    "unitPrice",
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                placeholder="176500.00"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium">
-                                Amount (INR)
-                              </label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.amount}
-                                readOnly
-                                className="bg-gray-100"
-                                placeholder="0.00"
-                              />
-                            </div>
-                          </div>
                         </div>
-                      ))}
-
-                      {/* Total Calculation */}
-                      <div className="border-t pt-4 mt-4">
-                        <div className="flex justify-end">
-                          <div className="w-64 space-y-2">
-                            <div className="flex justify-between font-semibold text-lg">
-                              <span>TOTAL INR:</span>
-                              <span>
-                                ₹
-                                {quotationItems
-                                  .reduce((sum, item) => sum + item.amount, 0)
-                                  .toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      );
+                      })}
                     </div>
                   )}
                 </div>
+
+                {/* Calculation Summary Section */}
+                {quotationItems.length > 0 && (
+                  <div className="border-t pt-4 mt-6 bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4">Financial Summary</h3>
+                    
+                    <div className="space-y-2 max-w-md ml-auto">
+                      {/* Subtotal */}
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal:</span>
+                        <span>
+                          ₹{quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* GST */}
+                      <div className="flex justify-between text-sm">
+                        <span>GST ({form.watch("gstPercentage")}%):</span>
+                        <span>
+                          ₹{((quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0) * (parseFloat(form.watch("gstPercentage")) || 18)) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* Discount */}
+                      {parseFloat(form.watch("discountAmount")) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Discount:</span>
+                          <span>
+                            -₹{parseFloat(form.watch("discountAmount") || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Grand Total */}
+                      <div className="border-t pt-2 mt-2 flex justify-between font-bold text-base">
+                        <span>Grand Total:</span>
+                        <span>
+                          ₹{(
+                            quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0) +
+                            ((quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0) * (parseFloat(form.watch("gstPercentage")) || 18)) / 100) -
+                            (parseFloat(form.watch("discountAmount")) || 0)
+                          ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <FormField
                   control={form.control}
@@ -2094,121 +2368,238 @@ export default function OutboundQuotations() {
                   </div>
                 )}
 
-              {/* Quotation Items Table */}
+              {/* Quotation Items Table - Grouped by Mold */}
               {selectedQuotation.quotationItems &&
                 selectedQuotation.quotationItems.length > 0 && (
                   <div>
                     <h3 className="font-bold text-lg mb-4">
-                      Section 2 – Quotation Items Table
+                      Quotation Items by Mold
                     </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-300">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              No
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              Part Name
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              Part Description
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              UOM
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              Qty
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              Unit Price (INR)
-                            </th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">
-                              Amount (INR)
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedQuotation.quotationItems.map(
-                            (item: any, index: number) => (
-                              <tr key={index}>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  {item.no}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  {item.partName}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  {item.partDescription}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  {item.uom}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  {item.qty}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  ₹{item.unitPrice.toLocaleString("en-IN")}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2">
-                                  ₹{item.amount.toLocaleString("en-IN")}
-                                </td>
-                              </tr>
-                            )
-                          )}
-                          <tr>
-                            <td
-                              colSpan={6}
-                              className="border border-gray-300 px-4 py-2 text-right font-bold"
-                            >
-                              TOTAL
-                            </td>
-                            <td className="border border-gray-300 px-4 py-2 font-bold">
-                              ₹
-                              {parseFloat(
-                                selectedQuotation.subtotalAmount
-                              ).toLocaleString("en-IN")}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                    
+                    {selectedQuotation.moldDetails &&
+                      selectedQuotation.moldDetails.length > 0 ? (
+                      selectedQuotation.moldDetails.map(
+                        (mold: any, moldIndex: number) => {
+                          const moldItems = selectedQuotation.quotationItems.filter(
+                            (item: any) => item.moldIndex === moldIndex
+                          );
+                          const moldSubtotal = moldItems.reduce(
+                            (sum: number, item: any) => sum + (item.amount || 0),
+                            0
+                          );
+
+                          return (
+                            <div key={moldIndex} className="mb-6">
+                              <h4 className="font-semibold text-md mb-3 bg-gray-100 p-2 rounded">
+                                Mold {mold.no}: {mold.partName || mold.mouldNo || `Mold #${mold.no}`}
+                              </h4>
+                              
+                              {moldItems.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse border border-gray-300">
+                                    <thead>
+                                      <tr className="bg-gray-100">
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          No
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          Part Name
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          Part Description
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          UOM
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          Qty
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          Unit Price (INR)
+                                        </th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">
+                                          Amount (INR)
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {moldItems.map(
+                                        (item: any, itemIndex: number) => (
+                                          <tr key={itemIndex}>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              {item.no}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              {item.partName}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              {item.partDescription}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              {item.uom}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              {item.qty}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              ₹{item.unitPrice.toLocaleString("en-IN")}
+                                            </td>
+                                            <td className="border border-gray-300 px-4 py-2">
+                                              ₹{item.amount.toLocaleString("en-IN")}
+                                            </td>
+                                          </tr>
+                                        )
+                                      )}
+                                      <tr className="bg-blue-50">
+                                        <td
+                                          colSpan={6}
+                                          className="border border-gray-300 px-4 py-2 text-right font-bold"
+                                        >
+                                          Subtotal for {mold.partName || mold.mouldNo || `Mold #${mold.no}`}
+                                        </td>
+                                        <td className="border border-gray-300 px-4 py-2 font-bold">
+                                          ₹{moldSubtotal.toLocaleString("en-IN")}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-gray-500 italic">No items for this mold</p>
+                              )}
+                            </div>
+                          );
+                        }
+                      )
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                No
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                Part Name
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                Part Description
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                UOM
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                Qty
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                Unit Price (INR)
+                              </th>
+                              <th className="border border-gray-300 px-4 py-2 text-left">
+                                Amount (INR)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedQuotation.quotationItems.map(
+                              (item: any, index: number) => (
+                                <tr key={index}>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    {item.no}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    {item.partName}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    {item.partDescription}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    {item.uom}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    {item.qty}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    ₹{item.unitPrice.toLocaleString("en-IN")}
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-2">
+                                    ₹{item.amount.toLocaleString("en-IN")}
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="border border-gray-300 px-4 py-2 text-right font-bold"
+                              >
+                                TOTAL
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 font-bold">
+                                ₹
+                                {parseFloat(
+                                  selectedQuotation.subtotalAmount
+                                ).toLocaleString("en-IN")}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
 
               {/* Financial Summary */}
               <div className="text-right">
                 <h3 className="font-bold text-lg mb-4">Financial Summary</h3>
-                <p>
-                  <strong>Basic Amount:</strong> ₹
-                  {parseFloat(selectedQuotation.subtotalAmount).toLocaleString(
-                    "en-IN"
-                  )}
-                </p>
-                {selectedQuotation.taxAmount &&
-                  parseFloat(selectedQuotation.taxAmount) > 0 && (
-                    <p>
-                      <strong>IGST 18%:</strong> ₹
-                      {parseFloat(selectedQuotation.taxAmount).toLocaleString(
-                        "en-IN"
+                
+                {(() => {
+                  const basicAmount = selectedQuotation.quotationItems
+                    ? selectedQuotation.quotationItems.reduce(
+                        (sum: number, item: any) => sum + (item.amount || 0),
+                        0
+                      )
+                    : parseFloat(selectedQuotation.subtotalAmount) || 0;
+                  
+                  const gstPercentage = parseFloat(selectedQuotation.gstPercentage) || 18;
+                  const gstAmount = basicAmount * (gstPercentage / 100);
+                  const discountAmount = parseFloat(selectedQuotation.discountAmount) || 0;
+                  const grandTotal = basicAmount + gstAmount - discountAmount;
+
+                  return (
+                    <>
+                      <p>
+                        <strong>Basic Amount:</strong> ₹
+                        {basicAmount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                      <p>
+                        <strong>IGST {gstPercentage}%:</strong> ₹
+                        {gstAmount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                      {discountAmount > 0 && (
+                        <p>
+                          <strong>Discount:</strong> ₹
+                          {discountAmount.toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
                       )}
-                    </p>
-                  )}
-                {selectedQuotation.discountAmount &&
-                  parseFloat(selectedQuotation.discountAmount) > 0 && (
-                    <p>
-                      <strong>Discount:</strong> ₹
-                      {parseFloat(
-                        selectedQuotation.discountAmount
-                      ).toLocaleString("en-IN")}
-                    </p>
-                  )}
-                <p className="font-bold text-xl">
-                  <strong>Grand Total:</strong> ₹
-                  {parseFloat(selectedQuotation.totalAmount).toLocaleString(
-                    "en-IN"
-                  )}
-                </p>
+                      <p className="font-bold text-xl mt-2 pt-2 border-t-2 border-gray-400">
+                        <strong>Grand Total:</strong> ₹
+                        {grandTotal.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Terms & Conditions */}
@@ -2922,6 +3313,123 @@ export default function OutboundQuotations() {
               searchKey="quotationNumber"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Saved Mold Details Section */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Saved Mold Details</CardTitle>
+          <CardDescription>
+            All mold details saved for reuse ({savedMoldDetails.length})
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {savedMoldDetails && savedMoldDetails.length > 0 ? (
+            <div className="space-y-4">
+              {(savedMoldDetails as any[]).map((mold: any) => (
+                <div
+                  key={mold.id}
+                  className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-lg">
+                        {mold.partName || "N/A"}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Mould No: {mold.mouldNo || "N/A"} | Material: {mold.plasticMaterial || "N/A"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setMoldDetails([
+                          ...moldDetails,
+                          {
+                            no: moldDetails.length + 1,
+                            partName: mold.partName,
+                            mouldNo: mold.mouldNo,
+                            plasticMaterial: mold.plasticMaterial,
+                            colourChange: mold.colourChange,
+                            mfi: mold.mfi,
+                            wallThickness: mold.wallThickness,
+                            noOfCavity: mold.noOfCavity,
+                            gfPercent: mold.gfPercent,
+                            mfPercent: mold.mfPercent,
+                            partWeight: mold.partWeight,
+                            systemSuggested: mold.systemSuggested,
+                            noOfDrops: mold.noOfDrops,
+                            trialDate: mold.trialDate,
+                            quotationFor: mold.quotationFor,
+                          },
+                        ]);
+                        toast({
+                          title: "✅ Added",
+                          description: `${mold.partName} added to form`,
+                        });
+                      }}
+                    >
+                      Use
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm mb-3">
+                    <div>
+                      <span className="font-medium">Wall Thickness:</span> {mold.wallThickness || "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">No. of Cavity:</span> {mold.noOfCavity || "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Part Weight:</span> {mold.partWeight ? `${mold.partWeight}g` : "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Trial Date:</span> {mold.trialDate || "N/A"}
+                    </div>
+                  </div>
+
+                  {mold.quotationFor && (
+                    <div className="text-sm bg-blue-50 p-2 rounded mb-2">
+                      <span className="font-medium">Quotation For:</span> {mold.quotationFor}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        apiRequest("DELETE", `/mold-details/${mold.id}`).then(
+                          () => {
+                            toast({
+                              title: "✅ Deleted",
+                              description: "Mold detail removed",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ["/mold-details"] });
+                          }
+                        );
+                      }}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </Button>
+                    <span className="text-xs text-gray-500 ml-auto flex items-center">
+                      Created: {new Date(mold.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No saved mold details yet.</p>
+              <p className="text-sm mt-2">
+                Fill in the mold details above and click "Save Mold Detail" to add them here.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

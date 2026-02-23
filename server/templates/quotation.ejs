@@ -167,51 +167,109 @@
       </section>
       <% } %>
 
-      <!-- Section 2: Quotation Items -->
+      <!-- Section 2: Quotation Items (Grouped by Mold) -->
       <% if (quotationItems && quotationItems.length > 0) { %>
       <section class="items-section">
         <div class="section-header">
           <h3>SECTION 2 – QUOTATION ITEMS</h3>
         </div>
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>Part Name</th>
-              <th>Description</th>
-              <th>UOM</th>
-              <th>Qty</th>
-              <th>Unit Price (₹)</th>
-              <th>Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% let subtotal = 0; quotationItems.forEach((item, index) => { const
-            amount = (item.quantity || 0) * (item.unitPrice || 0); subtotal +=
-            amount; %>
-            <tr>
-              <td><%= index + 1 %></td>
-              <td><%= item.partName || '-' %></td>
-              <td><%= item.description || '-' %></td>
-              <td><%= item.uom || 'PCS' %></td>
-              <td class="text-right"><%= item.quantity || 0 %></td>
-              <td class="text-right">
-                <%= (item.unitPrice || 0).toFixed(2) %>
-              </td>
-              <td class="text-right"><%= amount.toFixed(2) %></td>
-            </tr>
-            <% }); %>
-          </tbody>
-        </table>
+        
+        <% let grandSubtotal = 0; %>
+        <% if (moldDetails && moldDetails.length > 0) { %>
+          <!-- Items Grouped by Mold -->
+          <% moldDetails.forEach((mold, moldIndex) => { %>
+            <% const moldItems = quotationItems.filter(item => item.moldIndex === moldIndex); %>
+            <% if (moldItems.length > 0) { %>
+              <div class="mold-items-group" style="margin-bottom: 20px;">
+                <h4 style="background-color: #f0f0f0; padding: 8px; margin: 0 0 10px 0; font-size: 11pt;">
+                  Quotation For <%= mold.partName || mold.mouldNo || `Mold #${mold.no}` %>
+                </h4>
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>Part Name</th>
+                      <th>Description</th>
+                      <th>UOM</th>
+                      <th>Qty</th>
+                      <th>Unit Price (₹)</th>
+                      <th>Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% let moldSubtotal = 0; moldItems.forEach((item, itemIndex) => { 
+                      const amount = (item.qty || item.quantity || 0) * (item.unitPrice || 0); 
+                      moldSubtotal += amount;
+                      grandSubtotal += amount;
+                    %>
+                    <tr>
+                      <td><%= itemIndex + 1 %></td>
+                      <td><%= item.partName || '-' %></td>
+                      <td><%= item.partDescription || item.description || '-' %></td>
+                      <td><%= item.uom || 'PCS' %></td>
+                      <td class="text-right"><%= item.qty || item.quantity || 0 %></td>
+                      <td class="text-right">
+                        <%= (item.unitPrice || 0).toFixed(2) %>
+                      </td>
+                      <td class="text-right"><%= amount.toFixed(2) %></td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                  <tfoot>
+                    <tr style="background-color: #f9f9f9; font-weight: bold;">
+                      <td colspan="6" style="text-align: right; padding: 8px;">
+                        TOTAL FOR <%= mold.partName || mold.mouldNo || `Mold #${mold.no}` %>:
+                      </td>
+                      <td class="text-right" style="padding: 8px;">₹ <%= moldSubtotal.toFixed(2) %></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            <% } %>
+          <% }); %>
+        <% } else { %>
+          <!-- Items without Mold Grouping (Fallback) -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Part Name</th>
+                <th>Description</th>
+                <th>UOM</th>
+                <th>Qty</th>
+                <th>Unit Price (₹)</th>
+                <th>Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% quotationItems.forEach((item, index) => { 
+                const amount = (item.qty || item.quantity || 0) * (item.unitPrice || 0); 
+                grandSubtotal += amount;
+              %>
+              <tr>
+                <td><%= index + 1 %></td>
+                <td><%= item.partName || '-' %></td>
+                <td><%= item.partDescription || item.description || '-' %></td>
+                <td><%= item.uom || 'PCS' %></td>
+                <td class="text-right"><%= item.qty || item.quantity || 0 %></td>
+                <td class="text-right">
+                  <%= (item.unitPrice || 0).toFixed(2) %>
+                </td>
+                <td class="text-right"><%= amount.toFixed(2) %></td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
 
         <!-- Summary Section -->
         <div class="summary-section">
           <div class="summary-row">
             <span class="summary-label">Basic Amount:</span>
-            <span class="summary-value">₹ <%= subtotal.toFixed(2) %></span>
+            <span class="summary-value">₹ <%= grandSubtotal.toFixed(2) %></span>
           </div>
-          <% const gstRate = gstPercentage || 18; const gstAmount = subtotal *
-          (gstRate / 100); const grandTotal = subtotal + gstAmount; %>
+          <% const gstRate = gstPercentage || 18; const gstAmount = grandSubtotal *
+          (gstRate / 100); const grandTotal = grandSubtotal + gstAmount; %>
           <div class="summary-row">
             <span class="summary-label">GST (<%= gstRate %>%):</span>
             <span class="summary-value">₹ <%= gstAmount.toFixed(2) %></span>
