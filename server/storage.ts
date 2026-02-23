@@ -309,32 +309,8 @@ class Storage {
   }
 
   async deleteOutboundQuotation(id: string): Promise<void> {
-    const relatedSalesOrders = await db
-      .select({ count: count() })
-      .from(salesOrders)
-      .where(eq(salesOrders.quotationId, id));
-
-    const relatedInvoices = await db
-      .select({ count: count() })
-      .from(invoices)
-      .where(eq(invoices.quotationId, id));
-
-    const salesOrderCount = relatedSalesOrders[0]?.count || 0;
-    const invoiceCount = relatedInvoices[0]?.count || 0;
-
-    if (salesOrderCount > 0 || invoiceCount > 0) {
-      const issues = [];
-      if (salesOrderCount > 0)
-        issues.push(`${salesOrderCount} sales order(s)`);
-      if (invoiceCount > 0) issues.push(`${invoiceCount} invoice(s)`);
-
-      throw new Error(
-        `Cannot delete quotation. It is referenced by: ${issues.join(
-          " and "
-        )}. Please delete these records first.`
-      );
-    }
-
+    await db.delete(invoices).where(eq(invoices.quotationId, id));
+    await db.delete(salesOrders).where(eq(salesOrders.quotationId, id));
     await db.delete(outboundQuotations).where(eq(outboundQuotations.id, id));
   }
 

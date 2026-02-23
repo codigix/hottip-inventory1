@@ -92,10 +92,6 @@ export default function OutboundQuotations() {
     queryKey: ["/customers"],
   });
 
-  const { data: savedMoldDetails = [] } = useQuery<any[]>({
-    queryKey: ["/mold-details"],
-  });
-
   // Use shared schema with enhanced validation messages
   const quotationFormSchema = insertOutboundQuotationSchema
     .extend({
@@ -481,7 +477,7 @@ export default function OutboundQuotations() {
 
   // Handler for Delete action
   const handleDeleteQuotation = async (quotation: OutboundQuotation) => {
-    if (!window.confirm(`Are you sure you want to delete quotation ${quotation.quotationNumber}?`)) {
+    if (!window.confirm(`Are you sure you want to delete quotation ${quotation.quotationNumber}?\n\nThis will also delete all related sales orders and invoices.`)) {
       return;
     }
 
@@ -490,7 +486,7 @@ export default function OutboundQuotations() {
 
       toast({
         title: "Success",
-        description: "Quotation deleted successfully",
+        description: "Quotation and related records deleted successfully",
       });
 
       queryClient.invalidateQueries({ queryKey: ["/outbound-quotations"] });
@@ -3328,122 +3324,7 @@ export default function OutboundQuotations() {
         </CardContent>
       </Card>
 
-      {/* Saved Mold Details Section */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Saved Mold Details</CardTitle>
-          <CardDescription>
-            All mold details saved for reuse ({savedMoldDetails.length})
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {savedMoldDetails && savedMoldDetails.length > 0 ? (
-            <div className="space-y-4">
-              {(savedMoldDetails as any[]).map((mold: any) => (
-                <div
-                  key={mold.id}
-                  className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-lg">
-                        {mold.partName || "N/A"}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Mould No: {mold.mouldNo || "N/A"} | Material: {mold.plasticMaterial || "N/A"}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setMoldDetails([
-                          ...moldDetails,
-                          {
-                            no: moldDetails.length + 1,
-                            partName: mold.partName,
-                            mouldNo: mold.mouldNo,
-                            plasticMaterial: mold.plasticMaterial,
-                            colourChange: mold.colourChange,
-                            mfi: mold.mfi,
-                            wallThickness: mold.wallThickness,
-                            noOfCavity: mold.noOfCavity,
-                            gfPercent: mold.gfPercent,
-                            mfPercent: mold.mfPercent,
-                            partWeight: mold.partWeight,
-                            systemSuggested: mold.systemSuggested,
-                            noOfDrops: mold.noOfDrops,
-                            trialDate: mold.trialDate,
-                            quotationFor: mold.quotationFor,
-                          },
-                        ]);
-                        toast({
-                          title: "✅ Added",
-                          description: `${mold.partName} added to form`,
-                        });
-                      }}
-                    >
-                      Use
-                    </Button>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm mb-3">
-                    <div>
-                      <span className="font-medium">Wall Thickness:</span> {mold.wallThickness || "N/A"}
-                    </div>
-                    <div>
-                      <span className="font-medium">No. of Cavity:</span> {mold.noOfCavity || "N/A"}
-                    </div>
-                    <div>
-                      <span className="font-medium">Part Weight:</span> {mold.partWeight ? `${mold.partWeight}g` : "N/A"}
-                    </div>
-                    <div>
-                      <span className="font-medium">Trial Date:</span> {mold.trialDate || "N/A"}
-                    </div>
-                  </div>
-
-                  {mold.quotationFor && (
-                    <div className="text-sm bg-blue-50 p-2 rounded mb-2">
-                      <span className="font-medium">Quotation For:</span> {mold.quotationFor}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-2 border-t">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        apiRequest("DELETE", `/mold-details/${mold.id}`).then(
-                          () => {
-                            toast({
-                              title: "✅ Deleted",
-                              description: "Mold detail removed",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ["/mold-details"] });
-                          }
-                        );
-                      }}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Delete
-                    </Button>
-                    <span className="text-xs text-gray-500 ml-auto flex items-center">
-                      Created: {new Date(mold.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No saved mold details yet.</p>
-              <p className="text-sm mt-2">
-                Fill in the mold details above and click "Save Mold Detail" to add them here.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
