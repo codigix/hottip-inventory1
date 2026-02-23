@@ -248,24 +248,17 @@ export default function OutboundQuotations() {
 
   const createQuotationMutation = useMutation({
     mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
-      // Calculate totalAmount from items if quotationItems exists
-      let totalAmount = parseFloat(data.totalAmount) || 0;
-      let subtotalAmount = parseFloat(data.subtotalAmount) || 0;
+      const subtotalAmount = parseFloat(data.subtotalAmount) || 0;
+      const taxAmount = parseFloat(data.taxAmount) || 0;
+      const discountAmount = parseFloat(data.discountAmount) || 0;
       
-      // If there are quotation items and totalAmount is 0, calculate from items
-      if (quotationItems.length > 0 && totalAmount === 0) {
-        subtotalAmount = quotationItems.reduce((sum, item) => {
-          return sum + (parseFloat(item.unitPrice || 0) * (item.qty || 0));
-        }, 0);
-        
-        const taxAmount = parseFloat(data.taxAmount) || 0;
-        const discountAmount = parseFloat(data.discountAmount) || 0;
-        totalAmount = subtotalAmount + taxAmount - discountAmount;
-      }
+      const totalAmount = subtotalAmount + taxAmount - discountAmount;
       
       return apiRequest("POST", "/outbound-quotations", {
         ...data,
         subtotalAmount: String(subtotalAmount),
+        taxAmount: String(taxAmount),
+        discountAmount: String(discountAmount),
         totalAmount: String(totalAmount),
         userId: "b34e3723-ba42-402d-b454-88cf96340573", // Real user ID from database
         moldDetails,
