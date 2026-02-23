@@ -1314,14 +1314,22 @@ export function registerSalesRoutes(
 
   app.post("/api/mold-details", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      console.log("📥 Received mold detail data:", JSON.stringify(req.body, null, 2));
+      
       const moldDetailData = insertMoldDetailSchema.parse({
         ...req.body,
         userId: req.user!.id,
       });
+      
+      console.log("✅ Parsed mold detail data:", JSON.stringify(moldDetailData, null, 2));
+      
       const moldDetail = await db
         .insert(moldDetailsTable)
         .values(moldDetailData)
         .returning();
+      
+      console.log("💾 Saved mold detail to DB:", JSON.stringify(moldDetail[0], null, 2));
+      
       res.status(201).json(moldDetail[0]);
     } catch (error: any) {
       console.error("❌ Error creating mold detail:", error);

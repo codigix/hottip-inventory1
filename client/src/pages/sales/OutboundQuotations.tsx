@@ -82,6 +82,7 @@ export default function OutboundQuotations() {
     qty: 1,
     unitPrice: 0,
   });
+  const [editingMoldIndex, setEditingMoldIndex] = useState<number | null>(null);
 
   const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
     queryKey: ["/outbound-quotations"],
@@ -639,6 +640,7 @@ export default function OutboundQuotations() {
 
   // Helper functions for Mold Details
   const addMoldDetail = () => {
+    const newIndex = moldDetails.length;
     setMoldDetails([
       ...moldDetails,
       {
@@ -659,6 +661,7 @@ export default function OutboundQuotations() {
         quotationFor: "",
       },
     ]);
+    setEditingMoldIndex(newIndex);
   };
 
   const removeMoldDetail = (index: number) => {
@@ -669,9 +672,11 @@ export default function OutboundQuotations() {
   };
 
   const updateMoldDetail = (index: number, field: string, value: any) => {
+    console.log(`📝 Updating mold[${index}].${field} from "${moldDetails[index]?.[field]}" to "${value}"`);
     const updated = [...moldDetails];
     updated[index] = { ...updated[index], [field]: value };
     setMoldDetails(updated);
+    console.log(`✅ Updated state:`, updated[index]);
   };
 
   const saveMoldDetailMutation = useMutation({
@@ -682,6 +687,7 @@ export default function OutboundQuotations() {
         title: "✅ Success",
         description: "Mold detail saved successfully",
       });
+      setEditingMoldIndex(null);
       queryClient.invalidateQueries({ queryKey: ["/mold-details"] });
     },
     onError: (error: any) => {
@@ -696,6 +702,9 @@ export default function OutboundQuotations() {
 
   const saveMoldDetail = (index: number) => {
     const moldDetail = moldDetails[index];
+    console.log("🔍 Current moldDetails state:", moldDetails);
+    console.log(`🔍 Saving moldDetails[${index}]:`, moldDetail);
+    
     if (!moldDetail || !moldDetail.partName) {
       toast({
         title: "⚠️ Validation Error",
@@ -705,35 +714,23 @@ export default function OutboundQuotations() {
       return;
     }
 
+    console.log("📤 About to send mold detail:", moldDetail);
+
     saveMoldDetailMutation.mutate({
-      partName: moldDetail.partName,
-      mouldNo: moldDetail.mouldNo,
-      plasticMaterial: moldDetail.plasticMaterial,
-      colourChange: moldDetail.colourChange,
-      mfi: moldDetail.mfi,
-      wallThickness: moldDetail.wallThickness,
+      partName: moldDetail.partName?.trim() || "",
+      mouldNo: moldDetail.mouldNo?.trim() || "",
+      plasticMaterial: moldDetail.plasticMaterial?.trim() || "",
+      colourChange: moldDetail.colourChange?.trim() || "",
+      mfi: moldDetail.mfi?.trim() || "",
+      wallThickness: moldDetail.wallThickness?.trim() || "",
       noOfCavity: moldDetail.noOfCavity,
-      gfPercent: moldDetail.gfPercent,
-      mfPercent: moldDetail.mfPercent,
+      gfPercent: moldDetail.gfPercent?.trim() || "",
+      mfPercent: moldDetail.mfPercent?.trim() || "",
       partWeight: moldDetail.partWeight,
-      systemSuggested: moldDetail.systemSuggested,
+      systemSuggested: moldDetail.systemSuggested?.trim() || "",
       noOfDrops: moldDetail.noOfDrops,
-      trialDate: moldDetail.trialDate,
-      quotationFor: moldDetail.quotationFor,
-      onSuccess: () => {
-        setTimeout(() => {
-          const display = document.getElementById(`mold-display-${index}`);
-          const edit = document.getElementById(`mold-edit-${index}`);
-          const btn = document.getElementById(`edit-toggle-${index}`);
-          
-          if (display && edit && btn) {
-            display.style.display = 'block';
-            edit.style.display = 'none';
-            btn.style.display = 'block';
-            btn.textContent = 'Edit';
-          }
-        }, 300);
-      }
+      trialDate: moldDetail.trialDate?.trim() || "",
+      quotationFor: moldDetail.quotationFor?.trim() || "",
     });
   };
 
@@ -1038,7 +1035,24 @@ export default function OutboundQuotations() {
             Manage quotations sent to clients with full PDF field support
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog 
+          open={isDialogOpen} 
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (open) {
+              setMoldDetails([]);
+              setQuotationItems([]);
+              setNewItemForm({
+                partName: "",
+                partDescription: "",
+                uom: "NOS",
+                qty: 1,
+                unitPrice: 0,
+              });
+              form.reset();
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button data-testid="button-new-outbound-quotation" data-tour="sales-new-quotation-button">
               <Plus className="h-4 w-4 mr-2" />
@@ -1622,26 +1636,10 @@ export default function OutboundQuotations() {
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                id={`edit-toggle-${index}`}
-                                onClick={() => {
-                                  const display = document.getElementById(`mold-display-${index}`);
-                                  const edit = document.getElementById(`mold-edit-${index}`);
-                                  const btn = document.getElementById(`edit-toggle-${index}`);
-                                  const isEditing = display?.style.display === 'none';
-                                  
-                                  if (isEditing) {
-                                    display!.style.display = 'block';
-                                    edit!.style.display = 'none';
-                                    btn!.textContent = 'Edit';
-                                  } else {
-                                    display!.style.display = 'none';
-                                    edit!.style.display = 'grid';
-                                    btn!.textContent = 'Close Edit';
-                                  }
-                                }}
+                                onClick={() => setEditingMoldIndex(editingMoldIndex === index ? null : index)}
                                 style={{ display: !mold.partName ? 'none' : 'block' }}
                               >
-                                Edit
+                                {editingMoldIndex === index ? 'Close Edit' : 'Edit'}
                               </Button>
                               <Button
                                 type="button"
@@ -1656,8 +1654,9 @@ export default function OutboundQuotations() {
 
                           {/* Display Mode - Always Visible on Left, with Edit Form on Right when Editing */}
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                            {/* Left: Display Mode - Hidden if no partName */}
-                            <div id={`mold-display-${index}`} className="space-y-3" style={{ display: !mold.partName ? 'none' : 'block' }}>
+                            {/* Left: Display Mode - Show only if not editing and has data */}
+                            {editingMoldIndex !== index && mold.partName && (
+                            <div id={`mold-display-${index}`} className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="flex justify-between border-b pb-2">
                                 <span className="font-medium text-gray-700">Part Name:</span>
@@ -1717,17 +1716,20 @@ export default function OutboundQuotations() {
                               </div>
                             )}
                           </div>
-                        </div>
+                            )}
+                          </div>
 
-                          {/* Right: Edit Mode - Visible by default if no partName */}
-                          <div id={`mold-edit-${index}`} style={{ display: mold.partName ? 'none' : 'grid' }} className="pb-6">
+                          {/* Right: Edit Mode - Visible when editing or creating new */}
+                          {(editingMoldIndex === index || !mold.partName) && (
+                          <div id={`mold-edit-${index}`} className="pb-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div>
                                 <label className="text-sm font-medium">
                                   Part Name
                                 </label>
                               <Input
-                                value={mold.partName}
+                                type="text"
+                                value={mold.partName || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1744,7 +1746,8 @@ export default function OutboundQuotations() {
                                 Mould No
                               </label>
                               <Input
-                                value={mold.mouldNo}
+                                type="text"
+                                value={mold.mouldNo || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1761,7 +1764,8 @@ export default function OutboundQuotations() {
                                 Plastic Material
                               </label>
                               <Input
-                                value={mold.plasticMaterial}
+                                type="text"
+                                value={mold.plasticMaterial || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1778,7 +1782,8 @@ export default function OutboundQuotations() {
                                 Colour Change
                               </label>
                               <Input
-                                value={mold.colourChange}
+                                type="text"
+                                value={mold.colourChange || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1793,7 +1798,8 @@ export default function OutboundQuotations() {
                             <div>
                               <label className="text-sm font-medium">MFI</label>
                               <Input
-                                value={mold.mfi}
+                                type="text"
+                                value={mold.mfi || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(index, "mfi", e.target.value)
                                 }
@@ -1806,7 +1812,8 @@ export default function OutboundQuotations() {
                                 Wall Thickness
                               </label>
                               <Input
-                                value={mold.wallThickness}
+                                type="text"
+                                value={mold.wallThickness || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1842,7 +1849,8 @@ export default function OutboundQuotations() {
                               </label>
                               <div className="flex gap-2">
                                 <Input
-                                  value={mold.gfPercent}
+                                  type="text"
+                                  value={mold.gfPercent || ""}
                                   onChange={(e) =>
                                     updateMoldDetail(
                                       index,
@@ -1853,7 +1861,8 @@ export default function OutboundQuotations() {
                                   placeholder="GF%"
                                 />
                                 <Input
-                                  value={mold.mfPercent}
+                                  type="text"
+                                  value={mold.mfPercent || ""}
                                   onChange={(e) =>
                                     updateMoldDetail(
                                       index,
@@ -1890,7 +1899,8 @@ export default function OutboundQuotations() {
                                 System Suggested
                               </label>
                               <Input
-                                value={mold.systemSuggested}
+                                type="text"
+                                value={mold.systemSuggested || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1908,7 +1918,7 @@ export default function OutboundQuotations() {
                               </label>
                               <Input
                                 type="number"
-                                value={mold.noOfDrops}
+                                value={mold.noOfDrops || 1}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1926,7 +1936,7 @@ export default function OutboundQuotations() {
                               </label>
                               <Input
                                 type="date"
-                                value={mold.trialDate}
+                                value={mold.trialDate || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1942,7 +1952,8 @@ export default function OutboundQuotations() {
                                 Quotation For
                               </label>
                               <Input
-                                value={mold.quotationFor}
+                                type="text"
+                                value={mold.quotationFor || ""}
                                 onChange={(e) =>
                                   updateMoldDetail(
                                     index,
@@ -1955,6 +1966,7 @@ export default function OutboundQuotations() {
                             </div>
                             </div>
                           </div>
+                            )}
 
                           {/* Items Section */}
                           <div className="mt-6 mb-6">
