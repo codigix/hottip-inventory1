@@ -433,6 +433,12 @@ export const fieldVisits = pgTable("field_visits", {
   assignedTo: uuid("assignedTo")
     .references(() => users.id)
     .notNull(),
+  assignedBy: uuid("assignedBy")
+    .references(() => users.id)
+    .notNull(),
+  createdBy: uuid("createdBy")
+    .references(() => users.id)
+    .notNull(),
   visitAddress: varchar("visitAddress", { length: 255 }).notNull(),
   visitCity: varchar("visitCity", { length: 100 }),
   visitState: varchar("visitState", { length: 100 }),
@@ -760,7 +766,7 @@ export const gstReturns = pgTable("gst_returns", {
 // =====================
 export const orderStatus = pgEnum("order_status", [
   "pending",
-  "approved",
+  "processing",
   "shipped",
   "delivered",
   "cancelled",
@@ -839,7 +845,7 @@ export const insertPurchaseOrderSchema = z.object({
   ),
   deliveryPeriod: z.string().optional().nullable(),
   status: z
-    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
     .optional()
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),

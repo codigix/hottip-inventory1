@@ -68,7 +68,7 @@ const purchaseOrderFormSchema = z.object({
   ),
   deliveryPeriod: z.string().optional(),
   status: z
-    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),
   gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
@@ -395,13 +395,13 @@ export default function PurchaseOrders() {
   const analysisStats = useMemo(() => {
     const total = purchaseOrders.length;
     const pending = purchaseOrders.filter((po: any) => po.status === 'pending').length;
-    const approved = purchaseOrders.filter((po: any) => po.status === 'approved').length;
+    const processing = purchaseOrders.filter((po: any) => po.status === 'processing').length;
     const totalValue = purchaseOrders.reduce((acc: number, po: any) => acc + (parseFloat(po.totalAmount) || 0), 0);
 
     return [
       { title: "Total POs", value: total, icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-100" },
       { title: "Pending Approval", value: pending, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100" },
-      { title: "Approved", value: approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
+      { title: "Processing", value: processing, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
       { title: "Total Value", value: `₹${totalValue.toLocaleString("en-IN")}`, icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-100" }
     ];
   }, [purchaseOrders]);
@@ -430,7 +430,7 @@ export default function PurchaseOrders() {
       cell: (po: any) => {
         const statusColors: Record<string, string> = {
           pending: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800",
+          processing: "bg-green-100 text-green-800",
           shipped: "bg-blue-100 text-blue-800",
           delivered: "bg-purple-100 text-purple-800",
           cancelled: "bg-red-100 text-red-800",
@@ -531,7 +531,7 @@ export default function PurchaseOrders() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="processing">Processing</SelectItem>
                             <SelectItem value="shipped">Shipped</SelectItem>
                             <SelectItem value="delivered">Delivered</SelectItem>
                             <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -620,7 +620,6 @@ export default function PurchaseOrders() {
                     <table className="w-full text-sm text-left">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="p-2 font-medium w-48">Product</th>
                           <th className="p-2 font-medium">Item Name</th>
                           <th className="p-2 font-medium">Description</th>
                           <th className="p-2 font-medium w-20">Qty</th>
@@ -633,34 +632,6 @@ export default function PurchaseOrders() {
                       <tbody>
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
-                            <td className="p-2">
-                              <Select 
-                                onValueChange={(val) => {
-                                  const prod = products.find((p: any) => p.id === val);
-                                  if (prod) {
-                                    form.setValue(`items.${index}.productId`, prod.id);
-                                    form.setValue(`items.${index}.itemName`, prod.name);
-                                    form.setValue(`items.${index}.description`, prod.description || "");
-                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
-                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
-                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
-                                  } else {
-                                    form.setValue(`items.${index}.productId`, null);
-                                  }
-                                }}
-                                value={form.watch(`items.${index}.productId`) || "manual"}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="Manual Entry" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="manual">Manual Entry</SelectItem>
-                                  {products.map((p: any) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
                             <td className="p-2"><Input {...form.register(`items.${index}.itemName`)} placeholder="Item Name" /></td>
                             <td className="p-2"><Input {...form.register(`items.${index}.description`)} placeholder="Description" /></td>
                             <td className="p-2">

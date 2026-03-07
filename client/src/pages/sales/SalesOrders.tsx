@@ -619,7 +619,6 @@ export default function SalesOrders() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="p-2 text-left font-medium w-48">Product</th>
                           <th className="p-2 text-left font-medium">Item Name</th>
                           <th className="p-2 text-left font-medium">Description</th>
                           <th className="p-2 text-left font-medium w-20">Qty</th>
@@ -632,34 +631,6 @@ export default function SalesOrders() {
                       <tbody>
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
-                            <td className="p-2">
-                              <Select 
-                                onValueChange={(val) => {
-                                  const prod = products.find((p: any) => p.id === val);
-                                  if (prod) {
-                                    form.setValue(`items.${index}.productId`, prod.id);
-                                    form.setValue(`items.${index}.itemName`, prod.name);
-                                    form.setValue(`items.${index}.description`, prod.description || "");
-                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
-                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
-                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
-                                  } else {
-                                    form.setValue(`items.${index}.productId`, null);
-                                  }
-                                }}
-                                value={form.watch(`items.${index}.productId`) || "manual"}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="Manual Entry" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="manual">Manual Entry</SelectItem>
-                                  {products.map((p: any) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
                             <td className="p-2">
                               <Input
                                 {...form.register(`items.${index}.itemName`)}

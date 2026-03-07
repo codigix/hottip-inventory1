@@ -333,11 +333,11 @@ export type UserRole = 'admin' | 'manager' | 'employee';
 
 // Lead Status Workflow Configuration
 export const LEAD_STATUS_WORKFLOW: Record<LeadStatus, LeadStatus[]> = {
-  new: ['contacted', 'dropped'],
-  contacted: ['in_progress', 'dropped'],
+  new: ['contacted', 'in_progress', 'converted', 'dropped'],
+  contacted: ['in_progress', 'converted', 'dropped'],
   in_progress: ['converted', 'dropped'],
   converted: [], // Final state
-  dropped: ['new', 'contacted'] // Allow revival
+  dropped: ['new', 'contacted', 'in_progress'] // Allow revival
 };
 
 export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {

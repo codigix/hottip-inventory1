@@ -17,7 +17,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
-import { sql, eq, and, gte, lt } from "drizzle-orm";
+import { sql, eq, and, gte, lt, aliasedTable } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
 import { users } from "../shared/schema";
@@ -72,7 +72,7 @@ import {
   account_reminders,
   insertAccountReminderSchema,
 } from "../shared/schema";
-import { sql, eq, and, gte, lt } from "drizzle-orm";
+import { sql, eq, and, gte, lt, aliasedTable } from "drizzle-orm";
 // Fabrication Orders API
 
 // Login schema
@@ -2824,38 +2824,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Lightweight marketing dashboard endpoints
   app.get("/api/marketing", requireAuth, async (_req, res) => {
-    // Return hardcoded, realistic demo data for dashboard counters
-    res.json({
-      leads: {
-        total: 128,
-        active: 34,
-        converted: 56,
-        conversionRate: 43.8,
-        monthlyNew: 12,
-        pendingFollowUps: 7,
-      },
-      visits: {
-        total: 42,
-        completed: 28,
-        today: 3,
-        scheduled: 5,
-        inProgress: 2,
-        cancelled: 1,
-        successRate: 66.7,
-        weeklyCompleted: 12,
-      },
-      tasks: {
-        total: 21,
-        completed: 15,
-        overdue: 2,
-        today: 4,
-        completionRate: 71.4,
-      },
-      attendance: {
-        totalEmployees: 18,
-        presentToday: 16,
-      },
-    });
+    try {
+      // 1. Leads metrics
+      const [leadsRow] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
+        })
+        .from(leads);
+      const totalLeads = Number(leadsRow?.total || 0);
+      const convertedLeads = Number(leadsRow?.converted || 0);
+
+      // 2. Visits metrics
+      const [visitsRow] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          completed: sql`COUNT(CASE WHEN ${fieldVisits.status} IN ('Completed', 'completed') THEN 1 END)::integer`,
+          today: sql`COUNT(CASE WHEN DATE(${fieldVisits.plannedDate}) = DATE(NOW()) THEN 1 END)::integer`,
+        })
+        .from(fieldVisits);
+      const totalVisits = Number(visitsRow?.total || 0);
+      const completedVisits = Number(visitsRow?.completed || 0);
+
+      // 3. Tasks metrics
+      const [tasksRow] = await db
+        .select({
+          total: sql`COUNT(*)::integer`,
+          completed: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'completed' THEN 1 END)::integer`,
+          pending: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'pending' THEN 1 END)::integer`,
+          overdue: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'overdue' OR (${marketingTasks.status} != 'completed' AND ${marketingTasks.dueDate} < NOW()) THEN 1 END)::integer`,
+        })
+        .from(marketingTasks);
+
+      res.json({
+        leads: {
+          total: totalLeads,
+          active: Number(leadsRow?.active || 0),
+          converted: convertedLeads,
+          conversionRate: totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0,
+          monthlyNew: Number(leadsRow?.monthlyNew || 0),
+          pendingFollowUps: 0,
+        },
+        visits: {
+          total: totalVisits,
+          completed: completedVisits,
+          today: Number(visitsRow?.today || 0),
+          successRate: totalVisits > 0 ? (completedVisits / totalVisits) * 100 : 0,
+        },
+        tasks: {
+          total: Number(tasksRow?.total || 0),
+          completed: Number(tasksRow?.completed || 0),
+          pending: Number(tasksRow?.pending || 0),
+          overdue: Number(tasksRow?.overdue || 0),
+        },
+        attendance: {
+          totalEmployees: 0,
+          presentToday: 0,
+        },
+      });
+    } catch (e) {
+      console.error("Error fetching marketing dashboard data:", e);
+      res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
   });
 
   app.get("/api/marketing/leads/metrics", requireAuth, async (_req, res) => {
@@ -2964,24 +2996,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { status, source, priority, assignedTo, search } = req.query;
 
-      // Start query
-      let query = db.select().from(leads);
+      // Start query with join to get assignee information
+      let query = db
+        .select({
+          lead: leads,
+          assignee: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(leads)
+        .leftJoin(users, eq(leads.assignedTo, users.id));
 
       // Optional filters
-      if (status) query = query.where({ status });
-      if (source) query = query.where({ source });
-      if (priority) query = query.where({ priority });
-      if (assignedTo) query = query.where({ assignedTo });
+      if (status && status !== "all") {
+        query = query.where(sql`${leads.status} ILIKE ${status as string}`);
+      }
+      if (source && source !== "all") {
+        query = query.where(eq(leads.source, source as string));
+      }
+      if (priority && priority !== "all") {
+        query = query.where(eq(leads.priority, priority as string));
+      }
+      if (assignedTo && assignedTo !== "all") {
+        query = query.where(eq(leads.assignedTo, assignedTo as string));
+      }
       if (search) {
         query = query.where(
-          sql`firstName ILIKE ${"%" + search + "%"} OR lastName ILIKE ${
-            "%" + search + "%"
-          }`
+          sql`${leads.firstName} ILIKE ${"%" + search + "%"} OR ${
+            leads.lastName
+          } ILIKE ${"%" + search + "%"}`
         );
       }
 
       const rows = await query;
-      res.json(rows);
+
+      // Format response to match LeadWithAssignee interface
+      const leadsWithAssignee = rows.map((row) => ({
+        ...row.lead,
+        assignee: row.assignee?.id ? row.assignee : null,
+      }));
+
+      res.json(leadsWithAssignee);
     } catch (err) {
       console.error("Error fetching leads:", err);
       res.status(500).json({ error: "Failed to fetch leads" });
@@ -3007,6 +3064,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referredBy,
         requirementDescription,
         estimatedBudget,
+        priority,
+        assignedTo,
+        followUpDate,
+        expectedClosingDate,
+        notes,
       } = req.body;
 
       const validSources = [
@@ -3015,6 +3077,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "website",
         "email",
         "social_media",
+        "advertisement",
+        "trade_show",
+        "cold_call",
+        "email_campaign",
       ];
       const leadSource = validSources.includes(source) ? source : "other";
 
@@ -3037,6 +3103,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           referredBy: referredBy || null,
           requirementDescription: requirementDescription || null,
           estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+          priority: priority || "medium",
+          assignedTo: assignedTo || null,
+          followUpDate: followUpDate ? new Date(followUpDate) : null,
+          expectedClosingDate: expectedClosingDate
+            ? new Date(expectedClosingDate)
+            : null,
+          notes: notes || null,
         })
         .returning();
 
@@ -3044,6 +3117,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error creating lead:", err);
       res.status(500).json({ error: "Failed to create lead" });
+    }
+  });
+
+  app.put("/api/marketing/leads/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        firstName,
+        lastName,
+        companyName,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        source,
+        sourceDetails,
+        referredBy,
+        requirementDescription,
+        estimatedBudget,
+        priority,
+        assignedTo,
+        followUpDate,
+        expectedClosingDate,
+        notes,
+      } = req.body;
+
+      const [updatedLead] = await db
+        .update(leads)
+        .set({
+          firstName,
+          lastName,
+          companyName: companyName || null,
+          email,
+          phone,
+          alternatePhone: alternatePhone || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
+          country: country || "India",
+          source,
+          sourceDetails: sourceDetails || null,
+          referredBy: referredBy || null,
+          requirementDescription: requirementDescription || null,
+          estimatedBudget: estimatedBudget ? parseFloat(estimatedBudget) : null,
+          priority: priority || "medium",
+          assignedTo: assignedTo || null,
+          followUpDate: followUpDate ? new Date(followUpDate) : null,
+          expectedClosingDate: expectedClosingDate
+            ? new Date(expectedClosingDate)
+            : null,
+          notes: notes || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(leads.id, id))
+        .returning();
+
+      if (!updatedLead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      res.json(updatedLead);
+    } catch (err) {
+      console.error("Error updating lead:", err);
+      res.status(500).json({ error: "Failed to update lead" });
+    }
+  });
+
+  app.delete("/api/marketing/leads/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deletedLead] = await db
+        .delete(leads)
+        .where(eq(leads.id, id))
+        .returning();
+
+      if (!deletedLead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      res.json({ message: "Lead deleted successfully" });
+    } catch (err) {
+      console.error("Error deleting lead:", err);
+      res.status(500).json({ error: "Failed to delete lead" });
+    }
+  });
+
+  app.put("/api/marketing/leads/:id/status", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+
+      const [updatedLead] = await db
+        .update(leads)
+        .set({
+          status,
+          updatedAt: new Date(),
+        })
+        .where(eq(leads.id, id))
+        .returning();
+
+      if (!updatedLead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      res.json(updatedLead);
+    } catch (err) {
+      console.error("Error updating lead status:", err);
+      res.status(500).json({ error: "Failed to update lead status" });
+    }
+  });
+
+  app.post("/api/marketing/leads/:id/convert", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // 1. Get lead data
+      const [lead] = await db.select().from(leads).where(eq(leads.id, id));
+
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      if (lead.status === "converted") {
+        return res.status(400).json({ error: "Lead is already converted" });
+      }
+
+      // 2. Create customer from lead data
+      const [newCustomer] = await db
+        .insert(customers)
+        .values({
+          name: `${lead.firstName} ${lead.lastName}`,
+          company: lead.companyName || null,
+          email: lead.email || null,
+          phone: lead.phone || null,
+          contactPerson: `${lead.firstName} ${lead.lastName}`,
+          address: lead.address || null,
+          city: lead.city || null,
+          state: lead.state || null,
+          zipCode: lead.zipCode || null,
+          country: lead.country || "India",
+        })
+        .returning();
+
+      // 3. Update lead status
+      const [updatedLead] = await db
+        .update(leads)
+        .set({
+          status: "converted",
+          updatedAt: new Date(),
+        })
+        .where(eq(leads.id, id))
+        .returning();
+
+      res.json({
+        message: "Lead converted to customer successfully",
+        customer: newCustomer,
+        lead: updatedLead,
+      });
+    } catch (err) {
+      console.error("Error converting lead:", err);
+      res.status(500).json({ error: "Failed to convert lead" });
     }
   });
 
@@ -3105,7 +3348,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/field-visits", requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select().from(fieldVisits);
+      const assignedToAlias = aliasedTable(users, "assignedToUser");
+      const assignedByAlias = aliasedTable(users, "assignedByUser");
+
+      const rows = await db
+        .select({
+          visit: fieldVisits,
+          lead: {
+            id: leads.id,
+            firstName: leads.firstName,
+            lastName: leads.lastName,
+            companyName: leads.companyName,
+          },
+          assignedToUser: {
+            id: assignedToAlias.id,
+            firstName: assignedToAlias.firstName,
+            lastName: assignedToAlias.lastName,
+          },
+          assignedByUser: {
+            id: assignedByAlias.id,
+            firstName: assignedByAlias.firstName,
+            lastName: assignedByAlias.lastName,
+          },
+        })
+        .from(fieldVisits)
+        .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+        .leftJoin(assignedToAlias, eq(fieldVisits.assignedTo, assignedToAlias.id))
+        .leftJoin(assignedByAlias, eq(fieldVisits.assignedBy, assignedByAlias.id));
+
       // Map status to lowercase/underscore for frontend compatibility
       const statusMap: Record<string, string> = {
         Scheduled: "scheduled",
@@ -3113,15 +3383,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Completed: "completed",
         Cancelled: "cancelled",
       };
-      const mappedRows = rows.map((v) => ({
-        ...v,
+      const mappedRows = rows.map((r) => ({
+        ...r.visit,
+        lead: r.lead.id ? r.lead : null,
+        assignedToUser: r.assignedToUser.id ? r.assignedToUser : null,
+        assignedByUser: r.assignedByUser.id ? r.assignedByUser : null,
         status:
-          statusMap[v.status] ||
-          v.status?.toLowerCase().replace(/\s+/g, "_") ||
-          v.status,
+          statusMap[r.visit.status] ||
+          r.visit.status?.toLowerCase().replace(/\s+/g, "_") ||
+          r.visit.status,
       }));
       res.json(mappedRows);
     } catch (e) {
+      console.error("Error fetching field visits:", e);
       res.json([]);
     }
   });
@@ -3162,6 +3436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : null,
           plannedEndTime: plannedEndTime ? new Date(plannedEndTime) : null,
           assignedTo,
+          assignedBy: (req as any).user.id,
+          createdBy: (req as any).user.id,
           visitAddress,
           visitCity: visitCity || null,
           visitState: visitState || null,
