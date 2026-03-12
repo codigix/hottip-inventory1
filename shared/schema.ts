@@ -2049,3 +2049,37 @@ export const insertMoldDetailSchema = z.object({
   quotationFor: z.string().optional(),
   userId: z.string().uuid().optional(),
 });
+
+// =====================
+// TYPE EXPORTS
+// =====================
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+
+export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
+export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+
+export type MarketingTodays = typeof marketingTodays.$inferSelect;
+export type InsertMarketingTodays = typeof marketingTodays.$inferInsert;
+
+export type MarketingTask = typeof marketingTasks.$inferSelect;
+export type InsertMarketingTask = typeof marketingTasks.$inferInsert;
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
+
+export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
+export type InsertLogisticsShipment = typeof logisticsShipments.$inferInsert;
+export type LogisticsShipmentStatus = typeof logisticsShipments.currentStatus.$inferSelect;
+
+export type LogisticsTask = typeof logisticsTasks.$inferSelect;
+export type InsertLogisticsTask = typeof logisticsTasks.$inferInsert;
+
+export type LogisticsAttendance = typeof logisticsAttendance.$inferSelect;
+export type InsertLogisticsAttendance = typeof logisticsAttendance.$inferInsert;
+
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = typeof activities.$inferInsert;
+
+export type MoldDetail = typeof moldDetailsTable.$inferSelect;
+export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;
