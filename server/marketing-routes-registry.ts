@@ -168,6 +168,8 @@ export const createLead = async (
         leadId: lead.id,
         plannedDate: plannedDate instanceof Date ? plannedDate : new Date(plannedDate),
         assignedTo: lead.assignedTo || req.user!.id,
+        assignedBy: req.user!.id,
+        createdBy: req.user!.id,
         visitAddress: lead.address || "Client Location",
         visitCity: lead.city || "",
         visitState: lead.state || "",
@@ -596,7 +598,11 @@ export const createFieldVisit = async (
     const visitData = insertFieldVisitSchema.parse(req.body);
 
     visitData.assignedBy = req.user!.id;
-    // Note: createdBy field may need to be added to schema
+    visitData.createdBy = req.user!.id;
+    
+    if (!visitData.assignedTo) {
+      visitData.assignedTo = req.user!.id;
+    }
 
     const lead = await storage.getLead(visitData.leadId);
     if (!lead) {
@@ -642,7 +648,13 @@ export const updateFieldVisit = async (
       return res.status(404).json({ error: "Field visit not found" });
     }
 
-    const visitData = insertFieldVisitSchema.partial().parse(req.body);
+    const visitData = insertFieldVisitSchema.partial().omit({ 
+      id: true, 
+      visitNumber: true,
+      assignedByUser: true,
+      assignedToUser: true,
+      lead: true 
+    } as any).parse(req.body);
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
     await storage.createActivity({
       userId: req.user!.id,

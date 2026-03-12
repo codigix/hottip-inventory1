@@ -78,6 +78,7 @@ export default function FieldVisits() {
       apiRequest("/field-visits", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
       toast({ title: "Visit scheduled successfully!" });
       setIsFormOpen(false);
     },
@@ -127,8 +128,11 @@ export default function FieldVisits() {
 
   /** ===== Handlers ===== **/
   const handleFormSubmit = (data: InsertFieldVisit) => {
-    if (selectedVisit) return; // Add update mutation here if needed
-    createVisitMutation.mutate(data);
+    if (selectedVisit) {
+      updateVisitMutation.mutate({ ...selectedVisit, ...data });
+    } else {
+      createVisitMutation.mutate(data);
+    }
   };
 
   const handleEditVisit = (visit: VisitWithDetails) => {

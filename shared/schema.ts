@@ -293,16 +293,13 @@ export const marketingTasks = pgTable("marketing_tasks", {
   status: marketingTaskStatus("status").notNull().default("pending"),
   dueDate: timestamp("dueDate"),
   startedDate: timestamp("startedDate"),
-  completedDate: timestamp("completedDate"),
   leadId: uuid("leadId").references(() => leads.id),
   fieldVisitId: uuid("fieldVisitId").references(() => fieldVisits.id),
   customerId: uuid("customerId").references(() => customers.id),
   estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
-  tags: text("tags").array(),
-  isRecurring: boolean("isRecurring").default(false),
+  isRecurring: boolean("is_recurring").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-  completed_date: timestamp("completed_date"),
-  is_recurring: boolean("is_recurring").default(false),
+  completedDate: timestamp("completed_date"),
 });
 
 // =====================
@@ -988,7 +985,7 @@ export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
 export const insertOutboundQuotationSchema = z.object({
   quotationNumber: z.string().min(1, "Quotation number is required"),
   customerId: z.string().uuid().optional(), // Optional if not required
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   quotationDate: z.string().or(z.date()),
   validUntil: z.string().or(z.date()).optional(),
   subtotalAmount: z.string().min(1, "Subtotal amount is required"),
@@ -1035,12 +1032,12 @@ export const insertOutboundQuotationSchema = z.object({
         colourChange: z.string(),
         mfi: z.string(),
         wallThickness: z.string(),
-        noOfCavity: z.number(),
+        noOfCavity: z.coerce.number(),
         gfPercent: z.string(),
         mfPercent: z.string(),
-        partWeight: z.number(),
+        partWeight: z.coerce.number(),
         systemSuggested: z.string(),
-        noOfDrops: z.number(),
+        noOfDrops: z.coerce.number(),
         trialDate: z.string().optional(),
         quotationFor: z.string().optional(),
       })
@@ -1055,9 +1052,9 @@ export const insertOutboundQuotationSchema = z.object({
         partName: z.string().optional(),
         partDescription: z.string(),
         uom: z.string(),
-        qty: z.number(),
-        unitPrice: z.number(),
-        amount: z.number(),
+        qty: z.coerce.number(),
+        unitPrice: z.coerce.number(),
+        amount: z.coerce.number(),
       })
     )
     .optional(),
@@ -1518,15 +1515,21 @@ export const insertLeadSchema = z.object({
 export const updateLeadSchema = insertLeadSchema.partial();
 
 export const insertFieldVisitSchema = z.object({
-  visitNumber: z.string(),
-  leadId: z.any(),
-  plannedDate: z.string().optional(),
-  actualDate: z.string().optional(),
-  assignedTo: z.any().optional(),
-  assignedBy: z.any().optional(),
-  createdBy: z.any().optional(),
-  visitAddress: z.string().optional(),
-  status: z.string().optional(),
+  visitNumber: z.string().optional(),
+  leadId: z.string().uuid("leadId must be a valid UUID"),
+  plannedDate: z.coerce.date().or(z.string().datetime().transform((val) => new Date(val))),
+  plannedStartTime: z.coerce.date().optional().nullable().or(z.string().datetime().optional().nullable().transform((val) => val ? new Date(val) : null)),
+  plannedEndTime: z.coerce.date().optional().nullable().or(z.string().datetime().optional().nullable().transform((val) => val ? new Date(val) : null)),
+  assignedTo: z.string().uuid("assignedTo must be a valid UUID").optional().nullable(),
+  assignedBy: z.string().uuid().optional(),
+  createdBy: z.string().uuid().optional(),
+  visitAddress: z.string().min(1, "Visit address is required"),
+  visitCity: z.string().optional().nullable(),
+  visitState: z.string().optional().nullable(),
+  purpose: z.string().optional().nullable(),
+  preVisitNotes: z.string().optional().nullable(),
+  status: z.string().optional().default("Scheduled"),
+  travelExpense: z.coerce.string().optional().nullable(),
 });
 
 export const insertMarketingTaskSchema = z.object({
@@ -1556,7 +1559,6 @@ export const insertMarketingTaskSchema = z.object({
   fieldVisitId: z.string().uuid().optional().or(z.null()),
   customerId: z.string().uuid().optional().or(z.null()),
   estimatedHours: z.number().optional().or(z.string().optional()),
-  tags: z.array(z.string()).optional(),
   isRecurring: z.boolean().optional(),
 });
 

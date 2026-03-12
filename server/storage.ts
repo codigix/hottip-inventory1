@@ -1170,11 +1170,45 @@ class Storage {
   // =====================
   // MARKETING TASKS CRUD
   // =====================
-  async getMarketingTasks(): Promise<MarketingTask[]> {
-    return await db
+  async getMarketingTasks(filters?: any): Promise<MarketingTask[]> {
+    let query = db
       .select()
-      .from(marketingTasks)
-      .orderBy(desc(marketingTasks.createdAt));
+      .from(marketingTasks);
+
+    const conditions = [];
+
+    if (filters?.status && filters.status !== "all") {
+      conditions.push(eq(marketingTasks.status, filters.status));
+    }
+
+    if (filters?.type && filters.type !== "all") {
+      conditions.push(eq(marketingTasks.type, filters.type));
+    }
+
+    if (filters?.priority && filters.priority !== "all") {
+      conditions.push(eq(marketingTasks.priority, filters.priority));
+    }
+
+    if (filters?.assignedTo && filters.assignedTo !== "all") {
+      conditions.push(eq(marketingTasks.assignedTo, filters.assignedTo));
+    }
+
+    if (filters?.leadId) {
+      conditions.push(eq(marketingTasks.leadId, filters.leadId));
+    }
+
+    if (filters?.userScope?.showOnlyUserTasks) {
+      conditions.push(
+        sql`(${marketingTasks.createdBy} = ${filters.userScope.userId} OR 
+             ${marketingTasks.assignedTo} = ${filters.userScope.userId})`
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return await query.orderBy(desc(marketingTasks.createdAt));
   }
 
   async getMarketingTask(id: string): Promise<MarketingTask | undefined> {
@@ -1302,6 +1336,44 @@ class Storage {
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
     const [row] = await db.insert(leads).values(insertLead).returning();
+
+    // Auto-create a marketing task when a lead is created
+    try {
+      const mapPriority = (p: string | null | undefined): "low" | "medium" | "high" => {
+        if (!p) return "medium";
+        const normalized = p.toLowerCase();
+        if (normalized === "high" || normalized === "medium" || normalized === "low") {
+          return normalized as any;
+        }
+        return "medium";
+      };
+
+      const taskTitle = `Initial Follow-up: ${row.firstName} ${row.lastName} ${row.companyName ? "(" + row.companyName + ")" : ""}`;
+      const taskDescription = `New lead created. Follow up to understand requirements.
+Contact: ${row.phone || "No phone"} | ${row.email || "No email"}
+Requirements: ${row.requirementDescription || "Not specified"}`;
+
+      const taskData = {
+        title: taskTitle,
+        description: taskDescription,
+        type: "follow_up" as const,
+        status: "pending" as const,
+        priority: mapPriority(row.priority),
+        assignedTo: row.assignedTo || row.createdBy!,
+        assignedBy: row.assignedBy || row.createdBy!,
+        createdBy: row.createdBy!,
+        leadId: row.id,
+        dueDate: row.followUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000), // Default to tomorrow
+      };
+
+      console.log(`💾 [STORAGE] Attempting to auto-create marketing task for lead:`, JSON.stringify(taskData, null, 2));
+      await db.insert(marketingTasks).values(taskData);
+      console.log(`✅ [STORAGE] Auto-created marketing task for lead ${row.firstName} ${row.lastName}`);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-create marketing task for lead:", error);
+      // We don't throw here to avoid failing the lead creation if task creation fails
+    }
+
     return row;
   }
 
@@ -1438,6 +1510,47 @@ class Storage {
 
   async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
     const [row] = await db.insert(fieldVisits).values(insertVisit).returning();
+
+    // Auto-create a marketing task when a field visit is scheduled
+    try {
+      const mapPriority = (p: string | null | undefined): "low" | "medium" | "high" => {
+        if (!p) return "medium";
+        const normalized = p.toLowerCase();
+        if (normalized === "high" || normalized === "medium" || normalized === "low") {
+          return normalized as any;
+        }
+        return "medium";
+      };
+
+      const [lead] = await db.select().from(leads).where(eq(leads.id, row.leadId));
+
+      const taskTitle = `Field Visit: ${row.visitNumber} - ${lead?.firstName || ""} ${lead?.lastName || ""}`;
+      const taskDescription = `Field visit scheduled at ${row.visitAddress}${row.visitCity ? ", " + row.visitCity : ""}. 
+Purpose: ${row.purpose || "Not specified"}
+Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
+
+      const taskData = {
+        title: taskTitle,
+        description: taskDescription,
+        type: "visit_client" as const,
+        status: "pending" as const,
+        priority: mapPriority(lead?.priority),
+        assignedTo: row.assignedTo,
+        assignedBy: row.assignedBy,
+        createdBy: row.createdBy,
+        leadId: row.leadId,
+        fieldVisitId: row.id,
+        dueDate: row.plannedDate,
+      };
+
+      console.log(`💾 [STORAGE] Attempting to auto-create marketing task for field visit:`, JSON.stringify(taskData, null, 2));
+      await db.insert(marketingTasks).values(taskData);
+      console.log(`✅ [STORAGE] Auto-created marketing task for field visit ${row.visitNumber}`);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-create marketing task for field visit:", error);
+      // We don't throw here to avoid failing the field visit creation if task creation fails
+    }
+
     return row;
   }
 
@@ -1452,6 +1565,20 @@ class Storage {
       .returning();
     if (!row) {
       throw new Error(`Field visit with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async updateVisitStatus(id: string, status: string): Promise<FieldVisit> {
+    const [row] = await db
+      .update(fieldVisits)
+      .set({ status })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(
+        `Field visit with ID '${id}' not found for status update.`
+      );
     }
     return row;
   }

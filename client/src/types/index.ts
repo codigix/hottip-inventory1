@@ -55,7 +55,6 @@ export interface Lead {
   conversionDate?: Date;
   expectedClosingDate?: Date;
   notes?: string;
-  tags?: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -97,7 +96,6 @@ export interface LeadFormData {
   followUpDate?: string;
   expectedClosingDate?: string;
   notes?: string;
-  tags?: string[];
 }
 
 export interface LeadMetrics {

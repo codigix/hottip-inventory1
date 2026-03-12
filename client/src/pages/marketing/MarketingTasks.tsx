@@ -71,6 +71,7 @@ import { Separator } from "@/components/ui/separator";
 import TaskMetrics from "@/components/marketing/TaskMetrics";
 import TaskForm from "@/components/marketing/TaskForm";
 import TaskTable from "@/components/marketing/TaskTable";
+import TaskCalendar from "@/components/marketing/TaskCalendar";
 
 import type { MarketingTask, User, Lead, FieldVisit } from "@shared/schema";
 
@@ -534,9 +535,13 @@ export default function MarketingTasks() {
           </Suspense>
         )}
         {viewMode === "cards" && (
-          <Suspense fallback={<div>Loading cards...</div>}>
-            {/* Cards view rendering */}
-          </Suspense>
+          <TaskCalendar
+            tasks={filteredTasks}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            onViewDetails={handleViewTaskDetails}
+            loading={tasksLoading}
+          />
         )}
       </div>
 

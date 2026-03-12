@@ -52,8 +52,7 @@ interface MarketingTask {
   estimatedHours?: number;
   leadId?: string;
   fieldVisitId?: string;
-  tags?: string[];
-  isRecurring?: boolean;
+  is_recurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly';
 }
 
@@ -67,8 +66,7 @@ const taskFormSchema = z.object({
   estimatedHours: z.string().optional(),
   leadId: z.string().optional(),
   fieldVisitId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  isRecurring: z.boolean().default(false),
+  is_recurring: z.boolean().default(false),
   recurringFrequency: z.enum(['daily', 'weekly', 'monthly']).optional()
 });
 
@@ -155,7 +153,6 @@ export default function TaskForm({
   fieldVisitId 
 }: TaskFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
-  const [tagInput, setTagInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -188,8 +185,7 @@ export default function TaskForm({
     defaultValues: {
       type: "follow_up",
       priority: "medium",
-      isRecurring: false,
-      tags: [],
+      is_recurring: false,
       leadId: leadId || "",
       fieldVisitId: fieldVisitId || "",
       ...defaultValues
@@ -208,8 +204,7 @@ export default function TaskForm({
         estimatedHours: existingTask.estimatedHours?.toString() || "",
         leadId: existingTask.leadId || "",
         fieldVisitId: existingTask.fieldVisitId || "",
-        tags: existingTask.tags || [],
-        isRecurring: existingTask.isRecurring || false,
+        is_recurring: existingTask.is_recurring || false,
         recurringFrequency: existingTask.recurringFrequency as any
       });
     }
@@ -255,10 +250,9 @@ export default function TaskForm({
     const submitData = {
       ...data,
       estimatedHours: data.estimatedHours ? parseFloat(data.estimatedHours) : undefined,
-      tags: data.tags || [],
       leadId: data.leadId && data.leadId !== 'none' ? data.leadId : undefined,
       fieldVisitId: data.fieldVisitId && data.fieldVisitId !== 'none' ? data.fieldVisitId : undefined,
-      recurringFrequency: data.isRecurring ? data.recurringFrequency : undefined
+      recurringFrequency: data.is_recurring ? data.recurringFrequency : undefined
     };
 
     if (taskId) {
@@ -269,19 +263,6 @@ export default function TaskForm({
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !form.getValues("tags")?.includes(tagInput.trim())) {
-      const currentTags = form.getValues("tags") || [];
-      form.setValue("tags", [...currentTags, tagInput.trim()]);
-      setTagInput("");
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    const currentTags = form.getValues("tags") || [];
-    form.setValue("tags", currentTags.filter(tag => tag !== tagToRemove));
-  };
 
   // Get assignee workload info
   const getAssigneeWorkload = (userId: string) => {
@@ -601,43 +582,6 @@ export default function TaskForm({
                     )}
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <FormLabel className="flex items-center space-x-2">
-                    <Tag className="h-4 w-4" />
-                    <span>Tags</span>
-                  </FormLabel>
-                  <div className="flex space-x-2">
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      placeholder="Add tag..."
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      data-testid="input-tag"
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleAddTag}
-                      data-testid="button-add-tag"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {form.watch("tags") && form.watch("tags")!.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {form.watch("tags")!.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="cursor-pointer">
-                          {tag}
-                          <X 
-                            className="h-3 w-3 ml-1" 
-                            onClick={() => removeTag(tag)}
-                          />
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </TabsContent>
 
               <TabsContent value="advanced" className="space-y-4">
@@ -651,7 +595,7 @@ export default function TaskForm({
                   <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="isRecurring"
+                      name="is_recurring"
                       render={({ field }) => (
                         <FormItem className="flex items-center justify-between">
                           <div className="space-y-0.5">
@@ -671,7 +615,7 @@ export default function TaskForm({
                       )}
                     />
 
-                    {form.watch("isRecurring") && (
+                    {form.watch("is_recurring") && (
                       <FormField
                         control={form.control}
                         name="recurringFrequency"

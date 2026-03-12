@@ -46,9 +46,42 @@ export function registerSalesRoutes(
     try {
       const quotations = await storage.getInboundQuotations();
       res.json(quotations);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error in GET /api/inbound-quotations:", error);
-      res.status(500).json({ error: "Failed to fetch inbound quotations" });
+      res.status(500).json({ 
+        error: "Failed to fetch inbound quotations",
+        details: error.message
+      });
+    }
+  });
+
+  app.post("/api/inbound-quotations", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { insertInboundQuotationSchema } = await import("../shared/schema");
+      
+      const quotationData = insertInboundQuotationSchema.parse({
+        ...req.body,
+        userId: req.body.userId || req.user?.id,
+        senderId: req.body.senderId || req.user?.id // Fallback if senderId missing
+      });
+
+      const quotation = await storage.createInboundQuotation(quotationData);
+      
+      await storage.createActivity({
+        userId: quotation.userId,
+        action: "CREATE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: quotation.id,
+        details: `Created inbound quotation: ${quotation.quotationNumber}`,
+      });
+
+      res.status(201).json(quotation);
+    } catch (error: any) {
+      console.error("❌ Error in POST /api/inbound-quotations:", error);
+      res.status(400).json({
+        error: "Invalid inbound quotation data",
+        details: error.errors || error.message,
+      });
     }
   });
 
@@ -591,9 +624,12 @@ export function registerSalesRoutes(
     }
   });
 
-  app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
+  app.post("/api/outbound-quotations", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const quotationData = insertOutboundQuotationSchema.parse(req.body);
+      const quotationData = insertOutboundQuotationSchema.parse({
+        ...req.body,
+        userId: req.body.userId || req.user?.id
+      });
       const quotation = await storage.createOutboundQuotation(quotationData);
       res.status(201).json(quotation);
     } catch (error: any) {
@@ -605,11 +641,14 @@ export function registerSalesRoutes(
     }
   });
 
-  app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+  app.put("/api/outbound-quotations/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = req.params.id;
-      const updateData = req.body;
-      const quotation = await storage.updateOutboundQuotation(id, updateData);
+      const quotationData = insertOutboundQuotationSchema.partial().parse({
+        ...req.body,
+        updatedAt: new Date()
+      });
+      const quotation = await storage.updateOutboundQuotation(id, quotationData);
       res.json(quotation);
     } catch (error: any) {
       console.error("❌ Error in PUT /api/outbound-quotations/:id:", error);

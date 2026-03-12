@@ -401,29 +401,8 @@ export default function TaskCard({
               )}
             </div>
 
-            {/* Tags */}
-            {task.tags && task.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {task.tags.slice(0, compact ? 2 : 3).map((tag, index) => (
-                  <Badge 
-                    key={index} 
-                    variant="outline" 
-                    className="text-[9px] px-1 py-0"
-                    data-testid={`task-tag-${task.id}-${index}`}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-                {task.tags.length > (compact ? 2 : 3) && (
-                  <Badge variant="outline" className="text-[9px] px-1 py-0">
-                    +{task.tags.length - (compact ? 2 : 3)}
-                  </Badge>
-                )}
-              </div>
-            )}
-
             {/* Recurring indicator */}
-            {task.isRecurring && (
+            {task.is_recurring && (
               <div className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400">
                 <TrendingUp className="h-3 w-3" />
                 <span>Recurring {task.recurringFrequency}</span>

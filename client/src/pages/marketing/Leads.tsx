@@ -412,7 +412,6 @@ export default function Leads() {
                       .split("T")[0]
                   : "",
                 notes: editingLead.notes || "",
-                tags: editingLead.tags || [],
               }
             : undefined
         }

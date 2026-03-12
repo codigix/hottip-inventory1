@@ -40,7 +40,6 @@ import { vendorCommunications } from "../shared/schema";
 import { inventoryTasks } from "../shared/schema";
 import { fabricationOrders } from "../shared/schema"; // adjust path if needed
 // POST attendance (check-in / check-out)
-import { v4 as uuidv4 } from "uuid";
 import {
   users as usersTable,
   leads,
@@ -1333,143 +1332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     }
   //   }
   // });
-  app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
-    try {
-      console.log("?? [ROUTE] GET /api/outbound-quotations - Request received");
-      console.log("?? [ROUTE] Query parameters:", req.query);
+  // Outbound Quotations routes moved to sales-routes-registry.ts
 
-      // --- Extract filter parameters from query string ---
-      const filters: {
-        customerId?: string;
-        status?: string;
-        startDate?: string;
-        endDate?: string;
-      } = {};
-
-      if (req.query.customerId && typeof req.query.customerId === "string") {
-        filters.customerId = req.query.customerId;
-      }
-
-      if (req.query.status && typeof req.query.status === "string") {
-        filters.status = req.query.status;
-      }
-
-      if (req.query.startDate && typeof req.query.startDate === "string") {
-        filters.startDate = req.query.startDate;
-      }
-
-      if (req.query.endDate && typeof req.query.endDate === "string") {
-        filters.endDate = req.query.endDate;
-      }
-
-      console.log("?? [ROUTE] Applied filters:", filters);
-
-      // --- Call the storage method with filters ---
-      const quotations =
-        Object.keys(filters).length > 0
-          ? await storage.getOutboundQuotations(filters)
-          : await storage.getOutboundQuotations();
-
-      console.log(
-        `?? [ROUTE] GET /api/outbound-quotations - Returning ${quotations.length} quotations`
-      );
-      // --- Send the correctly structured data ---
-      res.json(quotations);
-    } catch (error) {
-      // --- Handle errors from storage ---
-      console.error(
-        "?? [ROUTE] GET /api/outbound-quotations - Error fetching quotations:",
-        error
-      );
-      res.status(500).json({
-        error: "Failed to fetch outbound quotations",
-        // Optionally include more details from the error object
-        // details: error.message || "An unknown error occurred while fetching quotations.",
-      });
-    }
-  });
-
-  app.post("/api/outbound-quotations", requireAuth, async (req, res) => {
-    try {
-      console.log(
-        "?? [DEBUG] POST /api/outbound-quotations - Request received"
-      );
-      console.log("?? [DEBUG] req.body:", req.body);
-      console.log("?? [DEBUG] req.user:", req.user);
-
-      const { insertOutboundQuotationSchema } = await import(
-        "../shared/schema"
-      );
-      console.log("?? [DEBUG] About to parse request body with Zod schema");
-      const parsedData = insertOutboundQuotationSchema
-        .partial({ customerId: true })
-        .parse(req.body);
-      console.log("?? [DEBUG] Parsed data from Zod:", parsedData);
-
-      // Convert types for database
-      const data = {
-        ...parsedData,
-        // Remove this line:
-        // customerId: parsedData.customerId ? Number(parsedData.customerId) : null,
-        // Just keep customerId as the UUID string from the frontend
-        customerId: parsedData.customerId || null, // Ensure it's null if empty string
-        // ... (rest of your conversions for dates, amounts, userId are fine)
-        quotationDate: new Date(parsedData.quotationDate),
-        validUntil: parsedData.validUntil
-          ? new Date(parsedData.validUntil)
-          : null,
-        subtotalAmount: parseFloat(parsedData.subtotalAmount),
-        taxAmount: parsedData.taxAmount ? parseFloat(parsedData.taxAmount) : 0,
-        discountAmount: parsedData.discountAmount
-          ? parseFloat(parsedData.discountAmount)
-          : 0,
-        totalAmount: parseFloat(parsedData.totalAmount),
-        userId: parsedData.userId || req.user?.id,
-      };
-
-      // --- LOGGING ADDED HERE ---
-      console.log(
-        "?? [DEBUG] Final 'data' object before storage call:",
-        JSON.stringify(data, null, 2)
-      );
-      console.log(
-        "?? [DEBUG] typeof data.userId:",
-        typeof data.userId,
-        "value:",
-        data.userId
-      );
-      console.log(
-        "?? [DEBUG] typeof data.customerId:",
-        typeof data.customerId,
-        "value:",
-        data.customerId
-      );
-      // --- END LOGGING ---
-
-      // ? FIXED: Call the correct method on storage
-      console.log(
-        "?? [DEBUG] Calling storage.createOutboundQuotation with data..."
-      );
-      const quotation = await storage.createOutboundQuotation(data);
-      console.log(
-        "?? [DEBUG] Storage call successful, returning quotation:",
-        quotation
-      );
-      res.status(201).json(quotation);
-    } catch (error) {
-      console.error("?? [ERROR] Failed to create outbound quotation:", error);
-      if (error instanceof z.ZodError) {
-        console.error("?? [ZOD ERROR] Zod validation failed:", error.errors);
-        return res
-          .status(400)
-          .json({ error: "Invalid quotation data", details: error.errors });
-      }
-      console.error("?? [GENERIC ERROR] Non-Zod error occurred");
-      res
-        .status(500)
-        .json({ error: "Failed to create quotation", details: error.message });
-    }
-  });
 
   // app.put("/api/outbound-quotations/:id", async (req, res) => {
   //   try {
@@ -1517,206 +1381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Alias: /api/quotations/inbound ? inbound quotations
-  app.get("/api/quotations/inbound", requireAuth, async (_req, res) => {
-    try {
-      const quotations = await storage.getInboundQuotations();
-      res.json(quotations);
-    } catch (error) {
-      res.status(500).json({
-        error: "Failed to fetch inbound quotations",
-        details: error.message,
-      });
-    }
-  });
-  // Inbound Quotations Routes
-
-  app.put("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
-    try {
-      const { insertOutboundQuotationSchema } = await import(
-        "../shared/schema"
-      );
-      const parsedData = insertOutboundQuotationSchema
-        .partial()
-        .parse(req.body);
-
-      // --- PREPARE DATA FOR DATABASE UPDATE ---
-      const updateData: any = {};
-      // Handle Date Fields
-      if (parsedData.quotationDate !== undefined) {
-        updateData.quotationDate =
-          parsedData.quotationDate === null
-            ? null
-            : parsedData.quotationDate instanceof Date
-            ? parsedData.quotationDate
-            : new Date(parsedData.quotationDate);
-      }
-      if (parsedData.validUntil !== undefined) {
-        updateData.validUntil =
-          parsedData.validUntil === null
-            ? null
-            : parsedData.validUntil instanceof Date
-            ? parsedData.validUntil
-            : new Date(parsedData.validUntil);
-      }
-      // Handle UUID/String Fields
-      if (parsedData.customerId !== undefined) {
-        updateData.customerId = parsedData.customerId || null;
-      }
-      if (parsedData.userId !== undefined) {
-        updateData.userId = parsedData.userId || null; // Or derive from req.user if needed
-      }
-      // Handle Numeric Fields
-      const numericFields = [
-        "subtotalAmount",
-        "taxAmount",
-        "discountAmount",
-        "totalAmount",
-      ] as const;
-      for (const field of numericFields) {
-        if (parsedData[field] !== undefined) {
-          updateData[field] =
-            typeof parsedData[field] === "string"
-              ? parseFloat(parsedData[field])
-              : parsedData[field];
-        }
-      }
-      // Handle Optional String Fields (including status)
-      const optionalStringFields = [
-        "quotationNumber",
-        "status",
-        "jobCardNumber",
-        "partNumber",
-        "paymentTerms",
-        "deliveryTerms",
-        "notes",
-        "warrantyTerms",
-        "specialTerms",
-        "bankName",
-        "accountNumber",
-        "ifscCode",
-      ] as const;
-      for (const field of optionalStringFields) {
-        if (field in parsedData) {
-          // @ts-ignore - Dynamic assignment
-          updateData[field] = parsedData[field];
-        }
-      }
-      // Set updated timestamp
-      updateData.updatedAt = new Date();
-
-      // --- PERFORM THE UPDATE ---
-      const updatedQuotation = await storage.updateOutboundQuotation(
-        req.params.id,
-        updateData
-      );
-
-      // --- CREATE ACTIVITY LOG ---
-      await storage.createActivity({
-        userId: updatedQuotation.userId,
-        action: "UPDATE_OUTBOUND_QUOTATION",
-        entityType: "outbound_quotation",
-        entityId: updatedQuotation.id,
-        details: `Updated outbound quotation: ${updatedQuotation.quotationNumber}`,
-      });
-
-      // --- SEND RESPONSE ---
-      res.json(updatedQuotation);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid quotation data", details: error.errors });
-      }
-      console.error("Failed to update outbound quotation:", error);
-      res.status(500).json({
-        error: "Failed to update outbound quotation",
-        details: error.message,
-      });
-    }
-  });
-
-  app.get("/api/inbound-quotations", async (req, res) => {
-    try {
-      const quotations = await storage.getInboundQuotations();
-      res.json(quotations);
-    } catch (error) {
-      res.status(500).json({
-        error: "Failed to fetch inbound quotations",
-        details: error.message,
-      });
-    }
-  });
-
-  app.get("/api/inbound-quotations/:id", async (req, res) => {
-    try {
-      const quotation = await storage.getInboundQuotation(req.params.id);
-      if (!quotation) {
-        return res.status(404).json({ error: "Inbound quotation not found" });
-      }
-      res.json(quotation);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch inbound quotation" });
-    }
-  });
-
-  app.post("/api/inbound-quotations", requireAuth, async (req, res) => {
-    try {
-      const { insertInboundQuotationSchema } = await import("../shared/schema");
-
-      // Pre-process req.body to remove null values for optional fields
-      // This ensures Zod validation passes if fields are explicitly sent as null
-      const requestBody = { ...req.body };
-      if (requestBody.attachmentPath === null) {
-        delete requestBody.attachmentPath; // Remove the key if value is null
-      }
-      if (requestBody.attachmentName === null) {
-        delete requestBody.attachmentName; // Remove the key if value is null
-      }
-
-      const parsedData = insertInboundQuotationSchema.parse(requestBody);
-
-      // Helper to check if ID is a valid UUID
-      const isValidUUID = (id: string) => 
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-      // Fallback UUID for development
-      const fallbackUserId = "b34e3723-ba42-402d-b454-88cf96340573";
-
-      // Convert types for database
-      const data = {
-        ...parsedData,
-        quotationDate: new Date(parsedData.quotationDate),
-        validUntil: parsedData.validUntil
-          ? new Date(parsedData.validUntil)
-          : null,
-        totalAmount: parseFloat(parsedData.totalAmount),
-        senderId: parsedData.senderId || (isValidUUID(req.user?.id) ? req.user.id : fallbackUserId),
-        userId: parsedData.userId || (isValidUUID(req.user?.id) ? req.user.id : fallbackUserId),
-      };
-
-      const quotation = await storage.createInboundQuotation(data);
-      await storage.createActivity({
-        userId: quotation.userId,
-        action: "CREATE_INBOUND_QUOTATION",
-        entityType: "inbound_quotation",
-        entityId: quotation.id,
-        details: `Created inbound quotation: ${quotation.quotationNumber}`,
-      });
-      res.status(201).json(quotation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid quotation data", details: error.errors });
-      }
-      console.error("Failed to create inbound quotation:", error);
-      res.status(500).json({
-        error: "Failed to create inbound quotation",
-        details: error.message,
-      }); // Include details
-    }
-  });
+  // Inbound Quotations routes moved to sales-routes-registry.ts
 
   app.put(
     "/api/inbound-quotations/:id/attachment",
@@ -2854,9 +2519,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: sql`COUNT(*)::integer`,
           completed: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'completed' THEN 1 END)::integer`,
           pending: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'pending' THEN 1 END)::integer`,
-          overdue: sql`COUNT(CASE WHEN ${marketingTasks.status} = 'overdue' OR (${marketingTasks.status} != 'completed' AND ${marketingTasks.dueDate} < NOW()) THEN 1 END)::integer`,
+          today: sql`COUNT(CASE WHEN DATE(${marketingTasks.dueDate}) = DATE(NOW()) THEN 1 END)::integer`,
+          overdue: sql`COUNT(CASE WHEN ${marketingTasks.status} != 'completed' AND ${marketingTasks.dueDate} < NOW() THEN 1 END)::integer`,
         })
         .from(marketingTasks);
+      const totalTasks = Number(tasksRow?.total || 0);
+      const completedTasks = Number(tasksRow?.completed || 0);
 
       res.json({
         leads: {
@@ -2874,10 +2542,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           successRate: totalVisits > 0 ? (completedVisits / totalVisits) * 100 : 0,
         },
         tasks: {
-          total: Number(tasksRow?.total || 0),
-          completed: Number(tasksRow?.completed || 0),
+          total: totalTasks,
+          completed: completedTasks,
           pending: Number(tasksRow?.pending || 0),
+          today: Number(tasksRow?.today || 0),
           overdue: Number(tasksRow?.overdue || 0),
+          completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
         },
         attendance: {
           totalEmployees: 0,

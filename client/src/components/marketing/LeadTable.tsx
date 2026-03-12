@@ -99,6 +99,7 @@ export default function LeadTable({
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
       toast({
         title:
           variables.status === "converted"
@@ -116,6 +117,7 @@ export default function LeadTable({
       apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
       toast({
         title: "Lead converted and handed over to Sales!",
       });
