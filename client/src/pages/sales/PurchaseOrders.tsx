@@ -585,7 +585,7 @@ export default function PurchaseOrders() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Delivery Period</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. 15-20 Days" /></FormControl>
+                        <FormControl><Input {...field} placeholder="" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -22,7 +22,7 @@ export type {
 } from "@shared/schema";
 
 // Marketing Lead Types
-export type LeadStatus = 'new' | 'contacted' | 'in_progress' | 'converted' | 'dropped';
+export type LeadStatus = 'new' | 'contacted' | 'analysis' | 'in_progress' | 'converted' | 'dropped';
 export type LeadSource = 'website' | 'referral' | 'advertisement' | 'social_media' | 'trade_show' | 'cold_call' | 'email_campaign' | 'other';
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -104,6 +104,7 @@ export interface LeadMetrics {
   totalLeads: number;
   newLeads: number;
   contactedLeads: number;
+  analysisLeads: number;
   inProgressLeads: number;
   convertedLeads: number;
   droppedLeads: number;
@@ -333,16 +334,18 @@ export type UserRole = 'admin' | 'manager' | 'employee';
 
 // Lead Status Workflow Configuration
 export const LEAD_STATUS_WORKFLOW: Record<LeadStatus, LeadStatus[]> = {
-  new: ['contacted', 'in_progress', 'converted', 'dropped'],
-  contacted: ['in_progress', 'converted', 'dropped'],
+  new: ['contacted', 'analysis', 'in_progress', 'converted', 'dropped'],
+  contacted: ['analysis', 'in_progress', 'converted', 'dropped'],
+  analysis: ['in_progress', 'converted', 'dropped'],
   in_progress: ['converted', 'dropped'],
   converted: [], // Final state
-  dropped: ['new', 'contacted', 'in_progress'] // Allow revival
+  dropped: ['new', 'contacted', 'analysis', 'in_progress'] // Allow revival
 };
 
 export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
   new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
   contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  analysis: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
   in_progress: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
   converted: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   dropped: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'

@@ -519,7 +519,7 @@ export default function SalesOrders() {
                         <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -562,7 +562,7 @@ export default function SalesOrders() {
                       <FormItem>
                         <FormLabel>Delivery Period</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. 25-30 Days" />
+                          <Input {...field} placeholder="" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -578,7 +578,7 @@ export default function SalesOrders() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select GST Type" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>

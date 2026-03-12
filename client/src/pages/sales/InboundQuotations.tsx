@@ -190,7 +190,7 @@
 //                         <FormLabel>Quotation Number</FormLabel>
 //                         <FormControl>
 //                           <Input
-//                             placeholder="e.g., INB-2025-001"
+//                             placeholder=""
 //                             {...field}
 //                             data-testid="input-quotation-number"
 //                           />
@@ -251,7 +251,7 @@
 //                         <FormLabel>Total Amount</FormLabel>
 //                         <FormControl>
 //                           <Input
-//                             placeholder="e.g., 1500.00"
+//                             placeholder=""
 //                             {...field}
 //                             data-testid="input-total-amount"
 //                           />
@@ -767,7 +767,7 @@ export default function InboundQuotations() {
                         <FormLabel>Quotation Number</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., INB-2025-001"
+                            placeholder=""
                             {...field}
                             data-testid="input-quotation-number"
                           />
@@ -842,7 +842,7 @@ export default function InboundQuotations() {
                         <FormLabel>Total Amount</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., 1500.00"
+                            placeholder=""
                             {...field}
                             data-testid="input-total-amount"
                           />
@@ -899,7 +899,7 @@ export default function InboundQuotations() {
                       <FormLabel>Subject (Optional)</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g., Supply of Goods"
+                          placeholder=""
                           {...field}
                           data-testid="input-subject"
                         />

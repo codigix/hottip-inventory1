@@ -653,7 +653,7 @@ export default function AccountsTasks() {
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="e.g., invoice, customer, gst_return"
+                            placeholder=""
                             data-testid="input-related-type"
                           />
                         </FormControl>
@@ -670,7 +670,7 @@ export default function AccountsTasks() {
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="UUID of related entity"
+                            placeholder=""
                             data-testid="input-related-id"
                           />
                         </FormControl>
@@ -688,7 +688,7 @@ export default function AccountsTasks() {
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="Any additional notes or instructions"
+                          placeholder=""
                           rows={2}
                           data-testid="input-notes"
                         />
@@ -1120,7 +1120,7 @@ export default function AccountsTasks() {
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="Enter task title"
+                          placeholder=""
                           data-testid="input-edit-task-title"
                         />
                       </FormControl>
@@ -1140,7 +1140,7 @@ export default function AccountsTasks() {
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-type">
-                            <SelectValue placeholder="Select task type" />
+                            <SelectValue placeholder="" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -1169,7 +1169,7 @@ export default function AccountsTasks() {
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Enter task description"
+                        placeholder=""
                         rows={3}
                         data-testid="input-edit-task-description"
                       />
@@ -1191,7 +1191,7 @@ export default function AccountsTasks() {
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-assignee">
-                            <SelectValue placeholder="Select assignee" />
+                            <SelectValue placeholder="" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>

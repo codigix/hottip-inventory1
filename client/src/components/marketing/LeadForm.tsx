@@ -291,7 +291,7 @@ export default function LeadForm({
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-source">
-                              <SelectValue placeholder="Select source" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -330,7 +330,7 @@ export default function LeadForm({
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-priority">
-                              <SelectValue placeholder="Select priority" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -356,7 +356,7 @@ export default function LeadForm({
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Additional source information"
+                            placeholder=""
                             data-testid="input-source-details"
                           />
                         </FormControl>
@@ -374,7 +374,7 @@ export default function LeadForm({
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Name of referrer"
+                            placeholder=""
                             data-testid="input-referred-by"
                           />
                         </FormControl>
@@ -536,7 +536,7 @@ export default function LeadForm({
                         <Textarea
                           {...field}
                           rows={4}
-                          placeholder="Describe the lead's requirements..."
+                          placeholder=""
                           data-testid="input-requirement-description"
                         />
                       </FormControl>
@@ -559,7 +559,7 @@ export default function LeadForm({
                           <Input
                             {...field}
                             type="number"
-                            placeholder="0.00"
+                            placeholder=""
                             data-testid="input-estimated-budget"
                           />
                         </FormControl>
@@ -577,7 +577,7 @@ export default function LeadForm({
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="e.g., 10L-50L, 50L-1Cr"
+                            placeholder=""
                             data-testid="input-budget-range"
                           />
                         </FormControl>
@@ -597,7 +597,7 @@ export default function LeadForm({
                         <Textarea
                           {...field}
                           rows={3}
-                          placeholder="Additional notes about the lead..."
+                          placeholder=""
                           data-testid="input-notes"
                         />
                       </FormControl>
@@ -620,7 +620,7 @@ export default function LeadForm({
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-assigned-to">
-                            <SelectValue placeholder="Select team member" />
+                            <SelectValue placeholder="" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>

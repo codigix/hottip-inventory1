@@ -1027,6 +1027,7 @@ export const insertOutboundQuotationSchema = z.object({
   moldDetails: z
     .array(
       z.object({
+        id: z.string(),
         no: z.number(),
         partName: z.string(),
         mouldNo: z.string(),
@@ -1048,9 +1049,10 @@ export const insertOutboundQuotationSchema = z.object({
   quotationItems: z
     .array(
       z.object({
-        no: z.number(),
-        moldIndex: z.number().optional(),
-        partName: z.string(),
+        id: z.string(),
+        moldId: z.string(),
+        no: z.number().optional(),
+        partName: z.string().optional(),
         partDescription: z.string(),
         uom: z.string(),
         qty: z.number(),

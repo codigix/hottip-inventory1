@@ -337,7 +337,7 @@ export default function Leads() {
               setSelectedStatus(value as LeadStatus | "all")
             }
           >
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="all" data-testid="tab-all">
                 All ({leads.length})
               </TabsTrigger>
@@ -347,11 +347,14 @@ export default function Leads() {
               <TabsTrigger value="contacted" data-testid="tab-contacted">
                 Contacted ({getStatusCount("contacted")})
               </TabsTrigger>
+              <TabsTrigger value="analysis" data-testid="tab-analysis">
+                Analysis ({getStatusCount("analysis")})
+              </TabsTrigger>
               <TabsTrigger value="in_progress" data-testid="tab-in-progress">
                 In Progress ({getStatusCount("in_progress")})
               </TabsTrigger>
               <TabsTrigger value="converted" data-testid="tab-converted">
-                Converted ({getStatusCount("converted")})
+                Confirmed for Sales ({getStatusCount("converted")})
               </TabsTrigger>
               <TabsTrigger value="dropped" data-testid="tab-dropped">
                 Dropped ({getStatusCount("dropped")})

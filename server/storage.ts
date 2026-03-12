@@ -1344,6 +1344,69 @@ class Storage {
     return customer;
   }
 
+  async getLeadsConversionMetrics(options?: any): Promise<any> {
+    const allLeads = await this.getLeads(options);
+    const totalLeads = allLeads.length;
+    const newLeads = allLeads.filter((l) => l.status === "new").length;
+    const contactedLeads = allLeads.filter((l) => l.status === "contacted").length;
+    const analysisLeads = allLeads.filter((l) => l.status === "analysis").length;
+    const inProgressLeads = allLeads.filter((l) => l.status === "in_progress").length;
+    const convertedLeads = allLeads.filter((l) => l.status === "converted").length;
+    const droppedLeads = allLeads.filter((l) => l.status === "dropped").length;
+
+    const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+
+    return {
+      totalLeads,
+      newLeads,
+      contactedLeads,
+      analysisLeads,
+      inProgressLeads,
+      convertedLeads,
+      droppedLeads,
+      conversionRate,
+      averageTimeToConversion: 0, // Placeholder
+    };
+  }
+
+  async searchLeads(options: { query: string; userScope?: any }): Promise<any[]> {
+    const allLeads = await this.getLeads({ userScope: options.userScope });
+    const query = options.query.toLowerCase();
+    return allLeads.filter(
+      (l) =>
+        l.firstName.toLowerCase().includes(query) ||
+        l.lastName.toLowerCase().includes(query) ||
+        (l.companyName && l.companyName.toLowerCase().includes(query)) ||
+        (l.email && l.email.toLowerCase().includes(query))
+    );
+  }
+
+  async getTaskMetrics(options?: any): Promise<any> {
+    const allTasks = await this.getMarketingTasks();
+    // Simplified filtering for metrics
+    const tasks = options?.userScope?.showOnlyUserTasks 
+      ? allTasks.filter(t => t.assignedTo === options.userScope.userId)
+      : allTasks;
+
+    return {
+      totalTasks: tasks.length,
+      pendingTasks: tasks.filter(t => t.status === 'pending').length,
+      inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+      completedTasks: tasks.filter(t => t.status === 'completed').length,
+      cancelledTasks: tasks.filter(t => t.status === 'cancelled').length,
+    };
+  }
+
+  async getTodayMarketingTasks(options?: any): Promise<any[]> {
+    const allTasks = await this.getMarketingTasks();
+    const today = new Date().toISOString().split('T')[0];
+    return allTasks.filter(t => {
+      const isToday = t.dueDate && new Date(t.dueDate).toISOString().split('T')[0] === today;
+      const matchesUser = !options?.userScope?.showOnlyUserTasks || t.assignedTo === options.userScope.userId;
+      return isToday && matchesUser;
+    });
+  }
+
   // =====================
   // ACTIVITIES CRUD
   // =====================

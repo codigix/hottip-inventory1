@@ -18,6 +18,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   const statusLabels: Record<LeadStatus, string> = {
     new: 'New',
     contacted: 'Contacted',
+    analysis: 'Analysis',
     in_progress: 'In Progress',
     converted: 'Converted',
     dropped: 'Dropped'
