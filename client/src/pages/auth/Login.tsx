@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,30 +13,38 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Shield, TrendingUp, Package, Calculator, Megaphone, Truck, Users, UserPlus } from "lucide-react";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, "Username or email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Department to route mapping
+const demoUsers = [
+  { name: "Admin", subtitle: "Full Access", icon: Shield, id: "admin", color: "text-blue-600", bg: "bg-blue-50" },
+  { name: "Sales", subtitle: "Sales Module", icon: TrendingUp, id: "sales", color: "text-green-600", bg: "bg-green-50" },
+  { name: "Inventory", subtitle: "Stock & Production", icon: Package, id: "inventory", color: "text-orange-600", bg: "bg-orange-50" },
+  { name: "Accounts", subtitle: "Finance & Billing", icon: Calculator, id: "accounts", color: "text-purple-600", bg: "bg-purple-50" },
+  { name: "Marketing", subtitle: "Leads & Field Visits", icon: Megaphone, id: "marketing", color: "text-pink-600", bg: "bg-pink-50" },
+  { name: "Logistics", subtitle: "Shipment & Dispatch", icon: Truck, id: "logistics", color: "text-cyan-600", bg: "bg-cyan-50" },
+];
+
 const getDepartmentRoute = (department: string): string => {
   const deptLower = (department || "").toLowerCase().trim();
-
   const routeMap: Record<string, string> = {
     admin: "/admin",
+    administration: "/admin",
     accounts: "/accounts",
     sales: "/sales",
     marketing: "/marketing",
     logistics: "/logistics",
-    inventory: "/employees", // Inventory department goes to employees dashboard
+    inventory: "/inventory",
     employees: "/employees",
   };
-
-  return routeMap[deptLower] || "/admin"; // Default to admin dashboard
+  return routeMap[deptLower] || "/admin";
 };
 
 export default function Login() {
@@ -52,109 +60,77 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [redirectMessage, setRedirectMessage] = useState("");
-
   const [, setLocation] = useLocation();
-  async function onSubmit(values: any) {
+
+  async function handleLogin(identifier: string, pass: string) {
     setLoading(true);
     try {
-      // Use AuthContext login to update state and localStorage
-      await login(values.identifier.trim(), values.password);
-
-      // Get user from localStorage (AuthContext will have set it)
+      await login(identifier, pass);
       const user = JSON.parse(localStorage.getItem("auth_user") || "null");
-
-      // Show success toast
+      
       toast({
         title: "Login successful!",
         description: `Welcome, ${user?.username || ""}`,
       });
 
-      // Get department-specific dashboard route
       const dashboard = getDepartmentRoute(user?.department);
-
-      // Show redirecting animation
       setRedirecting(true);
-      setRedirectMessage(
-        `Redirecting to your ${user?.department || "Admin"} dashboard...`
-      );
+      setRedirectMessage(`Redirecting to your ${user?.department || "Admin"} dashboard...`);
 
-      // Navigate after a short delay for better UX
       setTimeout(() => {
         setLocation(dashboard);
       }, 800);
     } catch (err: any) {
-      if (err?.details && Array.isArray(err.details)) {
-        err.details.forEach((e: any) => {
-          if (e.path && e.path[0]) {
-            form.setError(e.path[0], { type: "server", message: e.message });
-          }
-        });
-      }
       toast({
         title: "Login failed",
-        description: err?.error || "Invalid credentials.",
+        description: err?.error || "Invalid credentials. Try using 'admin' / 'admin123'",
         variant: "destructive",
       });
       setLoading(false);
     }
   }
 
-  // Show redirecting screen
+  async function onSubmit(values: any) {
+    await handleLogin(values.identifier.trim(), values.password);
+  }
+
+  const handleDemoLogin = (id: string) => {
+    handleLogin(id, "password123"); 
+  };
+
   if (redirecting) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4 text-center">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4 text-center border border-white/20">
           <div className="mb-6">
             <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Login Successful!
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Login Successful!</h2>
           <p className="text-gray-600 animate-pulse">{redirectMessage}</p>
-          <div className="mt-6 flex justify-center space-x-1">
-            <div
-              className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-              style={{ animationDelay: "0ms" }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-              style={{ animationDelay: "150ms" }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-              style={{ animationDelay: "300ms" }}
-            ></div>
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row items-center justify-center p-4 gap-8">
+      {/* Login Form */}
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-border p-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back</h2>
+          <p className="text-gray-500 mt-2">Sign in to your BusinessOps account</p>
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="identifier"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700 font-medium">
-                    Username or Email
-                  </FormLabel>
+                  <FormLabel className="text-gray-700 font-medium text-sm">Username or Email</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Enter username or email"
-                      className="h-11"
-                      disabled={loading}
-                    />
+                    <Input {...field} placeholder="Enter username or email" className="h-11 border-gray-200 focus:ring-blue-500" disabled={loading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -166,28 +142,16 @@ export default function Login() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700 font-medium">
-                    Password
-                  </FormLabel>
+                  <FormLabel className="text-gray-700 font-medium text-sm">Password</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Enter password"
-                      type="password"
-                      className="h-11"
-                      disabled={loading}
-                    />
+                    <Input {...field} placeholder="Enter password" type="password" className="h-11 border-gray-200 focus:ring-blue-500" disabled={loading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button
-              type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-all" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -199,9 +163,66 @@ export default function Login() {
             </Button>
           </form>
         </Form>
+        
+        <div className="mt-8 pt-6 border-t border-gray-100">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link href="/register">
+                <span className="text-blue-600 font-semibold hover:underline cursor-pointer inline-flex items-center">
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Create an account
+                </span>
+              </Link>
+            </p>
+          </div>
+        </div>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Don't have an account? Contact your administrator.</p>
+        <p className="mt-6 text-center text-[10px] text-gray-400 uppercase tracking-widest">
+          © 2026 BusinessOps ERP
+        </p>
+      </div>
+
+      {/* Demo Credentials Section */}
+      <div className="w-full max-w-2xl">
+        <div className="bg-white rounded-xl shadow-lg border border-border overflow-hidden">
+          <div className="bg-gray-50/50 px-6 py-4 border-b border-border flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Demo Credentials:</h3>
+              <p className="text-xs text-gray-500">Quick login to preview department modules</p>
+            </div>
+            <div className="hidden sm:block">
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">Auto-Setup Enabled</span>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {demoUsers.map((user) => {
+                const Icon = user.icon;
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => handleDemoLogin(user.id)}
+                    className="flex items-center p-4 rounded-lg border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all group text-left bg-white"
+                    disabled={loading}
+                  >
+                    <div className={`p-3 rounded-lg ${user.bg} ${user.color} mr-4 group-hover:scale-110 transition-transform`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800 text-sm">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.subtitle}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="px-6 py-3 bg-blue-50/50 border-t border-blue-100">
+            <p className="text-[10px] text-blue-600 text-center font-medium italic">
+              * Demo accounts are automatically generated on first login for evaluation.
+            </p>
+          </div>
         </div>
       </div>
     </div>

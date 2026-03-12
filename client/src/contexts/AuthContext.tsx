@@ -5,8 +5,9 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { apiRequest } from "@/lib/queryClient";
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 interface User {
   id: string;
   username: string;
@@ -47,66 +48,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for existing token on mount
   useEffect(() => {
-    // Temporarily bypassing authentication for testing
-    // const storedToken = localStorage.getItem("auth_token");
-    // if (storedToken) {
-    //   setToken(storedToken);
-    //   // TODO: Validate token and get user info
-    //   // For now, we'll just trust the stored token
-    //   const storedUser = localStorage.getItem("auth_user");
-    //   if (storedUser) {
-    //     setUser(JSON.parse(storedUser));
-    //   }
-    // }
+    const storedToken = localStorage.getItem("auth_token");
+    const storedUser = localStorage.getItem("auth_user");
     
-    // Set default authenticated user for testing
-    const defaultUser: User = {
-      id: "00000000-0000-0000-0000-000000000001",
-      username: "admin",
-      role: "admin",
-      department: "Administration",
-      firstName: "Admin",
-      lastName: "User",
-      email: "admin@hottip.com"
-    };
-    setToken("test_token_for_development");
-    setUser(defaultUser);
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse stored user", e);
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("auth_token");
+      }
+    }
     
     setIsLoading(false);
   }, []);
 
   const login = async (identifier: string, password: string) => {
-    // Authentication bypassed for testing - commented out
-    // try {
-    //   const response = await fetch(`${BASE_URL}/auth/login`, {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //       username: identifier,
-    //       email: identifier,
-    //       password,
-    //     }),
-    //   });
+    try {
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: identifier,
+          email: identifier,
+          password,
+        }),
+      });
 
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.error || "Login failed");
-    //   }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Login failed");
+      }
 
-    //   const data = await response.json();
-    //   const { token, user } = data;
+      const data = await response.json();
+      const { token, user } = data;
 
-    //   // Store token and user info
-    //   localStorage.setItem("auth_token", token);
-    //   localStorage.setItem("auth_user", JSON.stringify(user));
+      // Store token and user info
+      localStorage.setItem("auth_token", token);
+      localStorage.setItem("auth_user", JSON.stringify(user));
 
-    //   setToken(token);
-    //   setUser(user);
-    // } catch (error) {
-    //   throw error;
-    // }
+      setToken(token);
+      setUser(user);
+    } catch (error) {
+      throw error;
+    }
   };
 
   const logout = () => {

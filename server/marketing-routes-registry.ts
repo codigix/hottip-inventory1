@@ -158,29 +158,6 @@ export const createLead = async (
 
     const lead = await storage.createLead(leadData);
 
-    // AUTO-CREATE FIELD VISIT: Create a default field visit for the new lead
-    try {
-      const visitNumber = `VISIT-${Date.now().toString().slice(-6)}`;
-      const plannedDate = lead.followUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      await storage.createFieldVisit({
-        visitNumber,
-        leadId: lead.id,
-        plannedDate: plannedDate instanceof Date ? plannedDate : new Date(plannedDate),
-        assignedTo: lead.assignedTo || req.user!.id,
-        assignedBy: req.user!.id,
-        createdBy: req.user!.id,
-        visitAddress: lead.address || "Client Location",
-        visitCity: lead.city || "",
-        visitState: lead.state || "",
-        status: "Scheduled",
-        purpose: "Initial Lead On-boarding",
-      });
-      console.log(`✅ Auto-created field visit ${visitNumber} for lead ${lead.id}`);
-    } catch (visitError) {
-      console.error("⚠️ Failed to auto-create field visit:", visitError);
-    }
-
     // Fetch the complete lead with assignee info for the frontend
     const fullLead = await storage.getLead(lead.id);
 
@@ -262,6 +239,28 @@ export const updateLead = async (
     }
 
     const lead = await storage.updateLead(req.params.id, leadData);
+
+    // AUTO-CREATE MARKETING TASK: If lead was newly assigned or reassigned
+    if (leadData.assignedTo && leadData.assignedTo !== existingLead.assignedTo) {
+      try {
+        await storage.createMarketingTask({
+          title: `Newly Assigned Lead: ${lead.firstName} ${lead.lastName}`,
+          description: `You have been assigned a lead from ${lead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+          type: "follow_up",
+          assignedTo: lead.assignedTo as string,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          priority: (lead.priority as any) || "medium",
+          status: "pending",
+          dueDate: lead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+          leadId: lead.id,
+        });
+        console.log(`✅ Auto-created assignment task for lead ${lead.id} assigned to ${lead.assignedTo}`);
+      } catch (taskError) {
+        console.error("⚠️ Failed to auto-create assignment task for lead:", taskError);
+      }
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_LEAD",
@@ -610,6 +609,7 @@ export const createFieldVisit = async (
     }
 
     const visit = await storage.createFieldVisit(visitData);
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_FIELD_VISIT",
@@ -1527,15 +1527,8 @@ export const checkInMarketingAttendance = async (
     const { latitude, longitude, location, photoPath, workDescription } =
       req.body;
 
-    // Hardcoded user ID for testing
-    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2"; // replace with an existing user ID from your DB
-
-    if (!latitude || !longitude) {
-      res
-        .status(400)
-        .json({ error: "GPS coordinates are required for check-in" });
-      return;
-    }
+    // Use authenticated user ID
+    const userid = req.user!.id;
 
     const attendance = await db
       .insert(marketingTodays)
@@ -1569,14 +1562,8 @@ export const checkOutMarketingAttendance = async (
   try {
     const { latitude, longitude, location } = req.body;
 
-    if (!latitude || !longitude) {
-      return res
-        .status(400)
-        .json({ error: "GPS coordinates required for check-out" });
-    }
-
-    // Hardcoded userId for testing
-    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+    // Use authenticated user ID
+    const userid = req.user!.id;
 
     const today = new Date();
     const startOfDay = new Date(
@@ -1836,11 +1823,12 @@ export const getTodayMarketingAttendance = async (
       today.getDate() + 1
     );
 
-    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
-    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+    // Use authenticated user ID for scoping
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-    // Build query
-    const rows = await db
+    // Build query with DATE conversion for robust daily matching
+    let query = db
       .select({
         id: marketingTodays.id,
         userId: marketingTodays.userid, // match DB column
@@ -1865,14 +1853,18 @@ export const getTodayMarketingAttendance = async (
         userEmail: users.email,
       })
       .from(marketingTodays)
-      .leftJoin(users, eq(marketingTodays.userid, users.id))
-      .where(
-        and(
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
-          eq(marketingTodays.userid, testUserId)
-        )
-      )
+      .leftJoin(users, eq(marketingTodays.userid, users.id));
+
+    // Base condition: only today's records
+    const conditions = [sql`DATE(${marketingTodays.date}) = CURRENT_DATE`];
+
+    // Apply user-based scoping if not admin/manager
+    if (userRole !== "admin" && userRole !== "manager") {
+      conditions.push(eq(marketingTodays.userid, userId));
+    }
+
+    const rows = await query
+      .where(and(...conditions))
       .orderBy(desc(marketingTodays.date));
 
     // Format response
@@ -2090,12 +2082,9 @@ export const createLeaveRequest = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
-    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
-
     const requestData = {
       ...req.body,
-      userId: testUserId, // Always use the hardcoded user
+      userId: req.user!.id,
     };
 
     const validatedData = insertLeaveRequestSchema.parse(requestData);

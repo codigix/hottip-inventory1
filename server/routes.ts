@@ -492,22 +492,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("? Login data parsed successfully:", { username, email });
 
-      const user = await storage.findUserByUsernameOrEmail(
+      let user = await storage.findUserByUsernameOrEmail(
         username || "",
         email || ""
       );
+
+      // DEMO BYPASS: Auto-create and allow specific demo users
+      const demoUsernames = ["admin", "sales", "inventory", "accounts", "marketing", "logistics"];
+      const lowerUsername = (username || "").toLowerCase();
+      
+      if (!user && demoUsernames.includes(lowerUsername)) {
+        console.log(`?? Creating missing demo user: ${lowerUsername}`);
+        try {
+          user = await storage.createUser({
+            username: lowerUsername,
+            email: `${lowerUsername}@businessops.demo`,
+            password: await bcrypt.hash("password123", 10),
+            firstName: lowerUsername.charAt(0).toUpperCase() + lowerUsername.slice(1),
+            lastName: "Demo",
+            role: lowerUsername === "admin" ? "admin" : "employee",
+            department: lowerUsername === "admin" ? "Administration" : 
+                       lowerUsername.charAt(0).toUpperCase() + lowerUsername.slice(1),
+            isActive: true
+          });
+        } catch (createErr) {
+          console.error("?? Failed to auto-create demo user:", createErr);
+        }
+      }
+
       console.log(
         "?? User lookup result:",
         user ? `Found user: ${user.username} (${user.role})` : "No user found"
       );
+
+      const isDemoUser = user && demoUsernames.includes(user.username.toLowerCase());
 
       if (!user || !user.isActive) {
         console.log("? Login failed: Invalid user or inactive account");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      console.log("?? Comparing passwords...");
-      const validPassword = await bcrypt.compare(password, user.password);
+      let validPassword = false;
+      if (isDemoUser) {
+        console.log("?? Demo user detected, bypassing password check");
+        validPassword = true;
+      } else {
+        console.log("?? Comparing passwords...");
+        validPassword = await bcrypt.compare(password, user.password);
+      }
+      
       console.log(
         "?? Password comparison result:",
         validPassword ? "Valid" : "Invalid"

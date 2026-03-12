@@ -313,17 +313,12 @@ export default function CheckOutModal({
 
   // Handle form submission - FIXED: Create attendance record first, then upload photo
   const handleSubmit = async () => {
-    if (!currentLocation) {
-      alert("Please get your current location first");
-      return;
-    }
-
     try {
       const checkOutData = {
         userId: userId,
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        location: address,
+        latitude: currentLocation?.latitude || 0,
+        longitude: currentLocation?.longitude || 0,
+        location: address || 'Location not provided',
         workDescription: workDescription.trim() || undefined,
         visitCount: visitCount > 0 ? visitCount : undefined,
         tasksCompleted: tasksCompleted > 0 ? tasksCompleted : undefined,
@@ -566,13 +561,6 @@ export default function CheckOutModal({
                 </div>
               )}
 
-              {locationError && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{locationError}</AlertDescription>
-                </Alert>
-              )}
-
               {currentLocation && (
                 <div className="space-y-3">
                   {/* Location Status */}
@@ -748,7 +736,7 @@ export default function CheckOutModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading || isUploadingPhoto}
+              disabled={isLoading || isUploadingPhoto}
               className="flex-1 bg-red-600 hover:bg-red-700"
               data-testid="button-checkout-confirm"
             >

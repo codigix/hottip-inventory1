@@ -312,6 +312,71 @@ export default function MarketingAttendance() {
     });
   }, [todayAttendance, searchTerm, statusFilter]);
 
+  // Combine attendance and leave requests for activity feed
+  const combinedActivity = useMemo(() => {
+    const activity: any[] = [];
+
+    // Add attendance records
+    console.log(`🔍 [Activity Feed] Processing ${todayAttendance.length} attendance records`);
+    todayAttendance.forEach((record) => {
+      console.log(`📝 [Activity Feed] Record ${record.id}: checkInTime=${record.checkInTime}`);
+      activity.push({
+        id: `att-${record.id}`,
+        userId: record.userId,
+        user: record.user,
+        time: record.checkInTime ? new Date(record.checkInTime) : new Date(),
+        type: "attendance",
+        status: record.attendanceStatus,
+        isOnLeave: record.isOnLeave,
+        label: record.checkInTime
+          ? `Checked in at ${format(new Date(record.checkInTime), "HH:mm")}`
+          : "Not checked in",
+      });
+    });
+
+    // Add today's leave requests
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    console.log("🔍 [Activity Feed] Today's range:", today.toISOString(), "to", tomorrow.toISOString());
+
+    const safeLeaveRequestsData = Array.isArray(leaveRequestsData) ? leaveRequestsData : [];
+    
+    safeLeaveRequestsData.forEach((req: any) => {
+      // Normalize start and end dates for comparison
+      const reqStartDate = new Date(req.startDate);
+      reqStartDate.setHours(0, 0, 0, 0);
+      
+      const reqEndDate = new Date(req.endDate);
+      reqEndDate.setHours(23, 59, 59, 999);
+
+      // Check if current date falls within the leave period
+      const isCurrentlyOnLeave = today >= reqStartDate && today <= reqEndDate;
+
+      if (isCurrentlyOnLeave) {
+        console.log(`✅ [Activity Feed] Including leave for ${req.user?.firstName} (${req.id})`);
+        activity.push({
+          id: `leave-${req.id}`,
+          userId: req.userId,
+          user: req.user,
+          time: reqStartDate,
+          type: "leave",
+          status: req.status,
+          label: `Requested ${req.leaveType} leave: ${req.reason}`,
+        });
+      } else {
+        console.log(`❌ [Activity Feed] Skipping leave for ${req.user?.firstName} (${req.id}) - Outside range`);
+      }
+    });
+
+    console.log(`📋 [Activity Feed] Combined ${activity.length} items for activity feed`);
+
+    // Sort by time descending
+    return activity.sort((a, b) => b.time.getTime() - a.time.getTime());
+  }, [todayAttendance, leaveRequestsData]);
+
   // Handle check-in
   const handleCheckIn = (userId: string) => {
     setSelectedAttendanceUser(userId);
@@ -821,9 +886,9 @@ export default function MarketingAttendance() {
                     />
                   ))}
                 </div>
-              ) : todayAttendance.length > 0 ? (
+              ) : combinedActivity.length > 0 ? (
                 <div className="space-y-3">
-                  {todayAttendance.slice(0, 5).map((record) => (
+                  {combinedActivity.slice(0, 5).map((record) => (
                     <div
                       key={record.id}
                       className="flex items-center justify-between p-3 border rounded-lg"
@@ -838,27 +903,26 @@ export default function MarketingAttendance() {
                             {record.user?.firstName} {record.user?.lastName}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {record.checkInTime
-                              ? `Checked in at ${format(
-                                  new Date(record.checkInTime),
-                                  "HH:mm"
-                                )}`
-                              : "Not checked in"}
+                            {record.label}
                           </p>
                         </div>
                       </div>
                       <Badge
                         variant={
-                          record.attendanceStatus === "present"
+                          record.type === "leave"
+                            ? "secondary"
+                            : record.status === "present"
                             ? "default"
-                            : record.attendanceStatus === "late"
+                            : record.status === "late"
                             ? "secondary"
                             : "destructive"
                         }
                       >
-                        {record.isOnLeave
+                        {record.type === "leave"
+                          ? `LEAVE: ${record.status?.toUpperCase()}`
+                          : record.isOnLeave
                           ? "On Leave"
-                          : (record.attendanceStatus ?? "UNKNOWN")
+                          : (record.status ?? "UNKNOWN")
                               .replace("_", " ")
                               .toUpperCase()}
                       </Badge>

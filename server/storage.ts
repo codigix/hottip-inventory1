@@ -35,8 +35,8 @@ import {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Product = typeof products.$inferSelect;
-export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
-export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+export type MarketingAttendance = typeof marketingTodays.$inferSelect;
+export type InsertMarketingAttendance = typeof marketingTodays.$inferInsert;
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
@@ -80,6 +80,11 @@ class Storage {
       .select()
       .from(users)
       .where(sql`${users.username} = ${username} OR ${users.email} = ${email}`);
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   // Get all customers
@@ -757,26 +762,76 @@ class Storage {
   async getMarketingAttendance(id: string): Promise<any> {
     const [row] = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(eq(marketingAttendance.id, id));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(eq(marketingTodays.id, id));
 
     if (!row) return undefined;
     return {
-      ...row.marketingAttendance,
+      id: row.marketing_todays.id,
+      userId: row.marketing_todays.userid,
+      date: row.marketing_todays.date,
+      checkInTime: row.marketing_todays.checkintime,
+      checkOutTime: row.marketing_todays.checkouttime,
+      latitude: row.marketing_todays.latitude,
+      longitude: row.marketing_todays.longitude,
+      location: row.marketing_todays.location,
+      photoPath: row.marketing_todays.photopath,
+      workDescription: row.marketing_todays.workdescription,
+      attendanceStatus: row.marketing_todays.attendancestatus,
+      visitCount: row.marketing_todays.visitcount,
+      tasksCompleted: row.marketing_todays.taskscompleted,
+      outcome: row.marketing_todays.outcome,
+      nextAction: row.marketing_todays.nextaction,
+      isOnLeave: row.marketing_todays.isonleave,
       user: row.users,
     };
   }
 
-  async getMarketingAttendances(): Promise<any[]> {
-    const rows = await db
+  async getMarketingAttendances(filters?: any): Promise<any[]> {
+    let query = db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .orderBy(desc(marketingAttendance.date));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id));
+
+    const conditions = [];
+
+    if (filters?.userId && filters.userId !== "all") {
+      conditions.push(eq(marketingTodays.userid, filters.userId));
+    }
+
+    if (filters?.startDate && filters.endDate) {
+      conditions.push(gte(marketingTodays.date, new Date(filters.startDate)));
+      conditions.push(lte(marketingTodays.date, new Date(filters.endDate)));
+    }
+
+    if (filters?.userScope?.showOnlyUserAttendance) {
+      conditions.push(eq(marketingTodays.userid, filters.userScope.userId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const rows = await query.orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
       user: r.users,
     }));
   }
@@ -785,7 +840,7 @@ class Storage {
     insertAttendance: InsertMarketingAttendance
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .insert(marketingAttendance)
+      .insert(marketingTodays)
       .values(insertAttendance)
       .returning();
     return row;
@@ -796,27 +851,42 @@ class Storage {
     update: Partial<InsertMarketingAttendance>
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({ ...update, date: update.date ?? undefined })
-      .where(eq(marketingAttendance.id, id))
+      .where(eq(marketingTodays.id, id))
       .returning();
     return row;
   }
 
   async deleteMarketingAttendance(id: string): Promise<void> {
-    await db.delete(marketingAttendance).where(eq(marketingAttendance.id, id));
+    await db.delete(marketingTodays).where(eq(marketingTodays.id, id));
   }
 
   async getMarketingAttendanceByEmployee(userId: string): Promise<any[]> {
     const rows = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(eq(marketingAttendance.userId, userId))
-      .orderBy(desc(marketingAttendance.date));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(eq(marketingTodays.userid, userId))
+      .orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
       user: r.users,
     }));
   }
@@ -827,63 +897,73 @@ class Storage {
   ): Promise<any[]> {
     const rows = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
       .where(
         and(
-          gte(marketingAttendance.date, startDate),
-          lte(marketingAttendance.date, endDate)
+          gte(marketingTodays.date, startDate),
+          lte(marketingTodays.date, endDate)
         )
       )
-      .orderBy(desc(marketingAttendance.date));
+      .orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
       user: r.users,
     }));
   }
   async getTodayMarketingAttendance(): Promise<any[]> {
-    try {
-      const rows = await db.execute(sql`
-      SELECT ma.*,
-             u.id   AS user_id,
-             CONCAT(u."firstName", ' ', u."lastName") AS user_name,
-             u.email AS user_email
-      FROM marketing_Todays ma
-      LEFT JOIN users u ON ma."userId" = u.id
-      WHERE DATE(ma.date) = CURRENT_DATE
-      ORDER BY ma.date DESC
-    `);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-      return rows.map((r: any) => ({
-        id: r.id,
-        userId: r.userId,
-        date: r.date,
-        checkInTime: r.checkInTime,
-        checkOutTime: r.checkOutTime,
-        checkInLocation: r.checkInLocation,
-        checkOutLocation: r.checkOutLocation,
-        latitude: r.latitude,
-        longitude: r.longitude,
-        location: r.location,
-        photoPath: r.photoPath,
-        workDescription: r.workDescription,
-        attendanceStatus: r.attendanceStatus,
-        visitCount: r.visitCount,
-        tasksCompleted: r.tasksCompleted,
-        outcome: r.outcome,
-        nextAction: r.nextAction,
-        isOnLeave: r.isOnLeave,
-        user: {
-          id: r.user_id,
-          name: r.user_name,
-          email: r.user_email,
-        },
-      }));
-    } catch (error: any) {
-      console.error("❌ Error in getTodayMarketingAttendance:", error);
-      throw new Error("Failed to fetch attendance record");
-    }
+    const rows = await db
+      .select()
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(
+        and(
+          gte(marketingTodays.date, today),
+          lt(marketingTodays.date, tomorrow)
+        )
+      )
+      .orderBy(desc(marketingTodays.date));
+
+    return rows.map((r) => ({
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
+      user: r.users,
+    }));
   }
 
   async checkInMarketingAttendance(
@@ -893,40 +973,42 @@ class Storage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Check existing record for today
+    // Use marketingTodays unified table
     const existing = await db
       .select()
-      .from(marketingAttendance)
+      .from(marketingTodays)
       .where(
         and(
-          eq(marketingAttendance.userId, userId),
-          gte(marketingAttendance.date, today)
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today)
         )
       );
 
     if (existing.length > 0) {
       const [row] = await db
-        .update(marketingAttendance)
+        .update(marketingTodays)
         .set({
-          checkInTime: data.checkInTime ?? new Date(),
-          checkInLatitude: data.latitude,
-          checkInLocation: data.location,
+          checkintime: data.checkInTime ?? new Date(),
+          latitude: data.latitude?.toString(),
+          location: data.location,
+          attendancestatus: "present",
         })
-        .where(eq(marketingAttendance.id, (existing[0] as any).id))
+        .where(eq(marketingTodays.id, existing[0].id))
         .returning();
       return row;
     }
 
-    const insert: InsertMarketingAttendance = {
-      userId,
+    const insert = {
+      userid: userId,
       date: data.date ?? new Date(),
-      checkInTime: data.checkInTime ?? new Date(),
-      checkInLatitude: data.latitude,
-      checkInLocation: data.location,
-    } as InsertMarketingAttendance;
+      checkintime: data.checkInTime ?? new Date(),
+      latitude: data.latitude?.toString(),
+      location: data.location,
+      attendancestatus: "present",
+    };
 
     const [row] = await db
-      .insert(marketingAttendance)
+      .insert(marketingTodays)
       .values(insert)
       .returning();
     return row;
@@ -941,35 +1023,38 @@ class Storage {
 
     const existing = await db
       .select()
-      .from(marketingAttendance)
+      .from(marketingTodays)
       .where(
         and(
-          eq(marketingAttendance.userId, userId),
-          gte(marketingAttendance.date, today)
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today)
         )
       );
 
     if (existing.length === 0) {
-      // If no check-in, create minimal record then update
-      const base: InsertMarketingAttendance = {
-        userId,
+      const insert = {
+        userid: userId,
         date: new Date(),
-        checkInTime: new Date(),
-      } as InsertMarketingAttendance;
+        checkintime: new Date(),
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.location,
+        attendancestatus: "present",
+      };
       const [created] = await db
-        .insert(marketingAttendance)
-        .values(base)
+        .insert(marketingTodays)
+        .values(insert)
         .returning();
-      existing.push(created as any);
+      return created;
     }
 
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({
-        checkOutTime: data.checkOutTime ?? new Date(),
-        checkOutLocation: data.location,
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.location,
+        attendancestatus: "present",
       })
-      .where(eq(marketingAttendance.userId, userId))
+      .where(eq(marketingTodays.userid, userId))
       .returning();
 
     return row;
@@ -980,12 +1065,17 @@ class Storage {
     data: any
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({
-        checkOutTime: data.checkOutTime ?? new Date(),
-        checkOutLocation: data.checkOutLocation,
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.checkOutLocation || data.location,
+        workdescription: data.workDescription,
+        visitcount: data.visitCount,
+        taskscompleted: data.tasksCompleted,
+        outcome: data.outcome,
+        nextaction: data.nextAction,
       })
-      .where(eq(marketingAttendance.id, attendanceId))
+      .where(eq(marketingTodays.id, attendanceId))
       .returning();
 
     return row;
@@ -995,12 +1085,12 @@ class Storage {
       const rows = await db.execute(sql`
       SELECT 
         COUNT(*) AS total_records,
-        COUNT(CASE WHEN ma."attendanceStatus" = 'present' THEN 1 END) AS present_count,
-        COUNT(CASE WHEN ma."attendanceStatus" = 'absent' THEN 1 END) AS absent_count,
-        COUNT(CASE WHEN ma."isOnLeave" = true THEN 1 END) AS leave_count,
-        COALESCE(AVG(NULLIF(ma."visitCount", 0)), 0) AS avg_visits,
-        COALESCE(AVG(NULLIF(ma."tasksCompleted", 0)), 0) AS avg_tasks
-      FROM marketing_Todays ma
+        COUNT(CASE WHEN ma.attendancestatus = 'present' THEN 1 END) AS present_count,
+        COUNT(CASE WHEN ma.attendancestatus = 'absent' THEN 1 END) AS absent_count,
+        COUNT(CASE WHEN ma.isonleave = true THEN 1 END) AS leave_count,
+        COALESCE(AVG(NULLIF(ma.visitcount, 0)), 0) AS avg_visits,
+        COALESCE(AVG(NULLIF(ma.taskscompleted, 0)), 0) AS avg_tasks
+      FROM marketing_todays ma
     `);
 
       const r = rows[0];
@@ -1020,31 +1110,47 @@ class Storage {
   }
 
   // Leave Request Methods
-  async getLeaveRequests(): Promise<LeaveRequest[]> {
-    const rows = await db.execute(sql`
-    SELECT 
-      *,
-      EXTRACT(DAY FROM (end_date - start_date)) + 1 AS total_days
-    FROM leave_requests
-    ORDER BY start_date DESC
-  `);
-    return rows;
+  async getLeaveRequests(): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
+      .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
+      .orderBy(desc(leaveRequests.startDate));
+    
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
-  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
-    const [row] = await db
-      .select()
+  async getLeaveRequestsByUser(userId: string): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
       .from(leaveRequests)
-      .where(eq(leaveRequests.id, id));
-    return row;
-  }
-
-  async getLeaveRequestsByUser(userId: string): Promise<LeaveRequest[]> {
-    return await db
-      .select()
-      .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
       .where(eq(leaveRequests.userId, userId))
       .orderBy(desc(leaveRequests.startDate));
+
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
   async createLeaveRequest(
@@ -1073,12 +1179,26 @@ class Storage {
     await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
   }
 
-  async getLeaveRequestsByStatus(status: string): Promise<LeaveRequest[]> {
-    return await db
-      .select()
+  async getLeaveRequestsByStatus(status: string): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
       .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
       .where(eq(leaveRequests.status, status))
       .orderBy(desc(leaveRequests.startDate));
+
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
   async getLeaveRequestsByDateRange(
@@ -1170,12 +1290,30 @@ class Storage {
   // =====================
   // MARKETING TASKS CRUD
   // =====================
-  async getMarketingTasks(filters?: any): Promise<MarketingTask[]> {
+  async getMarketingTasks(filters?: any): Promise<any[]> {
     let query = db
-      .select()
-      .from(marketingTasks);
+      .select({
+        task: marketingTasks,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
+      .from(marketingTasks)
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id));
 
     const conditions = [];
+
+    console.log("🔍 [STORAGE] getMarketingTasks - Filters:", JSON.stringify(filters, null, 2));
 
     if (filters?.status && filters.status !== "all") {
       conditions.push(eq(marketingTasks.status, filters.status));
@@ -1208,7 +1346,13 @@ class Storage {
       query = query.where(and(...conditions)) as any;
     }
 
-    return await query.orderBy(desc(marketingTasks.createdAt));
+    const rows = await query.orderBy(desc(marketingTasks.createdAt));
+    console.log(`📋 [STORAGE] getMarketingTasks returned ${rows.length} results`);
+    return rows.map(r => ({
+      ...r.task,
+      assignedToUser: r.assignedToUser,
+      lead: r.lead
+    }));
   }
 
   async getMarketingTask(id: string): Promise<MarketingTask | undefined> {
@@ -1509,6 +1653,11 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   }
 
   async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
+    // Generate visit number if missing
+    if (!insertVisit.visitNumber) {
+      insertVisit.visitNumber = `VISIT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    }
+
     const [row] = await db.insert(fieldVisits).values(insertVisit).returning();
 
     // Auto-create a marketing task when a field visit is scheduled
