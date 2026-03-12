@@ -1957,9 +1957,6 @@ export const insertActivitySchema = z.object({
   details: z.string().optional(),
 });
 
-export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = typeof activities.$inferInsert;
-
 // =====================
 // ACCOUNT REPORTS
 // =====================
@@ -2029,9 +2026,6 @@ export const moldDetailsTable = pgTable("mold_details", {
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
 
-export type MoldDetail = typeof moldDetailsTable.$inferSelect;
-export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;
-
 export const insertMoldDetailSchema = z.object({
   partName: z.string().optional(),
   mouldNo: z.string().optional(),
@@ -2070,7 +2064,13 @@ export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
 
 export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
 export type InsertLogisticsShipment = typeof logisticsShipments.$inferInsert;
-export type LogisticsShipmentStatus = typeof logisticsShipments.currentStatus.$inferSelect;
+export type LogisticsShipmentStatus = LogisticsShipment["currentStatus"];
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = typeof leads.$inferInsert;
+
+export type FieldVisit = typeof fieldVisits.$inferSelect;
+export type InsertFieldVisit = typeof fieldVisits.$inferInsert;
 
 export type LogisticsTask = typeof logisticsTasks.$inferSelect;
 export type InsertLogisticsTask = typeof logisticsTasks.$inferInsert;
