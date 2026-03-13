@@ -1851,6 +1851,7 @@ export const getTodayMarketingAttendance = async (
         userFirstName: users.firstName,
         userLastName: users.lastName,
         userEmail: users.email,
+        userRole: users.role,
       })
       .from(marketingTodays)
       .leftJoin(users, eq(marketingTodays.userid, users.id));
@@ -1887,11 +1888,11 @@ export const getTodayMarketingAttendance = async (
       isOnLeave: row.isOnLeave ?? false,
       user: {
         id: row.userId_user || "",
-        name:
-          row.userFirstName && row.userLastName
-            ? `${row.userFirstName} ${row.userLastName}`
-            : "Unknown User",
+        firstName: row.userFirstName || "Unknown",
+        lastName: row.userLastName || "User",
         email: row.userEmail || "",
+        role: row.userRole || "employee",
+        name: row.userFirstName && row.userLastName ? `${row.userFirstName} ${row.userLastName}` : "Unknown User"
       },
     }));
 

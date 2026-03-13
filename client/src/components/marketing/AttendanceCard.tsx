@@ -129,9 +129,9 @@ export default function AttendanceCard({
 
   const getUserInitials = () => {
     if (!user) return "NA";
-    return `${user.firstName?.[0] || ""}${
-      user.lastName?.[0] || ""
-    }`.toUpperCase();
+    const first = user.firstName || (user as any).name?.split(' ')[0] || "";
+    const last = user.lastName || (user as any).name?.split(' ')[1] || "";
+    return `${first?.[0] || ""}${last?.[0] || ""}`.toUpperCase() || "??";
   };
 
   const getLocationText = (
@@ -160,7 +160,7 @@ export default function AttendanceCard({
                 className="text-sm font-light"
                 data-testid={`attendance-name-${user?.id}`}
               >
-                {user ? `${user.firstName} ${user.lastName}` : "Unknown User"}
+                {user ? (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user as any).name || "Unknown User") : "Unknown User"}
               </CardTitle>
               <p
                 className="text-xs text-muted-foreground"

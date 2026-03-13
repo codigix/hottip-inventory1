@@ -832,7 +832,14 @@ class Storage {
       outcome: r.marketing_todays.outcome,
       nextAction: r.marketing_todays.nextaction,
       isOnLeave: r.marketing_todays.isonleave,
-      user: r.users,
+      user: r.users ? {
+        id: r.users.id,
+        firstName: r.users.firstName,
+        lastName: r.users.lastName,
+        email: r.users.email,
+        role: r.users.role,
+        department: r.users.department
+      } : null,
     }));
   }
 

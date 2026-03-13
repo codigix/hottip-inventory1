@@ -172,6 +172,16 @@ export default function MarketingAttendance() {
       queryFn: marketingAttendance.getMetrics,
     });
 
+  const { data: usersData = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const response = await fetch("/api/users");
+      if (!response.ok) throw new Error("Failed to fetch users");
+      const allUsers = await response.json();
+      return allUsers.filter((u: any) => u.department === "marketing");
+    }
+  });
+
   const { data: leaveRequestsData = [], error: leaveRequestsError } = useQuery({
     queryKey: ["leave-requests"],
     queryFn: leaveRequests.getAll,
@@ -179,47 +189,9 @@ export default function MarketingAttendance() {
     retryOnMount: false, // Don't retry on component mount
   });
 
-  // Mock users for now - in a real app, this would come from an API
-  const users: User[] = [
-    {
-      id: "dev-admin-user",
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
-      role: "admin",
-    },
-    {
-      id: "dev-employee-1",
-      firstName: "Jane",
-      lastName: "Smith",
-      email: "jane@example.com",
-      role: "employee",
-    },
-    {
-      id: "dev-employee-2",
-      firstName: "Bob",
-      lastName: "Johnson",
-      email: "bob@example.com",
-      role: "employee",
-    },
-  ];
-
   // Calculate leave balance from leave requests
   const leaveBalance: LeaveBalance = useMemo(() => {
     const totalLeave = 30; // This would come from user profile in a real app
-
-    // Debug logging
-    console.log(
-      "leaveRequestsData:",
-      leaveRequestsData,
-      "Type:",
-      typeof leaveRequestsData,
-      "IsArray:",
-      Array.isArray(leaveRequestsData)
-    );
-    if (leaveRequestsError) {
-      console.log("leaveRequestsError:", leaveRequestsError);
-    }
 
     // Ensure leaveRequestsData is always an array
     const safeLeaveRequestsData = Array.isArray(leaveRequestsData)
@@ -1015,7 +987,7 @@ export default function MarketingAttendance() {
         <TabsContent value="calendar" className="space-y-6">
           <AttendanceCalendar
             attendanceData={allAttendance}
-            users={users}
+            users={usersData}
             selectedUserId={selectedUserId}
             onUserSelect={setSelectedUserId}
             isManager={true}
