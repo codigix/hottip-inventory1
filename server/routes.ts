@@ -160,8 +160,10 @@ const requireAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // DEVELOPMENT MODE BYPASS: Skip authentication completely in development
-    if (process.env.NODE_ENV === "development") {
+    const authHeader = req.headers.authorization;
+    
+    // DEVELOPMENT MODE BYPASS: Only if NO authentication token is provided
+    if (process.env.NODE_ENV === "development" && !authHeader) {
       // Set a default admin user for development
       // Map dev user to a stable UUID for database operations
       req.user = {
@@ -172,17 +174,6 @@ const requireAuth = async (
       next();
       return;
     }
-
-    // SECURITY FIX: Reject any client-supplied identity headers to prevent spoofing
-    if (req.headers["x-user-id"]) {
-      res.status(401).json({
-        error: "Security violation",
-        message: "Client identity headers are not allowed for security reasons",
-      });
-      return;
-    }
-
-    const authHeader = req.headers.authorization;
 
     if (!authHeader) {
       res.status(401).json({ error: "Authentication required" });
@@ -510,11 +501,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password: await bcrypt.hash("password123", 10),
             firstName: lowerUsername.charAt(0).toUpperCase() + lowerUsername.slice(1),
             lastName: "Demo",
-            role: lowerUsername === "admin" ? "admin" : "employee",
+            role: lowerUsername === "admin" || lowerUsername === "marketing" ? "manager" : "employee",
             department: lowerUsername === "admin" ? "Administration" : 
                        lowerUsername.charAt(0).toUpperCase() + lowerUsername.slice(1),
             isActive: true
           });
+          
+          // Force admin role for 'admin' username
+          if (lowerUsername === "admin") {
+            await storage.updateUser(user.id, { role: "admin" });
+            user.role = "admin";
+          }
         } catch (createErr) {
           console.error("?? Failed to auto-create demo user:", createErr);
         }
@@ -578,6 +575,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       console.log("? Login successful for user:", user.username);
+
+      // AUTO-CREATE MARKETING ATTENDANCE: For users in marketing department
+      if (user.department?.toLowerCase() === "marketing" || user.username.toLowerCase() === "marketing") {
+        try {
+          const existingAttendance = await storage.getMarketingAttendanceForUserToday(user.id);
+          if (!existingAttendance) {
+            console.log(`📋 Auto-creating today's attendance for marketing user: ${user.username}`);
+            await storage.checkInMarketingAttendance(user.id, {
+              date: new Date(),
+              checkInTime: new Date(),
+              location: "Login (Auto)",
+              latitude: null,
+              longitude: null
+            });
+          }
+        } catch (attErr) {
+          console.error("⚠️ Failed to auto-create marketing attendance during login:", attErr);
+        }
+      }
+
       res.json({
         token,
         user: {
@@ -734,6 +751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: user.email,
           role: user.role,
           department: user.department,
+          isActive: user.isActive,
         }));
         res.json(filteredUsers);
       } else {
@@ -745,6 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username: user.username,
           role: user.role,
           department: user.department,
+          isActive: user.isActive,
         }));
         res.json(filteredUsers);
       }
@@ -2748,7 +2767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/marketing/leads", async (req, res) => {
+  app.post("/api/marketing/leads", requireAuth, async (req, res) => {
     try {
       const {
         firstName,
@@ -2813,8 +2832,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? new Date(expectedClosingDate)
             : null,
           notes: notes || null,
+          createdBy: req.user!.id,
+          assignedBy: req.user!.id,
         })
         .returning();
+
+      // AUTO-CREATE MARKETING TASK
+      if (newLead.assignedTo) {
+        try {
+          await db.insert(marketingTasks).values({
+            title: `Newly Created Lead: ${newLead.firstName} ${newLead.lastName}`,
+            description: `You have been assigned a lead from ${newLead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+            type: "follow_up",
+            assignedTo: newLead.assignedTo as string,
+            assignedBy: req.user!.id,
+            createdBy: req.user!.id,
+            priority: (newLead.priority as any) || "medium",
+            status: "pending",
+            dueDate: newLead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+            leadId: newLead.id,
+          });
+          console.log(`✅ Auto-created assignment task for new lead ${newLead.id} assigned to ${newLead.assignedTo}`);
+        } catch (taskError) {
+          console.error("⚠️ Failed to auto-create assignment task for new lead:", taskError);
+        }
+      }
 
       res.status(201).json({ message: "Lead created", lead: newLead });
     } catch (err) {
@@ -2850,6 +2892,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes,
       } = req.body;
 
+      const [existingLead] = await db
+        .select()
+        .from(leads)
+        .where(eq(leads.id, id))
+        .limit(1);
+
+      if (!existingLead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
       const [updatedLead] = await db
         .update(leads)
         .set({
@@ -2881,8 +2933,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(leads.id, id))
         .returning();
 
-      if (!updatedLead) {
-        return res.status(404).json({ error: "Lead not found" });
+      // AUTO-CREATE MARKETING TASK: If lead was newly assigned or reassigned
+      if (updatedLead.assignedTo && updatedLead.assignedTo !== existingLead.assignedTo) {
+        try {
+          await db.insert(marketingTasks).values({
+            title: `Newly Assigned Lead: ${updatedLead.firstName} ${updatedLead.lastName}`,
+            description: `You have been assigned a lead from ${updatedLead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+            type: "follow_up",
+            assignedTo: updatedLead.assignedTo as string,
+            assignedBy: req.user!.id,
+            createdBy: req.user!.id,
+            priority: (updatedLead.priority as any) || "medium",
+            status: "pending",
+            dueDate: updatedLead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+            leadId: updatedLead.id,
+          });
+          console.log(`✅ Auto-created assignment task for lead ${updatedLead.id} assigned to ${updatedLead.assignedTo}`);
+        } catch (taskError) {
+          console.error("⚠️ Failed to auto-create assignment task for lead:", taskError);
+        }
       }
 
       res.json(updatedLead);
@@ -2895,10 +2964,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/marketing/leads/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const [deletedLead] = await db
-        .delete(leads)
-        .where(eq(leads.id, id))
-        .returning();
+
+      // Use a transaction to delete all related data
+      const [deletedLead] = await db.transaction(async (tx) => {
+        // 1. Delete related marketing tasks
+        await tx
+          .delete(marketingTasks)
+          .where(eq(marketingTasks.leadId, id));
+
+        // 2. Delete related field visits
+        await tx
+          .delete(fieldVisits)
+          .where(eq(fieldVisits.leadId, id));
+
+        // 3. Delete the lead itself
+        const [result] = await tx
+          .delete(leads)
+          .where(eq(leads.id, id))
+          .returning();
+
+        return [result];
+      });
 
       if (!deletedLead) {
         return res.status(404).json({ error: "Lead not found" });
@@ -3205,11 +3291,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.get("/api/marketing-tasks", requireAuth, async (_req, res) => {
+  app.get("/api/marketing-tasks", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(marketingTasks);
-      res.json(rows);
+      const filters: any = req.query;
+      const conditions = [];
+
+      let query = db
+        .select({
+          task: marketingTasks,
+          assignedToUser: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            username: users.username,
+          },
+          lead: {
+            id: leads.id,
+            firstName: leads.firstName,
+            lastName: leads.lastName,
+            companyName: leads.companyName,
+          }
+        })
+        .from(marketingTasks)
+        .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+        .leftJoin(leads, eq(marketingTasks.leadId, leads.id));
+
+      if (filters.status && filters.status !== "all") {
+        conditions.push(eq(marketingTasks.status, filters.status));
+      }
+
+      if (filters.assignedTo && filters.assignedTo !== "all") {
+        conditions.push(eq(marketingTasks.assignedTo, filters.assignedTo));
+      }
+
+      // SECURITY: Apply user-based scoping based on role
+      if (req.user!.role !== "admin" && req.user!.role !== "manager") {
+        conditions.push(
+          sql`(${marketingTasks.createdBy} = ${req.user!.id} OR 
+               ${marketingTasks.assignedTo} = ${req.user!.id})`
+        );
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const rows = await query.orderBy(desc(marketingTasks.createdAt));
+      
+      const tasks = rows.map(r => ({
+        ...r.task,
+        assignedToUser: r.assignedToUser,
+        lead: r.lead
+      }));
+
+      res.json(tasks);
     } catch (e) {
+      console.error("Error fetching marketing tasks:", e);
       res.json([]);
     }
   });

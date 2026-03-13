@@ -357,18 +357,20 @@
 
       <!-- Quotation Items Table -->
       <% var moldItems = quotation.quotationItems ? quotation.quotationItems.filter(function(item) { 
+        if (item.moldId && mold.id) {
+          return item.moldId === mold.id;
+        }
         if (item.moldIndex !== undefined && item.moldIndex !== null) {
           return item.moldIndex === moldIndex;
         }
-        return item.partName === mold.partName || item.mouldNo === mold.mouldNo;
+        return (item.partName === mold.partName && mold.partName) || (item.mouldNo === mold.mouldNo && mold.mouldNo);
       }) : []; %>
       <% if (moldItems.length > 0) { %>
       <table class="items-table">
         <thead>
           <tr>
             <th style="width: 5%">No</th>
-            <th style="width: 25%">Part Name</th>
-            <th style="width: 30%">Part Description</th>
+            <th style="width: 55%">Part Description</th>
             <th style="width: 10%">QTY</th>
             <th style="width: 10%">UOM</th>
             <th style="width: 10%">Unit Price (INR)</th>
@@ -378,11 +380,10 @@
         <tbody>
           <% var moldTotal = 0; %>
           <% moldItems.forEach(function(item, itemIndex){ %>
-            <% moldTotal += item.amount || 0; %>
+            <% moldTotal += (parseFloat(item.amount) || 0); %>
           <tr>
             <td class="no"><%= itemIndex+1 %></td>
-            <td class="name"><%= item.partName || '-' %></td>
-            <td class="name"><%= item.partDescription || '-' %></td>
+            <td class="name"><%= item.partDescription || item.partName || item.description || '-' %></td>
             <td class="qty"><%= item.qty || 0 %></td>
             <td class="text-center"><%= item.uom || 'NOS' %></td>
             <td class="price"><%= (parseFloat(item.unitPrice) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></td>
@@ -390,7 +391,7 @@
           </tr>
           <% }); %>
           <tr class="total-row">
-            <td colspan="6" class="text-right"><strong>TOTAL INR</strong></td>
+            <td colspan="5" class="text-right"><strong>TOTAL INR</strong></td>
             <td class="amount"><strong><%= moldTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong></td>
           </tr>
         </tbody>

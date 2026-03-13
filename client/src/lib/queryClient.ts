@@ -3,9 +3,10 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL;
 
-// Helper function to get auth token (optional for dev)
+// Helper function to get auth token from localStorage
 function getAuthToken(): string | null {
-  return null; // disable authentication for dev
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("auth_token");
 }
 
 // Throw error if fetch response is not ok
@@ -61,10 +62,12 @@ export async function apiRequest<T = any>(
     responseType = options.responseType;
   }
 
+  const token = getAuthToken();
   const res = await fetch(`${BASE_URL}${url}`, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...headers,
     },
     body: body
@@ -124,8 +127,11 @@ export const getQueryFn: <T>(options: {
       }
     }
 
+    const token = getAuthToken();
     const res = await fetch(`${BASE_URL}${url}`, {
-      headers: {},
+      headers: {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       credentials: "include",
     });
 

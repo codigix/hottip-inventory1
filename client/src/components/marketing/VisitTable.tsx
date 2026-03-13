@@ -205,7 +205,7 @@ export default function VisitTable({
         }
         
         // Invalidate the visits query to refresh the list
-        queryClient.invalidateQueries({ queryKey: ["field-visits"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
 
         if (onStatusUpdate) {
           onStatusUpdate(selectedVisit, newStatus);

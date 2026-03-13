@@ -115,6 +115,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         form.setValue('visitCity', lead.city || '');
         form.setValue('visitState', lead.state || '');
       }
+
+      // Auto-fill assignedTo if available in lead
+      if (lead.assignedTo) {
+        form.setValue('assignedTo', lead.assignedTo);
+      }
     }
   };
 
@@ -155,7 +160,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
   };
 
   // Filter active users for assignment
-  const activeUsers = users.filter(user => user.isActive);
+  const activeUsers = users.filter(user => user.isActive !== false);
 
   // Filter leads that are not converted or dropped
   const availableLeads = leads.filter(lead => 
@@ -218,7 +223,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                       <UserIcon className="h-4 w-4" />
                       <span>Assigned To *</span>
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-assigned-to">
                           <SelectValue placeholder="Select an employee" />

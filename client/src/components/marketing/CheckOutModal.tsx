@@ -320,8 +320,8 @@ export default function CheckOutModal({
         longitude: currentLocation?.longitude || 0,
         location: address || 'Location not provided',
         workDescription: workDescription.trim() || undefined,
-        visitCount: visitCount > 0 ? visitCount : undefined,
-        tasksCompleted: tasksCompleted > 0 ? tasksCompleted : undefined,
+        visitCount: typeof visitCount === 'number' ? visitCount : 0,
+        tasksCompleted: typeof tasksCompleted === 'number' ? tasksCompleted : 0,
         outcome: outcome || undefined,
         nextAction: nextAction.trim() || undefined,
       };
@@ -355,7 +355,7 @@ export default function CheckOutModal({
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  checkOutPhotoPath: photoResult.objectPath,
+                  photoPath: photoResult.objectPath,
                 }),
               }
             );

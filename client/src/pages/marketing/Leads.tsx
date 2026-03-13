@@ -69,7 +69,7 @@ export default function Leads() {
   // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
     queryKey: [
-      "/marketing/leads",
+      "/api/marketing/leads",
       {
         status: selectedStatus,
         source: sourceFilter,
@@ -80,15 +80,15 @@ export default function Leads() {
     ],
     queryFn: () => {
       const url = queryParams
-        ? `/marketing/leads?${queryParams}`
-        : "/marketing/leads";
+        ? `/api/marketing/leads?${queryParams}`
+        : "/api/marketing/leads";
       return apiRequest(url);
     },
   });
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-    queryKey: ["/marketing/leads/metrics"],
+    queryKey: ["/api/marketing/leads/metrics"],
   });
 
   const { data: users = [] } = useQuery<User[]>({

@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { marketingAttendance, leaveRequests } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
@@ -63,8 +64,22 @@ interface MarketingAttendance {
   date?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  checkInLatitude?: string;
+  checkInLongitude?: string;
+  checkInLocation?: string;
+  checkOutLatitude?: string;
+  checkOutLongitude?: string;
+  checkOutLocation?: string;
   attendanceStatus?: "present" | "absent" | "late";
   isOnLeave?: boolean;
+  visitCount?: number;
+  tasksCompleted?: number;
+  workDescription?: string;
+  outcome?: string;
+  nextAction?: string;
+  breakStartTime?: string;
+  breakEndTime?: string;
+  totalHours?: number;
 }
 
 interface AttendanceWithUser extends MarketingAttendance {
@@ -149,6 +164,7 @@ export default function MarketingAttendance() {
   >(undefined);
 
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   // API Queries
@@ -157,18 +173,18 @@ export default function MarketingAttendance() {
     isLoading: attendanceLoading,
     error: attendanceError,
   } = useQuery({
-    queryKey: ["marketing-attendance", "today"],
+    queryKey: ["/api/marketing-attendance/today"],
     queryFn: marketingAttendance.getToday,
   });
 
   const { data: allAttendance = [] } = useQuery({
-    queryKey: ["marketing-attendance", "all"],
+    queryKey: ["/api/marketing-attendance"],
     queryFn: marketingAttendance.getAll,
   });
 
   const { data: metrics, isLoading: metricsLoading } =
     useQuery<ApiAttendanceMetrics>({
-      queryKey: ["marketing-attendance", "metrics"],
+      queryKey: ["/api/marketing-attendance/metrics"],
       queryFn: marketingAttendance.getMetrics,
     });
 
@@ -183,7 +199,7 @@ export default function MarketingAttendance() {
   });
 
   const { data: leaveRequestsData = [], error: leaveRequestsError } = useQuery({
-    queryKey: ["leave-requests"],
+    queryKey: ["/api/leave-requests"],
     queryFn: leaveRequests.getAll,
     retry: 1, // Only retry once for leave requests
     retryOnMount: false, // Don't retry on component mount
@@ -215,7 +231,8 @@ export default function MarketingAttendance() {
   const checkInMutation = useMutation({
     mutationFn: marketingAttendance.checkIn,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-attendance/metrics"] });
       toast({ title: "Successfully checked in!" });
     },
     onError: (error: any) => {
@@ -232,7 +249,8 @@ export default function MarketingAttendance() {
   const checkOutMutation = useMutation({
     mutationFn: marketingAttendance.checkOut,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marketing-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-attendance/metrics"] });
       toast({ title: "Successfully checked out!" });
     },
     onError: (error: any) => {
@@ -250,7 +268,7 @@ export default function MarketingAttendance() {
     mutationFn: (data: Omit<LeaveRequest, "id" | "status">) =>
       leaveRequests.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests"] });
       toast({ title: "Leave request submitted successfully!" });
       setLeaveRequestModalOpen(false);
     },
@@ -263,15 +281,29 @@ export default function MarketingAttendance() {
     },
   });
 
-  // Filter attendance based on search and status
+  // Filter and de-duplicate attendance records for Team Status
   const filteredAttendance = useMemo(() => {
-    return todayAttendance.filter((record) => {
+    // 1. Group by userId and pick the latest record (by checkInTime)
+    const latestRecordsMap = new Map<string, AttendanceWithUser>();
+    
+    todayAttendance.forEach(record => {
+      const existing = latestRecordsMap.get(record.userId);
+      if (!existing || (record.checkInTime && (!existing.checkInTime || new Date(record.checkInTime) > new Date(existing.checkInTime)))) {
+        latestRecordsMap.set(record.userId, record);
+      }
+    });
+
+    const uniqueRecords = Array.from(latestRecordsMap.values());
+
+    // 2. Filter based on search and status
+    return uniqueRecords.filter((record) => {
+      const userFirstName = record.user?.firstName || (record.user as any)?.name?.split(' ')[0] || "Unknown";
+      const userLastName = record.user?.lastName || (record.user as any)?.name?.split(' ')[1] || "User";
+      
       const matchesSearch =
         !searchTerm ||
-        record.user?.firstName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        record.user?.lastName.toLowerCase().includes(searchTerm.toLowerCase());
+        userFirstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        userLastName.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -292,10 +324,14 @@ export default function MarketingAttendance() {
     console.log(`🔍 [Activity Feed] Processing ${todayAttendance.length} attendance records`);
     todayAttendance.forEach((record) => {
       console.log(`📝 [Activity Feed] Record ${record.id}: checkInTime=${record.checkInTime}`);
+      
+      const userFirstName = record.user?.firstName || (record.user as any)?.name?.split(' ')[0] || "Unknown";
+      const userLastName = record.user?.lastName || (record.user as any)?.name?.split(' ')[1] || "User";
+      
       activity.push({
         id: `att-${record.id}`,
         userId: record.userId,
-        user: record.user,
+        user: record.user || { firstName: userFirstName, lastName: userLastName },
         time: record.checkInTime ? new Date(record.checkInTime) : new Date(),
         type: "attendance",
         status: record.attendanceStatus,
@@ -328,18 +364,22 @@ export default function MarketingAttendance() {
       const isCurrentlyOnLeave = today >= reqStartDate && today <= reqEndDate;
 
       if (isCurrentlyOnLeave) {
-        console.log(`✅ [Activity Feed] Including leave for ${req.user?.firstName} (${req.id})`);
+        console.log(`✅ [Activity Feed] Including leave for ${req.user?.firstName || "Unknown"} (${req.id})`);
+        
+        const userFirstName = req.user?.firstName || (req.user as any)?.name?.split(' ')[0] || "Unknown";
+        const userLastName = req.user?.lastName || (req.user as any)?.name?.split(' ')[1] || "User";
+        
         activity.push({
           id: `leave-${req.id}`,
           userId: req.userId,
-          user: req.user,
+          user: req.user || { firstName: userFirstName, lastName: userLastName },
           time: reqStartDate,
           type: "leave",
           status: req.status,
           label: `Requested ${req.leaveType} leave: ${req.reason}`,
         });
       } else {
-        console.log(`❌ [Activity Feed] Skipping leave for ${req.user?.firstName} (${req.id}) - Outside range`);
+        console.log(`❌ [Activity Feed] Skipping leave for ${req.user?.firstName || "Unknown"} (${req.id}) - Outside range`);
       }
     });
 
@@ -593,16 +633,16 @@ export default function MarketingAttendance() {
 
   // Default metrics if loading - map API response to expected format
   const displayMetrics: AttendanceMetrics = {
-    totalEmployees: metrics?.totalRecords || users.length,
+    totalEmployees: metrics?.totalRecords || usersData.length,
     presentToday: metrics?.presentCount || statusCounts.present,
     absentToday: metrics?.absentCount || statusCounts.absent,
     lateToday: statusCounts.late, // API doesn't track late separately yet
     onLeaveToday: metrics?.leaveCount || statusCounts.on_leave,
     averageWorkHours: 8.5,
     attendanceRate:
-      (metrics?.totalRecords || users.length) > 0
+      (metrics?.totalRecords || usersData.length) > 0
         ? ((metrics?.presentCount || statusCounts.present) /
-            (metrics?.totalRecords || users.length)) *
+            (metrics?.totalRecords || usersData.length)) *
           100
         : 0,
     monthlyStats: {
@@ -614,7 +654,7 @@ export default function MarketingAttendance() {
   };
 
   const selectedUser = selectedAttendanceUser
-    ? users.find((u) => u.id === selectedAttendanceUser)
+    ? usersData.find((u) => u.id === selectedAttendanceUser)
     : null;
 
   if (attendanceError) {
@@ -813,7 +853,18 @@ export default function MarketingAttendance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Button
                   className="h-16 flex-col space-y-2"
-                  onClick={() => setCheckInModalOpen(true)}
+                  onClick={() => {
+                    if (currentUser?.id) {
+                      setSelectedAttendanceUser(currentUser.id);
+                      setCheckInModalOpen(true);
+                    } else {
+                      toast({
+                        title: "Authentication error",
+                        description: "Please log in again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                   data-testid="quick-checkin"
                 >
                   <Play className="h-5 w-5" />
@@ -823,7 +874,18 @@ export default function MarketingAttendance() {
                 <Button
                   variant="outline"
                   className="h-16 flex-col space-y-2"
-                  onClick={() => setCheckOutModalOpen(true)}
+                  onClick={() => {
+                    if (currentUser?.id) {
+                      setSelectedAttendanceUser(currentUser.id);
+                      setCheckOutModalOpen(true);
+                    } else {
+                      toast({
+                        title: "Authentication error",
+                        description: "Please log in again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                   data-testid="quick-checkout"
                 >
                   <Pause className="h-5 w-5" />

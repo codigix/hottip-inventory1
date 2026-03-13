@@ -58,17 +58,17 @@ export default function Reports() {
 
   // API Queries
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['/marketing/leads', dateRangeParam],
+    queryKey: ['/api/marketing/leads', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: leadsMetrics, isLoading: loadingLeadsMetrics } = useQuery({
-    queryKey: ['/marketing/leads/metrics', dateRangeParam],
+    queryKey: ['/api/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: fieldVisitsData, isLoading: loadingVisits } = useQuery({
-    queryKey: ['/field-visits', dateRangeParam],
+    queryKey: ['/api/field-visits', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
@@ -83,27 +83,27 @@ const queryDateRange = {
   to: endDate.toISOString(),
 };
 const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
-  queryKey: ['/field-visits/metrics', queryDateRange],
+  queryKey: ['/api/field-visits/metrics', queryDateRange],
   enabled: !!queryDateRange.from && !!queryDateRange.to
 });
 
   const { data: tasksData, isLoading: loadingTasks } = useQuery({
-    queryKey: ['/marketing-tasks', dateRangeParam],
+    queryKey: ['/api/marketing-tasks', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: tasksMetrics, isLoading: loadingTasksMetrics } = useQuery({
-    queryKey: ['/marketing-tasks/metrics', dateRangeParam],
+    queryKey: ['/api/marketing-tasks/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: conversionData, isLoading: loadingConversion } = useQuery({
-    queryKey: ['/marketing/conversion-rates', dateRangeParam],
+    queryKey: ['/api/marketing/conversion-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: teamPerformance, isLoading: loadingTeamPerf } = useQuery({
-    queryKey: ['/marketing/team-performance', dateRangeParam],
+    queryKey: ['/api/marketing/team-performance', dateRangeParam],
     enabled: !!dateRangeParam
   });
 

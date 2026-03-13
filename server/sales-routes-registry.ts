@@ -626,9 +626,26 @@ export function registerSalesRoutes(
 
   app.post("/api/outbound-quotations", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const body = { ...req.body };
+      
+      // Auto-generate quotation number if missing
+      if (!body.quotationNumber || body.quotationNumber.trim() === "") {
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+        body.quotationNumber = `QTN-${timestamp}-${random}`;
+      }
+
+      // Convert date strings to Date objects to avoid TypeError: value.toISOString is not a function
+      if (body.quotationDate && typeof body.quotationDate === "string") {
+        body.quotationDate = new Date(body.quotationDate);
+      }
+      if (body.validUntil && typeof body.validUntil === "string") {
+        body.validUntil = new Date(body.validUntil);
+      }
+
       const quotationData = insertOutboundQuotationSchema.parse({
-        ...req.body,
-        userId: req.body.userId || req.user?.id
+        ...body,
+        userId: body.userId || req.user?.id
       });
       const quotation = await storage.createOutboundQuotation(quotationData);
       res.status(201).json(quotation);

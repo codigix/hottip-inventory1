@@ -120,7 +120,7 @@ export default function LeadForm({
 
   // Fetch existing lead data if editing
   const { data: existingLead } = useQuery({
-    queryKey: ["/marketing/leads", leadId],
+    queryKey: ["/api/marketing/leads", leadId],
     enabled: !!leadId && open,
   });
 
@@ -152,12 +152,12 @@ export default function LeadForm({
 
   const createMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest("/marketing/leads", {
+      apiRequest("/api/marketing/leads", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({ title: "Lead created successfully!" });
       onOpenChange(false);
       form.reset();
@@ -173,16 +173,16 @@ export default function LeadForm({
 
   const updateMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest(`/marketing/leads/${leadId}`, {
+      apiRequest(`/api/marketing/leads/${leadId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({
-        queryKey: ["/marketing/leads", leadId],
+        queryKey: ["/api/marketing/leads", leadId],
       });
-      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({ title: "Lead updated successfully!" });
       onOpenChange(false);
     },

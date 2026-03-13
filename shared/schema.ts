@@ -293,7 +293,7 @@ export const marketingTasks = pgTable("marketing_tasks", {
   status: marketingTaskStatus("status").notNull().default("pending"),
   dueDate: timestamp("dueDate"),
   startedDate: timestamp("startedDate"),
-  leadId: uuid("leadId").references(() => leads.id),
+  leadId: uuid("leadId").references(() => leads.id, { onDelete: "cascade" }),
   fieldVisitId: uuid("fieldVisitId").references(() => fieldVisits.id),
   customerId: uuid("customerId").references(() => customers.id),
   estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
@@ -307,29 +307,34 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 export const marketingAttendance = pgTable("marketing_attendance", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull(),
+  userid: uuid("userid").notNull(),
   date: timestamp("date").notNull(),
-  checkInTime: timestamp("checkInTime"),
-  checkOutTime: timestamp("checkOutTime"),
-  checkInLocation: text("checkInLocation"),
-  checkOutLocation: text("checkOutLocation"),
-  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
-  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
-  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
-  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+  checkintime: timestamp("checkintime"),
+  checkouttime: timestamp("checkouttime"),
+  checkinlocation: text("checkinlocation"),
+  checkoutlocation: text("checkoutlocation"),
+  checkinlatitude: numeric("checkinlatitude", { precision: 10, scale: 7 }),
+  checkinlongitude: numeric("checkinlongitude", { precision: 10, scale: 7 }),
+  checkoutlatitude: numeric("checkoutlatitude", { precision: 10, scale: 7 }),
+  checkoutlongitude: numeric("checkoutlongitude", { precision: 10, scale: 7 }),
   // Additional fields used by storage methods
   latitude: numeric("latitude", { precision: 10, scale: 7 }),
   longitude: numeric("longitude", { precision: 10, scale: 7 }),
   location: text("location"),
-  photoPath: text("photoPath"),
-  workDescription: text("workDescription"),
-  attendanceStatus: text("attendanceStatus").default("present"),
-  visitCount: integer("visitCount"),
-  tasksCompleted: integer("tasksCompleted"),
+  photopath: text("photopath"),
+  workdescription: text("workdescription"),
+  attendancestatus: text("attendancestatus").default("present"),
+  visitcount: integer("visitcount"),
+  taskscompleted: integer("taskscompleted"),
   outcome: text("outcome"),
-  nextAction: text("nextAction"),
-  isOnLeave: boolean("isOnLeave").default(false),
+  nextaction: text("nextaction"),
+  isonleave: boolean("isonleave").default(false),
+  breakstarttime: timestamp("breakstarttime"),
+  breakendtime: timestamp("breakendtime"),
+  totalhours: numeric("totalhours", { precision: 5, scale: 2 }),
+  leavetype: text("leavetype"),
 });
+
 export const marketingTodays = pgTable("marketing_todays", {
   id: uuid("id").primaryKey().defaultRandom(),
   userid: uuid("userid")
@@ -349,6 +354,10 @@ export const marketingTodays = pgTable("marketing_todays", {
   outcome: text("outcome"),
   nextaction: text("nextaction"),
   isonleave: boolean("isonleave").default(false),
+  breakstarttime: timestamp("breakstarttime"),
+  breakendtime: timestamp("breakendtime"),
+  totalhours: numeric("totalhours", { precision: 5, scale: 2 }),
+  leavetype: text("leavetype"),
 });
 
 // New Table: Marketing_Metrics
@@ -422,7 +431,7 @@ export const fieldVisits = pgTable("field_visits", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
   leadId: uuid("leadId") // match exact DB column
-    .references(() => leads.id)
+    .references(() => leads.id, { onDelete: "cascade" })
     .notNull(),
   plannedDate: timestamp("plannedDate").notNull(),
   plannedStartTime: timestamp("plannedStartTime"),
@@ -1577,6 +1586,10 @@ export const insertMarketingAttendanceSchema = z.object({
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),
+  breakStartTime: z.string().optional(),
+  breakEndTime: z.string().optional(),
+  totalHours: z.string().optional(),
+  leaveType: z.string().optional(),
 });
 
 export const insertLeaveRequestSchema = z.object({

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -49,32 +50,20 @@ export default function MarketingDashboard() {
     error,
   } = useQuery<MarketingDashboardData>({
     queryKey: ["/api/marketing"],
-    queryFn: async () => {
-      const res = await fetch("/api/marketing");
-      if (!res.ok) throw new Error("Failed to fetch dashboard data");
-      return res.json();
-    },
+    queryFn: () => apiRequest("/api/marketing"),
   });
 
   // Recent leads
   const { data: recentLeads, isLoading: leadsLoading } = useQuery({
     queryKey: ["/api/leads"],
-    queryFn: async () => {
-      const res = await fetch("/api/leads");
-      if (!res.ok) throw new Error("Failed to fetch leads");
-      return res.json();
-    },
+    queryFn: () => apiRequest("/api/leads"),
     select: (data: any[]) => data?.slice(0, 3) || [],
   });
 
   // Upcoming field visits
   const { data: upcomingVisits, isLoading: visitsLoading } = useQuery({
     queryKey: ["/api/field-visits"],
-    queryFn: async () => {
-      const res = await fetch("/api/field-visits");
-      if (!res.ok) throw new Error("Failed to fetch visits");
-      return res.json();
-    },
+    queryFn: () => apiRequest("/api/field-visits"),
     select: (data: any[]) => {
       return (
         data

@@ -158,9 +158,33 @@ export const createLead = async (
 
     const lead = await storage.createLead(leadData);
 
+    // AUTO-CREATE MARKETING TASK: If lead was assigned to someone (including the creator)
+    if (lead.assignedTo) {
+      try {
+        await storage.createMarketingTask({
+          title: `Newly Created Lead: ${lead.firstName} ${lead.lastName}`,
+          description: `You have been assigned a lead from ${lead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+          type: "follow_up",
+          assignedTo: lead.assignedTo as string,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          priority: (lead.priority as any) || "medium",
+          status: "pending",
+          dueDate: lead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Default 2 days
+          leadId: lead.id,
+        });
+        console.log(`✅ Auto-created assignment task for new lead ${lead.id} assigned to ${lead.assignedTo}`);
+      } catch (taskError) {
+        console.error("⚠️ Failed to auto-create assignment task for new lead:", taskError);
+      }
+    }
+
     // Fetch the complete lead with assignee info for the frontend
     const fullLead = await storage.getLead(lead.id);
 
+    // If auto-task was created, the client might want to refresh tasks list.
+    // The current response returns the lead.
+    
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_LEAD",
@@ -1132,6 +1156,13 @@ export const createMarketingTask = async (
     }
 
     const task = await storage.createMarketingTask(taskData);
+    
+    // Fetch the task with joined user info for the frontend
+    const tasksWithUserInfo = await storage.getMarketingTasks({ 
+      id: task.id 
+    });
+    const fullTask = tasksWithUserInfo.find(t => t.id === task.id) || task;
+
     await storage.createActivity({
       userId: authenticatedUserId,
       action: "CREATE_MARKETING_TASK",
@@ -1139,7 +1170,7 @@ export const createMarketingTask = async (
       entityId: task.id,
       details: `Created marketing task: ${task.title}`,
     });
-    res.status(201).json(task);
+    res.status(201).json(fullTask);
   } catch (error) {
     console.error("Error creating marketing task:", error);
     if (error instanceof z.ZodError) {
@@ -1445,9 +1476,27 @@ export const updateMarketingAttendance = async (
     const attendanceData = insertMarketingAttendanceSchema
       .partial()
       .parse(req.body);
+
+    // Map camelCase fields to database columns (lowercase)
+    const updatePayload: any = {};
+    if (attendanceData.userId) updatePayload.userid = attendanceData.userId;
+    if (attendanceData.date) updatePayload.date = new Date(attendanceData.date);
+    if (attendanceData.checkInTime) updatePayload.checkintime = new Date(attendanceData.checkInTime);
+    if (attendanceData.checkOutTime) updatePayload.checkouttime = new Date(attendanceData.checkOutTime);
+    if (attendanceData.latitude !== undefined) updatePayload.latitude = attendanceData.latitude;
+    if (attendanceData.longitude !== undefined) updatePayload.longitude = attendanceData.longitude;
+    if (attendanceData.location) updatePayload.location = attendanceData.location;
+    if (attendanceData.photoPath) updatePayload.photopath = attendanceData.photoPath;
+    if (attendanceData.workDescription) updatePayload.workdescription = attendanceData.workDescription;
+    if (attendanceData.visitCount !== undefined) updatePayload.visitcount = attendanceData.visitCount;
+    if (attendanceData.tasksCompleted !== undefined) updatePayload.taskscompleted = attendanceData.tasksCompleted;
+    if (attendanceData.outcome) updatePayload.outcome = attendanceData.outcome;
+    if (attendanceData.nextAction) updatePayload.nextaction = attendanceData.nextAction;
+    if (attendanceData.attendanceStatus) updatePayload.attendancestatus = attendanceData.attendanceStatus;
+
     const attendance = await storage.updateMarketingAttendance(
       req.params.id,
-      attendanceData
+      updatePayload
     );
     res.json(attendance);
   } catch (error) {
@@ -1528,25 +1577,18 @@ export const checkInMarketingAttendance = async (
       req.body;
 
     // Use authenticated user ID
-    const userid = req.user!.id;
+    const userId = req.user!.id;
 
-    const attendance = await db
-      .insert(marketingTodays)
-      .values({
-        userid, // lowercase column in DB
-        date: new Date(),
-        checkintime: new Date(), // lowercase column in DB
-        latitude,
-        longitude,
-        location,
-        photopath: photoPath || null,
-        workdescription: workDescription || null,
-        attendancestatus: "present",
-        visitcount: 0,
-        taskscompleted: 0,
-        isonleave: false,
-      })
-      .returning();
+    // Use storage method which handles find-or-update logic
+    const attendance = await storage.checkInMarketingAttendance(userId, {
+      date: new Date(),
+      checkInTime: new Date(),
+      latitude,
+      longitude,
+      location,
+      photoPath,
+      workDescription,
+    });
 
     res.json({ attendance, message: "Successfully checked in" });
   } catch (error) {
@@ -1560,56 +1602,35 @@ export const checkOutMarketingAttendance = async (
   res: Response
 ) => {
   try {
-    const { latitude, longitude, location } = req.body;
+    const { 
+      latitude, 
+      longitude, 
+      location,
+      visitCount,
+      tasksCompleted,
+      workDescription,
+      outcome,
+      nextAction
+    } = req.body;
 
     // Use authenticated user ID
-    const userid = req.user!.id;
+    const userId = req.user!.id;
 
-    const today = new Date();
-    const startOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
-    const endOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + 1
-    );
-
-    // Get today's active check-in
-    const activeAttendances = await db
-      .select()
-      .from(marketingTodays)
-      .where(
-        and(
-          eq(marketingTodays.userid, userid), // lowercase column
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
-          isNull(marketingTodays.checkouttime) // lowercase column
-        )
-      );
-
-    if (activeAttendances.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No active check-in found for today" });
-    }
-
-    const activeAttendance = activeAttendances[0];
-
-    // Only update defined values
-    const updateData: any = { checkouttime: new Date() }; // lowercase
-    if (location) updateData.checkoutlocation = location; // lowercase
-
-    const updatedAttendance = await db
-      .update(marketingTodays)
-      .set(updateData)
-      .where(eq(marketingTodays.id, activeAttendance.id))
-      .returning();
+    // Use storage method which handles find-or-update logic
+    const attendance = await storage.checkOutMarketingAttendance(userId, {
+      checkOutTime: new Date(),
+      latitude,
+      longitude,
+      location,
+      visitCount,
+      tasksCompleted,
+      workDescription,
+      outcome,
+      nextAction,
+    });
 
     res.json({
-      attendance: updatedAttendance[0],
+      attendance,
       message: "Successfully checked out",
     });
   } catch (error: any) {
@@ -1846,6 +1867,10 @@ export const getTodayMarketingAttendance = async (
         outcome: marketingTodays.outcome,
         nextAction: marketingTodays.nextaction,
         isOnLeave: marketingTodays.isonleave,
+        breakStartTime: marketingTodays.breakstarttime,
+        breakEndTime: marketingTodays.breakendtime,
+        totalHours: marketingTodays.totalhours,
+        leaveType: marketingTodays.leavetype,
         // User fields
         userId_user: users.id,
         userFirstName: users.firstName,
@@ -1886,6 +1911,10 @@ export const getTodayMarketingAttendance = async (
       outcome: row.outcome || null,
       nextAction: row.nextAction || null,
       isOnLeave: row.isOnLeave ?? false,
+      breakStartTime: row.breakStartTime?.toISOString() || null,
+      breakEndTime: row.breakEndTime?.toISOString() || null,
+      totalHours: row.totalHours || null,
+      leaveType: row.leaveType || null,
       user: {
         id: row.userId_user || "",
         firstName: row.userFirstName || "Unknown",

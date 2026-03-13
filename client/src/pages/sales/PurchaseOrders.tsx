@@ -635,7 +635,7 @@ export default function PurchaseOrders() {
                             <td className="p-2"><Input {...form.register(`items.${index}.itemName`)} placeholder="Item Name" /></td>
                             <td className="p-2"><Input {...form.register(`items.${index}.description`)} placeholder="Description" /></td>
                             <td className="p-2">
-                              <Input type="number" {...form.register(`items.${index}.quantity`, {
+                              <Input type="number" step="any" {...form.register(`items.${index}.quantity`, {
                                 valueAsNumber: true,
                                 onChange: (e) => {
                                   const qty = parseFloat(e.target.value) || 0;
@@ -646,7 +646,7 @@ export default function PurchaseOrders() {
                             </td>
                             <td className="p-2"><Input {...form.register(`items.${index}.unit`)} /></td>
                             <td className="p-2">
-                              <Input type="number" {...form.register(`items.${index}.unitPrice`, {
+                              <Input type="number" step="any" {...form.register(`items.${index}.unitPrice`, {
                                 valueAsNumber: true,
                                 onChange: (e) => {
                                   const rate = parseFloat(e.target.value) || 0;
@@ -655,7 +655,7 @@ export default function PurchaseOrders() {
                                 }
                               })} />
                             </td>
-                            <td className="p-2"><Input type="number" {...form.register(`items.${index}.amount`, { valueAsNumber: true })} readOnly className="bg-muted" /></td>
+                            <td className="p-2"><Input type="number" step="any" {...form.register(`items.${index}.amount`, { valueAsNumber: true })} readOnly className="bg-muted" /></td>
                             <td className="p-2">
                               <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -688,7 +688,7 @@ export default function PurchaseOrders() {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-2">
                         <span className="text-muted-foreground">GST:</span>
-                        <div className="w-16"><Input type="number" {...form.register("gstPercentage", { valueAsNumber: true })} className="h-7 text-xs" /></div>
+                        <div className="w-16"><Input type="number" step="any" {...form.register("gstPercentage", { valueAsNumber: true })} className="h-7 text-xs" /></div>
                         <span className="text-xs text-muted-foreground">%</span>
                       </div>
                       <span className="font-medium">₹{form.watch("gstAmount").toLocaleString("en-IN")}</span>

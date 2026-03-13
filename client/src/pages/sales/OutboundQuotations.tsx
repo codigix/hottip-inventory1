@@ -819,10 +819,12 @@ export default function OutboundQuotations() {
                   <tbody className="divide-y">
                     {(selectedQuotation.quotationItems as any[])?.map((item, idx) => (
                       <tr key={idx}>
-                        <td className="px-4 py-3 font-medium">{item.partName || item.description}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {item.partDescription || item.partName || item.description || "-"}
+                        </td>
                         <td className="px-4 py-3 text-center">{item.qty}</td>
-                        <td className="px-4 py-3 text-right">₹{parseFloat(item.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-4 py-3 text-right font-bold">₹{parseFloat(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3 text-right">₹{parseFloat(String(item.unitPrice)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3 text-right font-bold">₹{parseFloat(String(item.amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
                   </tbody>

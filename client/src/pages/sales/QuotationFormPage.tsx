@@ -59,7 +59,7 @@ const quotationFormSchema = insertOutboundQuotationSchema
   .extend({
     quotationNumber: z
       .string()
-      .min(1, "⚠️ Quotation number is required"),
+      .optional(),
     customerId: z
       .string()
       .min(1, "⚠️ Please select a customer from the dropdown"),
@@ -151,6 +151,14 @@ export default function QuotationFormPage() {
   });
 
   useEffect(() => {
+    if (!isEdit && !form.getValues("quotationNumber")) {
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+      form.setValue("quotationNumber", `QTN-${timestamp}-${random}`);
+    }
+  }, [isEdit, form]);
+
+  useEffect(() => {
     if (isEdit && quotation) {
       setMoldDetails(quotation.moldDetails || []);
       setQuotationItems(quotation.quotationItems || []);
@@ -188,10 +196,20 @@ export default function QuotationFormPage() {
 
   const mutation = useMutation({
     mutationFn: (data: FormValues) => {
+      // Enrich quotationItems with mold info for easier PDF generation
+      const enrichedItems = quotationItems.map(item => {
+        const mold = moldDetails.find(m => m.id === item.moldId);
+        return {
+          ...item,
+          partName: mold?.partName || "",
+          mouldNo: mold?.mouldNo || ""
+        };
+      });
+
       const payload = {
         ...data,
         moldDetails,
-        quotationItems,
+        quotationItems: enrichedItems,
       };
       return isEdit
         ? apiRequest("PUT", `/outbound-quotations/${id}`, payload)
@@ -374,7 +392,27 @@ export default function QuotationFormPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs font-semibold uppercase tracking-wider">Customer / Client</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const customer = customers.find(c => c.id === value);
+                        if (customer) {
+                          form.setValue("companyName", customer.company || customer.name);
+                          const fullAddress = [
+                            customer.address,
+                            customer.city,
+                            customer.state,
+                            customer.zipCode,
+                            customer.country
+                          ].filter(Boolean).join(", ");
+                          form.setValue("companyAddress", fullAddress);
+                          if (customer.email) form.setValue("companyEmail", customer.email);
+                          if (customer.phone) form.setValue("companyPhone", customer.phone);
+                          if (customer.gstNumber) form.setValue("companyGstin", customer.gstNumber);
+                        }
+                      }} 
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10">
                           <SelectValue placeholder="" />

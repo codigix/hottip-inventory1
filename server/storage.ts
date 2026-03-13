@@ -629,6 +629,21 @@ class Storage {
   }
 
   async deletePurchaseOrder(id: string): Promise<void> {
+    // Manually delete or update dependent records first to handle cases where 
+    // foreign key constraints might block deletion
+    
+    // 1. Delete associated line items (though schema has onDelete: cascade, manual is safer)
+    await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+    
+    // 2. Delete associated accounts payable records as they are directly tied to this PO
+    await db.delete(accountsPayables).where(eq(accountsPayables.poId, id));
+    
+    // 3. Nullify the reference in sales orders (don't delete the sales order itself)
+    await db.update(salesOrders)
+      .set({ purchaseOrderId: null })
+      .where(eq(salesOrders.purchaseOrderId, id));
+    
+    // 4. Finally delete the purchase order itself
     await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
   }
 
@@ -784,6 +799,10 @@ class Storage {
       outcome: row.marketing_todays.outcome,
       nextAction: row.marketing_todays.nextaction,
       isOnLeave: row.marketing_todays.isonleave,
+      breakStartTime: row.marketing_todays.breakStartTime,
+      breakEndTime: row.marketing_todays.breakEndTime,
+      totalHours: row.marketing_todays.totalHours,
+      leaveType: row.marketing_todays.leaveType,
       user: row.users,
     };
   }
@@ -832,6 +851,10 @@ class Storage {
       outcome: r.marketing_todays.outcome,
       nextAction: r.marketing_todays.nextaction,
       isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakstarttime,
+      breakEndTime: r.marketing_todays.breakendtime,
+      totalHours: r.marketing_todays.totalhours,
+      leaveType: r.marketing_todays.leavetype,
       user: r.users ? {
         id: r.users.id,
         firstName: r.users.firstName,
@@ -931,6 +954,10 @@ class Storage {
       outcome: r.marketing_todays.outcome,
       nextAction: r.marketing_todays.nextaction,
       isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakStartTime,
+      breakEndTime: r.marketing_todays.breakEndTime,
+      totalHours: r.marketing_todays.totalHours,
+      leaveType: r.marketing_todays.leaveType,
       user: r.users,
     }));
   }
@@ -969,8 +996,32 @@ class Storage {
       outcome: r.marketing_todays.outcome,
       nextAction: r.marketing_todays.nextaction,
       isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakStartTime,
+      breakEndTime: r.marketing_todays.breakEndTime,
+      totalHours: r.marketing_todays.totalHours,
+      leaveType: r.marketing_todays.leaveType,
       user: r.users,
     }));
+  }
+
+  async getMarketingAttendanceForUserToday(userId: string): Promise<any | undefined> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const [row] = await db
+      .select()
+      .from(marketingTodays)
+      .where(
+        and(
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today),
+          lt(marketingTodays.date, tomorrow)
+        )
+      );
+    
+    return row;
   }
 
   async checkInMarketingAttendance(
@@ -1058,8 +1109,13 @@ class Storage {
       .update(marketingTodays)
       .set({
         checkouttime: data.checkOutTime ?? new Date(),
-        location: data.location,
+        location: data.location || existing[0].location,
         attendancestatus: "present",
+        workdescription: data.workDescription || existing[0].workdescription,
+        visitcount: data.visitCount !== undefined ? data.visitCount : existing[0].visitcount,
+        taskscompleted: data.tasksCompleted !== undefined ? data.tasksCompleted : existing[0].taskscompleted,
+        outcome: data.outcome || existing[0].outcome,
+        nextaction: data.nextAction || existing[0].nextaction,
       })
       .where(eq(marketingTodays.userid, userId))
       .returning();
@@ -1338,6 +1394,10 @@ class Storage {
       conditions.push(eq(marketingTasks.assignedTo, filters.assignedTo));
     }
 
+    if (filters?.id) {
+      conditions.push(eq(marketingTasks.id, filters.id));
+    }
+
     if (filters?.leadId) {
       conditions.push(eq(marketingTasks.leadId, filters.leadId));
     }
@@ -1355,6 +1415,14 @@ class Storage {
 
     const rows = await query.orderBy(desc(marketingTasks.createdAt));
     console.log(`📋 [STORAGE] getMarketingTasks returned ${rows.length} results`);
+    if (rows.length > 0) {
+      console.log("🔍 [STORAGE] First task sample:", JSON.stringify({
+        id: rows[0].task.id,
+        title: rows[0].task.title,
+        assignedTo: rows[0].task.assignedTo,
+        assignedToUser: rows[0].assignedToUser
+      }, null, 2));
+    }
     return rows.map(r => ({
       ...r.task,
       assignedToUser: r.assignedToUser,
@@ -1406,7 +1474,7 @@ class Storage {
     let query = db
       .select({
         lead: leads,
-        assignee: {
+        assignedToUser: {
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
@@ -1458,7 +1526,7 @@ class Storage {
 
     return result.map((row) => ({
       ...row.lead,
-      assignee: row.assignee,
+      assignedToUser: row.assignedToUser,
     }));
   }
 
@@ -1466,7 +1534,7 @@ class Storage {
     const [row] = await db
       .select({
         lead: leads,
-        assignee: {
+        assignedToUser: {
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
@@ -1481,7 +1549,7 @@ class Storage {
 
     return {
       ...row.lead,
-      assignee: row.assignee,
+      assignedToUser: row.assignedToUser,
     };
   }
 
@@ -1541,6 +1609,12 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   }
 
   async deleteLead(id: string): Promise<void> {
+    // Manually delete dependent records first to handle cases where 
+    // ON DELETE CASCADE might not be active in the DB schema
+    await db.delete(fieldVisits).where(eq(fieldVisits.leadId, id));
+    await db.delete(marketingTasks).where(eq(marketingTasks.leadId, id));
+    
+    // Now delete the lead
     await db.delete(leads).where(eq(leads.id, id));
   }
 
@@ -1644,19 +1718,64 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   // =====================
   // FIELD VISITS CRUD
   // =====================
-  async getFieldVisits(): Promise<FieldVisit[]> {
-    return await db
-      .select()
+  async getFieldVisits(): Promise<any[]> {
+    const rows = await db
+      .select({
+        visit: fieldVisits,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
       .from(fieldVisits)
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
       .orderBy(desc(fieldVisits.createdAt));
+
+    return rows.map(r => ({
+      ...r.visit,
+      assignedToUser: r.assignedToUser,
+      lead: r.lead
+    }));
   }
 
-  async getFieldVisit(id: string): Promise<FieldVisit | undefined> {
+  async getFieldVisit(id: string): Promise<any | undefined> {
     const [row] = await db
-      .select()
+      .select({
+        visit: fieldVisits,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
       .from(fieldVisits)
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
       .where(eq(fieldVisits.id, id));
-    return row;
+    
+    if (!row) return undefined;
+
+    return {
+      ...row.visit,
+      assignedToUser: row.assignedToUser,
+      lead: row.lead
+    };
   }
 
   async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
