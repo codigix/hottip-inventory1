@@ -2045,6 +2045,10 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     return updatedOrder;
   }
 
+  async deleteSalesOrder(id: string): Promise<void> {
+    await db.delete(salesOrders).where(eq(salesOrders.id, id));
+  }
+
   private async deductStockFromSalesOrder(order: any) {
     try {
       console.log(`📦 [STORAGE] Sales Order ${order.orderNumber} confirmed. Deducting stock...`);

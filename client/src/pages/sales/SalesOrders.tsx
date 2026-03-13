@@ -69,10 +69,6 @@ export default function SalesOrders() {
     queryKey: ["/sales-orders"],
   });
 
-  const { data: quotations = [] } = useQuery({
-    queryKey: ["/outbound-quotations"],
-  });
-
   const { data: purchaseOrders = [] } = useQuery({
     queryKey: ["/purchase-orders"],
   });
@@ -87,22 +83,16 @@ export default function SalesOrders() {
 
   const allReferences = useMemo(() => {
     return [
-      ...quotations.map((q: any) => ({ 
-        id: `Quotation:${q.id}`, 
-        originalId: q.id,
-        number: q.quotationNumber, 
-        type: 'Quotation', 
-        data: q 
-      })),
       ...purchaseOrders.map((p: any) => ({ 
         id: `PO:${p.id}`, 
         originalId: p.id,
         number: p.poNumber, 
+        customerName: p.supplier?.name || p.customer?.name || "Unknown",
         type: 'PO', 
         data: p 
       }))
     ];
-  }, [quotations, purchaseOrders]);
+  }, [purchaseOrders]);
 
   const form = useForm<SalesOrderFormValues>({
     resolver: zodResolver(insertSalesOrderSchema),
@@ -138,15 +128,12 @@ export default function SalesOrders() {
     }
   }, [user, form]);
 
-  const selectedQuotationId = form.watch("quotationId");
   const selectedPurchaseOrderId = form.watch("purchaseOrderId");
 
   // Handle Reference Selection
   useEffect(() => {
     let reference = null;
-    if (selectedQuotationId && selectedQuotationId !== "none") {
-      reference = quotations.find((q: any) => q.id === selectedQuotationId);
-    } else if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
+    if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
       reference = purchaseOrders.find((p: any) => p.id === selectedPurchaseOrderId);
     }
 
@@ -184,7 +171,7 @@ export default function SalesOrders() {
         replace(mappedItems);
       }
     }
-  }, [selectedQuotationId, selectedPurchaseOrderId, quotations, purchaseOrders, form, replace]);
+  }, [selectedPurchaseOrderId, purchaseOrders, products, form, replace]);
 
   // Calculate Totals
   const watchItems = form.watch("items");
@@ -243,6 +230,32 @@ export default function SalesOrders() {
       setActionInProgressId(null);
     },
   });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: (orderId: string | number) => {
+      return apiRequest("DELETE", `/sales-orders/${orderId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/sales-orders"] });
+      toast({
+        title: "Success",
+        description: "Sales order deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete sales order.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = (orderId: string) => {
+    if (confirm("Are you sure you want to delete this sales order?")) {
+      deleteOrderMutation.mutate(orderId);
+    }
+  };
 
   const handleUpdateStatus = (orderId: string, status: string) => {
     setActionInProgressId(orderId);
@@ -392,6 +405,15 @@ export default function SalesOrders() {
                 <XCircle className="h-4 w-4 text-red-600" />
               </Button>
             )}
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => handleDelete(order.id)}
+              disabled={deleteOrderMutation.isPending}
+              title="Delete Order"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
           </div>
         );
       },
@@ -484,27 +506,27 @@ export default function SalesOrders() {
                             if (val === "none") {
                               form.setValue("quotationId", null);
                               form.setValue("purchaseOrderId", null);
-                            } else if (val.startsWith("Quotation:")) {
-                              form.setValue("quotationId", val.split(":")[1]);
-                              form.setValue("purchaseOrderId", null);
-                            } else if (val.startsWith("PO:")) {
+                            } else {
                               form.setValue("quotationId", null);
                               form.setValue("purchaseOrderId", val.split(":")[1]);
                             }
                           }} 
-                          value={selectedQuotationId ? `Quotation:${selectedQuotationId}` : (selectedPurchaseOrderId ? `PO:${selectedPurchaseOrderId}` : "none")}
+                          value={selectedPurchaseOrderId ? `PO:${selectedPurchaseOrderId}` : "none"}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select quotation" />
+                              <SelectValue placeholder="Select PO" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">None (Manual)</SelectItem>
                             {allReferences.map((ref: any) => (
                               <SelectItem key={ref.id} value={ref.id}>
-                                <div className="flex justify-between items-center w-full min-w-[200px]">
-                                  <span>{ref.number}</span>
+                                <div className="flex justify-between items-center w-full min-w-[300px]">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{ref.number}</span>
+                                    <span className="text-[10px] text-muted-foreground">{ref.customerName}</span>
+                                  </div>
                                   <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
                                     {ref.type}
                                   </Badge>

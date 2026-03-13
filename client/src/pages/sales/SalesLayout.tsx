@@ -37,6 +37,7 @@ import QuotationFormPage from "./QuotationFormPage";
 import PurchaseOrders from "./PurchaseOrders";
 import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
+import CreateInvoice from "./CreateInvoice";
 import ClientManagement from "./ClientManagement";
 import VendorManagement from "./VendorManagement";
 import SalesReports from "./SalesReports";
@@ -224,6 +225,12 @@ export default function SalesLayout() {
               New Quotation
             </Button>
           </Link>
+          <Link href="/sales/invoices/new">
+            <Button size="sm" className="w-full justify-start" data-testid="button-new-invoice-quick">
+              <Plus className="h-4 w-4 mr-2" />
+              New Invoice
+            </Button>
+          </Link>
           <Button size="sm" variant="outline" className="w-full justify-start" data-testid="button-search-all">
             <Search className="h-4 w-4 mr-2" />
             Search All
@@ -248,6 +255,7 @@ export default function SalesLayout() {
           <Route path="/sales/purchase-orders" component={PurchaseOrders} />
           <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
+          <Route path="/sales/invoices/new" component={CreateInvoice} />
           <Route path="/sales/clients" component={ClientManagement} />
           <Route path="/sales/vendors" component={VendorManagement} />
           <Route path="/sales/reports" component={SalesReports} />
