@@ -59,10 +59,20 @@ export function registerSalesRoutes(
     try {
       const { insertInboundQuotationSchema } = await import("../shared/schema");
       
+      const body = { ...req.body };
+
+      // Convert date strings to Date objects to avoid TypeError: value.toISOString is not a function
+      if (body.quotationDate && typeof body.quotationDate === "string") {
+        body.quotationDate = new Date(body.quotationDate);
+      }
+      if (body.validUntil && typeof body.validUntil === "string") {
+        body.validUntil = new Date(body.validUntil);
+      }
+
       const quotationData = insertInboundQuotationSchema.parse({
-        ...req.body,
-        userId: req.body.userId || req.user?.id,
-        senderId: req.body.senderId || req.user?.id // Fallback if senderId missing
+        ...body,
+        userId: body.userId || req.user?.id,
+        senderId: body.senderId || req.user?.id // Fallback if senderId missing
       });
 
       const quotation = await storage.createInboundQuotation(quotationData);
@@ -77,10 +87,10 @@ export function registerSalesRoutes(
 
       res.status(201).json(quotation);
     } catch (error: any) {
-      console.error("❌ Error in POST /api/inbound-quotations:", error);
+      console.error("❌ Error in POST /api/inbound-quotations:", error?.message || error);
       res.status(400).json({
         error: "Invalid inbound quotation data",
-        details: error.errors || error.message,
+        details: error?.errors || error?.message || "Unknown error",
       });
     }
   });
@@ -150,6 +160,32 @@ export function registerSalesRoutes(
     } catch (error) {
       console.error("❌ Error in GET /api/inbound-quotations/:id:", error);
       res.status(500).json({ error: "Failed to fetch inbound quotation" });
+    }
+  });
+
+  app.delete("/api/inbound-quotations/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const quotation = await storage.getInboundQuotation(id);
+
+      if (!quotation) {
+        return res.status(404).json({ error: "Inbound quotation not found" });
+      }
+
+      await storage.deleteInboundQuotation(id);
+
+      await storage.createActivity({
+        userId: req.user?.id || "00000000-0000-0000-0000-000000000001",
+        action: "DELETE_INBOUND_QUOTATION",
+        entityType: "inbound_quotation",
+        entityId: id,
+        details: `Deleted inbound quotation: ${quotation.quotationNumber}`,
+      });
+
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("❌ Error in DELETE /api/inbound-quotations/:id:", error);
+      res.status(500).json({ error: "Failed to delete inbound quotation" });
     }
   });
 
@@ -661,8 +697,18 @@ export function registerSalesRoutes(
   app.put("/api/outbound-quotations/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = req.params.id;
+      const body = { ...req.body };
+
+      // Convert date strings to Date objects to avoid TypeError: value.toISOString is not a function
+      if (body.quotationDate && typeof body.quotationDate === "string") {
+        body.quotationDate = new Date(body.quotationDate);
+      }
+      if (body.validUntil && typeof body.validUntil === "string") {
+        body.validUntil = new Date(body.validUntil);
+      }
+
       const quotationData = insertOutboundQuotationSchema.partial().parse({
-        ...req.body,
+        ...body,
         updatedAt: new Date()
       });
       const quotation = await storage.updateOutboundQuotation(id, quotationData);
@@ -808,6 +854,25 @@ export function registerSalesRoutes(
       res.status(400).json({
         error: error.message || "Failed to delete outbound quotation",
         details: error.errors,
+      });
+    }
+  });
+
+  // Get single Outbound Quotation
+  app.get("/api/outbound-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id;
+      console.log(`📋 Fetching outbound quotation: ${id}`);
+      const quotation = await storage.getOutboundQuotation(id);
+      if (!quotation) {
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+      res.json(quotation);
+    } catch (e: any) {
+      console.error("❌ Error in GET /api/outbound-quotations/:id:", e);
+      res.status(500).json({
+        error: "Failed to fetch outbound quotation",
+        details: e.message,
       });
     }
   });

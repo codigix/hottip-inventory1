@@ -189,10 +189,8 @@ class Storage {
             name: customers.name,
             email: customers.email,
             phone: customers.phone,
-            // Add other customer fields here if needed by the frontend later
-            // address: customers.address,
-            // city: customers.city,
-            // ...
+            address: customers.address,
+            gstNumber: customers.gstNumber,
           },
         })
         .from(outboundQuotations)
@@ -334,49 +332,44 @@ class Storage {
     return row;
   }
 
-  // Add other CRUD methods if needed
-  async getInboundQuotations(): Promise<InboundQuotation[]> {
-    return await db
+  async getInboundQuotations(): Promise<(InboundQuotation & { sender: { name: string; email?: string | null } | null })[]> {
+    const result = await db
       .select({
-        id: inboundQuotations.id,
-        quotationNumber: inboundQuotations.quotationNumber,
-        senderId: inboundQuotations.senderId,
-        senderType: inboundQuotations.senderType,
-        status: inboundQuotations.status,
-        quotationDate: inboundQuotations.quotationDate,
-        validUntil: inboundQuotations.validUntil,
-        subject: inboundQuotations.subject,
-        totalAmount: inboundQuotations.totalAmount,
-        notes: inboundQuotations.notes,
-        attachmentPath: inboundQuotations.attachmentPath,
-        attachmentName: inboundQuotations.attachmentName,
-        createdAt: inboundQuotations.createdAt,
+        quotation: inboundQuotations,
+        customer: {
+          name: customers.name,
+          email: customers.email,
+          address: customers.address,
+          gstNumber: customers.gstNumber,
+        },
+        supplier: {
+          name: suppliers.name,
+          email: suppliers.email,
+          address: suppliers.address,
+          gstNumber: suppliers.gstNumber,
+        },
       })
-      .from(inboundQuotations);
+      .from(inboundQuotations)
+      .leftJoin(customers, eq(inboundQuotations.senderId, customers.id))
+      .leftJoin(suppliers, eq(inboundQuotations.senderId, suppliers.id));
+
+    return result.map((row) => ({
+      ...row.quotation,
+      sender: row.customer?.name ? row.customer : (row.supplier?.name ? row.supplier : null),
+    }));
   }
 
   async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
     const [row] = await db
-      .select({
-        id: inboundQuotations.id,
-        quotationNumber: inboundQuotations.quotationNumber,
-        quotationDate: inboundQuotations.quotationDate,
-        validUntil: inboundQuotations.validUntil,
-        subject: inboundQuotations.subject,
-        totalAmount: inboundQuotations.totalAmount,
-        status: inboundQuotations.status,
-        notes: inboundQuotations.notes,
-        senderId: inboundQuotations.senderId,
-        senderType: inboundQuotations.senderType,
-        attachmentPath: inboundQuotations.attachmentPath,
-        attachmentName: inboundQuotations.attachmentName,
-        userId: inboundQuotations.userId,
-        createdAt: inboundQuotations.createdAt,
-      })
+      .select()
       .from(inboundQuotations)
       .where(eq(inboundQuotations.id, id))
       .limit(1);
     return row;
+  }
+
+  async deleteInboundQuotation(id: string): Promise<void> {
+    await db.delete(inboundQuotations).where(eq(inboundQuotations.id, id));
   }
 
   // async updateInboundQuotation(id: string, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
@@ -424,6 +417,12 @@ class Storage {
           email: suppliers.email,
           phone: suppliers.phone,
         },
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+        },
         user: {
           id: users.id,
           username: users.username,
@@ -433,17 +432,26 @@ class Storage {
       })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(customers, eq(purchaseOrders.supplierId, customers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
       .orderBy(desc(purchaseOrders.createdAt));
 
-    // Fetch items for each order
+    // Fetch items and unify sender for each order
     const ordersWithItems = await Promise.all(
       orders.map(async (order) => {
         const items = await db
           .select()
           .from(purchaseOrderItems)
           .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
-        return { ...order, items };
+        
+        // Unify supplier/customer into a single supplier object for the frontend
+        const unifiedSupplier = order.supplier?.name ? order.supplier : (order.customer?.name ? order.customer : null);
+        
+        return { 
+          ...order, 
+          items,
+          supplier: unifiedSupplier
+        };
       })
     );
 
@@ -476,6 +484,13 @@ class Storage {
           phone: suppliers.phone,
           address: suppliers.address,
         },
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          address: customers.address,
+        },
         user: {
           id: users.id,
           username: users.username,
@@ -485,6 +500,7 @@ class Storage {
       })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(customers, eq(purchaseOrders.supplierId, customers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
       .where(eq(purchaseOrders.id, id));
 
@@ -495,7 +511,10 @@ class Storage {
       .from(purchaseOrderItems)
       .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
 
-    return { ...order, items };
+    // Unify supplier/customer into a single supplier object for the frontend
+    const unifiedSupplier = order.supplier?.name ? order.supplier : (order.customer?.name ? order.customer : null);
+    
+    return { ...order, items, supplier: unifiedSupplier };
   }
 
   async createPurchaseOrder(

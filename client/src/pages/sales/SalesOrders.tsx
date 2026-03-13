@@ -87,6 +87,13 @@ export default function SalesOrders() {
 
   const allReferences = useMemo(() => {
     return [
+      ...quotations.map((q: any) => ({ 
+        id: `Quotation:${q.id}`, 
+        originalId: q.id,
+        number: q.quotationNumber, 
+        type: 'Quotation', 
+        data: q 
+      })),
       ...purchaseOrders.map((p: any) => ({ 
         id: `PO:${p.id}`, 
         originalId: p.id,
@@ -95,7 +102,7 @@ export default function SalesOrders() {
         data: p 
       }))
     ];
-  }, [purchaseOrders]);
+  }, [quotations, purchaseOrders]);
 
   const form = useForm<SalesOrderFormValues>({
     resolver: zodResolver(insertSalesOrderSchema),
@@ -144,8 +151,9 @@ export default function SalesOrders() {
     }
 
     if (reference) {
-      if (reference.customerId) {
-        form.setValue("customerId", reference.customerId);
+      const cid = reference.customerId || reference.supplierId;
+      if (cid) {
+        form.setValue("customerId", cid);
       }
       form.setValue("gstType", reference.gstType || "IGST");
       form.setValue("gstPercentage", parseFloat(reference.gstPercentage) || 18);
@@ -470,7 +478,7 @@ export default function SalesOrders() {
                     name="quotationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reference Quotation</FormLabel>
+                        <FormLabel>Select PO</FormLabel>
                         <Select 
                           onValueChange={(val) => {
                             if (val === "none") {

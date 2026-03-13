@@ -557,10 +557,13 @@ export const inboundQuotations = pgTable("inbound_quotations", {
   notes: text("notes"),
   attachmentPath: text("attachmentPath"),
   attachmentName: text("attachmentName"),
-  senderId: uuid("senderId").notNull().references(() => users.id),
+  senderId: uuid("senderId").notNull(),
   userId: uuid("userId").notNull().references(() => users.id),
   senderType: text("senderType").notNull().default("vendor"),
   quotationRef: text("quotationRef"),
+  quotationItems: jsonb("quotationItems"),
+  moldDetails: jsonb("moldDetails"),
+  financialBreakdown: jsonb("financialBreakdown"),
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
@@ -781,9 +784,7 @@ export const orderStatus = pgEnum("order_status", [
 export const purchaseOrders = pgTable("purchase_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
   poNumber: text("poNumber").notNull().unique(),
-  supplierId: uuid("supplierId")
-    .notNull()
-    .references(() => suppliers.id),
+  supplierId: uuid("supplierId").notNull(),
   quotationId: uuid("quotationId"),
   userId: uuid("userId")
     .notNull()
@@ -1082,9 +1083,12 @@ export const insertInboundQuotationSchema = z.object({
     .default("received"),
   notes: z.string().optional(),
   senderType: z.enum(["client", "vendor", "supplier"]).optional().default("vendor"),
-  attachmentPath: z.string().optional(),
-  attachmentName: z.string().optional(),
+  attachmentPath: z.string().nullable().optional(),
+  attachmentName: z.string().nullable().optional(),
   quotationRef: z.string().optional(),
+  quotationItems: z.any().optional(),
+  moldDetails: z.any().optional(),
+  financialBreakdown: z.any().optional(),
 });
 export const insertInvoiceSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),

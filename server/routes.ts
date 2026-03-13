@@ -1480,9 +1480,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/inbound-quotations/:id", async (req, res) => {
     try {
+      const body = { ...req.body };
+
+      // Convert date strings to Date objects to avoid TypeError: value.toISOString is not a function
+      if (body.quotationDate && typeof body.quotationDate === "string") {
+        body.quotationDate = new Date(body.quotationDate);
+      }
+      if (body.validUntil && typeof body.validUntil === "string") {
+        body.validUntil = new Date(body.validUntil);
+      }
+
       const quotationData = insertInboundQuotationSchema
         .partial()
-        .parse(req.body);
+        .parse(body);
       const quotation = await storage.updateInboundQuotation(
         req.params.id,
         quotationData

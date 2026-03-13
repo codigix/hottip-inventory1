@@ -97,6 +97,55 @@ export const db = drizzle(pool, { schema });
       END $$;
     `);
 
+    // ✅ DROP foreign key constraint on inbound_quotations.senderId
+    // Since senderId can be a customer, vendor, or supplier, it should not have a hard FK to the users table.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 
+          FROM information_schema.table_constraints 
+          WHERE constraint_name = 'inbound_quotations_senderId_fkey' 
+          AND table_name = 'inbound_quotations'
+        ) THEN
+          ALTER TABLE "inbound_quotations" DROP CONSTRAINT "inbound_quotations_senderId_fkey";
+        END IF;
+      END $$;
+    `);
+
+    // ✅ DROP foreign key constraint on purchase_orders.supplierId
+    // Since supplierId can come from customers or suppliers (vendors) through inbound quotations, 
+    // it should not have a hard FK constraint.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 
+          FROM information_schema.table_constraints 
+          WHERE constraint_name = 'purchase_orders_supplierId_fkey' 
+          AND table_name = 'purchase_orders'
+        ) THEN
+          ALTER TABLE "purchase_orders" DROP CONSTRAINT "purchase_orders_supplierId_fkey";
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure missing columns are added to inbound_quotations
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'inbound_quotations' AND column_name = 'quotationItems') THEN
+          ALTER TABLE "inbound_quotations" ADD COLUMN "quotationItems" jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'inbound_quotations' AND column_name = 'moldDetails') THEN
+          ALTER TABLE "inbound_quotations" ADD COLUMN "moldDetails" jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'inbound_quotations' AND column_name = 'financialBreakdown') THEN
+          ALTER TABLE "inbound_quotations" ADD COLUMN "financialBreakdown" jsonb;
+        END IF;
+      END $$;
+    `);
+
     client.release();
   } catch (err) {
     console.error("❌ Failed to connect to PostgreSQL", err);

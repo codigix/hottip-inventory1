@@ -814,32 +814,87 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
 
               <div className="border-t pt-4">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-4">
-                  Items
+                  Mold Configurations
                 </h4>
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="p-2 text-left font-medium">Part Name</th>
+                        <th className="p-2 text-left font-medium">Mold No.</th>
+                        <th className="p-2 text-left font-medium">Material</th>
+                        <th className="p-2 text-left font-medium">Cavity</th>
+                        <th className="p-2 text-left font-medium">Drops</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {((selectedQuotation as any).moldDetails || []).map(
+                        (mold: any, i: number) => (
+                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="p-2 font-medium">{mold.partName}</td>
+                            <td className="p-2">{mold.mouldNo}</td>
+                            <td className="p-2">{mold.plasticMaterial}</td>
+                            <td className="p-2">{mold.noOfCavity}</td>
+                            <td className="p-2">{mold.noOfDrops}</td>
+                          </tr>
+                        )
+                      )}
+                      {(!(selectedQuotation as any).moldDetails || (selectedQuotation as any).moldDetails.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground italic">
+                            No mold configurations defined
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-4">
+                  Quotation Items
+                </h4>
+                <div className="rounded-md border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b">
                         <th className="p-2 text-left font-medium">Item Name</th>
                         <th className="p-2 text-left font-medium">Qty</th>
+                        <th className="p-2 text-left font-medium">UOM</th>
                         <th className="p-2 text-left font-medium">Rate</th>
                         <th className="p-2 text-left font-medium">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedQuotation as any).items?.map(
+                      {((selectedQuotation as any).quotationItems || []).map(
                         (item: any, i: number) => (
-                          <tr key={i} className="border-b">
-                            <td className="p-2">{item.itemName}</td>
-                            <td className="p-2">{item.quantity}</td>
+                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
                             <td className="p-2">
-                              ₹{parseFloat(item.unitPrice).toLocaleString()}
+                              <div>
+                                <div className="font-medium">{item.itemName}</div>
+                                {item.description && (
+                                  <div className="text-xs text-muted-foreground">{item.description}</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2">{item.quantity}</td>
+                            <td className="p-2">{item.uom || 'NOS'}</td>
+                            <td className="p-2">
+                              ₹{parseFloat(item.unitPrice || item.rate || 0).toLocaleString()}
                             </td>
                             <td className="p-2">
-                              ₹{parseFloat(item.amount).toLocaleString()}
+                              ₹{parseFloat(item.amount || 0).toLocaleString()}
                             </td>
                           </tr>
                         )
+                      )}
+                      {(!(selectedQuotation as any).quotationItems || (selectedQuotation as any).quotationItems.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground italic">
+                            No items defined
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
