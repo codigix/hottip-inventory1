@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,7 +50,7 @@ import {
   XCircle,
   Filter,
 } from "lucide-react";
-import { insertInboundQuotationSchema, type Supplier } from "@shared/schema"; // Import Supplier type
+import { insertInboundQuotationSchema, type Supplier, type OutboundQuotation, type Customer } from "@shared/schema"; // Import Customer and Supplier type
 import { z } from "zod";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
@@ -98,14 +98,25 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
   const { toast } = useToast();
   const { user } = useAuth();
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      setSelectedOutboundQuotation(null);
+    }
+  }, [isModalOpen]);
+
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["/inbound-quotations"],
   });
 
-  // Fetch suppliers for the sender dropdown
-  const { data: suppliers = [] } = useQuery<Supplier[]>({
-    queryKey: ["/suppliers"],
+  const { data: outboundQuotations = [] } = useQuery<OutboundQuotation[]>({
+    queryKey: ["/outbound-quotations"],
   });
+
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["/customers"],
+  });
+
+  const [selectedOutboundQuotation, setSelectedOutboundQuotation] = useState<OutboundQuotation | null>(null);
 
   // Define the form schema based on the corrected Zod schema
   const quotationFormSchema = z.object({
@@ -119,7 +130,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
       .enum(["received", "under_review", "approved", "rejected"])
       .default("received"),
     notes: z.string().optional(),
-    senderType: z.enum(["client", "vendor", "supplier"]).default("vendor"),
+    senderType: z.enum(["client", "vendor", "supplier"]).default("client"),
     attachmentPath: z.string().optional(),
     attachmentName: z.string().optional(),
   });
@@ -136,7 +147,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
       subject: "",
       totalAmount: "",
       status: "received",
-      senderType: "vendor",
+      senderType: "client",
       notes: "",
     },
   });
@@ -288,12 +299,12 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     },
     {
       key: "sender",
-      header: "Sender",
+      header: "Customer",
       cell: (quotation: any) => (
         <div>
           <div className="font-light">{quotation.sender?.name || "N/A"}</div>
           <div className="text-xs text-muted-foreground">
-            {quotation.senderType?.toUpperCase() || "VENDOR"}
+            {quotation.senderType?.toUpperCase() || "CLIENT"}
           </div>
         </div>
       ),
@@ -420,13 +431,32 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Quotation Number</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder=""
-                              {...field}
-                              data-testid="input-quotation-number"
-                            />
-                          </FormControl>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              const selected = outboundQuotations.find(q => q.quotationNumber === value);
+                              setSelectedOutboundQuotation(selected || null);
+                              if (selected) {
+                                if (selected.customerId) form.setValue("senderId", selected.customerId);
+                                form.setValue("totalAmount", String(selected.totalAmount));
+                                form.setValue("senderType", "client");
+                              }
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-quotation-number">
+                                <SelectValue placeholder="Select quotation" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {outboundQuotations.map((q) => (
+                                <SelectItem key={q.id} value={q.quotationNumber}>
+                                  {q.quotationNumber}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -437,21 +467,21 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       name="senderId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Sender</FormLabel>
+                          <FormLabel>Customer</FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger data-testid="select-sender">
-                                <SelectValue placeholder="Select sender" />
+                              <SelectTrigger data-testid="select-customer">
+                                <SelectValue placeholder="Select customer" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">Select a sender</SelectItem>
-                              {suppliers.map((supplier: Supplier) => (
-                                <SelectItem key={supplier.id} value={supplier.id}>
-                                  {supplier.name}
+                              <SelectItem value="">Select a customer</SelectItem>
+                              {customers.map((customer: Customer) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                  {customer.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -462,13 +492,92 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                     />
                   </div>
 
+                  {selectedOutboundQuotation && (
+                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                        <h4 className="text-sm font-bold text-blue-900 flex items-center">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Reference Details: {selectedOutboundQuotation.quotationNumber}
+                        </h4>
+                        <Badge variant="outline" className="bg-white text-blue-700 border-blue-200">
+                          Original Quotation
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Part Number</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.partNumber || "N/A"}</p>
+                        </div>
+                        <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Job Card #</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.jobCardNumber || "N/A"}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quotation Items Implementation</h5>
+                        <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-sm">
+                          <table className="w-full text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="p-2.5 text-left font-semibold text-slate-700">Item Description</th>
+                                <th className="p-2.5 text-center font-semibold text-slate-700">Qty</th>
+                                <th className="p-2.5 text-right font-semibold text-slate-700">Rate</th>
+                                <th className="p-2.5 text-right font-semibold text-slate-700">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
+                                selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
+                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                                    <td className="p-2.5 font-medium text-slate-800">{item.itemName}</td>
+                                    <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
+                                    <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
+                                    <td className="p-2.5 text-right font-bold text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={4} className="p-4 text-center text-muted-foreground italic">No items found in reference</td>
+                                </tr>
+                              )}
+                            </tbody>
+                            <tfoot className="bg-blue-50/30 font-bold border-t border-slate-200">
+                              <tr>
+                                <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
+                                <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                      
+                      {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
+                        <div className="space-y-2">
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mold & Technical Specifications</h5>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
+                              value && (
+                                <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
+                                  <span className="text-muted-foreground font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className="font-semibold text-slate-800">{String(value)}</span>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="senderType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Sender Type</FormLabel>
+                          <FormLabel>Customer Type</FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value}
@@ -507,6 +616,85 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       )}
                     />
                   </div>
+
+                  {selectedOutboundQuotation && (
+                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                        <h4 className="text-sm font-bold text-blue-900 flex items-center">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Reference Details: {selectedOutboundQuotation.quotationNumber}
+                        </h4>
+                        <Badge variant="outline" className="bg-white text-blue-700 border-blue-200">
+                          Original Quotation
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Part Number</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.partNumber || "N/A"}</p>
+                        </div>
+                        <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Job Card #</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.jobCardNumber || "N/A"}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quotation Items Implementation</h5>
+                        <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-sm">
+                          <table className="w-full text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="p-2.5 text-left font-semibold text-slate-700">Item Description</th>
+                                <th className="p-2.5 text-center font-semibold text-slate-700">Qty</th>
+                                <th className="p-2.5 text-right font-semibold text-slate-700">Rate</th>
+                                <th className="p-2.5 text-right font-semibold text-slate-700">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
+                                selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
+                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                                    <td className="p-2.5 font-medium text-slate-800">{item.itemName}</td>
+                                    <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
+                                    <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
+                                    <td className="p-2.5 text-right font-bold text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={4} className="p-4 text-center text-muted-foreground italic">No items found in reference</td>
+                                </tr>
+                              )}
+                            </tbody>
+                            <tfoot className="bg-blue-50/30 font-bold border-t border-slate-200">
+                              <tr>
+                                <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
+                                <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                      
+                      {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
+                        <div className="space-y-2">
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mold & Technical Specifications</h5>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
+                              value && (
+                                <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
+                                  <span className="text-muted-foreground font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className="font-semibold text-slate-800">{String(value)}</span>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -654,13 +842,32 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Quotation Number</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder=""
-                            {...field}
-                            data-testid="input-quotation-number"
-                          />
-                        </FormControl>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            const selected = outboundQuotations.find(q => q.quotationNumber === value);
+                            setSelectedOutboundQuotation(selected || null);
+                            if (selected) {
+                              if (selected.customerId) form.setValue("senderId", selected.customerId);
+                              form.setValue("totalAmount", String(selected.totalAmount));
+                              form.setValue("senderType", "client");
+                            }
+                          }}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-quotation-number-embedded">
+                              <SelectValue placeholder="Select quotation" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {outboundQuotations.map((q) => (
+                              <SelectItem key={q.id} value={q.quotationNumber}>
+                                {q.quotationNumber}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -671,21 +878,21 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                     name="senderId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sender</FormLabel>
+                        <FormLabel>Customer</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger data-testid="select-sender">
-                              <SelectValue placeholder="Select sender" />
+                            <SelectTrigger data-testid="select-customer-embedded">
+                              <SelectValue placeholder="Select customer" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Select a sender</SelectItem>
-                            {suppliers.map((supplier: Supplier) => (
-                              <SelectItem key={supplier.id} value={supplier.id}>
-                                {supplier.name}
+                            <SelectItem value="">Select a customer</SelectItem>
+                            {customers.map((customer: Customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
