@@ -648,6 +648,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.quantity`, {
                                   valueAsNumber: true,
                                   onChange: (e) => {
@@ -668,6 +669,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.unitPrice`, {
                                   valueAsNumber: true,
                                   onChange: (e) => {
@@ -682,6 +684,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.amount`, { valueAsNumber: true })}
                                 readOnly
                                 className="bg-muted"

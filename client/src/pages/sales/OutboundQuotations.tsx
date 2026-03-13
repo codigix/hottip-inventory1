@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/select";
 import {
   Plus,
-  FileText,
   Eye,
   Edit,
   Send,
@@ -55,7 +54,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
-export default function OutboundQuotations() {
+export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const [, setLocation] = useLocation();
   const [selectedQuotation, setSelectedQuotation] =
     useState<OutboundQuotation | null>(null);
@@ -67,7 +66,7 @@ export default function OutboundQuotations() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toast } = useToast();
 
-  const { data: quotations = [], isLoading } = useQuery<OutboundQuotation[]>({
+  const { data: quotations = [], isLoading: isLoadingSent } = useQuery<OutboundQuotation[]>({
     queryKey: ["/outbound-quotations"],
   });
 
@@ -372,7 +371,8 @@ export default function OutboundQuotations() {
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       toast({
         title: "Success",
@@ -404,7 +404,7 @@ export default function OutboundQuotations() {
         <div>
           <div className="font-light">{quotation.customer?.name || "N/A"}</div>
           <div className="text-xs text-muted-foreground">
-            {quotation.customer?.email || ""}
+            {quotation.customer?.email || "No email"}
           </div>
         </div>
       ),
@@ -420,8 +420,11 @@ export default function OutboundQuotations() {
       header: "Total Amount",
       cell: (quotation: any) => {
         let total = parseFloat(String(quotation.totalAmount)) || 0;
-        if (total === 0 && quotation.subtotalAmount) {
-          total = parseFloat(String(quotation.subtotalAmount)) || 0;
+        // Fallback if totalAmount is missing (calculated from subtotal and tax)
+        if (total === 0 && (quotation.subtotalAmount || quotation.taxAmount)) {
+          total = parseFloat(String(quotation.subtotalAmount || 0)) + 
+                  parseFloat(String(quotation.taxAmount || 0)) - 
+                  parseFloat(String(quotation.discountAmount || 0));
         }
         return `₹${total.toLocaleString("en-IN", { 
           minimumFractionDigits: 2, 
@@ -455,12 +458,13 @@ export default function OutboundQuotations() {
     {
       key: "actions",
       header: "Actions",
-      cell: (quotation: any) => (
-        <div className="flex items-center space-x-2">
+      cell: (quotation: OutboundQuotation) => (
+        <div className="flex items-center space-x-1">
           <Button
             size="sm"
             variant="ghost"
             onClick={() => handleViewQuotation(quotation)}
+            title="View Details"
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -468,6 +472,7 @@ export default function OutboundQuotations() {
             size="sm"
             variant="ghost"
             onClick={() => handleEditQuotation(quotation)}
+            title="Edit"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -475,6 +480,8 @@ export default function OutboundQuotations() {
             size="sm"
             variant="ghost"
             onClick={() => handleSendQuotation(quotation)}
+            disabled={quotation.status === "sent"}
+            title="Mark as Sent"
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -482,22 +489,24 @@ export default function OutboundQuotations() {
             size="sm"
             variant="ghost"
             onClick={() => handleDownloadPDF(quotation)}
+            title="Download PDF"
           >
             <Download className="h-4 w-4" />
           </Button>
-          {quotation.status === "approved" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleConvertToInvoice(quotation)}
-            >
-              <Receipt className="h-4 w-4" />
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleConvertToInvoice(quotation)}
+            disabled={quotation.status !== "approved"}
+            title="Convert to Invoice"
+          >
+            <Receipt className="h-4 w-4" />
+          </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => handleDeleteQuotation(quotation)}
+            title="Delete"
           >
             <Trash2 className="h-4 w-4 text-red-500" />
           </Button>
@@ -567,23 +576,25 @@ export default function OutboundQuotations() {
   ];
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Outbound Quotations
-          </h1>
-          <p className="text-muted-foreground">
-            Manage quotations sent to clients with full PDF field support
-          </p>
+    <div className={isEmbedded ? "" : "p-8"}>
+      {!isEmbedded && (
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Outbound Quotations
+            </h1>
+            <p className="text-muted-foreground">
+              Manage quotations sent to clients with full PDF field support
+            </p>
+          </div>
+          <Link href="/sales/outbound-quotations/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Quotation
+            </Button>
+          </Link>
         </div>
-        <Link href="/sales/outbound-quotations/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Quotation
-          </Button>
-        </Link>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card>
@@ -634,24 +645,24 @@ export default function OutboundQuotations() {
         </Card>
       </div>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="pb-3 border-b bg-slate-50/50">
           <CardTitle className="text-lg font-semibold flex items-center">
-            <Filter className="h-4 w-4 mr-2" />
+            <Filter className="h-4 w-4 mr-2 text-primary" />
             Filter Quotations
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
-              <label className="text-sm font-medium mb-1 block">Customer</label>
+              <label className="text-sm font-medium mb-1.5 block">Customer</label>
               <Select
                 value={mainFilters.customerId}
                 onValueChange={(v) =>
                   setMainFilters((prev) => ({ ...prev, customerId: v }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="All Customers" />
                 </SelectTrigger>
                 <SelectContent>
@@ -665,14 +676,14 @@ export default function OutboundQuotations() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Status</label>
+              <label className="text-sm font-medium mb-1.5 block">Status</label>
               <Select
                 value={mainFilters.status}
                 onValueChange={(v) =>
                   setMainFilters((prev) => ({ ...prev, status: v }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -686,191 +697,170 @@ export default function OutboundQuotations() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">From Date</label>
+              <label className="text-sm font-medium mb-1.5 block">From Date</label>
               <Input
                 type="date"
                 value={mainFilters.startDate}
                 onChange={(e) =>
                   setMainFilters((prev) => ({ ...prev, startDate: e.target.value }))
                 }
+                className="bg-white"
               />
             </div>
             <div className="flex items-end space-x-2">
               <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">To Date</label>
+                <label className="text-sm font-medium mb-1.5 block">To Date</label>
                 <Input
                   type="date"
                   value={mainFilters.endDate}
                   onChange={(e) =>
                     setMainFilters((prev) => ({ ...prev, endDate: e.target.value }))
                   }
+                  className="bg-white"
                 />
               </div>
-              <Button onClick={applyMainFilters} variant="secondary">
-                Apply
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={clearMainFilters}
+                className="h-10 w-10 shrink-0"
+                title="Clear Filters"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
-              <Button onClick={clearMainFilters} variant="outline">
-                Clear
+              <Button 
+                onClick={applyMainFilters}
+                className="h-10 px-4 shrink-0"
+              >
+                Apply
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Quotation List</CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b bg-slate-50/50">
+          <div className="space-y-1">
+            <CardTitle className="text-xl">Quotation List</CardTitle>
             <CardDescription>
               Browse and manage your outbound quotations
             </CardDescription>
           </div>
-          <Button variant="outline" onClick={handleExportAll}>
+          <Button variant="outline" size="sm" onClick={handleExportAll} className="bg-white">
             <Download className="h-4 w-4 mr-2" />
             Export All
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <DataTable
-            columns={columns}
             data={displayedQuotations}
-            isLoading={isLoading}
+            columns={columns}
+            searchable={true}
+            searchKey="quotationNumber"
           />
         </CardContent>
       </Card>
 
-      {/* View Quotation Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-center text-2xl font-bold uppercase">
-              Quotation Details
-            </DialogTitle>
+            <DialogTitle>Quotation Details</DialogTitle>
+            <DialogDescription>
+              Viewing details for {selectedQuotation?.quotationNumber}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedQuotation && (
-            <div className="space-y-6 p-6">
-              {/* Company & Customer Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-b pb-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-bold text-xl text-primary mb-2">
-                    {selectedQuotation.companyName || "CHENNUPATI PLASTICS"}
-                  </h3>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {selectedQuotation.companyAddress}
-                  </p>
-                  <p className="text-sm mt-2 font-medium">
-                    GSTIN: {selectedQuotation.companyGstin}
-                  </p>
-                  <p className="text-sm">Email: {selectedQuotation.companyEmail}</p>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase">
+                    Quotation Information
+                  </h4>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm">
+                      <span className="font-medium">Number:</span>{" "}
+                      {selectedQuotation.quotationNumber}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Date:</span>{" "}
+                      {new Date(
+                        selectedQuotation.quotationDate
+                      ).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Status:</span>{" "}
+                      {selectedQuotation.status?.toUpperCase()}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="md:text-right">
-                  <h3 className="font-bold text-lg mb-1">Bill To:</h3>
-                  <p className="font-semibold text-lg">
-                    {selectedQuotation.customer?.name}
-                  </p>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {selectedQuotation.customer?.address}
-                  </p>
-                  <p className="text-sm mt-2">
-                    GSTIN: {selectedQuotation.customer?.gstNumber || "N/A"}
-                  </p>
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase">
+                    Client Information
+                  </h4>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm">
+                      <span className="font-medium">Name:</span>{" "}
+                      {selectedQuotation.customer?.name}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Email:</span>{" "}
+                      {selectedQuotation.customer?.email}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Quotation Info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-muted/50 p-4 rounded-lg text-sm">
-                <div>
-                  <p className="text-muted-foreground">Quotation #</p>
-                  <p className="font-bold">{selectedQuotation.quotationNumber}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Date</p>
-                  <p className="font-bold">
-                    {new Date(selectedQuotation.quotationDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Valid Until</p>
-                  <p className="font-bold">
-                    {selectedQuotation.validUntil ? new Date(selectedQuotation.validUntil).toLocaleDateString() : "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Status</p>
-                  <Badge variant="outline" className="font-bold capitalize">
-                    {selectedQuotation.status}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold uppercase">Description</th>
-                      <th className="px-4 py-3 text-center font-bold uppercase w-24">Qty</th>
-                      <th className="px-4 py-3 text-right font-bold uppercase w-32">Unit Price</th>
-                      <th className="px-4 py-3 text-right font-bold uppercase w-32">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(selectedQuotation.quotationItems as any[])?.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-3 font-medium">
-                          {item.partDescription || item.partName || item.description || "-"}
-                        </td>
-                        <td className="px-4 py-3 text-center">{item.qty}</td>
-                        <td className="px-4 py-3 text-right">₹{parseFloat(String(item.unitPrice)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-4 py-3 text-right font-bold">₹{parseFloat(String(item.amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-4">
+                  Items
+                </h4>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="p-2 text-left font-medium">Item Name</th>
+                        <th className="p-2 text-left font-medium">Qty</th>
+                        <th className="p-2 text-left font-medium">Rate</th>
+                        <th className="p-2 text-left font-medium">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {(selectedQuotation as any).items?.map(
+                        (item: any, i: number) => (
+                          <tr key={i} className="border-b">
+                            <td className="p-2">{item.itemName}</td>
+                            <td className="p-2">{item.quantity}</td>
+                            <td className="p-2">
+                              ₹{parseFloat(item.unitPrice).toLocaleString()}
+                            </td>
+                            <td className="p-2">
+                              ₹{parseFloat(item.amount).toLocaleString()}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* Totals Section */}
-              <div className="flex justify-end">
-                <div className="w-full md:w-64 space-y-2 text-sm">
-                  <div className="flex justify-between">
+              <div className="flex justify-end pt-4 border-t">
+                <div className="w-64 space-y-2">
+                  <div className="flex justify-between text-sm">
                     <span>Subtotal:</span>
-                    <span className="font-medium">₹{parseFloat(String(selectedQuotation.subtotalAmount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span>₹{parseFloat(String(selectedQuotation.subtotalAmount)).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>GST ({selectedQuotation.gstPercentage}%):</span>
-                    <span className="font-medium">₹{parseFloat(String(selectedQuotation.taxAmount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between text-sm">
+                    <span>Tax:</span>
+                    <span>₹{parseFloat(String(selectedQuotation.taxAmount)).toLocaleString()}</span>
                   </div>
-                  {parseFloat(String(selectedQuotation.discountAmount)) > 0 && (
-                    <div className="flex justify-between text-red-600 font-medium">
-                      <span>Discount:</span>
-                      <span>-₹{parseFloat(String(selectedQuotation.discountAmount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
-                    <span>Grand Total:</span>
-                    <span>₹{parseFloat(String(selectedQuotation.totalAmount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between font-bold">
+                    <span>Total:</span>
+                    <span>₹{parseFloat(String(selectedQuotation.totalAmount)).toLocaleString()}</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Terms & Conditions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t text-sm">
-                <div>
-                  <h4 className="font-bold mb-2">Terms & Conditions</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                    <li>Delivery: {selectedQuotation.deliveryTerms || "Ex-works"}</li>
-                    <li>Payment: {selectedQuotation.paymentTerms || "As per agreement"}</li>
-                    <li>Warranty: {selectedQuotation.warrantyTerms || "Standard"}</li>
-                  </ul>
-                </div>
-                {selectedQuotation.notes && (
-                  <div>
-                    <h4 className="font-bold mb-2">Notes</h4>
-                    <p className="text-muted-foreground whitespace-pre-wrap">{selectedQuotation.notes}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}

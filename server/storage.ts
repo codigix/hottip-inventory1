@@ -56,6 +56,7 @@ import {
   purchaseOrderItems,
   salesOrders,
   salesOrderItems,
+  accountsPayables,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;

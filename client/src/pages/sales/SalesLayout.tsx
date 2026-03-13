@@ -32,9 +32,8 @@ import {
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import individual pages (will create these next)
-import OutboundQuotations from "./OutboundQuotations";
+import QuotationsPage from "./QuotationsPage";
 import QuotationFormPage from "./QuotationFormPage";
-import InboundQuotations from "./InboundQuotations";
 import PurchaseOrders from "./PurchaseOrders";
 import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
@@ -62,20 +61,12 @@ const sidebarItems = [
     tourConfig: null,
   },
   {
-    id: 'outbound-quotations',
-    label: 'Outbound Quotations',
+    id: 'quotations',
+    label: 'Quotations',
     icon: FileText,
-    path: '/sales/outbound-quotations',
-    description: 'Company → Client quotations',
+    path: '/sales/quotations',
+    description: 'Sent & Received quotations',
     tourConfig: comprehensiveOutboundQuotationsTour,
-  },
-  {
-    id: 'inbound-quotations', 
-    label: 'Inbound Quotations',
-    icon: FileDown,
-    path: '/sales/inbound-quotations',
-    description: 'Client/Vendor → Company quotations',
-    tourConfig: comprehensiveInboundQuotationsTour,
   },
   {
     id: 'purchase-orders',
@@ -158,8 +149,9 @@ export default function SalesLayout() {
   const getActiveSidebarItem = () => {
     if (location === '/sales') return 'dashboard';
     if (location.includes('/leads')) return 'leads';
-    if (location.includes('/outbound-quotations')) return 'outbound-quotations';
-    if (location.includes('/inbound-quotations')) return 'inbound-quotations';
+    if (location.includes('/quotations')) return 'quotations';
+    if (location.includes('/outbound-quotations')) return 'quotations';
+    if (location.includes('/inbound-quotations')) return 'quotations';
     if (location.includes('/purchase-orders')) return 'purchase-orders';
     if (location.includes('/orders')) return 'sales-orders';
     if (location.includes('/invoices')) return 'invoices';
@@ -248,10 +240,11 @@ export default function SalesLayout() {
         <Switch>
           <Route path="/sales" component={SalesDashboard} />
           <Route path="/sales/leads" component={LeadReceived} />
-          <Route path="/sales/outbound-quotations" component={OutboundQuotations} />
+          <Route path="/sales/quotations" component={QuotationsPage} />
+          <Route path="/sales/outbound-quotations" component={QuotationsPage} />
           <Route path="/sales/outbound-quotations/new" component={QuotationFormPage} />
           <Route path="/sales/outbound-quotations/edit/:id" component={QuotationFormPage} />
-          <Route path="/sales/inbound-quotations" component={InboundQuotations} />
+          <Route path="/sales/inbound-quotations" component={QuotationsPage} />
           <Route path="/sales/purchase-orders" component={PurchaseOrders} />
           <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
