@@ -4,9 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
+      setLocation("/login");
+      return;
+    }
+
     if (isAuthenticated && user) {
       const deptLower = (user.department || "").toLowerCase().trim();
       

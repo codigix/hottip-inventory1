@@ -69,7 +69,7 @@ function AppRouter() {
       <GlobalNavbar />
       <main className="max-w-full">
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <ProtectedRoute path="/" component={Dashboard} />
           
           {/* Admin Routes */}
           <ProtectedRoute path="/admin" component={AdminDashboard} requiredDepartment="admin" />
