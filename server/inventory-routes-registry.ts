@@ -8,6 +8,7 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
 import { sql, eq, lte } from "drizzle-orm";
@@ -903,4 +904,102 @@ export function registerInventoryRoutes(
       }
     }
   );
+
+  // --- MATERIAL REQUEST ROUTES ---
+
+  // GET all material requests
+  app.get("/api/material-requests", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db.select().from(materialRequests).orderBy(sql`${materialRequests.createdAt} DESC`);
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching material requests:", e);
+      res.status(500).json({ error: "Failed to fetch material requests" });
+    }
+  });
+
+  // GET material request by ID
+  app.get("/api/material-requests/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      
+      if (!request) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      const items = await db
+        .select({
+          id: materialRequestItems.id,
+          requestId: materialRequestItems.requestId,
+          productId: materialRequestItems.productId,
+          sparePartId: materialRequestItems.sparePartId,
+          quantity: materialRequestItems.quantity,
+          unit: materialRequestItems.unit,
+          status: materialRequestItems.status,
+          notes: materialRequestItems.notes,
+          productName: products.name,
+          productSku: products.sku,
+          sparePartName: spareParts.name,
+          sparePartNumber: spareParts.partNumber,
+        })
+        .from(materialRequestItems)
+        .leftJoin(products, eq(materialRequestItems.productId, products.id))
+        .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
+        .where(eq(materialRequestItems.requestId, id));
+
+      res.json({ ...request, items });
+    } catch (e) {
+      console.error("Error fetching material request details:", e);
+      res.status(500).json({ error: "Failed to fetch material request details" });
+    }
+  });
+
+  // POST create material request
+  app.post("/api/material-requests", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { items, ...requestData } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [newRequest] = await db.insert(materialRequests).values({
+        ...requestData,
+        requesterId: userId,
+        requestNumber: `MR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+      }).returning();
+
+      if (items && Array.isArray(items) && items.length > 0) {
+        const itemValues = items.map(item => ({
+          ...item,
+          requestId: newRequest.id,
+        }));
+        await db.insert(materialRequestItems).values(itemValues);
+      }
+
+      res.status(201).json(newRequest);
+    } catch (e) {
+      console.error("Error creating material request:", e);
+      res.status(500).json({ error: "Failed to create material request" });
+    }
+  });
+
+  // DELETE material request
+  app.delete("/api/material-requests/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db.delete(materialRequests).where(eq(materialRequests.id, id)).returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting material request:", e);
+      res.status(500).json({ error: "Failed to delete material request" });
+    }
+  });
 }

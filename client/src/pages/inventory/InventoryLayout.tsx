@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
@@ -37,6 +38,8 @@ import InventoryTasks from "./InventoryTasks";
 import InventoryReports from "./InventoryReports";
 import InventoryAttendance from "./InventoryAttendance";
 import InventoryDashboard from "../InventoryDashboard";
+import MaterialRequests from "./MaterialRequests";
+import MaterialRequestDetail from "./MaterialRequestDetail";
 
 const sidebarItems = [
   {
@@ -45,6 +48,14 @@ const sidebarItems = [
     icon: BarChart3,
     path: '/inventory',
     description: 'Inventory overview and key metrics',
+    tourConfig: null,
+  },
+  {
+    id: 'material-requests',
+    label: 'Material Requests',
+    icon: ClipboardList,
+    path: '/inventory/material-requests',
+    description: 'Manage material and stock requests',
     tourConfig: null,
   },
   {
@@ -122,6 +133,7 @@ export default function InventoryLayout() {
   
   const getActiveSidebarItem = () => {
     if (location === '/inventory') return 'dashboard';
+    if (location.includes('/material-requests')) return 'material-requests';
     if (location.includes('/stock')) return 'stock-management';
     if (location.includes('/vendors')) return 'vendors';
     if (location.includes('/spare-parts')) return 'spare-parts';
@@ -217,6 +229,12 @@ export default function InventoryLayout() {
         <Switch>
           <Route path="/inventory">
             <InventoryDashboard />
+          </Route>
+          <Route path="/inventory/material-requests">
+            <MaterialRequests />
+          </Route>
+          <Route path="/inventory/material-requests/:id">
+            <MaterialRequestDetail />
           </Route>
           <Route path="/inventory/stock">
             <StockManagement />

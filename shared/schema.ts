@@ -98,6 +98,61 @@ export const insertFabricationOrderSchema = z.object({
   notes: z.string().optional(),
 });
 
+// =====================
+// MATERIAL REQUESTS
+// =====================
+
+export const materialRequestStatus = pgEnum("material_request_status", [
+  "DRAFT",
+  "PENDING",
+  "APPROVED",
+  "PROCESSING",
+  "FULFILLED",
+  "CANCELLED",
+]);
+
+export const materialRequests = pgTable("material_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestNumber: text("requestNumber").notNull(),
+  requesterId: uuid("requesterId").notNull().references(() => users.id),
+  department: text("department").notNull(),
+  status: materialRequestStatus("status").notNull().default("DRAFT"),
+  purpose: text("purpose").notNull().default("Purchase Request"),
+  requiredBy: timestamp("requiredBy"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const materialRequestItems = pgTable("material_request_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestId: uuid("requestId").notNull().references(() => materialRequests.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
+  sparePartId: uuid("sparePartId").references(() => spareParts.id),
+  quantity: numeric("quantity", { precision: 10, scale: 3 }).notNull(),
+  unit: text("unit").notNull(),
+  status: text("status").default("pending"),
+  notes: text("notes"),
+});
+
+export const insertMaterialRequestSchema = z.object({
+  requestNumber: z.string().optional(),
+  requesterId: z.string().uuid(),
+  department: z.string(),
+  status: z.enum(["DRAFT", "PENDING", "APPROVED", "PROCESSING", "FULFILLED", "CANCELLED"]).optional(),
+  purpose: z.string().optional(),
+  requiredBy: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const insertMaterialRequestItemSchema = z.object({
+  productId: z.string().uuid().optional(),
+  sparePartId: z.string().uuid().optional(),
+  quantity: z.coerce.number(),
+  unit: z.string(),
+  notes: z.string().optional(),
+});
+
 export const spare_part_type = pgEnum("spare_part_type", [
   "component",
   "assembly",

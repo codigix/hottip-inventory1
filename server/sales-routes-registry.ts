@@ -14,6 +14,8 @@ import {
   insertSalesOrderSchema,
   moldDetailsTable,
   insertMoldDetailSchema,
+  materialRequests,
+  materialRequestItems
 } from "@shared/schema";
 import { storage } from "./storage";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
@@ -712,6 +714,46 @@ export function registerSalesRoutes(
         updatedAt: new Date()
       });
       const quotation = await storage.updateOutboundQuotation(id, quotationData);
+
+      // --- AUTOMATIC MATERIAL REQUEST CREATION ---
+      // If status is changed to 'sent', automatically create a material request
+      if (body.status === "sent") {
+        try {
+          const items = quotation.quotationItems as any[];
+          if (items && Array.isArray(items) && items.length > 0) {
+            // Create Material Request
+            const [newMR] = await db.insert(materialRequests).values({
+              requestNumber: `MR-AUTO-${quotation.quotationNumber}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+              requesterId: quotation.userId,
+              department: "Sales/Production",
+              status: "DRAFT",
+              purpose: `Automatic Request for Quotation ${quotation.quotationNumber}`,
+              notes: `Auto-generated from Outbound Quotation: ${quotation.quotationNumber}`,
+            }).returning();
+
+            // Create Material Request Items
+            const mrItems = items.map(item => ({
+              requestId: newMR.id,
+              // Try to map moldId/productId if available, otherwise just use notes
+              productId: item.productId || null,
+              sparePartId: item.sparePartId || null,
+              quantity: String(item.qty || 0),
+              unit: item.uom || "pcs",
+              notes: item.partName || item.partDescription || item.itemName || "Auto-mapped from Quotation",
+            }));
+
+            if (mrItems.length > 0) {
+              await db.insert(materialRequestItems).values(mrItems);
+            }
+
+            console.log(`✅ Auto-created Material Request ${newMR.requestNumber} from Quotation ${quotation.quotationNumber}`);
+          }
+        } catch (mrError) {
+          console.error("⚠️ Failed to auto-create material request:", mrError);
+          // Don't fail the whole request if MR creation fails
+        }
+      }
+
       res.json(quotation);
     } catch (error: any) {
       console.error("❌ Error in PUT /api/outbound-quotations/:id:", error);

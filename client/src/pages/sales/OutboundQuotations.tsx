@@ -872,13 +872,13 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                           <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
                             <td className="p-2">
                               <div>
-                                <div className="font-medium">{item.itemName}</div>
-                                {item.description && (
-                                  <div className="text-xs text-muted-foreground">{item.description}</div>
+                                <div className="font-medium">{item.partName || item.itemName || item.partDescription || "Item"}</div>
+                                {(item.partName || item.itemName) && item.partDescription && (
+                                  <div className="text-xs text-muted-foreground">{item.partDescription}</div>
                                 )}
                               </div>
                             </td>
-                            <td className="p-2">{item.quantity}</td>
+                            <td className="p-2">{item.quantity || item.qty}</td>
                             <td className="p-2">{item.uom || 'NOS'}</td>
                             <td className="p-2">
                               ₹{parseFloat(item.unitPrice || item.rate || 0).toLocaleString()}
