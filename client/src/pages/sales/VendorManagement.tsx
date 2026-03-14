@@ -329,7 +329,7 @@ export default function VendorManagement() {
                         <FormLabel>Vendor Name *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., ABC Technologies Pvt Ltd"
+                            placeholder=""
                             {...field}
                             data-testid="input-vendor-name"
                           />
@@ -347,7 +347,7 @@ export default function VendorManagement() {
                         <FormLabel>Contact Person</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., John Doe"
+                            placeholder=""
                             {...field}
                             data-testid="input-contact-person"
                           />
@@ -367,7 +367,7 @@ export default function VendorManagement() {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="vendor@example.com"
+                            placeholder=""
                             {...field}
                             data-testid="input-email"
                           />
@@ -385,7 +385,7 @@ export default function VendorManagement() {
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="+91 98765 43210"
+                            placeholder=""
                             {...field}
                             data-testid="input-phone"
                           />
@@ -405,7 +405,7 @@ export default function VendorManagement() {
                         <FormLabel>GST Number</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="22AAAAA0000A1Z5"
+                            placeholder=""
                             {...field}
                             data-testid="input-gst-number"
                           />
@@ -423,7 +423,7 @@ export default function VendorManagement() {
                         <FormLabel>PAN Number</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="AAAAA0000A"
+                            placeholder=""
                             {...field}
                             data-testid="input-pan-number"
                           />
@@ -442,7 +442,7 @@ export default function VendorManagement() {
                       <FormLabel>Address</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Complete business address..."
+                          placeholder=""
                           {...field}
                           data-testid="textarea-address"
                         />
@@ -461,7 +461,7 @@ export default function VendorManagement() {
                         <FormLabel>City</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Mumbai"
+                            placeholder=""
                             {...field}
                             data-testid="input-city"
                           />
@@ -479,7 +479,7 @@ export default function VendorManagement() {
                         <FormLabel>State</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Maharashtra"
+                            placeholder=""
                             {...field}
                             data-testid="input-state"
                           />
@@ -497,7 +497,7 @@ export default function VendorManagement() {
                         <FormLabel>ZIP Code</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="400001"
+                            placeholder=""
                             {...field}
                             data-testid="input-zip-code"
                           />
@@ -521,7 +521,7 @@ export default function VendorManagement() {
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-company-type">
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -554,7 +554,7 @@ export default function VendorManagement() {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="30"
+                            placeholder=""
                             {...field}
                             onChange={(e) =>
                               field.onChange(parseInt(e.target.value) || 30)
@@ -577,7 +577,7 @@ export default function VendorManagement() {
                         <FormLabel>Website</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="https://vendor.com"
+                            placeholder=""
                             {...field}
                             data-testid="input-website"
                           />
@@ -595,7 +595,7 @@ export default function VendorManagement() {
                         <FormLabel>Credit Limit</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="50000.00"
+                            placeholder=""
                             {...field}
                             data-testid="input-credit-limit"
                           />
@@ -614,7 +614,7 @@ export default function VendorManagement() {
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Any additional notes about this vendor..."
+                          placeholder=""
                           {...field}
                           data-testid="textarea-notes"
                         />
@@ -866,7 +866,7 @@ export default function VendorManagement() {
                       <FormLabel>Vendor Name *</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g., ABC Technologies Pvt Ltd"
+                          placeholder=""
                           {...field}
                           data-testid="input-vendor-name"
                         />
@@ -884,7 +884,7 @@ export default function VendorManagement() {
                       <FormLabel>Contact Person</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g., John Doe"
+                          placeholder=""
                           {...field}
                           data-testid="input-contact-person"
                         />
@@ -904,7 +904,7 @@ export default function VendorManagement() {
                       <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="vendor@example.com"
+                          placeholder=""
                           {...field}
                           data-testid="input-email"
                         />
@@ -922,7 +922,7 @@ export default function VendorManagement() {
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="+91 98765 43210"
+                          placeholder=""
                           {...field}
                           data-testid="input-phone"
                         />
@@ -942,7 +942,7 @@ export default function VendorManagement() {
                       <FormLabel>GST Number</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="22AAAAA0000A1Z5"
+                          placeholder=""
                           {...field}
                           data-testid="input-gst-number"
                         />

@@ -81,4 +81,16 @@ export function registerSalesOrderRoutes(
       res.status(500).json({ error: "Failed to update sales order status" });
     }
   });
+
+  // DELETE /api/sales-orders/:id
+  app.delete("/api/sales-orders/:id", requireAuth, async (req, res) => {
+    try {
+      console.log(`📦 [SALES ORDER ROUTES] DELETE /api/sales-orders/${req.params.id} hit!`);
+      await storage.deleteSalesOrder(req.params.id);
+      res.json({ message: "Sales order deleted successfully" });
+    } catch (error) {
+      console.error("❌ Error in DELETE /api/sales-orders/:id:", error);
+      res.status(500).json({ error: "Failed to delete sales order" });
+    }
+  });
 }

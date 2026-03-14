@@ -158,30 +158,33 @@ export const createLead = async (
 
     const lead = await storage.createLead(leadData);
 
-    // AUTO-CREATE FIELD VISIT: Create a default field visit for the new lead
-    try {
-      const visitNumber = `VISIT-${Date.now().toString().slice(-6)}`;
-      const plannedDate = lead.followUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      await storage.createFieldVisit({
-        visitNumber,
-        leadId: lead.id,
-        plannedDate: plannedDate instanceof Date ? plannedDate : new Date(plannedDate),
-        assignedTo: lead.assignedTo || req.user!.id,
-        visitAddress: lead.address || "Client Location",
-        visitCity: lead.city || "",
-        visitState: lead.state || "",
-        status: "Scheduled",
-        purpose: "Initial Lead On-boarding",
-      });
-      console.log(`✅ Auto-created field visit ${visitNumber} for lead ${lead.id}`);
-    } catch (visitError) {
-      console.error("⚠️ Failed to auto-create field visit:", visitError);
+    // AUTO-CREATE MARKETING TASK: If lead was assigned to someone (including the creator)
+    if (lead.assignedTo) {
+      try {
+        await storage.createMarketingTask({
+          title: `Newly Created Lead: ${lead.firstName} ${lead.lastName}`,
+          description: `You have been assigned a lead from ${lead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+          type: "follow_up",
+          assignedTo: lead.assignedTo as string,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          priority: (lead.priority as any) || "medium",
+          status: "pending",
+          dueDate: lead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Default 2 days
+          leadId: lead.id,
+        });
+        console.log(`✅ Auto-created assignment task for new lead ${lead.id} assigned to ${lead.assignedTo}`);
+      } catch (taskError) {
+        console.error("⚠️ Failed to auto-create assignment task for new lead:", taskError);
+      }
     }
 
     // Fetch the complete lead with assignee info for the frontend
     const fullLead = await storage.getLead(lead.id);
 
+    // If auto-task was created, the client might want to refresh tasks list.
+    // The current response returns the lead.
+    
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_LEAD",
@@ -260,6 +263,28 @@ export const updateLead = async (
     }
 
     const lead = await storage.updateLead(req.params.id, leadData);
+
+    // AUTO-CREATE MARKETING TASK: If lead was newly assigned or reassigned
+    if (leadData.assignedTo && leadData.assignedTo !== existingLead.assignedTo) {
+      try {
+        await storage.createMarketingTask({
+          title: `Newly Assigned Lead: ${lead.firstName} ${lead.lastName}`,
+          description: `You have been assigned a lead from ${lead.companyName || "Unknown Company"}. Please review and initiate contact.`,
+          type: "follow_up",
+          assignedTo: lead.assignedTo as string,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          priority: (lead.priority as any) || "medium",
+          status: "pending",
+          dueDate: lead.followUpDate || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+          leadId: lead.id,
+        });
+        console.log(`✅ Auto-created assignment task for lead ${lead.id} assigned to ${lead.assignedTo}`);
+      } catch (taskError) {
+        console.error("⚠️ Failed to auto-create assignment task for lead:", taskError);
+      }
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_LEAD",
@@ -596,7 +621,11 @@ export const createFieldVisit = async (
     const visitData = insertFieldVisitSchema.parse(req.body);
 
     visitData.assignedBy = req.user!.id;
-    // Note: createdBy field may need to be added to schema
+    visitData.createdBy = req.user!.id;
+    
+    if (!visitData.assignedTo) {
+      visitData.assignedTo = req.user!.id;
+    }
 
     const lead = await storage.getLead(visitData.leadId);
     if (!lead) {
@@ -604,6 +633,7 @@ export const createFieldVisit = async (
     }
 
     const visit = await storage.createFieldVisit(visitData);
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_FIELD_VISIT",
@@ -642,7 +672,13 @@ export const updateFieldVisit = async (
       return res.status(404).json({ error: "Field visit not found" });
     }
 
-    const visitData = insertFieldVisitSchema.partial().parse(req.body);
+    const visitData = insertFieldVisitSchema.partial().omit({ 
+      id: true, 
+      visitNumber: true,
+      assignedByUser: true,
+      assignedToUser: true,
+      lead: true 
+    } as any).parse(req.body);
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
     await storage.createActivity({
       userId: req.user!.id,
@@ -1120,6 +1156,13 @@ export const createMarketingTask = async (
     }
 
     const task = await storage.createMarketingTask(taskData);
+    
+    // Fetch the task with joined user info for the frontend
+    const tasksWithUserInfo = await storage.getMarketingTasks({ 
+      id: task.id 
+    });
+    const fullTask = tasksWithUserInfo.find(t => t.id === task.id) || task;
+
     await storage.createActivity({
       userId: authenticatedUserId,
       action: "CREATE_MARKETING_TASK",
@@ -1127,7 +1170,7 @@ export const createMarketingTask = async (
       entityId: task.id,
       details: `Created marketing task: ${task.title}`,
     });
-    res.status(201).json(task);
+    res.status(201).json(fullTask);
   } catch (error) {
     console.error("Error creating marketing task:", error);
     if (error instanceof z.ZodError) {
@@ -1433,9 +1476,27 @@ export const updateMarketingAttendance = async (
     const attendanceData = insertMarketingAttendanceSchema
       .partial()
       .parse(req.body);
+
+    // Map camelCase fields to database columns (lowercase)
+    const updatePayload: any = {};
+    if (attendanceData.userId) updatePayload.userid = attendanceData.userId;
+    if (attendanceData.date) updatePayload.date = new Date(attendanceData.date);
+    if (attendanceData.checkInTime) updatePayload.checkintime = new Date(attendanceData.checkInTime);
+    if (attendanceData.checkOutTime) updatePayload.checkouttime = new Date(attendanceData.checkOutTime);
+    if (attendanceData.latitude !== undefined) updatePayload.latitude = attendanceData.latitude;
+    if (attendanceData.longitude !== undefined) updatePayload.longitude = attendanceData.longitude;
+    if (attendanceData.location) updatePayload.location = attendanceData.location;
+    if (attendanceData.photoPath) updatePayload.photopath = attendanceData.photoPath;
+    if (attendanceData.workDescription) updatePayload.workdescription = attendanceData.workDescription;
+    if (attendanceData.visitCount !== undefined) updatePayload.visitcount = attendanceData.visitCount;
+    if (attendanceData.tasksCompleted !== undefined) updatePayload.taskscompleted = attendanceData.tasksCompleted;
+    if (attendanceData.outcome) updatePayload.outcome = attendanceData.outcome;
+    if (attendanceData.nextAction) updatePayload.nextaction = attendanceData.nextAction;
+    if (attendanceData.attendanceStatus) updatePayload.attendancestatus = attendanceData.attendanceStatus;
+
     const attendance = await storage.updateMarketingAttendance(
       req.params.id,
-      attendanceData
+      updatePayload
     );
     res.json(attendance);
   } catch (error) {
@@ -1515,33 +1576,19 @@ export const checkInMarketingAttendance = async (
     const { latitude, longitude, location, photoPath, workDescription } =
       req.body;
 
-    // Hardcoded user ID for testing
-    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2"; // replace with an existing user ID from your DB
+    // Use authenticated user ID
+    const userId = req.user!.id;
 
-    if (!latitude || !longitude) {
-      res
-        .status(400)
-        .json({ error: "GPS coordinates are required for check-in" });
-      return;
-    }
-
-    const attendance = await db
-      .insert(marketingTodays)
-      .values({
-        userid, // lowercase column in DB
-        date: new Date(),
-        checkintime: new Date(), // lowercase column in DB
-        latitude,
-        longitude,
-        location,
-        photopath: photoPath || null,
-        workdescription: workDescription || null,
-        attendancestatus: "present",
-        visitcount: 0,
-        taskscompleted: 0,
-        isonleave: false,
-      })
-      .returning();
+    // Use storage method which handles find-or-update logic
+    const attendance = await storage.checkInMarketingAttendance(userId, {
+      date: new Date(),
+      checkInTime: new Date(),
+      latitude,
+      longitude,
+      location,
+      photoPath,
+      workDescription,
+    });
 
     res.json({ attendance, message: "Successfully checked in" });
   } catch (error) {
@@ -1555,62 +1602,35 @@ export const checkOutMarketingAttendance = async (
   res: Response
 ) => {
   try {
-    const { latitude, longitude, location } = req.body;
+    const { 
+      latitude, 
+      longitude, 
+      location,
+      visitCount,
+      tasksCompleted,
+      workDescription,
+      outcome,
+      nextAction
+    } = req.body;
 
-    if (!latitude || !longitude) {
-      return res
-        .status(400)
-        .json({ error: "GPS coordinates required for check-out" });
-    }
+    // Use authenticated user ID
+    const userId = req.user!.id;
 
-    // Hardcoded userId for testing
-    const userid = "79022473-7987-4f98-aff2-8d8f743fa0b2";
-
-    const today = new Date();
-    const startOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
-    const endOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + 1
-    );
-
-    // Get today's active check-in
-    const activeAttendances = await db
-      .select()
-      .from(marketingTodays)
-      .where(
-        and(
-          eq(marketingTodays.userid, userid), // lowercase column
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
-          isNull(marketingTodays.checkouttime) // lowercase column
-        )
-      );
-
-    if (activeAttendances.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No active check-in found for today" });
-    }
-
-    const activeAttendance = activeAttendances[0];
-
-    // Only update defined values
-    const updateData: any = { checkouttime: new Date() }; // lowercase
-    if (location) updateData.checkoutlocation = location; // lowercase
-
-    const updatedAttendance = await db
-      .update(marketingTodays)
-      .set(updateData)
-      .where(eq(marketingTodays.id, activeAttendance.id))
-      .returning();
+    // Use storage method which handles find-or-update logic
+    const attendance = await storage.checkOutMarketingAttendance(userId, {
+      checkOutTime: new Date(),
+      latitude,
+      longitude,
+      location,
+      visitCount,
+      tasksCompleted,
+      workDescription,
+      outcome,
+      nextAction,
+    });
 
     res.json({
-      attendance: updatedAttendance[0],
+      attendance,
       message: "Successfully checked out",
     });
   } catch (error: any) {
@@ -1824,11 +1844,12 @@ export const getTodayMarketingAttendance = async (
       today.getDate() + 1
     );
 
-    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
-    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
+    // Use authenticated user ID for scoping
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-    // Build query
-    const rows = await db
+    // Build query with DATE conversion for robust daily matching
+    let query = db
       .select({
         id: marketingTodays.id,
         userId: marketingTodays.userid, // match DB column
@@ -1846,21 +1867,30 @@ export const getTodayMarketingAttendance = async (
         outcome: marketingTodays.outcome,
         nextAction: marketingTodays.nextaction,
         isOnLeave: marketingTodays.isonleave,
+        breakStartTime: marketingTodays.breakstarttime,
+        breakEndTime: marketingTodays.breakendtime,
+        totalHours: marketingTodays.totalhours,
+        leaveType: marketingTodays.leavetype,
         // User fields
         userId_user: users.id,
         userFirstName: users.firstName,
         userLastName: users.lastName,
         userEmail: users.email,
+        userRole: users.role,
       })
       .from(marketingTodays)
-      .leftJoin(users, eq(marketingTodays.userid, users.id))
-      .where(
-        and(
-          gte(marketingTodays.date, startOfDay),
-          lt(marketingTodays.date, endOfDay),
-          eq(marketingTodays.userid, testUserId)
-        )
-      )
+      .leftJoin(users, eq(marketingTodays.userid, users.id));
+
+    // Base condition: only today's records
+    const conditions = [sql`DATE(${marketingTodays.date}) = CURRENT_DATE`];
+
+    // Apply user-based scoping if not admin/manager
+    if (userRole !== "admin" && userRole !== "manager") {
+      conditions.push(eq(marketingTodays.userid, userId));
+    }
+
+    const rows = await query
+      .where(and(...conditions))
       .orderBy(desc(marketingTodays.date));
 
     // Format response
@@ -1881,13 +1911,17 @@ export const getTodayMarketingAttendance = async (
       outcome: row.outcome || null,
       nextAction: row.nextAction || null,
       isOnLeave: row.isOnLeave ?? false,
+      breakStartTime: row.breakStartTime?.toISOString() || null,
+      breakEndTime: row.breakEndTime?.toISOString() || null,
+      totalHours: row.totalHours || null,
+      leaveType: row.leaveType || null,
       user: {
         id: row.userId_user || "",
-        name:
-          row.userFirstName && row.userLastName
-            ? `${row.userFirstName} ${row.userLastName}`
-            : "Unknown User",
+        firstName: row.userFirstName || "Unknown",
+        lastName: row.userLastName || "User",
         email: row.userEmail || "",
+        role: row.userRole || "employee",
+        name: row.userFirstName && row.userLastName ? `${row.userFirstName} ${row.userLastName}` : "Unknown User"
       },
     }));
 
@@ -2078,12 +2112,9 @@ export const createLeaveRequest = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Hardcoded user ID (replace with dynamic req.user!.id when ready)
-    const testUserId = "79022473-7987-4f98-aff2-8d8f743fa0b2";
-
     const requestData = {
       ...req.body,
-      userId: testUserId, // Always use the hardcoded user
+      userId: req.user!.id,
     };
 
     const validatedData = insertLeaveRequestSchema.parse(requestData);

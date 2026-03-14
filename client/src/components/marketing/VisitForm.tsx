@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, AlertCircle } from "lucide-react";
+import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -115,22 +115,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         form.setValue('visitCity', lead.city || '');
         form.setValue('visitState', lead.state || '');
       }
-    }
-  };
 
-  // Get user's current location for GPS coordinates
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          form.setValue('latitude', position.coords.latitude);
-          form.setValue('longitude', position.coords.longitude);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+      // Auto-fill assignedTo if available in lead
+      if (lead.assignedTo) {
+        form.setValue('assignedTo', lead.assignedTo);
+      }
     }
   };
 
@@ -171,7 +160,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
   };
 
   // Filter active users for assignment
-  const activeUsers = users.filter(user => user.isActive);
+  const activeUsers = users.filter(user => user.isActive !== false);
 
   // Filter leads that are not converted or dropped
   const availableLeads = leads.filter(lead => 
@@ -234,7 +223,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                       <UserIcon className="h-4 w-4" />
                       <span>Assigned To *</span>
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-assigned-to">
                           <SelectValue placeholder="Select an employee" />
@@ -478,80 +467,6 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 )}
               />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="latitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Latitude</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 12.9716"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        value={field.value || ''}
-                        data-testid="input-latitude"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="longitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 77.5946"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        value={field.value || ''}
-                        data-testid="input-longitude"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={getCurrentLocation}
-                  className="w-full"
-                  data-testid="button-get-location"
-                >
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Get GPS
-                </Button>
-              </div>
-            </div>
-
-            <Card className="bg-blue-50 dark:bg-blue-950/30">
-              <CardContent className="pt-4">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-light text-blue-900 dark:text-blue-100">GPS Coordinates</p>
-                    <p className="text-blue-700 dark:text-blue-300 mt-1">
-                      GPS coordinates help verify the actual visit location during check-in. 
-                      You can get your current location or enter coordinates manually.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4">

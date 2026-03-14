@@ -68,7 +68,7 @@ const purchaseOrderFormSchema = z.object({
   ),
   deliveryPeriod: z.string().optional(),
   status: z
-    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),
   gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
@@ -143,6 +143,10 @@ export default function PurchaseOrders() {
     queryKey: ["/suppliers"],
   });
 
+  const { data: customers = [] } = useQuery({
+    queryKey: ["/customers"],
+  });
+
   const { data: products = [] } = useQuery({
     queryKey: ["/products"],
   });
@@ -157,10 +161,11 @@ export default function PurchaseOrders() {
 
   const allQuotations = useMemo(() => {
     return [
-      ...inboundQuotations.map((q: any) => ({ ...q, type: 'Inbound' })),
-      ...outboundQuotations.map((q: any) => ({ ...q, type: 'Outbound' }))
+      ...inboundQuotations
+        .filter((q: any) => q.status === 'approved')
+        .map((q: any) => ({ ...q, type: 'Inbound' }))
     ];
-  }, [inboundQuotations, outboundQuotations]);
+  }, [inboundQuotations]);
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderFormSchema),
@@ -196,20 +201,108 @@ export default function PurchaseOrders() {
 
   const selectedQuotationId = form.watch("quotationId");
 
+  const selectedQuotation = useMemo(() => {
+    if (!selectedQuotationId || selectedQuotationId === "none") return null;
+    return allQuotations.find((q: any) => q.id === selectedQuotationId);
+  }, [selectedQuotationId, allQuotations]);
+
+  const selectedSupplierName = useMemo(() => {
+    if (selectedQuotation) {
+      if (selectedQuotation.type === 'Inbound') {
+        return selectedQuotation.sender?.name || "N/A";
+      } else {
+        return selectedQuotation.customer?.name || "N/A";
+      }
+    }
+    const currentSupplierId = form.watch("supplierId");
+    if (currentSupplierId) {
+      return suppliers.find((s: any) => s.id === currentSupplierId)?.name || "N/A";
+    }
+    return null;
+  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+
+  const selectedSupplierEmail = useMemo(() => {
+    if (selectedQuotation) {
+      if (selectedQuotation.type === 'Inbound') {
+        return selectedQuotation.sender?.email;
+      } else {
+        return selectedQuotation.customer?.email;
+      }
+    }
+    const currentSupplierId = form.watch("supplierId");
+    if (currentSupplierId) {
+      return suppliers.find((s: any) => s.id === currentSupplierId)?.email;
+    }
+    return null;
+  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+
+  const selectedSupplierAddress = useMemo(() => {
+    if (selectedQuotation) {
+      if (selectedQuotation.type === 'Inbound') {
+        return selectedQuotation.sender?.address;
+      } else {
+        return selectedQuotation.customer?.address;
+      }
+    }
+    const currentSupplierId = form.watch("supplierId");
+    if (currentSupplierId) {
+      return suppliers.find((s: any) => s.id === currentSupplierId)?.address;
+    }
+    return null;
+  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+
+  const selectedSupplierGst = useMemo(() => {
+    if (selectedQuotation) {
+      if (selectedQuotation.type === 'Inbound') {
+        return selectedQuotation.sender?.gstNumber;
+      } else {
+        return selectedQuotation.customer?.gstNumber;
+      }
+    }
+    const currentSupplierId = form.watch("supplierId");
+    if (currentSupplierId) {
+      return suppliers.find((s: any) => s.id === currentSupplierId)?.gstNumber;
+    }
+    return null;
+  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+
+  const allEntities = useMemo(() => {
+    return [
+      ...suppliers.map((s: any) => ({ ...s, type: 'Supplier' })),
+      ...customers.map((c: any) => ({ ...c, type: 'Customer' }))
+    ];
+  }, [suppliers, customers]);
+
   // Handle Quotation Selection
   useEffect(() => {
     if (selectedQuotationId && selectedQuotationId !== "none") {
       const quotation = allQuotations.find((q: any) => q.id === selectedQuotationId);
       if (quotation) {
         // Map common fields
-        form.setValue("totalAmount", parseFloat(quotation.totalAmount) || 0);
-        form.setValue("subtotalAmount", parseFloat(quotation.subtotalAmount) || 0);
-        form.setValue("gstAmount", parseFloat(quotation.taxAmount || quotation.gstAmount) || 0);
-        form.setValue("gstPercentage", parseFloat(quotation.gstPercentage) || 18);
+        if (quotation.type === 'Inbound' && quotation.financialBreakdown) {
+          form.setValue("totalAmount", parseFloat(String(quotation.financialBreakdown.total)) || 0);
+          form.setValue("subtotalAmount", parseFloat(String(quotation.financialBreakdown.subtotal)) || 0);
+          form.setValue("gstAmount", parseFloat(String(quotation.financialBreakdown.gstAmount)) || 0);
+          form.setValue("gstPercentage", parseFloat(String(quotation.financialBreakdown.gstRate)) || 18);
+        } else {
+          form.setValue("totalAmount", parseFloat(quotation.totalAmount) || 0);
+          form.setValue("subtotalAmount", parseFloat(quotation.subtotalAmount) || 0);
+          form.setValue("gstAmount", parseFloat(quotation.taxAmount || quotation.gstAmount) || 0);
+          form.setValue("gstPercentage", parseFloat(quotation.gstPercentage) || 18);
+        }
         
         // Map Supplier ID
         if (quotation.type === 'Inbound' && quotation.senderId) {
-          form.setValue("supplierId", quotation.senderId);
+          // If it's an inbound quotation, the sender is the supplier
+          // Check if it's in the suppliers list
+          const supplierMatch = suppliers.find((s: any) => s.id === quotation.senderId);
+          if (supplierMatch) {
+            form.setValue("supplierId", quotation.senderId);
+          } else {
+            // If not found in suppliers, we might be using a customer as a supplier
+            // This could fail FK if not handled in DB, but for UI we show the name
+            form.setValue("supplierId", quotation.senderId);
+          }
         } else if (quotation.type === 'Outbound' && quotation.customerId) {
           // Check if this customer also exists as a supplier
           const supplierMatch = suppliers.find((s: any) => s.id === quotation.customerId);
@@ -225,7 +318,13 @@ export default function PurchaseOrders() {
         const items = quotation.quotationItems || quotation.items || [];
         if (items.length > 0) {
           const mappedItems = items.map((item: any) => {
-            const itemName = item.partName || item.itemName || "";
+            const itemName = item.displayDescription || item.partName || item.itemName || "";
+            const description = item.description || item.partDescription || "";
+            const quantity = parseFloat(String(item.displayQty || item.qty || item.quantity || 1));
+            const unit = item.uom || item.unit || "pcs";
+            const unitPrice = parseFloat(String(item.displayRate || item.unitPrice || 0));
+            const amount = parseFloat(String(item.displayAmount || item.amount || 0));
+
             // Try to find matching product for stock tracking
             const matchedProduct = products.find((p: any) => 
               p.name.toLowerCase() === itemName.toLowerCase() || 
@@ -235,18 +334,18 @@ export default function PurchaseOrders() {
             return {
               productId: matchedProduct?.id || null,
               itemName: itemName,
-              description: item.partDescription || item.description || "",
-              quantity: item.qty || item.quantity || 1,
-              unit: item.uom || item.unit || "pcs",
-              unitPrice: item.unitPrice || 0,
-              amount: item.amount || 0,
+              description: description,
+              quantity: quantity,
+              unit: unit,
+              unitPrice: unitPrice,
+              amount: amount,
             };
           });
           replace(mappedItems);
         }
       }
     }
-  }, [selectedQuotationId, allQuotations, form, replace]);
+  }, [selectedQuotationId, allQuotations, form, replace, suppliers, products]);
 
   // Calculate Totals
   const watchItems = form.watch("items");
@@ -395,13 +494,13 @@ export default function PurchaseOrders() {
   const analysisStats = useMemo(() => {
     const total = purchaseOrders.length;
     const pending = purchaseOrders.filter((po: any) => po.status === 'pending').length;
-    const approved = purchaseOrders.filter((po: any) => po.status === 'approved').length;
+    const processing = purchaseOrders.filter((po: any) => po.status === 'processing').length;
     const totalValue = purchaseOrders.reduce((acc: number, po: any) => acc + (parseFloat(po.totalAmount) || 0), 0);
 
     return [
       { title: "Total POs", value: total, icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-100" },
       { title: "Pending Approval", value: pending, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100" },
-      { title: "Approved", value: approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
+      { title: "Processing", value: processing, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
       { title: "Total Value", value: `₹${totalValue.toLocaleString("en-IN")}`, icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-100" }
     ];
   }, [purchaseOrders]);
@@ -410,10 +509,10 @@ export default function PurchaseOrders() {
     { key: "poNumber", header: "PO #", cell: (po: any) => <div className="font-medium">{po.poNumber || "N/A"}</div> },
     {
       key: "supplier.name",
-      header: "Supplier",
+      header: "Customer",
       cell: (po: any) => {
-        const supplierName = po.supplier?.name || suppliers.find((s: any) => s.id === po.supplierId)?.name || "N/A";
-        return <div>{supplierName}</div>;
+        const supplierName = po.supplier?.name || allEntities.find((e: any) => e.id === po.supplierId)?.name || "N/A";
+        return <div className="font-medium">{supplierName}</div>;
       },
     },
     { 
@@ -430,7 +529,7 @@ export default function PurchaseOrders() {
       cell: (po: any) => {
         const statusColors: Record<string, string> = {
           pending: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800",
+          processing: "bg-green-100 text-green-800",
           shipped: "bg-blue-100 text-blue-800",
           delivered: "bg-purple-100 text-purple-800",
           cancelled: "bg-red-100 text-red-800",
@@ -531,7 +630,7 @@ export default function PurchaseOrders() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="processing">Processing</SelectItem>
                             <SelectItem value="shipped">Shipped</SelectItem>
                             <SelectItem value="delivered">Delivered</SelectItem>
                             <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -546,15 +645,53 @@ export default function PurchaseOrders() {
                     name="supplierId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Supplier</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {suppliers.map((s: any) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Customer</FormLabel>
+                        {selectedQuotation ? (
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 group transition-all hover:bg-white hover:border-blue-300">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 font-bold uppercase tracking-tight text-[10px] py-0 px-2 h-5">
+                                {selectedQuotation.type}
+                              </Badge>
+                              <span className="text-sm font-bold text-slate-900 flex-1 truncate">{selectedSupplierName}</span>
+                            </div>
+                            {selectedSupplierEmail && (
+                              <div className="text-[11px] text-muted-foreground ml-1">
+                                {selectedSupplierEmail}
+                              </div>
+                            )}
+                            {(selectedSupplierAddress || selectedSupplierGst) && (
+                              <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1">
+                                {selectedSupplierAddress && (
+                                  <div className="text-[10px] text-slate-500 italic flex items-center gap-1">
+                                    <span className="font-bold uppercase text-[9px] not-italic">Addr:</span> {selectedSupplierAddress}
+                                  </div>
+                                )}
+                                {selectedSupplierGst && (
+                                  <div className="text-[10px] text-slate-500 italic flex items-center gap-1">
+                                    <span className="font-bold uppercase text-[9px] not-italic text-blue-600">GST:</span> {selectedSupplierGst}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            <input type="hidden" {...field} />
+                          </div>
+                        ) : (
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              {allEntities.map((e: any) => (
+                                <SelectItem key={e.id} value={e.id}>
+                                  <div className="flex justify-between items-center w-full min-w-[200px]">
+                                    <span>{e.name}</span>
+                                    <Badge variant="outline" className="text-[9px] ml-2 h-4 px-1 opacity-70">
+                                      {e.type}
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
@@ -585,7 +722,7 @@ export default function PurchaseOrders() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Delivery Period</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. 15-20 Days" /></FormControl>
+                        <FormControl><Input {...field} placeholder="" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -620,7 +757,6 @@ export default function PurchaseOrders() {
                     <table className="w-full text-sm text-left">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="p-2 font-medium w-48">Product</th>
                           <th className="p-2 font-medium">Item Name</th>
                           <th className="p-2 font-medium">Description</th>
                           <th className="p-2 font-medium w-20">Qty</th>
@@ -633,38 +769,10 @@ export default function PurchaseOrders() {
                       <tbody>
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
-                            <td className="p-2">
-                              <Select 
-                                onValueChange={(val) => {
-                                  const prod = products.find((p: any) => p.id === val);
-                                  if (prod) {
-                                    form.setValue(`items.${index}.productId`, prod.id);
-                                    form.setValue(`items.${index}.itemName`, prod.name);
-                                    form.setValue(`items.${index}.description`, prod.description || "");
-                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
-                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
-                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
-                                  } else {
-                                    form.setValue(`items.${index}.productId`, null);
-                                  }
-                                }}
-                                value={form.watch(`items.${index}.productId`) || "manual"}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="Manual Entry" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="manual">Manual Entry</SelectItem>
-                                  {products.map((p: any) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
                             <td className="p-2"><Input {...form.register(`items.${index}.itemName`)} placeholder="Item Name" /></td>
                             <td className="p-2"><Input {...form.register(`items.${index}.description`)} placeholder="Description" /></td>
                             <td className="p-2">
-                              <Input type="number" {...form.register(`items.${index}.quantity`, {
+                              <Input type="number" step="any" {...form.register(`items.${index}.quantity`, {
                                 valueAsNumber: true,
                                 onChange: (e) => {
                                   const qty = parseFloat(e.target.value) || 0;
@@ -675,7 +783,7 @@ export default function PurchaseOrders() {
                             </td>
                             <td className="p-2"><Input {...form.register(`items.${index}.unit`)} /></td>
                             <td className="p-2">
-                              <Input type="number" {...form.register(`items.${index}.unitPrice`, {
+                              <Input type="number" step="any" {...form.register(`items.${index}.unitPrice`, {
                                 valueAsNumber: true,
                                 onChange: (e) => {
                                   const rate = parseFloat(e.target.value) || 0;
@@ -684,7 +792,7 @@ export default function PurchaseOrders() {
                                 }
                               })} />
                             </td>
-                            <td className="p-2"><Input type="number" {...form.register(`items.${index}.amount`, { valueAsNumber: true })} readOnly className="bg-muted" /></td>
+                            <td className="p-2"><Input type="number" step="any" {...form.register(`items.${index}.amount`, { valueAsNumber: true })} readOnly className="bg-muted" /></td>
                             <td className="p-2">
                               <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -717,7 +825,7 @@ export default function PurchaseOrders() {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-2">
                         <span className="text-muted-foreground">GST:</span>
-                        <div className="w-16"><Input type="number" {...form.register("gstPercentage", { valueAsNumber: true })} className="h-7 text-xs" /></div>
+                        <div className="w-16"><Input type="number" step="any" {...form.register("gstPercentage", { valueAsNumber: true })} className="h-7 text-xs" /></div>
                         <span className="text-xs text-muted-foreground">%</span>
                       </div>
                       <span className="font-medium">₹{form.watch("gstAmount").toLocaleString("en-IN")}</span>
@@ -798,9 +906,9 @@ export default function PurchaseOrders() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
-                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Supplier Details</p>
-                  <p className="font-bold text-lg">{suppliers.find((s:any) => s.id === selectedPo.supplierId)?.name || "N/A"}</p>
-                  <p>{suppliers.find((s:any) => s.id === selectedPo.supplierId)?.address || "N/A"}</p>
+                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Customer Details</p>
+                  <p className="font-bold text-lg">{selectedPo.supplier?.name || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.name || "N/A"}</p>
+                  <p>{selectedPo.supplier?.address || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.address || "N/A"}</p>
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-muted-foreground font-medium uppercase text-[10px]">Order Info</p>

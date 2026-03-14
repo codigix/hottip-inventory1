@@ -82,9 +82,9 @@ export default function LeadTable({
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/marketing/leads/${id}`, { method: "DELETE" }),
+      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -93,12 +93,13 @@ export default function LeadTable({
   // ✅ Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/marketing/leads/${id}/status`, {
+      apiRequest(`/api/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title:
           variables.status === "converted"
@@ -113,9 +114,10 @@ export default function LeadTable({
   // ✅ Convert lead mutation
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
+      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title: "Lead converted and handed over to Sales!",
       });
@@ -275,12 +277,22 @@ export default function LeadTable({
 
                 {/* ✅ Assignee */}
                 <TableCell>
-                  {lead.assignee ? (
+                  {(lead as any).assignedToUser && ((lead as any).assignedToUser.firstName || (lead as any).assignedToUser.lastName) ? (
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {lead.assignee.firstName[0]}
-                          {lead.assignee.lastName[0]}
+                          {((lead as any).assignedToUser.firstName?.[0] || "") + ((lead as any).assignedToUser.lastName?.[0] || "") || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">
+                        {(lead as any).assignedToUser.firstName} {(lead as any).assignedToUser.lastName}
+                      </span>
+                    </div>
+                  ) : lead.assignee ? (
+                    <div className="flex items-center space-x-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">
+                          {lead.assignee.firstName?.[0] || ""}{lead.assignee.lastName?.[0] || ""}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm">
@@ -288,8 +300,8 @@ export default function LeadTable({
                       </span>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">
-                      Unassigned
+                    <span className="text-sm text-muted-foreground italic">
+                      {lead.assignedTo ? `User (${lead.assignedTo.slice(0, 8)})` : "Unassigned"}
                     </span>
                   )}
                 </TableCell>

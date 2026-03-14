@@ -4,16 +4,16 @@ import { apiRequest } from "./queryClient";
 export const api = {
   // Users
   users: {
-    getAll: () => apiRequest("/users"),
-    getById: (id: string) => apiRequest(`/users/${id}`),
+    getAll: () => apiRequest("/api/users"),
+    getById: (id: string) => apiRequest(`/api/users/${id}`),
     create: (data: any) =>
-      apiRequest("/users", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/api/users", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest(`/users/${id}`, {
+      apiRequest(`/api/users/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    delete: (id: string) => apiRequest(`/users/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiRequest(`/api/users/${id}`, { method: "DELETE" }),
   },
 
   // Products
@@ -136,29 +136,29 @@ export const api = {
 
   // Marketing Attendance
   marketingAttendance: {
-    getAll: () => apiRequest("/marketing-attendance"),
-    getById: (id: string) => apiRequest(`/marketing-attendance/${id}`),
-    getToday: () => apiRequest("/marketing-attendance/today"),
-    getMetrics: () => apiRequest("/marketing-attendance/metrics"),
+    getAll: () => apiRequest("/api/marketing/marketing-attendance"),
+    getById: (id: string) => apiRequest(`/api/marketing/marketing-attendance/${id}`),
+    getToday: () => apiRequest("/api/marketing/marketing-attendance/today"),
+    getMetrics: () => apiRequest("/api/marketing/marketing-attendance/metrics"),
     create: (data: any) =>
-      apiRequest("/marketing-attendance", {
+      apiRequest("/api/marketing/marketing-attendance", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/marketing-attendance/${id}`, {
+      apiRequest(`/api/marketing/marketing-attendance/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/marketing-attendance/${id}`, { method: "DELETE" }),
+      apiRequest(`/api/marketing/marketing-attendance/${id}`, { method: "DELETE" }),
     checkIn: (data: any) =>
-      apiRequest("/marketing-attendance/check-in", {
+      apiRequest("/api/marketing/marketing-attendance/check-in", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     checkOut: (data: any) =>
-      apiRequest("/marketing-attendance/check-out", {
+      apiRequest("/api/marketing/marketing-attendance/check-out", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -166,22 +166,22 @@ export const api = {
 
   // Leave Requests
   leaveRequests: {
-    getAll: () => apiRequest("/leave-requests"),
-    getById: (id: string) => apiRequest(`/leave-requests/${id}`),
+    getAll: () => apiRequest("/api/leave-requests"),
+    getById: (id: string) => apiRequest(`/api/leave-requests/${id}`),
     getByStatus: (status: string) =>
-      apiRequest(`/leave-requests/status/${status}`),
+      apiRequest(`/api/leave-requests/status/${status}`),
     create: (data: any) =>
-      apiRequest("/leave-requests", {
+      apiRequest("/api/leave-requests", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (id: string, data: any) =>
-      apiRequest(`/leave-requests/${id}`, {
+      apiRequest(`/api/leave-requests/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      apiRequest(`/leave-requests/${id}`, { method: "DELETE" }),
+      apiRequest(`/api/leave-requests/${id}`, { method: "DELETE" }),
   },
 
   // Dashboard & Analytics

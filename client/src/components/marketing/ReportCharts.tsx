@@ -79,22 +79,22 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
   }, [dateRange.from, dateRange.to]);
 
   const { data: conversionData, isLoading: loadingConversion } = useQuery({
-    queryKey: ['/marketing/conversion-rates', dateRangeParam],
+    queryKey: ['/api/marketing/conversion-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: visitData, isLoading: loadingVisits } = useQuery({
-    queryKey: ['/marketing/visit-success-rates', dateRangeParam],
+    queryKey: ['/api/marketing/visit-success-rates', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: teamData, isLoading: loadingTeam } = useQuery({
-    queryKey: ['/marketing/team-performance', dateRangeParam],
+    queryKey: ['/api/marketing/team-performance', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
   const { data: leadsData, isLoading: loadingLeads } = useQuery({
-    queryKey: ['/marketing/leads/metrics', dateRangeParam],
+    queryKey: ['/api/marketing/leads/metrics', dateRangeParam],
     enabled: !!dateRangeParam
   });
 
@@ -118,7 +118,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
       { stage: 'New Leads', count: conversionObj?.totalLeads || 0 },
       { stage: 'Contacted', count: conversionObj?.contactedLeads || 0 },
       { stage: 'In Progress', count: conversionObj?.inProgressLeads || 0 },
-      { stage: 'Converted', count: conversionObj?.convertedLeads || 0 }
+      { stage: 'Confirmed for Sales', count: conversionObj?.convertedLeads || 0 }
     ];
     
     const totalLeads = stages[0].count;
@@ -159,7 +159,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
       userId: item.userId || item.id || 'unknown',
       userName: item.userName || item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown User',
       visitsCompleted: item.visitsCompleted || item.completedVisits || 0,
-      leadsConverted: item.leadsConverted || item.convertedLeads || 0,
+      leadsConfirmed: item.leadsConverted || item.convertedLeads || 0,
       tasksCompleted: item.tasksCompleted || item.completedTasks || 0,
       efficiency: item.efficiency || item.productivityScore || 0
     }));
@@ -327,7 +327,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="visitsCompleted" fill={COLORS.primary} name="Visits Completed" />
-                <Bar dataKey="leadsConverted" fill={COLORS.success} name="Leads Converted" />
+                <Bar dataKey="leadsConfirmed" fill={COLORS.success} name="Leads Confirmed" />
                 <Bar dataKey="tasksCompleted" fill={COLORS.warning} name="Tasks Completed" />
               </BarChart>
             </ResponsiveContainer>

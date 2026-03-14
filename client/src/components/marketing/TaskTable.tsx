@@ -110,13 +110,13 @@ export default function TaskTable({
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: string }) => 
-      apiRequest(`/marketing-tasks/${taskId}/status`, { 
+      apiRequest(`/api/marketing-tasks/${taskId}/status`, { 
         method: 'PUT', 
         body: JSON.stringify({ status }) 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks/metrics'] });
       toast({ title: "Task status updated successfully!" });
     },
     onError: (error: any) => {
@@ -130,10 +130,10 @@ export default function TaskTable({
 
   const completeTaskMutation = useMutation({
     mutationFn: (taskId: string) => 
-      apiRequest(`/${taskId}/complete`, { method: 'POST' }),
+      apiRequest(`/api/marketing-tasks/${taskId}/complete`, { method: 'POST' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks/metrics'] });
       toast({ title: "Task completed successfully!" });
     },
     onError: (error: any) => {
@@ -435,11 +435,11 @@ export default function TaskTable({
                   </TableCell>
                   
                   <TableCell>
-                    {task.assignedToUser ? (
+                    {task.assignedToUser && (task.assignedToUser.firstName || task.assignedToUser.lastName) ? (
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs">
-                            {task.assignedToUser.firstName[0]}{task.assignedToUser.lastName[0]}
+                            {(task.assignedToUser.firstName?.[0] || "") + (task.assignedToUser.lastName?.[0] || "") || "?"}
                           </AvatarFallback>
                         </Avatar>
                         <span 
@@ -450,7 +450,16 @@ export default function TaskTable({
                         </span>
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">Unassigned</span>
+                      <div className="flex items-center space-x-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">
+                            <UserIcon className="h-3 w-3" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-muted-foreground italic">
+                          {task.assignedTo ? `User (${task.assignedTo.slice(0, 8)})` : "Unassigned"}
+                        </span>
+                      </div>
                     )}
                   </TableCell>
                   

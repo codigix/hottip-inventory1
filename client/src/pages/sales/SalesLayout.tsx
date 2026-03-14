@@ -16,7 +16,8 @@ import {
   Plus,
   Search,
   Filter,
-  ShoppingCart
+  ShoppingCart,
+  UserPlus
 } from "lucide-react";
 import { StartTourButton } from "@/components/StartTourButton";
 import {
@@ -31,15 +32,17 @@ import {
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import individual pages (will create these next)
-import OutboundQuotations from "./OutboundQuotations";
-import InboundQuotations from "./InboundQuotations";
+import QuotationsPage from "./QuotationsPage";
+import QuotationFormPage from "./QuotationFormPage";
 import PurchaseOrders from "./PurchaseOrders";
 import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
+import CreateInvoice from "./CreateInvoice";
 import ClientManagement from "./ClientManagement";
 import VendorManagement from "./VendorManagement";
 import SalesReports from "./SalesReports";
 import SalesDashboard from "./SalesDashboard";
+import LeadReceived from "./LeadReceived";
 
 const sidebarItems = [
   {
@@ -51,20 +54,20 @@ const sidebarItems = [
     tourConfig: null,
   },
   {
-    id: 'outbound-quotations',
-    label: 'Outbound Quotations',
-    icon: FileText,
-    path: '/sales/outbound-quotations',
-    description: 'Company → Client quotations',
-    tourConfig: comprehensiveOutboundQuotationsTour,
+    id: 'leads',
+    label: 'Lead Received',
+    icon: UserPlus,
+    path: '/sales/leads',
+    description: 'Lead management workflow',
+    tourConfig: null,
   },
   {
-    id: 'inbound-quotations', 
-    label: 'Inbound Quotations',
-    icon: FileDown,
-    path: '/sales/inbound-quotations',
-    description: 'Client/Vendor → Company quotations',
-    tourConfig: comprehensiveInboundQuotationsTour,
+    id: 'quotations',
+    label: 'Quotations',
+    icon: FileText,
+    path: '/sales/quotations',
+    description: 'Sent & Received quotations',
+    tourConfig: comprehensiveOutboundQuotationsTour,
   },
   {
     id: 'purchase-orders',
@@ -146,8 +149,10 @@ export default function SalesLayout() {
   
   const getActiveSidebarItem = () => {
     if (location === '/sales') return 'dashboard';
-    if (location.includes('/outbound-quotations')) return 'outbound-quotations';
-    if (location.includes('/inbound-quotations')) return 'inbound-quotations';
+    if (location.includes('/leads')) return 'leads';
+    if (location.includes('/quotations')) return 'quotations';
+    if (location.includes('/outbound-quotations')) return 'quotations';
+    if (location.includes('/inbound-quotations')) return 'quotations';
     if (location.includes('/purchase-orders')) return 'purchase-orders';
     if (location.includes('/orders')) return 'sales-orders';
     if (location.includes('/invoices')) return 'invoices';
@@ -167,7 +172,7 @@ export default function SalesLayout() {
             <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-flow-tour" navigationHandler={navigationHandler} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Comprehensive quotation and invoice management
+            Lead received, quotation and invoice management
           </p>
         </div>
 
@@ -214,10 +219,18 @@ export default function SalesLayout() {
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Quick Actions
           </h3>
-          <Button size="sm" className="w-full justify-start" data-testid="button-new-quotation">
-            <Plus className="h-4 w-4 mr-2" />
-            New Quotation
-          </Button>
+          <Link href="/sales/outbound-quotations/new">
+            <Button size="sm" className="w-full justify-start" data-testid="button-new-quotation">
+              <Plus className="h-4 w-4 mr-2" />
+              New Quotation
+            </Button>
+          </Link>
+          <Link href="/sales/invoices/new">
+            <Button size="sm" className="w-full justify-start" data-testid="button-new-invoice-quick">
+              <Plus className="h-4 w-4 mr-2" />
+              New Invoice
+            </Button>
+          </Link>
           <Button size="sm" variant="outline" className="w-full justify-start" data-testid="button-search-all">
             <Search className="h-4 w-4 mr-2" />
             Search All
@@ -233,11 +246,16 @@ export default function SalesLayout() {
       <div className="flex-1 overflow-auto">
         <Switch>
           <Route path="/sales" component={SalesDashboard} />
-          <Route path="/sales/outbound-quotations" component={OutboundQuotations} />
-          <Route path="/sales/inbound-quotations" component={InboundQuotations} />
+          <Route path="/sales/leads" component={LeadReceived} />
+          <Route path="/sales/quotations" component={QuotationsPage} />
+          <Route path="/sales/outbound-quotations" component={QuotationsPage} />
+          <Route path="/sales/outbound-quotations/new" component={QuotationFormPage} />
+          <Route path="/sales/outbound-quotations/edit/:id" component={QuotationFormPage} />
+          <Route path="/sales/inbound-quotations" component={QuotationsPage} />
           <Route path="/sales/purchase-orders" component={PurchaseOrders} />
           <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
+          <Route path="/sales/invoices/new" component={CreateInvoice} />
           <Route path="/sales/clients" component={ClientManagement} />
           <Route path="/sales/vendors" component={VendorManagement} />
           <Route path="/sales/reports" component={SalesReports} />

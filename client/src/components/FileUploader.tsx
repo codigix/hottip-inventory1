@@ -164,6 +164,7 @@ export function FileUploader({
       {!selectedFile && (
         <div className="flex items-center space-x-2">
           <Button
+            type="button"
             variant="outline"
             onClick={() => document.getElementById("file-input")?.click()}
             disabled={isUploading}
@@ -199,6 +200,7 @@ export function FileUploader({
             </span>
           </div>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={clearSelection}
@@ -228,6 +230,7 @@ export function FileUploader({
       {/* Upload Button */}
       {selectedFile && !isUploading && (
         <Button
+          type="button"
           onClick={uploadFile}
           className="w-full"
           data-testid="button-upload"

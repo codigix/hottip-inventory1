@@ -370,7 +370,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Client Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter client name" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -383,7 +383,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Company Name (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter company name" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -400,7 +400,7 @@ export default function ClientManagement() {
                         <FormLabel>Contact Person (Optional)</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter contact person name"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -417,7 +417,7 @@ export default function ClientManagement() {
                         <FormControl>
                           <Input
                             type="email"
-                            placeholder="Enter email address"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -436,7 +436,7 @@ export default function ClientManagement() {
                         <FormLabel>Contact</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter contact number"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -451,7 +451,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>GST Number (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter GST number" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -467,7 +467,7 @@ export default function ClientManagement() {
                       <FormLabel>Address (Optional)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter complete address"
+                          placeholder=""
                           {...field}
                         />
                       </FormControl>
@@ -484,7 +484,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>City (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter city" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -497,7 +497,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>State (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter state" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -510,7 +510,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>ZIP Code (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter ZIP code" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -525,7 +525,7 @@ export default function ClientManagement() {
                     <FormItem>
                       <FormLabel>Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="India" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -593,7 +593,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Client Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter client name" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -606,7 +606,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>Company Name (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter company name" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -623,7 +623,7 @@ export default function ClientManagement() {
                         <FormLabel>Contact Person (Optional)</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter contact person name"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -640,7 +640,7 @@ export default function ClientManagement() {
                         <FormControl>
                           <Input
                             type="email"
-                            placeholder="Enter email address"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -659,7 +659,7 @@ export default function ClientManagement() {
                         <FormLabel>Contact</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter contact number"
+                            placeholder=""
                             {...field}
                           />
                         </FormControl>
@@ -674,7 +674,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>GST Number (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter GST number" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -690,7 +690,7 @@ export default function ClientManagement() {
                       <FormLabel>Address (Optional)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter complete address"
+                          placeholder=""
                           {...field}
                         />
                       </FormControl>
@@ -707,7 +707,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>City (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter city" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -720,7 +720,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>State (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter state" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -733,7 +733,7 @@ export default function ClientManagement() {
                       <FormItem>
                         <FormLabel>ZIP Code (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter ZIP code" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -748,7 +748,7 @@ export default function ClientManagement() {
                     <FormItem>
                       <FormLabel>Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="India" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

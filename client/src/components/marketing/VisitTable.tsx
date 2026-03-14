@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
   Calendar,
@@ -77,24 +79,24 @@ type VisitStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
 
 interface VisitTableProps {
   visits: VisitWithDetails[];
-  setVisits: React.Dispatch<React.SetStateAction<VisitWithDetails[]>>;
   isLoading: boolean;
   onEdit: (visit: VisitWithDetails) => void;
   onDelete: (visit: VisitWithDetails) => void;
   onCheckIn: (visit: VisitWithDetails) => void;
   onCheckOut: (visit: VisitWithDetails) => void;
   onProofUpload: (visit: VisitWithDetails) => void;
+  onStatusUpdate?: (visit: VisitWithDetails, status: VisitStatus) => void;
 }
 
 export default function VisitTable({
   visits,
-  setVisits,
   isLoading,
   onEdit,
   onDelete,
   onCheckIn,
   onCheckOut,
   onProofUpload,
+  onStatusUpdate,
 }: VisitTableProps) {
   const [selectedVisit, setSelectedVisit] = useState<VisitWithDetails | null>(
     null
@@ -102,10 +104,13 @@ export default function VisitTable({
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<VisitStatus>("scheduled");
   const [statusNotes, setStatusNotes] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Get status badge variant and icon
-  const getStatusInfo = (status: VisitStatus) => {
-    switch (status) {
+  const getStatusInfo = (status: string) => {
+    const normalizedStatus = status.toLowerCase().replace(" ", "_");
+    switch (normalizedStatus) {
       case "scheduled":
         return {
           variant: "secondary" as const,
@@ -169,44 +174,54 @@ export default function VisitTable({
 
   const openStatusUpdate = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
-    setNewStatus(visit.status as VisitStatus);
+    // Normalize status to lowercase for the select component
+    const currentStatus = visit.status.toLowerCase().replace(" ", "_") as VisitStatus;
+    setNewStatus(currentStatus);
     setStatusUpdateOpen(true);
   };
 
-  const handleStatusUpdateAPI = async function onStatusUpdate(
-    visit: VisitWithDetails,
-    status: VisitStatus,
-    notes?: string
-  ) {
-    try {
-      // Map frontend status to backend expected
-      const statusMap: Record<VisitStatus, string> = {
-        scheduled: "Scheduled",
-        in_progress: "In Progress",
-        completed: "Completed",
-        cancelled: "Cancelled",
-      };
-
-      const res = await fetch(`/api/field-visits/${visit.visitNumber}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: statusMap[status] }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update status");
-      const data = await res.json();
-
-      alert(`Status updated to ${data.visit.status}`);
-      // Update local state if needed
-    } catch (err) {
-      console.error(err);
-      alert("Error updating status");
-    }
-  };
-
-  const handleStatusUpdate = () => {
+  const handleStatusUpdate = async () => {
     if (selectedVisit) {
-      handleStatusUpdateAPI(selectedVisit, newStatus);
+      try {
+        const statusMap: Record<VisitStatus, string> = {
+          scheduled: "Scheduled",
+          in_progress: "In Progress",
+          completed: "Completed",
+          cancelled: "Cancelled",
+        };
+
+        const res = await fetch(`/api/field-visits/${selectedVisit.id}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: statusMap[newStatus],
+            notes: statusNotes,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.message || `Server responded with ${res.status}`);
+        }
+        
+        // Invalidate the visits query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
+
+        if (onStatusUpdate) {
+          onStatusUpdate(selectedVisit, newStatus);
+        }
+
+        setStatusUpdateOpen(false);
+        setStatusNotes("");
+        toast({ title: "Visit status updated successfully" });
+      } catch (err) {
+        console.error("Error updating status:", err);
+        toast({
+          title: "Error updating status",
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+          variant: "destructive",
+        });
+      }
     }
   };
 

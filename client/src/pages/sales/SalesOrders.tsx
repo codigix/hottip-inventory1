@@ -69,10 +69,6 @@ export default function SalesOrders() {
     queryKey: ["/sales-orders"],
   });
 
-  const { data: quotations = [] } = useQuery({
-    queryKey: ["/outbound-quotations"],
-  });
-
   const { data: purchaseOrders = [] } = useQuery({
     queryKey: ["/purchase-orders"],
   });
@@ -91,6 +87,7 @@ export default function SalesOrders() {
         id: `PO:${p.id}`, 
         originalId: p.id,
         number: p.poNumber, 
+        customerName: p.supplier?.name || p.customer?.name || "Unknown",
         type: 'PO', 
         data: p 
       }))
@@ -131,21 +128,19 @@ export default function SalesOrders() {
     }
   }, [user, form]);
 
-  const selectedQuotationId = form.watch("quotationId");
   const selectedPurchaseOrderId = form.watch("purchaseOrderId");
 
   // Handle Reference Selection
   useEffect(() => {
     let reference = null;
-    if (selectedQuotationId && selectedQuotationId !== "none") {
-      reference = quotations.find((q: any) => q.id === selectedQuotationId);
-    } else if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
+    if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
       reference = purchaseOrders.find((p: any) => p.id === selectedPurchaseOrderId);
     }
 
     if (reference) {
-      if (reference.customerId) {
-        form.setValue("customerId", reference.customerId);
+      const cid = reference.customerId || reference.supplierId;
+      if (cid) {
+        form.setValue("customerId", cid);
       }
       form.setValue("gstType", reference.gstType || "IGST");
       form.setValue("gstPercentage", parseFloat(reference.gstPercentage) || 18);
@@ -176,7 +171,7 @@ export default function SalesOrders() {
         replace(mappedItems);
       }
     }
-  }, [selectedQuotationId, selectedPurchaseOrderId, quotations, purchaseOrders, form, replace]);
+  }, [selectedPurchaseOrderId, purchaseOrders, products, form, replace]);
 
   // Calculate Totals
   const watchItems = form.watch("items");
@@ -235,6 +230,32 @@ export default function SalesOrders() {
       setActionInProgressId(null);
     },
   });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: (orderId: string | number) => {
+      return apiRequest("DELETE", `/sales-orders/${orderId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/sales-orders"] });
+      toast({
+        title: "Success",
+        description: "Sales order deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete sales order.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = (orderId: string) => {
+    if (confirm("Are you sure you want to delete this sales order?")) {
+      deleteOrderMutation.mutate(orderId);
+    }
+  };
 
   const handleUpdateStatus = (orderId: string, status: string) => {
     setActionInProgressId(orderId);
@@ -384,6 +405,15 @@ export default function SalesOrders() {
                 <XCircle className="h-4 w-4 text-red-600" />
               </Button>
             )}
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => handleDelete(order.id)}
+              disabled={deleteOrderMutation.isPending}
+              title="Delete Order"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
           </div>
         );
       },
@@ -470,33 +500,33 @@ export default function SalesOrders() {
                     name="quotationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reference Quotation</FormLabel>
+                        <FormLabel>Select PO</FormLabel>
                         <Select 
                           onValueChange={(val) => {
                             if (val === "none") {
                               form.setValue("quotationId", null);
                               form.setValue("purchaseOrderId", null);
-                            } else if (val.startsWith("Quotation:")) {
-                              form.setValue("quotationId", val.split(":")[1]);
-                              form.setValue("purchaseOrderId", null);
-                            } else if (val.startsWith("PO:")) {
+                            } else {
                               form.setValue("quotationId", null);
                               form.setValue("purchaseOrderId", val.split(":")[1]);
                             }
                           }} 
-                          value={selectedQuotationId ? `Quotation:${selectedQuotationId}` : (selectedPurchaseOrderId ? `PO:${selectedPurchaseOrderId}` : "none")}
+                          value={selectedPurchaseOrderId ? `PO:${selectedPurchaseOrderId}` : "none"}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select quotation" />
+                              <SelectValue placeholder="Select PO" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">None (Manual)</SelectItem>
                             {allReferences.map((ref: any) => (
                               <SelectItem key={ref.id} value={ref.id}>
-                                <div className="flex justify-between items-center w-full min-w-[200px]">
-                                  <span>{ref.number}</span>
+                                <div className="flex justify-between items-center w-full min-w-[300px]">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{ref.number}</span>
+                                    <span className="text-[10px] text-muted-foreground">{ref.customerName}</span>
+                                  </div>
                                   <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
                                     {ref.type}
                                   </Badge>
@@ -519,7 +549,7 @@ export default function SalesOrders() {
                         <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -562,7 +592,7 @@ export default function SalesOrders() {
                       <FormItem>
                         <FormLabel>Delivery Period</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. 25-30 Days" />
+                          <Input {...field} placeholder="" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -578,7 +608,7 @@ export default function SalesOrders() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select GST Type" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -619,7 +649,6 @@ export default function SalesOrders() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="p-2 text-left font-medium w-48">Product</th>
                           <th className="p-2 text-left font-medium">Item Name</th>
                           <th className="p-2 text-left font-medium">Description</th>
                           <th className="p-2 text-left font-medium w-20">Qty</th>
@@ -632,34 +661,6 @@ export default function SalesOrders() {
                       <tbody>
                         {fields.map((field, index) => (
                           <tr key={field.id} className="border-b">
-                            <td className="p-2">
-                              <Select 
-                                onValueChange={(val) => {
-                                  const prod = products.find((p: any) => p.id === val);
-                                  if (prod) {
-                                    form.setValue(`items.${index}.productId`, prod.id);
-                                    form.setValue(`items.${index}.itemName`, prod.name);
-                                    form.setValue(`items.${index}.description`, prod.description || "");
-                                    form.setValue(`items.${index}.unitPrice`, parseFloat(prod.price) || 0);
-                                    const qty = form.getValues(`items.${index}.quantity`) || 1;
-                                    form.setValue(`items.${index}.amount`, qty * (parseFloat(prod.price) || 0));
-                                  } else {
-                                    form.setValue(`items.${index}.productId`, null);
-                                  }
-                                }}
-                                value={form.watch(`items.${index}.productId`) || "manual"}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="Manual Entry" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="manual">Manual Entry</SelectItem>
-                                  {products.map((p: any) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
                             <td className="p-2">
                               <Input
                                 {...form.register(`items.${index}.itemName`)}
@@ -677,6 +678,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.quantity`, {
                                   valueAsNumber: true,
                                   onChange: (e) => {
@@ -697,6 +699,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.unitPrice`, {
                                   valueAsNumber: true,
                                   onChange: (e) => {
@@ -711,6 +714,7 @@ export default function SalesOrders() {
                             <td className="p-2">
                               <Input
                                 type="number"
+                                step="0.01"
                                 {...form.register(`items.${index}.amount`, { valueAsNumber: true })}
                                 readOnly
                                 className="bg-muted"

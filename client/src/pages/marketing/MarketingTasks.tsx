@@ -71,6 +71,7 @@ import { Separator } from "@/components/ui/separator";
 import TaskMetrics from "@/components/marketing/TaskMetrics";
 import TaskForm from "@/components/marketing/TaskForm";
 import TaskTable from "@/components/marketing/TaskTable";
+import TaskCalendar from "@/components/marketing/TaskCalendar";
 
 import type { MarketingTask, User, Lead, FieldVisit } from "@shared/schema";
 
@@ -134,30 +135,27 @@ export default function MarketingTasks() {
     isLoading: tasksLoading,
     error: tasksError,
   } = useQuery<TaskWithDetails[]>({
-    queryKey: ["/marketing-tasks"],
+    queryKey: ["/api/marketing-tasks"],
     queryFn: async () => {
-      // Call your API
-      const response = await fetch("/api/marketing-tasks"); // replace with your real API endpoint
-      if (!response.ok) throw new Error("Failed to fetch marketing tasks");
-      return response.json();
+      return await apiRequest("/api/marketing-tasks");
     },
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/users"],
+    queryKey: ["/api/users"],
   });
 
   const { data: leads = [] } = useQuery<Lead[]>({
-    queryKey: ["/marketing/leads"],
+    queryKey: ["/api/marketing/leads"],
   });
 
   // Mutations
   const deleteTaskMutation = useMutation({
     mutationFn: (taskId: string) =>
-      apiRequest(`/marketing-tasks/${taskId}`, { method: "DELETE" }),
+      apiRequest(`/api/marketing-tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks/metrics"] });
       toast({ title: "Task deleted successfully!" });
       setTaskToDelete(null);
     },
@@ -315,7 +313,7 @@ export default function MarketingTasks() {
             <Button
               onClick={() =>
                 queryClient.invalidateQueries({
-                  queryKey: ["/marketing-tasks"],
+                  queryKey: ["/api/marketing-tasks"],
                 })
               }
               className="flex items-center space-x-2"
@@ -344,7 +342,7 @@ export default function MarketingTasks() {
             variant="outline"
             size="sm"
             onClick={() =>
-              queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] })
+              queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] })
             }
             disabled={tasksLoading}
           >
@@ -534,9 +532,13 @@ export default function MarketingTasks() {
           </Suspense>
         )}
         {viewMode === "cards" && (
-          <Suspense fallback={<div>Loading cards...</div>}>
-            {/* Cards view rendering */}
-          </Suspense>
+          <TaskCalendar
+            tasks={filteredTasks}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            onViewDetails={handleViewTaskDetails}
+            loading={tasksLoading}
+          />
         )}
       </div>
 

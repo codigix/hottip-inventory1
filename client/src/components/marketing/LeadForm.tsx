@@ -14,7 +14,16 @@ import {
   Building,
   FileText,
   Tag,
-  DollarSign,
+  IndianRupee,
+  NotebookPen,
+  Search,
+  Flag,
+  Info,
+  Users,
+  Globe,
+  Hash,
+  Map,
+
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -79,13 +88,11 @@ const leadFormSchema = z.object({
   referredBy: z.string().optional(),
   requirementDescription: z.string().optional(),
   estimatedBudget: z.string().optional(),
-  budgetRange: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
   assignedTo: z.string().optional(),
   followUpDate: z.string().optional(),
   expectedClosingDate: z.string().optional(),
   notes: z.string().optional(),
-  tags: z.array(z.string()).optional(),
 });
 
 interface LeadFormProps {
@@ -113,7 +120,7 @@ export default function LeadForm({
 
   // Fetch existing lead data if editing
   const { data: existingLead } = useQuery({
-    queryKey: ["/marketing/leads", leadId],
+    queryKey: ["/api/marketing/leads", leadId],
     enabled: !!leadId && open,
   });
 
@@ -145,12 +152,12 @@ export default function LeadForm({
 
   const createMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest("/marketing/leads", {
+      apiRequest("/api/marketing/leads", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({ title: "Lead created successfully!" });
       onOpenChange(false);
       form.reset();
@@ -166,15 +173,16 @@ export default function LeadForm({
 
   const updateMutation = useMutation({
     mutationFn: (data: LeadFormData) =>
-      apiRequest(`/marketing/leads/${leadId}`, {
+      apiRequest(`/api/marketing/leads/${leadId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({
-        queryKey: ["/marketing/leads", leadId],
+        queryKey: ["/api/marketing/leads", leadId],
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({ title: "Lead updated successfully!" });
       onOpenChange(false);
     },
@@ -191,7 +199,6 @@ export default function LeadForm({
     const submitData = {
       ...data,
       estimatedBudget: data.estimatedBudget || undefined,
-      tags: data.tags || [],
     };
     if (leadId) updateMutation.mutate(submitData);
     else createMutation.mutate(submitData);
@@ -237,7 +244,10 @@ export default function LeadForm({
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name *</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <UserIcon className="h-4 w-4" />
+                          <span>First Name *</span>
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-first-name" />
                         </FormControl>
@@ -251,7 +261,10 @@ export default function LeadForm({
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name *</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <UserIcon className="h-4 w-4" />
+                          <span>Last Name *</span>
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-last-name" />
                         </FormControl>
@@ -284,14 +297,17 @@ export default function LeadForm({
                     name="source"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Lead Source *</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Search className="h-4 w-4" />
+                          <span>Lead Source *</span>
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-source">
-                              <SelectValue placeholder="Select source" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -323,14 +339,17 @@ export default function LeadForm({
                     name="priority"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priority</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Flag className="h-4 w-4" />
+                          <span>Priority</span>
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-priority">
-                              <SelectValue placeholder="Select priority" />
+                              <SelectValue placeholder="" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -352,11 +371,14 @@ export default function LeadForm({
                     name="sourceDetails"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Source Details</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Info className="h-4 w-4" />
+                          <span>Source Details</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Additional source information"
+                            placeholder=""
                             data-testid="input-source-details"
                           />
                         </FormControl>
@@ -370,11 +392,14 @@ export default function LeadForm({
                     name="referredBy"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Referred By</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Users className="h-4 w-4" />
+                          <span>Referred By</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Name of referrer"
+                            placeholder=""
                             data-testid="input-referred-by"
                           />
                         </FormControl>
@@ -431,7 +456,10 @@ export default function LeadForm({
                   name="alternatePhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Alternate Phone</FormLabel>
+                      <FormLabel className="flex items-center space-x-2">
+                        <Phone className="h-4 w-4" />
+                        <span>Alternate Phone</span>
+                      </FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-alternate-phone" />
                       </FormControl>
@@ -469,7 +497,10 @@ export default function LeadForm({
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Building className="h-4 w-4" />
+                          <span>City</span>
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-city" />
                         </FormControl>
@@ -483,7 +514,10 @@ export default function LeadForm({
                     name="state"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>State</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Map className="h-4 w-4" />
+                          <span>State</span>
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-state" />
                         </FormControl>
@@ -497,7 +531,10 @@ export default function LeadForm({
                     name="zipCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ZIP Code</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Hash className="h-4 w-4" />
+                          <span>ZIP Code</span>
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-zip-code" />
                         </FormControl>
@@ -512,7 +549,10 @@ export default function LeadForm({
                   name="country"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel className="flex items-center space-x-2">
+                        <Globe className="h-4 w-4" />
+                        <span>Country</span>
+                      </FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-country" />
                       </FormControl>
@@ -536,7 +576,7 @@ export default function LeadForm({
                         <Textarea
                           {...field}
                           rows={4}
-                          placeholder="Describe the lead's requirements..."
+                          placeholder=""
                           data-testid="input-requirement-description"
                         />
                       </FormControl>
@@ -545,59 +585,42 @@ export default function LeadForm({
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="estimatedBudget"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <DollarSign className="h-4 w-4" />
-                          <span>Estimated Budget (₹)</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            placeholder="0.00"
-                            data-testid="input-estimated-budget"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="budgetRange"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Budget Range</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="e.g., 10L-50L, 50L-1Cr"
-                            data-testid="input-budget-range"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="estimatedBudget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center space-x-2">
+                        <IndianRupee className="h-4 w-4" />
+                        <span>Estimated Budget</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder=""
+                          data-testid="input-estimated-budget"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                      <FormLabel className="flex items-center space-x-2">
+                        <NotebookPen className="h-4 w-4" />
+                        <span>Notes</span>
+                      </FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
                           rows={3}
-                          placeholder="Additional notes about the lead..."
+                          placeholder=""
                           data-testid="input-notes"
                         />
                       </FormControl>
@@ -613,14 +636,17 @@ export default function LeadForm({
                   name="assignedTo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assign To</FormLabel>
+                      <FormLabel className="flex items-center space-x-2">
+                        <UserIcon className="h-4 w-4" />
+                        <span>Assign To</span>
+                      </FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-assigned-to">
-                            <SelectValue placeholder="Select team member" />
+                            <SelectValue placeholder="" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -664,7 +690,10 @@ export default function LeadForm({
                     name="expectedClosingDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Expected Closing Date</FormLabel>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>Expected Closing Date</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}

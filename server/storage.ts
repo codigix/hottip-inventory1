@@ -35,8 +35,8 @@ import {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Product = typeof products.$inferSelect;
-export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
-export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+export type MarketingAttendance = typeof marketingTodays.$inferSelect;
+export type InsertMarketingAttendance = typeof marketingTodays.$inferInsert;
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
@@ -56,6 +56,7 @@ import {
   purchaseOrderItems,
   salesOrders,
   salesOrderItems,
+  accountsPayables,
 } from "@shared/schema";
 
 export type Supplier = typeof suppliers.$inferSelect;
@@ -80,6 +81,11 @@ class Storage {
       .select()
       .from(users)
       .where(sql`${users.username} = ${username} OR ${users.email} = ${email}`);
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   // Get all customers
@@ -183,10 +189,8 @@ class Storage {
             name: customers.name,
             email: customers.email,
             phone: customers.phone,
-            // Add other customer fields here if needed by the frontend later
-            // address: customers.address,
-            // city: customers.city,
-            // ...
+            address: customers.address,
+            gstNumber: customers.gstNumber,
           },
         })
         .from(outboundQuotations)
@@ -328,49 +332,44 @@ class Storage {
     return row;
   }
 
-  // Add other CRUD methods if needed
-  async getInboundQuotations(): Promise<InboundQuotation[]> {
-    return await db
+  async getInboundQuotations(): Promise<(InboundQuotation & { sender: { name: string; email?: string | null } | null })[]> {
+    const result = await db
       .select({
-        id: inboundQuotations.id,
-        quotationNumber: inboundQuotations.quotationNumber,
-        senderId: inboundQuotations.senderId,
-        senderType: inboundQuotations.senderType,
-        status: inboundQuotations.status,
-        quotationDate: inboundQuotations.quotationDate,
-        validUntil: inboundQuotations.validUntil,
-        subject: inboundQuotations.subject,
-        totalAmount: inboundQuotations.totalAmount,
-        notes: inboundQuotations.notes,
-        attachmentPath: inboundQuotations.attachmentPath,
-        attachmentName: inboundQuotations.attachmentName,
-        createdAt: inboundQuotations.createdAt,
+        quotation: inboundQuotations,
+        customer: {
+          name: customers.name,
+          email: customers.email,
+          address: customers.address,
+          gstNumber: customers.gstNumber,
+        },
+        supplier: {
+          name: suppliers.name,
+          email: suppliers.email,
+          address: suppliers.address,
+          gstNumber: suppliers.gstNumber,
+        },
       })
-      .from(inboundQuotations);
+      .from(inboundQuotations)
+      .leftJoin(customers, eq(inboundQuotations.senderId, customers.id))
+      .leftJoin(suppliers, eq(inboundQuotations.senderId, suppliers.id));
+
+    return result.map((row) => ({
+      ...row.quotation,
+      sender: row.customer?.name ? row.customer : (row.supplier?.name ? row.supplier : null),
+    }));
   }
 
   async getInboundQuotation(id: string): Promise<InboundQuotation | undefined> {
     const [row] = await db
-      .select({
-        id: inboundQuotations.id,
-        quotationNumber: inboundQuotations.quotationNumber,
-        quotationDate: inboundQuotations.quotationDate,
-        validUntil: inboundQuotations.validUntil,
-        subject: inboundQuotations.subject,
-        totalAmount: inboundQuotations.totalAmount,
-        status: inboundQuotations.status,
-        notes: inboundQuotations.notes,
-        senderId: inboundQuotations.senderId,
-        senderType: inboundQuotations.senderType,
-        attachmentPath: inboundQuotations.attachmentPath,
-        attachmentName: inboundQuotations.attachmentName,
-        userId: inboundQuotations.userId,
-        createdAt: inboundQuotations.createdAt,
-      })
+      .select()
       .from(inboundQuotations)
       .where(eq(inboundQuotations.id, id))
       .limit(1);
     return row;
+  }
+
+  async deleteInboundQuotation(id: string): Promise<void> {
+    await db.delete(inboundQuotations).where(eq(inboundQuotations.id, id));
   }
 
   // async updateInboundQuotation(id: string, update: Partial<InsertInboundQuotation>): Promise<InboundQuotation> {
@@ -418,6 +417,12 @@ class Storage {
           email: suppliers.email,
           phone: suppliers.phone,
         },
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+        },
         user: {
           id: users.id,
           username: users.username,
@@ -427,17 +432,26 @@ class Storage {
       })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(customers, eq(purchaseOrders.supplierId, customers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
       .orderBy(desc(purchaseOrders.createdAt));
 
-    // Fetch items for each order
+    // Fetch items and unify sender for each order
     const ordersWithItems = await Promise.all(
       orders.map(async (order) => {
         const items = await db
           .select()
           .from(purchaseOrderItems)
           .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
-        return { ...order, items };
+        
+        // Unify supplier/customer into a single supplier object for the frontend
+        const unifiedSupplier = order.supplier?.name ? order.supplier : (order.customer?.name ? order.customer : null);
+        
+        return { 
+          ...order, 
+          items,
+          supplier: unifiedSupplier
+        };
       })
     );
 
@@ -470,6 +484,13 @@ class Storage {
           phone: suppliers.phone,
           address: suppliers.address,
         },
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          address: customers.address,
+        },
         user: {
           id: users.id,
           username: users.username,
@@ -479,6 +500,7 @@ class Storage {
       })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(customers, eq(purchaseOrders.supplierId, customers.id))
       .leftJoin(users, eq(purchaseOrders.userId, users.id))
       .where(eq(purchaseOrders.id, id));
 
@@ -489,7 +511,10 @@ class Storage {
       .from(purchaseOrderItems)
       .where(eq(purchaseOrderItems.purchaseOrderId, order.id));
 
-    return { ...order, items };
+    // Unify supplier/customer into a single supplier object for the frontend
+    const unifiedSupplier = order.supplier?.name ? order.supplier : (order.customer?.name ? order.customer : null);
+    
+    return { ...order, items, supplier: unifiedSupplier };
   }
 
   async createPurchaseOrder(
@@ -624,6 +649,21 @@ class Storage {
   }
 
   async deletePurchaseOrder(id: string): Promise<void> {
+    // Manually delete or update dependent records first to handle cases where 
+    // foreign key constraints might block deletion
+    
+    // 1. Delete associated line items (though schema has onDelete: cascade, manual is safer)
+    await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+    
+    // 2. Delete associated accounts payable records as they are directly tied to this PO
+    await db.delete(accountsPayables).where(eq(accountsPayables.poId, id));
+    
+    // 3. Nullify the reference in sales orders (don't delete the sales order itself)
+    await db.update(salesOrders)
+      .set({ purchaseOrderId: null })
+      .where(eq(salesOrders.purchaseOrderId, id));
+    
+    // 4. Finally delete the purchase order itself
     await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
   }
 
@@ -757,27 +797,92 @@ class Storage {
   async getMarketingAttendance(id: string): Promise<any> {
     const [row] = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(eq(marketingAttendance.id, id));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(eq(marketingTodays.id, id));
 
     if (!row) return undefined;
     return {
-      ...row.marketingAttendance,
+      id: row.marketing_todays.id,
+      userId: row.marketing_todays.userid,
+      date: row.marketing_todays.date,
+      checkInTime: row.marketing_todays.checkintime,
+      checkOutTime: row.marketing_todays.checkouttime,
+      latitude: row.marketing_todays.latitude,
+      longitude: row.marketing_todays.longitude,
+      location: row.marketing_todays.location,
+      photoPath: row.marketing_todays.photopath,
+      workDescription: row.marketing_todays.workdescription,
+      attendanceStatus: row.marketing_todays.attendancestatus,
+      visitCount: row.marketing_todays.visitcount,
+      tasksCompleted: row.marketing_todays.taskscompleted,
+      outcome: row.marketing_todays.outcome,
+      nextAction: row.marketing_todays.nextaction,
+      isOnLeave: row.marketing_todays.isonleave,
+      breakStartTime: row.marketing_todays.breakStartTime,
+      breakEndTime: row.marketing_todays.breakEndTime,
+      totalHours: row.marketing_todays.totalHours,
+      leaveType: row.marketing_todays.leaveType,
       user: row.users,
     };
   }
 
-  async getMarketingAttendances(): Promise<any[]> {
-    const rows = await db
+  async getMarketingAttendances(filters?: any): Promise<any[]> {
+    let query = db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .orderBy(desc(marketingAttendance.date));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id));
+
+    const conditions = [];
+
+    if (filters?.userId && filters.userId !== "all") {
+      conditions.push(eq(marketingTodays.userid, filters.userId));
+    }
+
+    if (filters?.startDate && filters.endDate) {
+      conditions.push(gte(marketingTodays.date, new Date(filters.startDate)));
+      conditions.push(lte(marketingTodays.date, new Date(filters.endDate)));
+    }
+
+    if (filters?.userScope?.showOnlyUserAttendance) {
+      conditions.push(eq(marketingTodays.userid, filters.userScope.userId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const rows = await query.orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
-      user: r.users,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakstarttime,
+      breakEndTime: r.marketing_todays.breakendtime,
+      totalHours: r.marketing_todays.totalhours,
+      leaveType: r.marketing_todays.leavetype,
+      user: r.users ? {
+        id: r.users.id,
+        firstName: r.users.firstName,
+        lastName: r.users.lastName,
+        email: r.users.email,
+        role: r.users.role,
+        department: r.users.department
+      } : null,
     }));
   }
 
@@ -785,7 +890,7 @@ class Storage {
     insertAttendance: InsertMarketingAttendance
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .insert(marketingAttendance)
+      .insert(marketingTodays)
       .values(insertAttendance)
       .returning();
     return row;
@@ -796,27 +901,42 @@ class Storage {
     update: Partial<InsertMarketingAttendance>
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({ ...update, date: update.date ?? undefined })
-      .where(eq(marketingAttendance.id, id))
+      .where(eq(marketingTodays.id, id))
       .returning();
     return row;
   }
 
   async deleteMarketingAttendance(id: string): Promise<void> {
-    await db.delete(marketingAttendance).where(eq(marketingAttendance.id, id));
+    await db.delete(marketingTodays).where(eq(marketingTodays.id, id));
   }
 
   async getMarketingAttendanceByEmployee(userId: string): Promise<any[]> {
     const rows = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
-      .where(eq(marketingAttendance.userId, userId))
-      .orderBy(desc(marketingAttendance.date));
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(eq(marketingTodays.userid, userId))
+      .orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
       user: r.users,
     }));
   }
@@ -827,63 +947,101 @@ class Storage {
   ): Promise<any[]> {
     const rows = await db
       .select()
-      .from(marketingAttendance)
-      .leftJoin(users, eq(marketingAttendance.userId, users.id))
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
       .where(
         and(
-          gte(marketingAttendance.date, startDate),
-          lte(marketingAttendance.date, endDate)
+          gte(marketingTodays.date, startDate),
+          lte(marketingTodays.date, endDate)
         )
       )
-      .orderBy(desc(marketingAttendance.date));
+      .orderBy(desc(marketingTodays.date));
 
     return rows.map((r) => ({
-      ...r.marketingAttendance,
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakStartTime,
+      breakEndTime: r.marketing_todays.breakEndTime,
+      totalHours: r.marketing_todays.totalHours,
+      leaveType: r.marketing_todays.leaveType,
       user: r.users,
     }));
   }
   async getTodayMarketingAttendance(): Promise<any[]> {
-    try {
-      const rows = await db.execute(sql`
-      SELECT ma.*,
-             u.id   AS user_id,
-             CONCAT(u."firstName", ' ', u."lastName") AS user_name,
-             u.email AS user_email
-      FROM marketing_Todays ma
-      LEFT JOIN users u ON ma."userId" = u.id
-      WHERE DATE(ma.date) = CURRENT_DATE
-      ORDER BY ma.date DESC
-    `);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-      return rows.map((r: any) => ({
-        id: r.id,
-        userId: r.userId,
-        date: r.date,
-        checkInTime: r.checkInTime,
-        checkOutTime: r.checkOutTime,
-        checkInLocation: r.checkInLocation,
-        checkOutLocation: r.checkOutLocation,
-        latitude: r.latitude,
-        longitude: r.longitude,
-        location: r.location,
-        photoPath: r.photoPath,
-        workDescription: r.workDescription,
-        attendanceStatus: r.attendanceStatus,
-        visitCount: r.visitCount,
-        tasksCompleted: r.tasksCompleted,
-        outcome: r.outcome,
-        nextAction: r.nextAction,
-        isOnLeave: r.isOnLeave,
-        user: {
-          id: r.user_id,
-          name: r.user_name,
-          email: r.user_email,
-        },
-      }));
-    } catch (error: any) {
-      console.error("❌ Error in getTodayMarketingAttendance:", error);
-      throw new Error("Failed to fetch attendance record");
-    }
+    const rows = await db
+      .select()
+      .from(marketingTodays)
+      .leftJoin(users, eq(marketingTodays.userid, users.id))
+      .where(
+        and(
+          gte(marketingTodays.date, today),
+          lt(marketingTodays.date, tomorrow)
+        )
+      )
+      .orderBy(desc(marketingTodays.date));
+
+    return rows.map((r) => ({
+      id: r.marketing_todays.id,
+      userId: r.marketing_todays.userid,
+      date: r.marketing_todays.date,
+      checkInTime: r.marketing_todays.checkintime,
+      checkOutTime: r.marketing_todays.checkouttime,
+      latitude: r.marketing_todays.latitude,
+      longitude: r.marketing_todays.longitude,
+      location: r.marketing_todays.location,
+      photoPath: r.marketing_todays.photopath,
+      workDescription: r.marketing_todays.workdescription,
+      attendanceStatus: r.marketing_todays.attendancestatus,
+      visitCount: r.marketing_todays.visitcount,
+      tasksCompleted: r.marketing_todays.taskscompleted,
+      outcome: r.marketing_todays.outcome,
+      nextAction: r.marketing_todays.nextaction,
+      isOnLeave: r.marketing_todays.isonleave,
+      breakStartTime: r.marketing_todays.breakStartTime,
+      breakEndTime: r.marketing_todays.breakEndTime,
+      totalHours: r.marketing_todays.totalHours,
+      leaveType: r.marketing_todays.leaveType,
+      user: r.users,
+    }));
+  }
+
+  async getMarketingAttendanceForUserToday(userId: string): Promise<any | undefined> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const [row] = await db
+      .select()
+      .from(marketingTodays)
+      .where(
+        and(
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today),
+          lt(marketingTodays.date, tomorrow)
+        )
+      );
+    
+    return row;
   }
 
   async checkInMarketingAttendance(
@@ -893,40 +1051,42 @@ class Storage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Check existing record for today
+    // Use marketingTodays unified table
     const existing = await db
       .select()
-      .from(marketingAttendance)
+      .from(marketingTodays)
       .where(
         and(
-          eq(marketingAttendance.userId, userId),
-          gte(marketingAttendance.date, today)
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today)
         )
       );
 
     if (existing.length > 0) {
       const [row] = await db
-        .update(marketingAttendance)
+        .update(marketingTodays)
         .set({
-          checkInTime: data.checkInTime ?? new Date(),
-          checkInLatitude: data.latitude,
-          checkInLocation: data.location,
+          checkintime: data.checkInTime ?? new Date(),
+          latitude: data.latitude?.toString(),
+          location: data.location,
+          attendancestatus: "present",
         })
-        .where(eq(marketingAttendance.id, (existing[0] as any).id))
+        .where(eq(marketingTodays.id, existing[0].id))
         .returning();
       return row;
     }
 
-    const insert: InsertMarketingAttendance = {
-      userId,
+    const insert = {
+      userid: userId,
       date: data.date ?? new Date(),
-      checkInTime: data.checkInTime ?? new Date(),
-      checkInLatitude: data.latitude,
-      checkInLocation: data.location,
-    } as InsertMarketingAttendance;
+      checkintime: data.checkInTime ?? new Date(),
+      latitude: data.latitude?.toString(),
+      location: data.location,
+      attendancestatus: "present",
+    };
 
     const [row] = await db
-      .insert(marketingAttendance)
+      .insert(marketingTodays)
       .values(insert)
       .returning();
     return row;
@@ -941,35 +1101,43 @@ class Storage {
 
     const existing = await db
       .select()
-      .from(marketingAttendance)
+      .from(marketingTodays)
       .where(
         and(
-          eq(marketingAttendance.userId, userId),
-          gte(marketingAttendance.date, today)
+          eq(marketingTodays.userid, userId),
+          gte(marketingTodays.date, today)
         )
       );
 
     if (existing.length === 0) {
-      // If no check-in, create minimal record then update
-      const base: InsertMarketingAttendance = {
-        userId,
+      const insert = {
+        userid: userId,
         date: new Date(),
-        checkInTime: new Date(),
-      } as InsertMarketingAttendance;
+        checkintime: new Date(),
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.location,
+        attendancestatus: "present",
+      };
       const [created] = await db
-        .insert(marketingAttendance)
-        .values(base)
+        .insert(marketingTodays)
+        .values(insert)
         .returning();
-      existing.push(created as any);
+      return created;
     }
 
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({
-        checkOutTime: data.checkOutTime ?? new Date(),
-        checkOutLocation: data.location,
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.location || existing[0].location,
+        attendancestatus: "present",
+        workdescription: data.workDescription || existing[0].workdescription,
+        visitcount: data.visitCount !== undefined ? data.visitCount : existing[0].visitcount,
+        taskscompleted: data.tasksCompleted !== undefined ? data.tasksCompleted : existing[0].taskscompleted,
+        outcome: data.outcome || existing[0].outcome,
+        nextaction: data.nextAction || existing[0].nextaction,
       })
-      .where(eq(marketingAttendance.userId, userId))
+      .where(eq(marketingTodays.userid, userId))
       .returning();
 
     return row;
@@ -980,12 +1148,17 @@ class Storage {
     data: any
   ): Promise<MarketingAttendance> {
     const [row] = await db
-      .update(marketingAttendance)
+      .update(marketingTodays)
       .set({
-        checkOutTime: data.checkOutTime ?? new Date(),
-        checkOutLocation: data.checkOutLocation,
+        checkouttime: data.checkOutTime ?? new Date(),
+        location: data.checkOutLocation || data.location,
+        workdescription: data.workDescription,
+        visitcount: data.visitCount,
+        taskscompleted: data.tasksCompleted,
+        outcome: data.outcome,
+        nextaction: data.nextAction,
       })
-      .where(eq(marketingAttendance.id, attendanceId))
+      .where(eq(marketingTodays.id, attendanceId))
       .returning();
 
     return row;
@@ -995,12 +1168,12 @@ class Storage {
       const rows = await db.execute(sql`
       SELECT 
         COUNT(*) AS total_records,
-        COUNT(CASE WHEN ma."attendanceStatus" = 'present' THEN 1 END) AS present_count,
-        COUNT(CASE WHEN ma."attendanceStatus" = 'absent' THEN 1 END) AS absent_count,
-        COUNT(CASE WHEN ma."isOnLeave" = true THEN 1 END) AS leave_count,
-        COALESCE(AVG(NULLIF(ma."visitCount", 0)), 0) AS avg_visits,
-        COALESCE(AVG(NULLIF(ma."tasksCompleted", 0)), 0) AS avg_tasks
-      FROM marketing_Todays ma
+        COUNT(CASE WHEN ma.attendancestatus = 'present' THEN 1 END) AS present_count,
+        COUNT(CASE WHEN ma.attendancestatus = 'absent' THEN 1 END) AS absent_count,
+        COUNT(CASE WHEN ma.isonleave = true THEN 1 END) AS leave_count,
+        COALESCE(AVG(NULLIF(ma.visitcount, 0)), 0) AS avg_visits,
+        COALESCE(AVG(NULLIF(ma.taskscompleted, 0)), 0) AS avg_tasks
+      FROM marketing_todays ma
     `);
 
       const r = rows[0];
@@ -1020,31 +1193,47 @@ class Storage {
   }
 
   // Leave Request Methods
-  async getLeaveRequests(): Promise<LeaveRequest[]> {
-    const rows = await db.execute(sql`
-    SELECT 
-      *,
-      EXTRACT(DAY FROM (end_date - start_date)) + 1 AS total_days
-    FROM leave_requests
-    ORDER BY start_date DESC
-  `);
-    return rows;
+  async getLeaveRequests(): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
+      .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
+      .orderBy(desc(leaveRequests.startDate));
+    
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
-  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
-    const [row] = await db
-      .select()
+  async getLeaveRequestsByUser(userId: string): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
       .from(leaveRequests)
-      .where(eq(leaveRequests.id, id));
-    return row;
-  }
-
-  async getLeaveRequestsByUser(userId: string): Promise<LeaveRequest[]> {
-    return await db
-      .select()
-      .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
       .where(eq(leaveRequests.userId, userId))
       .orderBy(desc(leaveRequests.startDate));
+
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
   async createLeaveRequest(
@@ -1073,12 +1262,26 @@ class Storage {
     await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
   }
 
-  async getLeaveRequestsByStatus(status: string): Promise<LeaveRequest[]> {
-    return await db
-      .select()
+  async getLeaveRequestsByStatus(status: string): Promise<any[]> {
+    const rows = await db
+      .select({
+        leaveRequest: leaveRequests,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
       .from(leaveRequests)
+      .leftJoin(users, eq(leaveRequests.userId, users.id))
       .where(eq(leaveRequests.status, status))
       .orderBy(desc(leaveRequests.startDate));
+
+    return rows.map(r => ({
+      ...r.leaveRequest,
+      user: r.user
+    }));
   }
 
   async getLeaveRequestsByDateRange(
@@ -1170,11 +1373,81 @@ class Storage {
   // =====================
   // MARKETING TASKS CRUD
   // =====================
-  async getMarketingTasks(): Promise<MarketingTask[]> {
-    return await db
-      .select()
+  async getMarketingTasks(filters?: any): Promise<any[]> {
+    let query = db
+      .select({
+        task: marketingTasks,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
       .from(marketingTasks)
-      .orderBy(desc(marketingTasks.createdAt));
+      .leftJoin(users, eq(marketingTasks.assignedTo, users.id))
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id));
+
+    const conditions = [];
+
+    console.log("🔍 [STORAGE] getMarketingTasks - Filters:", JSON.stringify(filters, null, 2));
+
+    if (filters?.status && filters.status !== "all") {
+      conditions.push(eq(marketingTasks.status, filters.status));
+    }
+
+    if (filters?.type && filters.type !== "all") {
+      conditions.push(eq(marketingTasks.type, filters.type));
+    }
+
+    if (filters?.priority && filters.priority !== "all") {
+      conditions.push(eq(marketingTasks.priority, filters.priority));
+    }
+
+    if (filters?.assignedTo && filters.assignedTo !== "all") {
+      conditions.push(eq(marketingTasks.assignedTo, filters.assignedTo));
+    }
+
+    if (filters?.id) {
+      conditions.push(eq(marketingTasks.id, filters.id));
+    }
+
+    if (filters?.leadId) {
+      conditions.push(eq(marketingTasks.leadId, filters.leadId));
+    }
+
+    if (filters?.userScope?.showOnlyUserTasks) {
+      conditions.push(
+        sql`(${marketingTasks.createdBy} = ${filters.userScope.userId} OR 
+             ${marketingTasks.assignedTo} = ${filters.userScope.userId})`
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const rows = await query.orderBy(desc(marketingTasks.createdAt));
+    console.log(`📋 [STORAGE] getMarketingTasks returned ${rows.length} results`);
+    if (rows.length > 0) {
+      console.log("🔍 [STORAGE] First task sample:", JSON.stringify({
+        id: rows[0].task.id,
+        title: rows[0].task.title,
+        assignedTo: rows[0].task.assignedTo,
+        assignedToUser: rows[0].assignedToUser
+      }, null, 2));
+    }
+    return rows.map(r => ({
+      ...r.task,
+      assignedToUser: r.assignedToUser,
+      lead: r.lead
+    }));
   }
 
   async getMarketingTask(id: string): Promise<MarketingTask | undefined> {
@@ -1221,7 +1494,7 @@ class Storage {
     let query = db
       .select({
         lead: leads,
-        assignee: {
+        assignedToUser: {
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
@@ -1273,7 +1546,7 @@ class Storage {
 
     return result.map((row) => ({
       ...row.lead,
-      assignee: row.assignee,
+      assignedToUser: row.assignedToUser,
     }));
   }
 
@@ -1281,7 +1554,7 @@ class Storage {
     const [row] = await db
       .select({
         lead: leads,
-        assignee: {
+        assignedToUser: {
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
@@ -1296,12 +1569,50 @@ class Storage {
 
     return {
       ...row.lead,
-      assignee: row.assignee,
+      assignedToUser: row.assignedToUser,
     };
   }
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
     const [row] = await db.insert(leads).values(insertLead).returning();
+
+    // Auto-create a marketing task when a lead is created
+    try {
+      const mapPriority = (p: string | null | undefined): "low" | "medium" | "high" => {
+        if (!p) return "medium";
+        const normalized = p.toLowerCase();
+        if (normalized === "high" || normalized === "medium" || normalized === "low") {
+          return normalized as any;
+        }
+        return "medium";
+      };
+
+      const taskTitle = `Initial Follow-up: ${row.firstName} ${row.lastName} ${row.companyName ? "(" + row.companyName + ")" : ""}`;
+      const taskDescription = `New lead created. Follow up to understand requirements.
+Contact: ${row.phone || "No phone"} | ${row.email || "No email"}
+Requirements: ${row.requirementDescription || "Not specified"}`;
+
+      const taskData = {
+        title: taskTitle,
+        description: taskDescription,
+        type: "follow_up" as const,
+        status: "pending" as const,
+        priority: mapPriority(row.priority),
+        assignedTo: row.assignedTo || row.createdBy!,
+        assignedBy: row.assignedBy || row.createdBy!,
+        createdBy: row.createdBy!,
+        leadId: row.id,
+        dueDate: row.followUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000), // Default to tomorrow
+      };
+
+      console.log(`💾 [STORAGE] Attempting to auto-create marketing task for lead:`, JSON.stringify(taskData, null, 2));
+      await db.insert(marketingTasks).values(taskData);
+      console.log(`✅ [STORAGE] Auto-created marketing task for lead ${row.firstName} ${row.lastName}`);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-create marketing task for lead:", error);
+      // We don't throw here to avoid failing the lead creation if task creation fails
+    }
+
     return row;
   }
 
@@ -1318,6 +1629,12 @@ class Storage {
   }
 
   async deleteLead(id: string): Promise<void> {
+    // Manually delete dependent records first to handle cases where 
+    // ON DELETE CASCADE might not be active in the DB schema
+    await db.delete(fieldVisits).where(eq(fieldVisits.leadId, id));
+    await db.delete(marketingTasks).where(eq(marketingTasks.leadId, id));
+    
+    // Now delete the lead
     await db.delete(leads).where(eq(leads.id, id));
   }
 
@@ -1344,6 +1661,69 @@ class Storage {
     return customer;
   }
 
+  async getLeadsConversionMetrics(options?: any): Promise<any> {
+    const allLeads = await this.getLeads(options);
+    const totalLeads = allLeads.length;
+    const newLeads = allLeads.filter((l) => l.status === "new").length;
+    const contactedLeads = allLeads.filter((l) => l.status === "contacted").length;
+    const analysisLeads = allLeads.filter((l) => l.status === "analysis").length;
+    const inProgressLeads = allLeads.filter((l) => l.status === "in_progress").length;
+    const convertedLeads = allLeads.filter((l) => l.status === "converted").length;
+    const droppedLeads = allLeads.filter((l) => l.status === "dropped").length;
+
+    const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+
+    return {
+      totalLeads,
+      newLeads,
+      contactedLeads,
+      analysisLeads,
+      inProgressLeads,
+      convertedLeads,
+      droppedLeads,
+      conversionRate,
+      averageTimeToConversion: 0, // Placeholder
+    };
+  }
+
+  async searchLeads(options: { query: string; userScope?: any }): Promise<any[]> {
+    const allLeads = await this.getLeads({ userScope: options.userScope });
+    const query = options.query.toLowerCase();
+    return allLeads.filter(
+      (l) =>
+        l.firstName.toLowerCase().includes(query) ||
+        l.lastName.toLowerCase().includes(query) ||
+        (l.companyName && l.companyName.toLowerCase().includes(query)) ||
+        (l.email && l.email.toLowerCase().includes(query))
+    );
+  }
+
+  async getTaskMetrics(options?: any): Promise<any> {
+    const allTasks = await this.getMarketingTasks();
+    // Simplified filtering for metrics
+    const tasks = options?.userScope?.showOnlyUserTasks 
+      ? allTasks.filter(t => t.assignedTo === options.userScope.userId)
+      : allTasks;
+
+    return {
+      totalTasks: tasks.length,
+      pendingTasks: tasks.filter(t => t.status === 'pending').length,
+      inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+      completedTasks: tasks.filter(t => t.status === 'completed').length,
+      cancelledTasks: tasks.filter(t => t.status === 'cancelled').length,
+    };
+  }
+
+  async getTodayMarketingTasks(options?: any): Promise<any[]> {
+    const allTasks = await this.getMarketingTasks();
+    const today = new Date().toISOString().split('T')[0];
+    return allTasks.filter(t => {
+      const isToday = t.dueDate && new Date(t.dueDate).toISOString().split('T')[0] === today;
+      const matchesUser = !options?.userScope?.showOnlyUserTasks || t.assignedTo === options.userScope.userId;
+      return isToday && matchesUser;
+    });
+  }
+
   // =====================
   // ACTIVITIES CRUD
   // =====================
@@ -1358,23 +1738,114 @@ class Storage {
   // =====================
   // FIELD VISITS CRUD
   // =====================
-  async getFieldVisits(): Promise<FieldVisit[]> {
-    return await db
-      .select()
+  async getFieldVisits(): Promise<any[]> {
+    const rows = await db
+      .select({
+        visit: fieldVisits,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
       .from(fieldVisits)
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
       .orderBy(desc(fieldVisits.createdAt));
+
+    return rows.map(r => ({
+      ...r.visit,
+      assignedToUser: r.assignedToUser,
+      lead: r.lead
+    }));
   }
 
-  async getFieldVisit(id: string): Promise<FieldVisit | undefined> {
+  async getFieldVisit(id: string): Promise<any | undefined> {
     const [row] = await db
-      .select()
+      .select({
+        visit: fieldVisits,
+        assignedToUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+        },
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+        }
+      })
       .from(fieldVisits)
+      .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
       .where(eq(fieldVisits.id, id));
-    return row;
+    
+    if (!row) return undefined;
+
+    return {
+      ...row.visit,
+      assignedToUser: row.assignedToUser,
+      lead: row.lead
+    };
   }
 
   async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
+    // Generate visit number if missing
+    if (!insertVisit.visitNumber) {
+      insertVisit.visitNumber = `VISIT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    }
+
     const [row] = await db.insert(fieldVisits).values(insertVisit).returning();
+
+    // Auto-create a marketing task when a field visit is scheduled
+    try {
+      const mapPriority = (p: string | null | undefined): "low" | "medium" | "high" => {
+        if (!p) return "medium";
+        const normalized = p.toLowerCase();
+        if (normalized === "high" || normalized === "medium" || normalized === "low") {
+          return normalized as any;
+        }
+        return "medium";
+      };
+
+      const [lead] = await db.select().from(leads).where(eq(leads.id, row.leadId));
+
+      const taskTitle = `Field Visit: ${row.visitNumber} - ${lead?.firstName || ""} ${lead?.lastName || ""}`;
+      const taskDescription = `Field visit scheduled at ${row.visitAddress}${row.visitCity ? ", " + row.visitCity : ""}. 
+Purpose: ${row.purpose || "Not specified"}
+Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
+
+      const taskData = {
+        title: taskTitle,
+        description: taskDescription,
+        type: "visit_client" as const,
+        status: "pending" as const,
+        priority: mapPriority(lead?.priority),
+        assignedTo: row.assignedTo,
+        assignedBy: row.assignedBy,
+        createdBy: row.createdBy,
+        leadId: row.leadId,
+        fieldVisitId: row.id,
+        dueDate: row.plannedDate,
+      };
+
+      console.log(`💾 [STORAGE] Attempting to auto-create marketing task for field visit:`, JSON.stringify(taskData, null, 2));
+      await db.insert(marketingTasks).values(taskData);
+      console.log(`✅ [STORAGE] Auto-created marketing task for field visit ${row.visitNumber}`);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-create marketing task for field visit:", error);
+      // We don't throw here to avoid failing the field visit creation if task creation fails
+    }
+
     return row;
   }
 
@@ -1389,6 +1860,20 @@ class Storage {
       .returning();
     if (!row) {
       throw new Error(`Field visit with ID '${id}' not found for update.`);
+    }
+    return row;
+  }
+
+  async updateVisitStatus(id: string, status: string): Promise<FieldVisit> {
+    const [row] = await db
+      .update(fieldVisits)
+      .set({ status })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(
+        `Field visit with ID '${id}' not found for status update.`
+      );
     }
     return row;
   }
@@ -1558,6 +2043,10 @@ class Storage {
     }
 
     return updatedOrder;
+  }
+
+  async deleteSalesOrder(id: string): Promise<void> {
+    await db.delete(salesOrders).where(eq(salesOrders.id, id));
   }
 
   private async deductStockFromSalesOrder(order: any) {

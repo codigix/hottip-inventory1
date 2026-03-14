@@ -118,7 +118,7 @@ export const spareParts = pgTable("spare_parts", {
   stock: integer("stock").notNull().default(0),
   minStock: integer("minStock").notNull().default(0),
   maxStock: integer("maxStock").notNull().default(100),
-  unitCost: numeric("unitCost", 10, 2),
+  unitCost: numeric("unitCost", { precision: 10, scale: 2 }),
   location: text("location"),
   unit: text("unit"),
   fabricationtime: integer("fabricationtime"), // integer type now
@@ -293,16 +293,13 @@ export const marketingTasks = pgTable("marketing_tasks", {
   status: marketingTaskStatus("status").notNull().default("pending"),
   dueDate: timestamp("dueDate"),
   startedDate: timestamp("startedDate"),
-  completedDate: timestamp("completedDate"),
-  leadId: uuid("leadId").references(() => leads.id),
+  leadId: uuid("leadId").references(() => leads.id, { onDelete: "cascade" }),
   fieldVisitId: uuid("fieldVisitId").references(() => fieldVisits.id),
   customerId: uuid("customerId").references(() => customers.id),
   estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
-  tags: text("tags").array(),
-  isRecurring: boolean("isRecurring").default(false),
+  isRecurring: boolean("is_recurring").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-  completed_date: timestamp("completed_date"),
-  is_recurring: boolean("is_recurring").default(false),
+  completedDate: timestamp("completed_date"),
 });
 
 // =====================
@@ -310,39 +307,19 @@ export const marketingTasks = pgTable("marketing_tasks", {
 // =====================
 export const marketingAttendance = pgTable("marketing_attendance", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("userId").notNull(),
-  date: timestamp("date").notNull(),
-  checkInTime: timestamp("checkInTime"),
-  checkOutTime: timestamp("checkOutTime"),
-  checkInLocation: text("checkInLocation"),
-  checkOutLocation: text("checkOutLocation"),
-  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
-  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
-  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
-  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
-  // Additional fields used by storage methods
-  latitude: numeric("latitude", { precision: 10, scale: 7 }),
-  longitude: numeric("longitude", { precision: 10, scale: 7 }),
-  location: text("location"),
-  photoPath: text("photoPath"),
-  workDescription: text("workDescription"),
-  attendanceStatus: text("attendanceStatus").default("present"),
-  visitCount: integer("visitCount"),
-  tasksCompleted: integer("tasksCompleted"),
-  outcome: text("outcome"),
-  nextAction: text("nextAction"),
-  isOnLeave: boolean("isOnLeave").default(false),
-});
-export const marketingTodays = pgTable("marketing_todays", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userid: uuid("userid")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  userid: uuid("userid").notNull(),
   date: timestamp("date").notNull(),
   checkintime: timestamp("checkintime"),
   checkouttime: timestamp("checkouttime"),
-  latitude: numeric("latitude", 10, 7),
-  longitude: numeric("longitude", 10, 7),
+  checkinlocation: text("checkinlocation"),
+  checkoutlocation: text("checkoutlocation"),
+  checkinlatitude: numeric("checkinlatitude", { precision: 10, scale: 7 }),
+  checkinlongitude: numeric("checkinlongitude", { precision: 10, scale: 7 }),
+  checkoutlatitude: numeric("checkoutlatitude", { precision: 10, scale: 7 }),
+  checkoutlongitude: numeric("checkoutlongitude", { precision: 10, scale: 7 }),
+  // Additional fields used by storage methods
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
   location: text("location"),
   photopath: text("photopath"),
   workdescription: text("workdescription"),
@@ -352,6 +329,35 @@ export const marketingTodays = pgTable("marketing_todays", {
   outcome: text("outcome"),
   nextaction: text("nextaction"),
   isonleave: boolean("isonleave").default(false),
+  breakstarttime: timestamp("breakstarttime"),
+  breakendtime: timestamp("breakendtime"),
+  totalhours: numeric("totalhours", { precision: 5, scale: 2 }),
+  leavetype: text("leavetype"),
+});
+
+export const marketingTodays = pgTable("marketing_todays", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userid: uuid("userid")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  checkintime: timestamp("checkintime"),
+  checkouttime: timestamp("checkouttime"),
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  location: text("location"),
+  photopath: text("photopath"),
+  workdescription: text("workdescription"),
+  attendancestatus: text("attendancestatus").default("present"),
+  visitcount: integer("visitcount"),
+  taskscompleted: integer("taskscompleted"),
+  outcome: text("outcome"),
+  nextaction: text("nextaction"),
+  isonleave: boolean("isonleave").default(false),
+  breakstarttime: timestamp("breakstarttime"),
+  breakendtime: timestamp("breakendtime"),
+  totalhours: numeric("totalhours", { precision: 5, scale: 2 }),
+  leavetype: text("leavetype"),
 });
 
 // New Table: Marketing_Metrics
@@ -361,8 +367,8 @@ export const marketingMetrics = pgTable("marketing_metrics", {
   presentCount: integer("presentCount").default(0),
   absentCount: integer("absentCount").default(0),
   leaveCount: integer("leaveCount").default(0),
-  avgVisits: numeric("avgVisits", 10, 2).default(0),
-  avgTasks: numeric("avgTasks", 10, 2).default(0),
+  avgVisits: numeric("avgVisits", { precision: 10, scale: 2 }).default("0"),
+  avgTasks: numeric("avgTasks", { precision: 10, scale: 2 }).default("0"),
   recordedAt: timestamp("recordedAt").defaultNow(),
 });
 // =====================
@@ -425,12 +431,18 @@ export const fieldVisits = pgTable("field_visits", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitNumber: varchar("visitNumber", { length: 50 }).notNull().unique(),
   leadId: uuid("leadId") // match exact DB column
-    .references(() => leads.id)
+    .references(() => leads.id, { onDelete: "cascade" })
     .notNull(),
   plannedDate: timestamp("plannedDate").notNull(),
   plannedStartTime: timestamp("plannedStartTime"),
   plannedEndTime: timestamp("plannedEndTime"),
   assignedTo: uuid("assignedTo")
+    .references(() => users.id)
+    .notNull(),
+  assignedBy: uuid("assignedBy")
+    .references(() => users.id)
+    .notNull(),
+  createdBy: uuid("createdBy")
     .references(() => users.id)
     .notNull(),
   visitAddress: varchar("visitAddress", { length: 255 }).notNull(),
@@ -545,10 +557,13 @@ export const inboundQuotations = pgTable("inbound_quotations", {
   notes: text("notes"),
   attachmentPath: text("attachmentPath"),
   attachmentName: text("attachmentName"),
-  senderId: uuid("senderId").notNull().references(() => users.id),
+  senderId: uuid("senderId").notNull(),
   userId: uuid("userId").notNull().references(() => users.id),
   senderType: text("senderType").notNull().default("vendor"),
   quotationRef: text("quotationRef"),
+  quotationItems: jsonb("quotationItems"),
+  moldDetails: jsonb("moldDetails"),
+  financialBreakdown: jsonb("financialBreakdown"),
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
@@ -575,16 +590,16 @@ export const invoices = pgTable("invoices", {
   invoiceDate: timestamp("invoiceDate").notNull(),
   dueDate: timestamp("dueDate").notNull(),
   subtotalAmount: numeric("subtotalAmount", { precision: 10, scale: 2 }),
-  cgstRate: numeric("cgstRate", { precision: 5, scale: 2 }).default(0),
-  cgstAmount: numeric("cgstAmount", { precision: 10, scale: 2 }).default(0),
-  sgstRate: numeric("sgstRate", { precision: 5, scale: 2 }).default(0),
-  sgstAmount: numeric("sgstAmount", { precision: 10, scale: 2 }).default(0),
-  igstRate: numeric("igstRate", { precision: 5, scale: 2 }).default(0),
-  igstAmount: numeric("igstAmount", { precision: 10, scale: 2 }).default(0),
+  cgstRate: numeric("cgstRate", { precision: 5, scale: 2 }).default("0"),
+  cgstAmount: numeric("cgstAmount", { precision: 10, scale: 2 }).default("0"),
+  sgstRate: numeric("sgstRate", { precision: 5, scale: 2 }).default("0"),
+  sgstAmount: numeric("sgstAmount", { precision: 10, scale: 2 }).default("0"),
+  igstRate: numeric("igstRate", { precision: 5, scale: 2 }).default("0"),
+  igstAmount: numeric("igstAmount", { precision: 10, scale: 2 }).default("0"),
   discountAmount: numeric("discountAmount", {
     precision: 10,
     scale: 2,
-  }).default(0),
+  }).default("0"),
   totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }),
   balanceAmount: numeric("balanceAmount", { precision: 10, scale: 2 }),
   billingAddress: text("billingAddress"),
@@ -597,9 +612,9 @@ export const invoices = pgTable("invoices", {
   ewayBillNumber: text("ewayBillNumber"),
   amountInWords: text("amountInWords"),
   notes: text("notes"),
-  packingFee: numeric("packingFee", { precision: 10, scale: 2 }).default(0),
-  shippingFee: numeric("shippingFee", { precision: 10, scale: 2 }).default(0),
-  otherCharges: numeric("otherCharges", { precision: 10, scale: 2 }).default(0),
+  packingFee: numeric("packingFee", { precision: 10, scale: 2 }).default("0"),
+  shippingFee: numeric("shippingFee", { precision: 10, scale: 2 }).default("0"),
+  otherCharges: numeric("otherCharges", { precision: 10, scale: 2 }).default("0"),
 });
 
 // =====================
@@ -696,7 +711,7 @@ export const accountsReceivables = pgTable("accounts_receivables", {
     .references(() => customers.id)
     .notNull(),
   amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default(0),
+  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default("0"),
   dueDate: timestamp("dueDate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
@@ -717,7 +732,7 @@ export const accountsPayables = pgTable("accounts_payables", {
     .notNull()
     .references(() => suppliers.id),
   amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default(0),
+  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default("0"),
   dueDate: timestamp("duedate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
@@ -760,7 +775,7 @@ export const gstReturns = pgTable("gst_returns", {
 // =====================
 export const orderStatus = pgEnum("order_status", [
   "pending",
-  "approved",
+  "processing",
   "shipped",
   "delivered",
   "cancelled",
@@ -769,9 +784,7 @@ export const orderStatus = pgEnum("order_status", [
 export const purchaseOrders = pgTable("purchase_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
   poNumber: text("poNumber").notNull().unique(),
-  supplierId: uuid("supplierId")
-    .notNull()
-    .references(() => suppliers.id),
+  supplierId: uuid("supplierId").notNull(),
   quotationId: uuid("quotationId"),
   userId: uuid("userId")
     .notNull()
@@ -839,7 +852,7 @@ export const insertPurchaseOrderSchema = z.object({
   ),
   deliveryPeriod: z.string().optional().nullable(),
   status: z
-    .enum(["pending", "approved", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
     .optional()
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),
@@ -982,7 +995,7 @@ export const logisticsLeaveRequests = pgTable("logistics_leave_requests", {
 export const insertOutboundQuotationSchema = z.object({
   quotationNumber: z.string().min(1, "Quotation number is required"),
   customerId: z.string().uuid().optional(), // Optional if not required
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   quotationDate: z.string().or(z.date()),
   validUntil: z.string().or(z.date()).optional(),
   subtotalAmount: z.string().min(1, "Subtotal amount is required"),
@@ -1021,6 +1034,7 @@ export const insertOutboundQuotationSchema = z.object({
   moldDetails: z
     .array(
       z.object({
+        id: z.string(),
         no: z.number(),
         partName: z.string(),
         mouldNo: z.string(),
@@ -1028,12 +1042,12 @@ export const insertOutboundQuotationSchema = z.object({
         colourChange: z.string(),
         mfi: z.string(),
         wallThickness: z.string(),
-        noOfCavity: z.number(),
+        noOfCavity: z.coerce.number(),
         gfPercent: z.string(),
         mfPercent: z.string(),
-        partWeight: z.number(),
+        partWeight: z.coerce.number(),
         systemSuggested: z.string(),
-        noOfDrops: z.number(),
+        noOfDrops: z.coerce.number(),
         trialDate: z.string().optional(),
         quotationFor: z.string().optional(),
       })
@@ -1042,14 +1056,15 @@ export const insertOutboundQuotationSchema = z.object({
   quotationItems: z
     .array(
       z.object({
-        no: z.number(),
-        moldIndex: z.number().optional(),
-        partName: z.string(),
+        id: z.string(),
+        moldId: z.string(),
+        no: z.number().optional(),
+        partName: z.string().optional(),
         partDescription: z.string(),
         uom: z.string(),
-        qty: z.number(),
-        unitPrice: z.number(),
-        amount: z.number(),
+        qty: z.coerce.number(),
+        unitPrice: z.coerce.number(),
+        amount: z.coerce.number(),
       })
     )
     .optional(),
@@ -1068,9 +1083,12 @@ export const insertInboundQuotationSchema = z.object({
     .default("received"),
   notes: z.string().optional(),
   senderType: z.enum(["client", "vendor", "supplier"]).optional().default("vendor"),
-  attachmentPath: z.string().optional(),
-  attachmentName: z.string().optional(),
+  attachmentPath: z.string().nullable().optional(),
+  attachmentName: z.string().nullable().optional(),
   quotationRef: z.string().optional(),
+  quotationItems: z.any().optional(),
+  moldDetails: z.any().optional(),
+  financialBreakdown: z.any().optional(),
 });
 export const insertInvoiceSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),
@@ -1510,15 +1528,21 @@ export const insertLeadSchema = z.object({
 export const updateLeadSchema = insertLeadSchema.partial();
 
 export const insertFieldVisitSchema = z.object({
-  visitNumber: z.string(),
-  leadId: z.any(),
-  plannedDate: z.string().optional(),
-  actualDate: z.string().optional(),
-  assignedTo: z.any().optional(),
-  assignedBy: z.any().optional(),
-  createdBy: z.any().optional(),
-  visitAddress: z.string().optional(),
-  status: z.string().optional(),
+  visitNumber: z.string().optional(),
+  leadId: z.string().uuid("leadId must be a valid UUID"),
+  plannedDate: z.coerce.date().or(z.string().datetime().transform((val) => new Date(val))),
+  plannedStartTime: z.coerce.date().optional().nullable().or(z.string().datetime().optional().nullable().transform((val) => val ? new Date(val) : null)),
+  plannedEndTime: z.coerce.date().optional().nullable().or(z.string().datetime().optional().nullable().transform((val) => val ? new Date(val) : null)),
+  assignedTo: z.string().uuid("assignedTo must be a valid UUID").optional().nullable(),
+  assignedBy: z.string().uuid().optional(),
+  createdBy: z.string().uuid().optional(),
+  visitAddress: z.string().min(1, "Visit address is required"),
+  visitCity: z.string().optional().nullable(),
+  visitState: z.string().optional().nullable(),
+  purpose: z.string().optional().nullable(),
+  preVisitNotes: z.string().optional().nullable(),
+  status: z.string().optional().default("Scheduled"),
+  travelExpense: z.coerce.string().optional().nullable(),
 });
 
 export const insertMarketingTaskSchema = z.object({
@@ -1548,7 +1572,6 @@ export const insertMarketingTaskSchema = z.object({
   fieldVisitId: z.string().uuid().optional().or(z.null()),
   customerId: z.string().uuid().optional().or(z.null()),
   estimatedHours: z.number().optional().or(z.string().optional()),
-  tags: z.array(z.string()).optional(),
   isRecurring: z.boolean().optional(),
 });
 
@@ -1567,6 +1590,10 @@ export const insertMarketingAttendanceSchema = z.object({
   outcome: z.string().optional(),
   nextAction: z.string().optional(),
   attendanceStatus: z.string().optional(),
+  breakStartTime: z.string().optional(),
+  breakEndTime: z.string().optional(),
+  totalHours: z.string().optional(),
+  leaveType: z.string().optional(),
 });
 
 export const insertLeaveRequestSchema = z.object({
@@ -1947,9 +1974,6 @@ export const insertActivitySchema = z.object({
   details: z.string().optional(),
 });
 
-export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = typeof activities.$inferInsert;
-
 // =====================
 // ACCOUNT REPORTS
 // =====================
@@ -2019,9 +2043,6 @@ export const moldDetailsTable = pgTable("mold_details", {
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
 
-export type MoldDetail = typeof moldDetailsTable.$inferSelect;
-export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;
-
 export const insertMoldDetailSchema = z.object({
   partName: z.string().optional(),
   mouldNo: z.string().optional(),
@@ -2039,3 +2060,43 @@ export const insertMoldDetailSchema = z.object({
   quotationFor: z.string().optional(),
   userId: z.string().uuid().optional(),
 });
+
+// =====================
+// TYPE EXPORTS
+// =====================
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+
+export type MarketingAttendance = typeof marketingAttendance.$inferSelect;
+export type InsertMarketingAttendance = typeof marketingAttendance.$inferInsert;
+
+export type MarketingTodays = typeof marketingTodays.$inferSelect;
+export type InsertMarketingTodays = typeof marketingTodays.$inferInsert;
+
+export type MarketingTask = typeof marketingTasks.$inferSelect;
+export type InsertMarketingTask = typeof marketingTasks.$inferInsert;
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
+
+export type LogisticsShipment = typeof logisticsShipments.$inferSelect;
+export type InsertLogisticsShipment = typeof logisticsShipments.$inferInsert;
+export type LogisticsShipmentStatus = LogisticsShipment["currentStatus"];
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = typeof leads.$inferInsert;
+
+export type FieldVisit = typeof fieldVisits.$inferSelect;
+export type InsertFieldVisit = typeof fieldVisits.$inferInsert;
+
+export type LogisticsTask = typeof logisticsTasks.$inferSelect;
+export type InsertLogisticsTask = typeof logisticsTasks.$inferInsert;
+
+export type LogisticsAttendance = typeof logisticsAttendance.$inferSelect;
+export type InsertLogisticsAttendance = typeof logisticsAttendance.$inferInsert;
+
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = typeof activities.$inferInsert;
+
+export type MoldDetail = typeof moldDetailsTable.$inferSelect;
+export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;

@@ -69,7 +69,7 @@ export default function Leads() {
   // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
     queryKey: [
-      "/marketing/leads",
+      "/api/marketing/leads",
       {
         status: selectedStatus,
         source: sourceFilter,
@@ -80,15 +80,15 @@ export default function Leads() {
     ],
     queryFn: () => {
       const url = queryParams
-        ? `/marketing/leads?${queryParams}`
-        : "/marketing/leads";
+        ? `/api/marketing/leads?${queryParams}`
+        : "/api/marketing/leads";
       return apiRequest(url);
     },
   });
 
   // Fetch lead metrics
   const { data: metrics } = useQuery<LeadMetrics>({
-    queryKey: ["/marketing/leads/metrics"],
+    queryKey: ["/api/marketing/leads/metrics"],
   });
 
   const { data: users = [] } = useQuery<User[]>({
@@ -337,7 +337,7 @@ export default function Leads() {
               setSelectedStatus(value as LeadStatus | "all")
             }
           >
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="all" data-testid="tab-all">
                 All ({leads.length})
               </TabsTrigger>
@@ -347,11 +347,14 @@ export default function Leads() {
               <TabsTrigger value="contacted" data-testid="tab-contacted">
                 Contacted ({getStatusCount("contacted")})
               </TabsTrigger>
+              <TabsTrigger value="analysis" data-testid="tab-analysis">
+                Analysis ({getStatusCount("analysis")})
+              </TabsTrigger>
               <TabsTrigger value="in_progress" data-testid="tab-in-progress">
                 In Progress ({getStatusCount("in_progress")})
               </TabsTrigger>
               <TabsTrigger value="converted" data-testid="tab-converted">
-                Converted ({getStatusCount("converted")})
+                Confirmed for Sales ({getStatusCount("converted")})
               </TabsTrigger>
               <TabsTrigger value="dropped" data-testid="tab-dropped">
                 Dropped ({getStatusCount("dropped")})
@@ -409,7 +412,6 @@ export default function Leads() {
                       .split("T")[0]
                   : "",
                 notes: editingLead.notes || "",
-                tags: editingLead.tags || [],
               }
             : undefined
         }
