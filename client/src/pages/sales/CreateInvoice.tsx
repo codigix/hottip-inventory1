@@ -116,6 +116,10 @@ export default function CreateInvoice() {
     queryKey: ["/sales-orders"],
   });
 
+  const { data: invoices = [] } = useQuery<any[]>({
+    queryKey: ["/invoices"],
+  });
+
   const form = useForm<z.infer<typeof insertInvoiceSchema>>({
     resolver: zodResolver(insertInvoiceSchema),
     defaultValues: {
@@ -150,6 +154,15 @@ export default function CreateInvoice() {
       notes: "",
     },
   });
+
+  useEffect(() => {
+    if (invoices.length >= 0 && !form.getValues("invoiceNumber")) {
+      const year = new Date().getFullYear();
+      const count = invoices.length + 1;
+      const nextNumber = `INV-${year}-${count.toString().padStart(3, "0")}`;
+      form.setValue("invoiceNumber", nextNumber);
+    }
+  }, [invoices, form]);
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (payload: z.infer<typeof insertInvoiceSchema>) => {

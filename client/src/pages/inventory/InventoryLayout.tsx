@@ -40,6 +40,8 @@ import InventoryAttendance from "./InventoryAttendance";
 import InventoryDashboard from "../InventoryDashboard";
 import MaterialRequests from "./MaterialRequests";
 import MaterialRequestDetail from "./MaterialRequestDetail";
+import VendorQuotations from "./VendorQuotations";
+import VendorPO from "./VendorPO";
 
 const sidebarItems = [
   {
@@ -56,6 +58,22 @@ const sidebarItems = [
     icon: ClipboardList,
     path: '/inventory/material-requests',
     description: 'Manage material and stock requests',
+    tourConfig: null,
+  },
+  {
+    id: 'vendor-quotations',
+    label: 'Vendor Quotations',
+    icon: FileText,
+    path: '/inventory/vendor-quotations',
+    description: 'Manage quotations from vendors',
+    tourConfig: null,
+  },
+  {
+    id: 'vendor-po',
+    label: 'Vendor PO',
+    icon: Truck,
+    path: '/inventory/vendor-po',
+    description: 'Manage purchase orders to vendors',
     tourConfig: null,
   },
   {
@@ -134,6 +152,8 @@ export default function InventoryLayout() {
   const getActiveSidebarItem = () => {
     if (location === '/inventory') return 'dashboard';
     if (location.includes('/material-requests')) return 'material-requests';
+    if (location.includes('/vendor-quotations')) return 'vendor-quotations';
+    if (location.includes('/vendor-po')) return 'vendor-po';
     if (location.includes('/stock')) return 'stock-management';
     if (location.includes('/vendors')) return 'vendors';
     if (location.includes('/spare-parts')) return 'spare-parts';
@@ -235,6 +255,12 @@ export default function InventoryLayout() {
           </Route>
           <Route path="/inventory/material-requests/:id">
             <MaterialRequestDetail />
+          </Route>
+          <Route path="/inventory/vendor-quotations">
+            <VendorQuotations />
+          </Route>
+          <Route path="/inventory/vendor-po">
+            <VendorPO />
           </Route>
           <Route path="/inventory/stock">
             <StockManagement />

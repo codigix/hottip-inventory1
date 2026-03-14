@@ -14,6 +14,7 @@ import {
 
 import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // USERS table definition (inline, since ./users is missing)
@@ -681,7 +682,6 @@ export const products = pgTable("products", {
   description: text("description"),
   sku: text("sku").notNull().unique(),
   category: text("category").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull().default(0),
   stock: integer("stock").notNull().default(0),
   costPrice: decimal("costPrice", { precision: 10, scale: 2 }).default(0),
   lowStockThreshold: integer("lowStockThreshold").default(0),
@@ -793,6 +793,44 @@ export const accountsPayables = pgTable("accounts_payables", {
   status: accountsReceivableStatus("status").notNull().default("pending"),
   createdAt: timestamp("createdat").defaultNow().notNull(),
   updatedAt: timestamp("updatedat").defaultNow().notNull(),
+});
+
+// =====================
+// VENDOR QUOTATIONS
+// =====================
+export const vendorQuotations = pgTable("vendor_quotations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationNumber: text("quotationNumber").notNull(),
+  quotationDate: timestamp("quotationDate").notNull(),
+  validUntil: timestamp("validUntil"),
+  subject: text("subject"),
+  totalAmount: numeric("totalAmount"),
+  status: quotationStatus("status").notNull().default("rfq"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  attachmentName: text("attachmentName"),
+  senderId: uuid("senderId").notNull().references(() => suppliers.id),
+  userId: uuid("userId").notNull().references(() => users.id),
+  quotationItems: jsonb("quotationItems"),
+  financialBreakdown: jsonb("financialBreakdown"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+export type VendorQuotation = typeof vendorQuotations.$inferSelect;
+export type InsertVendorQuotation = typeof vendorQuotations.$inferInsert;
+
+export const insertVendorQuotationSchema = z.object({
+  quotationNumber: z.string(),
+  quotationDate: z.coerce.date(),
+  validUntil: z.coerce.date().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  totalAmount: z.string().optional().nullable(),
+  status: z.string().default("rfq"),
+  notes: z.string().optional().nullable(),
+  senderId: z.string().uuid(),
+  userId: z.string().uuid(),
+  quotationItems: z.any().optional().nullable(),
+  financialBreakdown: z.any().optional().nullable(),
 });
 
 // =====================

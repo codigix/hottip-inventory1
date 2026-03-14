@@ -146,6 +146,78 @@ export const db = drizzle(pool, { schema });
       END $$;
     `);
 
+    // ✅ Ensure material_requests table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "material_requests" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "requestNumber" text NOT NULL,
+        "requesterId" uuid NOT NULL REFERENCES users(id),
+        "department" text NOT NULL,
+        "status" text NOT NULL DEFAULT 'DRAFT',
+        "purpose" text NOT NULL DEFAULT 'Purchase Request',
+        "requiredBy" timestamp,
+        "notes" text,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
+    // ✅ Ensure material_request_items table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "material_request_items" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "requestId" uuid NOT NULL REFERENCES material_requests(id) ON DELETE CASCADE,
+        "productId" uuid REFERENCES products(id),
+        "sparePartId" uuid REFERENCES spare_parts(id),
+        "quantity" numeric(10, 3) NOT NULL,
+        "unit" text NOT NULL,
+        "status" text DEFAULT 'pending',
+        "notes" text
+      )
+    `);
+
+    // ✅ Ensure vendor_quotations table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "vendor_quotations" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "quotationNumber" text NOT NULL,
+        "quotationDate" timestamp NOT NULL,
+        "validUntil" timestamp,
+        "subject" text,
+        "totalAmount" numeric,
+        "status" text NOT NULL DEFAULT 'rfq',
+        "notes" text,
+        "attachmentPath" text,
+        "attachmentName" text,
+        "senderId" uuid NOT NULL,
+        "userId" uuid NOT NULL REFERENCES users(id),
+        "quotationItems" jsonb,
+        "financialBreakdown" jsonb,
+        "createdAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
+    // ✅ Insert dummy Material Request if none exist
+    const mrCountRes = await client.query('SELECT count(*) FROM material_requests');
+    if (parseInt(mrCountRes.rows[0].count) === 0) {
+      const devUserId = '00000000-0000-0000-0000-000000000001';
+      const requestId = '25b7b4a8-ecd4-45ae-ba3f-6b441f5fc307'; // Stable ID for testing
+      
+      await client.query(`
+        INSERT INTO material_requests ("id", "requestNumber", "requesterId", "department", "status", "requiredBy", "notes")
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [requestId, 'MR-20240315-001', devUserId, 'Production', 'DRAFT', new Date('2024-03-25'), 'Urgent requirement for assembly line']);
+
+      // Get some product IDs to link
+      const productRes = await client.query('SELECT id, unit FROM products LIMIT 2');
+      for (const row of productRes.rows) {
+        await client.query(`
+          INSERT INTO material_request_items ("requestId", "productId", "quantity", "unit", "notes")
+          VALUES ($1, $2, $3, $4, $5)
+        `, [requestId, row.id, 50, row.unit || 'pcs', 'Testing item']);
+      }
+    }
+
     client.release();
   } catch (err) {
     console.error("❌ Failed to connect to PostgreSQL", err);

@@ -213,12 +213,6 @@ export const inventoryStockManagementTour = {
       position: "bottom",
     },
     {
-      element: "[data-tour='inventory-reference-input']",
-      title: "Add Reference (Optional)",
-      text: "Add invoice number, PO number, or any reference for tracking and reconciliation.",
-      position: "bottom",
-    },
-    {
       element: "[data-tour='inventory-notes-textarea']",
       title: "Add Notes (Optional)",
       text: "Add any additional details about this transaction - condition, supplier info, etc.",
@@ -257,7 +251,7 @@ export const inventoryStockManagementTour = {
     {
       element: "[data-tour='recent-transactions-table']",
       title: "Recent Transactions History",
-      text: "View the audit trail of all recent stock movements. See transaction type, product, quantity, date, reason, and reference for full traceability.",
+      text: "View the audit trail of all recent stock movements. See transaction type, product, quantity, date, and reason for full traceability.",
       position: "top",
     },
   ],

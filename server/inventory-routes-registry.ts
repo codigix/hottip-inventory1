@@ -8,7 +8,7 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
-import { materialRequests, materialRequestItems, spareParts } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
 import { sql, eq, lte } from "drizzle-orm";
@@ -40,7 +40,7 @@ export function registerInventoryRoutes(
 
       const [sumRow] = await db
         .select({
-          totalValue: sql`COALESCE(SUM(CASE WHEN ${products.price} IS NULL THEN 0 ELSE ${products.price} END * COALESCE(${products.stock}, 0)), 0)`,
+          totalValue: sql`COALESCE(SUM(CASE WHEN ${products.costPrice} IS NULL THEN 0 ELSE ${products.costPrice} END * COALESCE(${products.stock}, 0)), 0)`,
         })
         .from(products);
 
@@ -107,10 +107,6 @@ export function registerInventoryRoutes(
           body.stock != null && !Number.isNaN(Number(body.stock))
             ? Number(body.stock)
             : 0;
-        const price =
-          body.price != null && !Number.isNaN(Number(body.price))
-            ? Number(body.price)
-            : 0;
         const costPrice =
           body.costPrice != null && !Number.isNaN(Number(body.costPrice))
             ? Number(body.costPrice)
@@ -130,7 +126,6 @@ export function registerInventoryRoutes(
             description,
             category,
             stock,
-            price,
             costPrice,
             lowStockThreshold,
             unit,
@@ -158,8 +153,6 @@ export function registerInventoryRoutes(
         if (typeof body.sku === "string") update.sku = body.sku.trim();
         if (body.stock != null && !Number.isNaN(Number(body.stock)))
           update.stock = Number(body.stock);
-        if (body.price != null && !Number.isNaN(Number(body.price)))
-          update.price = Number(body.price);
 
         const [row] = await db
           .update(products)
@@ -339,8 +332,8 @@ export function registerInventoryRoutes(
           sku: product.sku,
           category: product.category,
           currentStock: product.stock,
-          price: product.price,
-          value: (Number(product.price) * product.stock).toFixed(2),
+          costPrice: product.costPrice,
+          value: (Number(product.costPrice) * product.stock).toFixed(2),
           lowStockThreshold: product.lowStockThreshold,
           status:
             product.stock <= (product.lowStockThreshold || 10)
@@ -501,7 +494,7 @@ export function registerInventoryRoutes(
           }
           categoryStats[category].items += 1;
           categoryStats[category].value +=
-            Number(product.price) * product.stock;
+            Number(product.costPrice) * product.stock;
           categoryStats[category].stock += product.stock;
         });
 
@@ -524,7 +517,7 @@ export function registerInventoryRoutes(
 
         const analytics = {
           totalInventoryValue: productsData
-            .reduce((sum, p) => sum + Number(p.price) * p.stock, 0)
+            .reduce((sum, p) => sum + Number(p.costPrice) * p.stock, 0)
             .toFixed(2),
           totalProducts: productsData.length,
           lowStockAlerts: productsData.filter(
@@ -571,8 +564,8 @@ export function registerInventoryRoutes(
           SKU: product.sku,
           Category: product.category,
           "Current Stock": product.stock,
-          Price: product.price,
-          "Total Value": (Number(product.price) * product.stock).toFixed(2),
+          "Cost Price": product.costPrice,
+          "Total Value": (Number(product.costPrice) * product.stock).toFixed(2),
           "Low Stock Threshold": product.lowStockThreshold,
           Status:
             product.stock <= (product.lowStockThreshold || 10)
@@ -758,7 +751,7 @@ export function registerInventoryRoutes(
           }
           categoryStats[category].items += 1;
           categoryStats[category].value +=
-            Number(product.price) * product.stock;
+            Number(product.costPrice) * product.stock;
           categoryStats[category].stock += product.stock;
         });
 
@@ -811,7 +804,7 @@ export function registerInventoryRoutes(
 
         let csvContent = "STOCK BALANCE REPORT\n";
         csvContent +=
-          "Product Name,SKU,Category,Current Stock,Price,Total Value,Low Stock Threshold,Status\n";
+          "Product Name,SKU,Category,Current Stock,Cost Price,Total Value,Low Stock Threshold,Status\n";
 
         productsData.forEach((product) => {
           const status =
@@ -820,8 +813,8 @@ export function registerInventoryRoutes(
               : "In Stock";
           csvContent += `"${product.name}","${product.sku}","${
             product.category
-          }",${product.stock},${product.price},${(
-            Number(product.price) * product.stock
+          }",${product.stock},${product.costPrice},${(
+            Number(product.costPrice) * product.stock
           ).toFixed(2)},${product.lowStockThreshold},"${status}"\n`;
         });
 
@@ -1000,6 +993,196 @@ export function registerInventoryRoutes(
     } catch (e) {
       console.error("Error deleting material request:", e);
       res.status(500).json({ error: "Failed to delete material request" });
+    }
+  });
+
+  // --- VENDOR QUOTATION ROUTES ---
+
+  // GET all vendor quotations
+  app.get("/api/vendor-quotations", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(vendorQuotations)
+        .orderBy(sql`${vendorQuotations.createdAt} DESC`);
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching vendor quotations:", e);
+      res.status(500).json({ error: "Failed to fetch vendor quotations" });
+    }
+  });
+
+  // POST create vendor quotation (RFQ)
+  app.post("/api/vendor-quotations", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const body = { ...req.body };
+      
+      // Coerce dates
+      if (body.quotationDate) body.quotationDate = new Date(body.quotationDate);
+      if (body.validUntil) body.validUntil = new Date(body.validUntil);
+
+      const validatedData = insertVendorQuotationSchema.parse({
+        ...body,
+        userId: body.userId || req.user?.id,
+      });
+
+      const [newQuotation] = await db
+        .insert(vendorQuotations)
+        .values(validatedData)
+        .returning();
+
+      res.status(201).json(newQuotation);
+    } catch (e: any) {
+      console.error("❌ Error creating vendor quotation:");
+      if (e instanceof Error) {
+        console.error("Message:", e.message);
+        console.error("Stack:", e.stack);
+      } else {
+        console.error(String(e));
+      }
+      
+      if (e.errors) {
+        try {
+          console.error("Validation errors details:", JSON.stringify(e.errors));
+        } catch (jsonErr) {
+          console.error("Could not stringify validation errors");
+        }
+      }
+      
+      res.status(400).json({ 
+        error: "Invalid vendor quotation data", 
+        details: e.errors || (e instanceof Error ? e.message : String(e))
+      });
+    }
+  });
+
+  // DELETE vendor quotation
+  app.delete("/api/vendor-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(vendorQuotations)
+        .where(eq(vendorQuotations.id, id))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Vendor quotation not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting vendor quotation:", e);
+      res.status(500).json({ error: "Failed to delete vendor quotation" });
+    }
+  });
+
+  // --- PURCHASE ORDER ROUTES ---
+
+  // GET all purchase orders
+  app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(purchaseOrders)
+        .orderBy(sql`${purchaseOrders.createdAt} DESC`);
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching purchase orders:", e);
+      res.status(500).json({ error: "Failed to fetch purchase orders" });
+    }
+  });
+
+  // GET purchase order details
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      const items = await db
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      res.json({ ...order, items });
+    } catch (e) {
+      console.error("Error fetching purchase order details:", e);
+      res.status(500).json({ error: "Failed to fetch purchase order details" });
+    }
+  });
+
+  // POST create purchase order
+  app.post("/api/purchase-orders", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { items, ...orderData } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Convert date string to Date object
+      if (orderData.orderDate) {
+        orderData.orderDate = new Date(orderData.orderDate);
+      }
+
+      const validatedData = insertPurchaseOrderSchema.parse({
+        ...orderData,
+        userId,
+        items,
+      });
+
+      const { items: validatedItems, ...dbOrderData } = validatedData;
+
+      const [newOrder] = await db
+        .insert(purchaseOrders)
+        .values(dbOrderData)
+        .returning();
+
+      if (validatedItems && validatedItems.length > 0) {
+        const itemValues = validatedItems.map((item) => ({
+          ...item,
+          purchaseOrderId: newOrder.id,
+          amount: String(Number(item.quantity) * Number(item.unitPrice)),
+          unitPrice: String(item.unitPrice),
+          quantity: Number(item.quantity),
+        }));
+        await db.insert(purchaseOrderItems).values(itemValues);
+      }
+
+      res.status(201).json(newOrder);
+    } catch (e: any) {
+      console.error("Error creating purchase order:", e);
+      res.status(400).json({ 
+        error: "Invalid purchase order data", 
+        details: e.errors || e.message 
+      });
+    }
+  });
+
+  // DELETE purchase order
+  app.delete("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(purchaseOrders)
+        .where(eq(purchaseOrders.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting purchase order:", e);
+      res.status(500).json({ error: "Failed to delete purchase order" });
     }
   });
 }

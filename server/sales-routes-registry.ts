@@ -1330,16 +1330,25 @@ export function registerSalesRoutes(
         return res.status(404).json({ error: "Invoice not found" });
       }
 
-      // ✅ Fetch customer name (optional)
-      let customerName = "";
+      // ✅ Fetch customer details (optional)
+      let customerDetails = null;
       try {
         const [customer] = await db
-          .select({ name: customers.name })
+          .select()
           .from(customers)
           .where(eq(customers.id, invoice.customerId));
-        customerName = customer?.name || "Unknown Customer";
-      } catch {
-        customerName = "Unknown Customer";
+        if (customer) {
+          customerDetails = {
+            id: customer.id,
+            name: customer.name,
+            address: customer.address,
+            gstNumber: customer.gstNumber,
+            email: customer.email,
+            phone: customer.phone,
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching customer details:", err);
       }
 
       // ✅ Fetch line items
@@ -1348,12 +1357,12 @@ export function registerSalesRoutes(
         .from(invoiceItems)
         .where(eq(invoiceItems.invoiceId, id));
 
-      // ✅ Format structured response
+      // ✅ Format structured response to match frontend expectations
       const formattedInvoice = {
-        invoiceNumber: invoice.invoiceNumber,
-        customer: customerName,
-        invoiceDate: invoice.invoiceDate?.toISOString().split("T")[0] || "",
-        dueDate: invoice.dueDate?.toISOString().split("T")[0] || "",
+        ...invoice,
+        customer: customerDetails,
+        invoiceDate: invoice.invoiceDate?.toISOString() || "",
+        dueDate: invoice.dueDate?.toISOString() || "",
         subtotalAmount: Number(invoice.subtotalAmount) || 0,
         discountAmount: Number(invoice.discountAmount) || 0,
         cgstRate: Number(invoice.cgstRate) || 0,
@@ -1364,30 +1373,14 @@ export function registerSalesRoutes(
         igstAmount: Number(invoice.igstAmount) || 0,
         totalAmount: Number(invoice.totalAmount) || 0,
         balanceAmount: Number(invoice.balanceAmount) || 0,
-        billingAddress: invoice.billingAddress || "",
-        shippingAddress: invoice.shippingAddress || "",
-        clientGSTIN: invoice.billingGstNumber || "",
-        placeOfSupply: invoice.placeOfSupply || "",
-        paymentTerms: invoice.paymentTerms || "",
-        deliveryTerms: invoice.deliveryTerms || "",
-        transporter: invoice.transporterName || "",
-        ewayBillNumber: invoice.ewayBillNumber || "",
-        amountInWords: invoice.amountInWords || "",
-        packingCharges: Number(invoice.packingFee) || 0,
-        shippingCharges: Number(invoice.shippingFee) || 0,
-        otherCharges: Number(invoice.otherCharges) || 0,
-        additionalNotes: invoice.notes || "",
-        lineItems: items.map((item) => ({
-          description: item.description,
-          hsn_sac: item.hsnSac || "",
-          hsnSac: item.hsnSac || "",
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: Number(item.unitPrice),
-          amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
-          cgstPercent: Number(invoice.cgstRate) || 0,
-          sgstPercent: Number(invoice.sgstRate) || 0,
-          igstPercent: Number(invoice.igstRate) || 0,
+        items: items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity) || 0,
+          unitPrice: Number(item.unitPrice) || 0,
+          amount: Number(item.amount) || (Number(item.unitPrice) * Number(item.quantity)),
+          cgstRate: Number(item.cgstRate) || 0,
+          sgstRate: Number(item.sgstRate) || 0,
+          igstRate: Number(item.igstRate) || 0,
         })),
       };
 

@@ -50,6 +50,7 @@ import {
   suppliers,
   outboundQuotations,
   inboundQuotations,
+  vendorQuotations,
   invoices,
   invoiceItems,
   purchaseOrders,
@@ -65,6 +66,8 @@ export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
+export type VendorQuotation = typeof vendorQuotations.$inferSelect;
+export type InsertVendorQuotation = typeof vendorQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
@@ -389,6 +392,28 @@ class Storage {
       throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
     }
     return row;
+  }
+
+  // Vendor Quotations CRUD
+  async createVendorQuotation(
+    insertQuotation: InsertVendorQuotation
+  ): Promise<VendorQuotation> {
+    const [row] = await db
+      .insert(vendorQuotations)
+      .values(insertQuotation)
+      .returning();
+    return row;
+  }
+
+  async getVendorQuotations(): Promise<VendorQuotation[]> {
+    return await db
+      .select()
+      .from(vendorQuotations)
+      .orderBy(desc(vendorQuotations.createdAt));
+  }
+
+  async deleteVendorQuotation(id: string): Promise<void> {
+    await db.delete(vendorQuotations).where(eq(vendorQuotations.id, id));
   }
 
   // Purchase Orders CRUD

@@ -12,7 +12,6 @@ function TransactionDetailsModal({ open, onOpenChange, transaction }: { open: bo
           <div><b>Product ID:</b> {transaction.productId}</div>
           <div><b>Quantity:</b> {transaction.quantity}</div>
           <div><b>Reason:</b> {transaction.reason}</div>
-          <div><b>Reference Number:</b> {transaction.referenceNumber}</div>
           <div><b>Notes:</b> {transaction.notes || '-'}</div>
           <div><b>Date:</b> {transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : '-'}</div>
         </div>
@@ -39,7 +38,6 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   sku: z.string().min(1, "SKU is required"),
   category: z.string().min(1, "Category is required"),
-  price: z.string().min(1, "Price is required"),
   costPrice: z.string().min(1, "Cost price is required"),
   stock: z.number().min(0, "Stock cannot be negative"),
   lowStockThreshold: z.number().min(0, "Threshold cannot be negative"),
@@ -63,7 +61,6 @@ function StockDetailsModal({ open, onOpenChange, product }: { open: boolean; onO
           <div><b>Current Stock:</b> {product.stock} {product.unit}</div>
           <div><b>Low Stock Threshold:</b> {product.lowStockThreshold}</div>
           <div><b>Status:</b> {product.stock <= product.lowStockThreshold ? 'Low Stock' : 'In Stock'}</div>
-          <div><b>Price:</b> ₹{product.price}</div>
           <div><b>Description:</b> {product.description || '-'}</div>
         </div>
       </DialogContent>
@@ -109,10 +106,6 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             <Input value={form.unit || ''} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} data-tour="inventory-edit-unit-input" />
           </div>
           <div>
-            <Label>Price</Label>
-            <Input type="number" value={form.price ?? ''} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-tour="inventory-edit-price-input" />
-          </div>
-          <div>
             <Label>Description</Label>
             <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-tour="inventory-edit-description-textarea" />
           </div>
@@ -147,7 +140,6 @@ export default function StockManagement() {
       description: "",
       sku: "",
       category: "",
-      price: "",
       costPrice: "",
       stock: 0,
       lowStockThreshold: 10,
@@ -184,7 +176,6 @@ export default function StockManagement() {
   const [selectedPo, setSelectedPo] = useState('');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const { toast } = useToast();
   // For stock details modal
@@ -266,7 +257,6 @@ export default function StockManagement() {
     setSelectedPo('');
     setQuantity('');
     setReason('');
-    setReferenceNumber('');
     setNotes('');
   };
 
@@ -293,7 +283,7 @@ export default function StockManagement() {
       type: transactionType,
       quantity: parseInt(quantity),
       reason,
-      referenceNumber: referenceNumber || `${transactionType.toUpperCase()}-${Date.now()}`,
+      referenceNumber: `${transactionType.toUpperCase()}-${Date.now()}`,
       notes,
     };
 
@@ -402,10 +392,6 @@ export default function StockManagement() {
       ),
     },
     {
-      key: "referenceNumber",
-      header: "Reference",
-    },
-    {
       key: "createdAt",
       header: "Date",
       cell: (transaction: any) => new Date(transaction.createdAt).toLocaleDateString(),
@@ -419,9 +405,9 @@ export default function StockManagement() {
   const totalProducts = productsArray.length;
   const lowStockProducts = productsArray.filter((p: any) => p.stock <= (p.lowStockThreshold || 0)).length;
   const totalValue = productsArray.reduce((sum: number, product: any) => {
-    const price = typeof product.price === 'string' ? parseFloat(product.price) : (product.price || 0);
+    const costPrice = typeof product.costPrice === 'string' ? parseFloat(product.costPrice) : (product.costPrice || 0);
     const stock = typeof product.stock === 'string' ? parseInt(product.stock) : (product.stock || 0);
-    return sum + (price * stock);
+    return sum + (costPrice * stock);
   }, 0);
   const totalTransactions = stockTransactionsArray.length;
 
@@ -507,7 +493,7 @@ export default function StockManagement() {
                     )}
                   />
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={productForm.control}
                       name="category"
@@ -516,19 +502,6 @@ export default function StockManagement() {
                           <FormLabel>Category</FormLabel>
                           <FormControl>
                             <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={productForm.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price (₹)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.01" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -646,7 +619,6 @@ export default function StockManagement() {
                         setSelectedPo(val);
                         const po = (purchaseOrders || []).find((p: any) => p.id === val);
                         if (po) {
-                          setReferenceNumber(po.poNumber);
                           setReason('purchase');
                           // If PO has items, try to select the first item's product
                           if (po.items && po.items.length > 0) {
@@ -728,16 +700,6 @@ export default function StockManagement() {
                       <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="referenceNumber">Reference Number</Label>
-                  <Input
-                    id="referenceNumber"
-                    placeholder="PO/Invoice number"
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
-                    data-tour="inventory-reference-input"
-                  />
                 </div>
                 <div>
                   <Label htmlFor="notes">Notes</Label>
