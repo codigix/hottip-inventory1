@@ -2003,8 +2003,8 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     });
   }
 
-  async updateSalesOrderStatus(id: string, status: string): Promise<any> {
-    console.log(`💾 [STORAGE] updateSalesOrderStatus hit for ID: ${id}, status: ${status}`);
+  async updateSalesOrderStatus(id: string, status: string, userId?: string): Promise<any> {
+    console.log(`💾 [STORAGE] updateSalesOrderStatus hit for ID: ${id}, status: ${status}, userId: ${userId}`);
     const oldOrder = await this.getSalesOrder(id);
     if (!oldOrder) throw new Error(`Sales order with ID '${id}' not found.`);
 
@@ -2064,13 +2064,19 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
           dispatchDate: new Date().toISOString(),
           currentStatus: 'packed',
           notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
-          items: updatedOrder.items || [] // Pass items through
+          createdBy: userId || updatedOrder.userId,
+          assignedTo: userId || updatedOrder.userId,
+          items: updatedOrder.items?.map((item: any) => ({
+            materialName: item.itemName,
+            qty: item.quantity,
+            unit: item.unit,
+            type: item.description
+          })) || []
         };
         await this.createLogisticsShipment(shipmentData);
         console.log(`✅ [STORAGE] Shipment created successfully for SO: ${updatedOrder.orderNumber}`);
       } catch (shipmentError) {
         console.error(`❌ [STORAGE] Failed to create shipment for SO: ${updatedOrder.orderNumber}`, shipmentError);
-        // Don't fail the status update if shipment creation fails
       }
     }
 
@@ -2877,13 +2883,13 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       const metrics = {
         totalShipments: shipments.length,
         activeShipments: shipments.filter(s => 
-          ['packed', 'dispatched', 'in_transit', 'out_for_delivery'].includes(s.currentStatus?.toLowerCase() || '')
+          ['packed', 'dispatched', 'in_transit', 'out_for_delivery', 'picked_up', 'at_hub', 'custom_clearance', 'import_customs'].includes(s.currentStatus?.toLowerCase() || '')
         ).length,
         deliveredShipments: shipments.filter(s => 
           s.currentStatus?.toLowerCase() === 'delivered'
         ).length,
         pendingShipments: shipments.filter(s => 
-          s.currentStatus?.toLowerCase() === 'created' || s.currentStatus?.toLowerCase() === 'planned'
+          ['created', 'planned', 'scheduled'].includes(s.currentStatus?.toLowerCase() || '')
         ).length,
         averageDeliveryTime: 0,
         onTimeDeliveryRate: 0

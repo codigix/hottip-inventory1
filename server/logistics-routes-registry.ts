@@ -62,6 +62,10 @@ export const getLogisticsShipments = async (
   res: Response
 ): Promise<void> => {
   try {
+    console.log("🚚 [LOGISTICS ROUTES] GET /api/logistics/shipments hit!");
+    console.log("🔍 Filters:", JSON.stringify(req.query));
+    console.log("👤 User:", JSON.stringify(req.user));
+    
     const filters = logisticsShipmentFilterSchema.parse(req.query);
 
     // Role-based access control - employees can only see shipments assigned to them or created by them

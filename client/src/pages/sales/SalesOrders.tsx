@@ -430,9 +430,8 @@ export default function SalesOrders() {
                variant="ghost" 
                onClick={() => {
                  handleUpdateStatus(order.id, 'shipped');
-                 createShipmentMutation.mutate(order);
                }}
-               disabled={isProcessing || createShipmentMutation.isPending}
+               disabled={isProcessing}
                title="Ship Order & Create Shipment"
              >
                <Truck className="h-4 w-4 text-orange-600" />
