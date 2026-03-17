@@ -416,7 +416,7 @@ export default function ShipmentOrders() {
                           {shipment.poNumber || "N/A"}
                         </TableCell>
                         <TableCell className="py-4 font-medium text-slate-700">
-                          {shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A"}
+                          {getVendorName(shipment)}
                         </TableCell>
                         <TableCell className="py-4 text-slate-500">
                           <div className="flex flex-col">

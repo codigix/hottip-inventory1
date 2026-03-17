@@ -72,6 +72,11 @@ export default function VendorTracking() {
     queryKey: ['/logistics/shipments']
   });
 
+  const getVendorName = (shipment: any) => {
+    if (!shipment) return "N/A";
+    return shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A";
+  };
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ shipmentId, status }: { shipmentId: string, status: string }) => {
       return apiRequest("PUT", `/logistics/shipments/${shipmentId}/status`, { status });
@@ -135,7 +140,7 @@ export default function VendorTracking() {
         id: item.consignmentNumber,
         dbId: item.id,
         planId: plan.planId || "N/A",
-        vendor: item.vendorName || item.supplier?.name || item.vendor?.name || item.clientName || "N/A",
+        vendor: getVendorName(item),
         transport,
         container,
         status,

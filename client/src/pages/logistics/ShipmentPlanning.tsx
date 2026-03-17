@@ -145,10 +145,14 @@ export default function ShipmentPlanning() {
     status: "Planned",
   });
 
-  // Fetch approved shipments that need planning
   const { data: shipments = [], isLoading: isLoadingShipments } = useQuery<LogisticsShipment[]>({
     queryKey: ['/logistics/shipments', { isApproved: true }]
   });
+
+  const getVendorName = (shipment: LogisticsShipment | any) => {
+    if (!shipment) return "N/A";
+    return shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A";
+  };
 
   // Fetch existing plans
   // Note: Backend doesn't have a direct get-all-plans yet, we'll fetch them individually or use a placeholder
@@ -401,7 +405,7 @@ export default function ShipmentPlanning() {
                         <TableCell className="font-bold text-primary py-4">{shipment.consignmentNumber}</TableCell>
                         <TableCell className="py-4 font-medium">{shipment.poNumber || "N/A"}</TableCell>
                         <TableCell className="py-4 font-medium">
-                          {shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A"}
+                          {getVendorName(shipment)}
                         </TableCell>
                         <TableCell className="py-4 text-xs">
                           <div>From: {shipment.source}</div>
@@ -578,11 +582,7 @@ export default function ShipmentPlanning() {
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-tighter mb-1">Vendor Details</p>
                       <div className="flex flex-col space-y-0.5">
                         <p className="font-bold text-slate-800 text-lg leading-tight">
-                          {selectedShipment?.vendorName || 
-                           selectedShipment?.supplier?.name || 
-                           selectedShipment?.vendor?.name || 
-                           selectedShipment?.clientName || 
-                           "N/A"}
+                          {getVendorName(selectedShipment)}
                         </p>
                         {(selectedShipment?.supplier?.city || selectedShipment?.supplier?.address) && (
                           <p className="text-xs text-muted-foreground flex items-center">
