@@ -41,6 +41,8 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+import { generateDeliveryChallanPDF } from "./pdf-generator";
+
 // Logistics Route Handlers
 
 // Helper to check if a user has management or department-wide access to logistics
@@ -160,6 +162,86 @@ export const getLogisticsShipment = async (
     res.json(shipment);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch shipment" });
+  }
+};
+
+export const getDeliveryChallan = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        req.params.id
+      )
+    ) {
+      res.status(400).json({ error: "Invalid shipment ID format" });
+      return;
+    }
+
+    const shipment = await storage.getLogisticsShipment(req.params.id);
+    if (!shipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+
+    const importDuty = Number(shipment.plan?.importDuty || 0);
+    const gstPaid = Number(shipment.plan?.gstPaid || 0);
+    const totalAmount = importDuty + gstPaid;
+
+    // Prepare data for Delivery Challan PDF
+    const challanData = {
+      company: {
+        name: "HOTTIP INDIA POLYMERS",
+        address: "123, Industrial Area, Phase-II, City - 411 001, State", // Default or from config
+        gstNo: "27AAAAA0000A1Z5", // Default or from config
+        stateName: "Maharashtra",
+        stateCode: "27",
+        email: "info@hottipolymers.com",
+      },
+      receiver: {
+        name: shipment.client?.name || shipment.clientName || "N/A",
+        address: shipment.client?.address || shipment.destination || "N/A",
+        gstNo: shipment.client?.gstNumber || "N/A",
+        phone: shipment.client?.phone || "N/A",
+      },
+      challan: {
+        challanNumber: `DC-${shipment.consignmentNumber}`,
+        date: new Date().toLocaleDateString("en-IN"),
+        orderNo: shipment.poNumber || "N/A",
+        dispatchMode: shipment.plan?.shipmentType || "Road",
+        vehicleNo:
+          shipment.plan?.truckNumber ||
+          shipment.plan?.flightNumber ||
+          shipment.plan?.voyageNumber ||
+          "N/A",
+        importDuty,
+        gstPaid,
+        totalAmount,
+        items:
+          shipment.items?.map((item: any) => ({
+            description: item.materialName || item.itemName || "Material",
+            hsn: item.hsn || "N/A",
+            quantity: item.qty || item.quantity || 0,
+            unit: item.unit || "pcs",
+          })) || [],
+      },
+    };
+
+    const pdfBuffer = await generateDeliveryChallanPDF(challanData);
+    console.log(`📦 PDF Buffer received, length: ${pdfBuffer.length}`);
+
+    res.status(200);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="delivery_challan_${shipment.consignmentNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf"`
+    );
+    res.end(pdfBuffer, "binary");
+  } catch (error) {
+    console.error("❌ Error generating Delivery Challan:", error);
+    res.status(500).json({ error: "Failed to generate Delivery Challan" });
   }
 };
 
@@ -2281,6 +2363,12 @@ export const registerLogisticsRoutes = (
       path: "/api/logistics/shipments/:id",
       middlewares: ["requireAuth", "checkOwnership:shipment"],
       handler: getLogisticsShipment,
+    },
+    {
+      method: "get",
+      path: "/api/logistics/shipments/:id/delivery-challan",
+      middlewares: ["requireAuth"],
+      handler: getDeliveryChallan,
     },
     {
       method: "post",

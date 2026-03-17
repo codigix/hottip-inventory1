@@ -50,6 +50,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getNextStatus, getPreviousStatus } from "@shared/schema";
+import { openAuthenticatedPdf } from "@/lib/utils";
 
 const trackingStages = [
   { id: 'created', label: 'Created', icon: Package, color: 'bg-slate-50 text-slate-500', description: 'Shipment created' },
@@ -86,15 +87,21 @@ export default function VendorTracking() {
     mutationFn: async ({ shipmentId, status }: { shipmentId: string, status: string }) => {
       return apiRequest("PUT", `/logistics/shipments/${shipmentId}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       toast({
         title: "Success",
-        description: "Shipment status updated successfully.",
+        description: `Shipment status updated to ${(variables.status || "").replace(/_/g, ' ')} successfully.`,
       });
+
+      // If status is 'delivered', open delivery challan
+      if (variables.status === 'delivered') {
+        openAuthenticatedPdf(`/api/logistics/shipments/${variables.shipmentId}/delivery-challan`);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
       // Update local selected shipment if open
       if (selectedShipment) {
-        const updated = shipments.find(s => s.id === selectedShipment.dbId);
+        const updated = processedData.find(s => s.dbId === selectedShipment.dbId);
         if (updated) setSelectedShipment(updated);
       }
     },
@@ -112,50 +119,61 @@ export default function VendorTracking() {
   };
 
   const processedData = useMemo(() => {
-    return shipments.map(item => {
-      const plan = item.plan || {};
-      
-      // Determine transport display
-      let transport = "N/A";
-      if (plan.shipmentType === "Sea") transport = `Sea (${plan.shippingLine || "N/A"})`;
-      else if (plan.shipmentType === "Air") transport = `Air (${plan.airlineName || "N/A"})`;
-      else if (plan.shipmentType === "Road") transport = "Road";
+    // Only include shipments that have a plan
+    return shipments
+      .filter(item => item.plan && item.plan.planId)
+      .map(item => {
+        const plan = item.plan || {};
+        
+        // Determine transport display
+        let transport = "N/A";
+        if (plan.shipmentType === "Sea") transport = `Sea (${plan.shippingLine || "N/A"})`;
+        else if (plan.shipmentType === "Air") transport = `Air (${plan.airlineName || "N/A"})`;
+        else if (plan.shipmentType === "Road") transport = "Road";
 
-      // Determine container/AWB
-      const container = plan.containerNumber || plan.awbNumber || plan.truckNumber || "N/A";
+        // Determine container/AWB
+        const container = plan.containerNumber || plan.awbNumber || plan.truckNumber || "N/A";
 
-      // Determine status - map plan status or shipment status to stage ID
-      let status = (plan.status || item.currentStatus || "planned").toLowerCase().replace(/\s+/g, '_');
-      
-      // Basic normalization if needed
-      if (status === 'shipped') status = 'dispatched';
+        // Determine status - prioritized shipment status over plan status
+        let status = (item.currentStatus || plan.status || "created").toLowerCase().replace(/\s+/g, '_');
+        
+        // Basic normalization if needed
+        if (status === 'shipped') status = 'dispatched';
 
-      // ETA
-      const etaDate = plan.expectedArrival || plan.etaArrival || plan.etaArrivalAir || plan.deliveryDateRoad || item.expectedDeliveryDate;
-      const eta = etaDate ? format(new Date(etaDate), "dd MMM yyyy") : "TBD";
+        // ETA
+        const etaDate = plan.expectedArrival || plan.etaArrival || plan.etaArrivalAir || plan.deliveryDateRoad || item.expectedDeliveryDate;
+        const eta = etaDate ? format(new Date(etaDate), "dd MMM yyyy") : "TBD";
 
-      // Route
-      const route = plan.portOfLoading && plan.portOfDestination 
-        ? `${plan.portOfLoading} → ${plan.portOfDestination}`
-        : item.source && item.destination 
-          ? `${item.source} → ${item.destination}`
-          : "N/A";
+        // Route
+        const route = plan.portOfLoading && plan.portOfDestination 
+          ? `${plan.portOfLoading} → ${plan.portOfDestination}`
+          : item.source && item.destination 
+            ? `${item.source} → ${item.destination}`
+            : "N/A";
 
-      return {
-        id: item.consignmentNumber,
-        dbId: item.id,
-        planId: plan.planId || "N/A",
-        vendor: getVendorName(item),
-        transport,
-        container,
-        status,
-        eta,
-        route,
-        origin: item.source,
-        destination: item.destination,
-        original: item // Keep the original object here for easy access
-      };
-    });
+        // Financials
+        const importDuty = Number(plan.importDuty || 0);
+        const gstPaid = Number(plan.gstPaid || 0);
+        const totalAmount = importDuty + gstPaid;
+
+        return {
+          id: item.consignmentNumber,
+          dbId: item.id,
+          planId: plan.planId || "N/A",
+          vendor: getVendorName(item),
+          transport,
+          container,
+          status,
+          eta,
+          route,
+          origin: item.source,
+          destination: item.destination,
+          importDuty,
+          gstPaid,
+          totalAmount,
+          original: item // Keep the original object here for easy access
+        };
+      });
   }, [shipments]);
 
   const filteredData = useMemo(() => {
@@ -168,7 +186,7 @@ export default function VendorTracking() {
 
   const getStatusBadge = (status: string) => {
     const stage = trackingStages.find(s => s.id === status);
-    if (!stage) return <Badge variant="outline" className="uppercase text-[10px]">{status.replace(/_/g, ' ')}</Badge>;
+    if (!stage) return <Badge variant="outline" className="uppercase text-[10px]">{(status || "").replace(/_/g, ' ')}</Badge>;
     
     return (
       <Badge variant="outline" className={`${stage.color} border-none font-medium px-2 py-0.5 uppercase text-[10px]`}>
@@ -264,6 +282,7 @@ export default function VendorTracking() {
                 <TableHead className="py-4 font-semibold text-slate-700">Container / AWB</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700">Port Route</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700 text-right">ETA</TableHead>
+                <TableHead className="py-4 font-semibold text-slate-700 text-right">Amount</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700">Status</TableHead>
                 <TableHead className="w-[150px] text-right py-4 font-semibold text-slate-700">Actions</TableHead>
               </TableRow>
@@ -296,6 +315,10 @@ export default function VendorTracking() {
                     <TableCell className="py-4 text-right">
                       <div className="font-bold text-slate-700">{item.eta}</div>
                     </TableCell>
+                    <TableCell className="py-4 text-right">
+                      <div className="font-bold text-primary">₹{item.totalAmount.toLocaleString('en-IN')}</div>
+                      <div className="text-[9px] text-muted-foreground">Duty+GST</div>
+                    </TableCell>
                     <TableCell className="py-4">
                       {getStatusBadge(item.status)}
                     </TableCell>
@@ -312,7 +335,7 @@ export default function VendorTracking() {
                             }}
                             disabled={updateStatusMutation.isPending}
                           >
-                            Next: {getNextStatus(item.status)?.replace(/_/g, ' ')}
+                            Next: {(getNextStatus(item.status) || "").replace(/_/g, ' ')}
                           </Button>
                         )}
                         <Button 
@@ -422,7 +445,7 @@ export default function VendorTracking() {
                   <div className="bg-slate-50 p-3 rounded-lg flex items-center space-x-3 mt-4">
                     <Info className="h-4 w-4 text-blue-500" />
                     <p className="text-xs font-medium text-slate-600">
-                      Current Status: <span className="font-bold text-slate-900">{selectedShipment.status.replace(/_/g, ' ').toUpperCase()}</span>
+                      Current Status: <span className="font-bold text-slate-900">{(selectedShipment?.status || "").replace(/_/g, ' ').toUpperCase()}</span>
                     </p>
                   </div>
                 </div>
@@ -433,33 +456,87 @@ export default function VendorTracking() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-3 p-4 bg-slate-50/50 rounded-xl border border-slate-100">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
-                          <Ship className="h-3 w-3 mr-1" /> Transit & Port Details
+                          {selectedShipment.original.plan.shipmentType === "Air" && <Plane className="h-3 w-3 mr-1" />}
+                          {selectedShipment.original.plan.shipmentType === "Sea" && <Ship className="h-3 w-3 mr-1" />}
+                          {selectedShipment.original.plan.shipmentType === "Road" && <Truck className="h-3 w-3 mr-1" />}
+                          {selectedShipment.original.plan.shipmentType === "Road" ? "Vehicle & Route Details" : "Transit & Port Details"}
                         </h4>
                         <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Voyage/Flight #:</span>
-                            <span className="font-medium">{selectedShipment.original.plan.voyageNumber || selectedShipment.original.plan.flightNumber || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">BL/Seal #:</span>
-                            <span className="font-medium">{selectedShipment.original.plan.blNumber || "N/A"} / {selectedShipment.original.plan.sealNumber || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
-                            <span className="text-slate-500">Loading Port:</span>
-                            <span className="font-medium">{selectedShipment.original.plan.portOfLoading || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Dest. Port:</span>
-                            <span className="font-medium">{selectedShipment.original.plan.portOfDestination || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
-                            <span className="text-slate-500">Departure:</span>
-                            <span className="font-medium">{selectedShipment.original.plan.departureDate ? format(new Date(selectedShipment.original.plan.departureDate), "dd-MM-yyyy") : "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">ETA Arrival:</span>
-                            <span className="font-medium text-primary">{selectedShipment.original.plan.etaArrival ? format(new Date(selectedShipment.original.plan.etaArrival), "dd-MM-yyyy") : "N/A"}</span>
-                          </div>
+                          {selectedShipment.original.plan.shipmentType === "Road" ? (
+                            <>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Truck Number:</span>
+                                <span className="font-medium">{selectedShipment.original.plan.truckNumber || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Driver:</span>
+                                <span className="font-medium">{selectedShipment.original.plan.driverName || "N/A"} {selectedShipment.original.plan.driverPhone ? `(${selectedShipment.original.plan.driverPhone})` : ""}</span>
+                              </div>
+                              <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                                <span className="text-slate-500">Pickup:</span>
+                                <span className="font-medium">{selectedShipment.original.plan.pickupLocation || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Delivery:</span>
+                                <span className="font-medium">{selectedShipment.original.plan.deliveryLocation || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                                <span className="text-slate-500">Dispatch:</span>
+                                <span className="font-medium">
+                                  {selectedShipment.original.plan.dispatchDateRoad 
+                                    ? format(new Date(selectedShipment.original.plan.dispatchDateRoad), "dd-MM-yyyy") 
+                                    : "N/A"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Exp. Delivery:</span>
+                                <span className="font-medium text-primary">
+                                  {selectedShipment.original.plan.deliveryDateRoad 
+                                    ? format(new Date(selectedShipment.original.plan.deliveryDateRoad), "dd-MM-yyyy") 
+                                    : "N/A"}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">{selectedShipment.original.plan.shipmentType === "Air" ? "Flight #" : "Voyage #"}:</span>
+                                <span className="font-medium">{selectedShipment.original.plan.voyageNumber || selectedShipment.original.plan.flightNumber || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">{selectedShipment.original.plan.shipmentType === "Air" ? "AWB #" : "BL/Seal #"}:</span>
+                                <span className="font-medium">
+                                  {selectedShipment.original.plan.awbNumber || (
+                                    (selectedShipment.original.plan.blNumber || "N/A") + " / " + (selectedShipment.original.plan.sealNumber || "N/A")
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                                <span className="text-slate-500">{selectedShipment.original.plan.shipmentType === "Air" ? "Loading Apt:" : "Loading Port:"}</span>
+                                <span className="font-medium">{selectedShipment.original.plan.portOfLoading || selectedShipment.original.plan.departureAirport || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">{selectedShipment.original.plan.shipmentType === "Air" ? "Dest. Apt:" : "Dest. Port:"}</span>
+                                <span className="font-medium">{selectedShipment.original.plan.portOfDestination || selectedShipment.original.plan.arrivalAirport || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                                <span className="text-slate-500">Departure:</span>
+                                <span className="font-medium">
+                                  {selectedShipment.original.plan.departureDate || selectedShipment.original.plan.flightDeparture 
+                                    ? format(new Date(selectedShipment.original.plan.departureDate || selectedShipment.original.plan.flightDeparture), "dd-MM-yyyy") 
+                                    : "N/A"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">ETA Arrival:</span>
+                                <span className="font-medium text-primary">
+                                  {selectedShipment.original.plan.etaArrival || selectedShipment.original.plan.etaArrivalAir
+                                    ? format(new Date(selectedShipment.original.plan.etaArrival || selectedShipment.original.plan.etaArrivalAir), "dd-MM-yyyy") 
+                                    : "N/A"}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="space-y-3 p-4 bg-slate-50/50 rounded-xl border border-slate-100">
@@ -547,7 +624,7 @@ export default function VendorTracking() {
                     onClick={() => handleStatusUpdate(selectedShipment.dbId, getPreviousStatus(selectedShipment.status)!)}
                     disabled={updateStatusMutation.isPending}
                   >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Return to {getPreviousStatus(selectedShipment.status)?.replace(/_/g, ' ')}
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Return to {(getPreviousStatus(selectedShipment.status) || "").replace(/_/g, ' ')}
                   </Button>
                 )}
               </div>
@@ -561,7 +638,7 @@ export default function VendorTracking() {
                     onClick={() => handleStatusUpdate(selectedShipment.dbId, getNextStatus(selectedShipment.status)!)}
                     disabled={updateStatusMutation.isPending}
                   >
-                    Next: {getNextStatus(selectedShipment.status)?.replace(/_/g, ' ')} <ArrowRight className="ml-2 h-4 w-4" />
+                    Next: {(getNextStatus(selectedShipment.status) || "").replace(/_/g, ' ')} <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 )}
               </div>

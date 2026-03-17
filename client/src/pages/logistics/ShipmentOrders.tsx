@@ -765,61 +765,276 @@ export default function ShipmentOrders() {
 
             <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
               <h4 className="font-semibold text-sm flex items-center">
-                {shipmentPlan.shipmentType === "Sea" && <Ship className="mr-2 h-4 w-4" />}
-                {shipmentPlan.shipmentType === "Air" && <Plane className="mr-2 h-4 w-4" />}
-                {shipmentPlan.shipmentType === "Road" && <Truck className="mr-2 h-4 w-4" />}
+                {shipmentPlan.shipmentType === "Sea" && <Ship className="mr-2 h-4 w-4 text-blue-600" />}
+                {shipmentPlan.shipmentType === "Air" && <Plane className="mr-2 h-4 w-4 text-orange-600" />}
+                {shipmentPlan.shipmentType === "Road" && <Truck className="mr-2 h-4 w-4 text-emerald-600" />}
                 Transport Details
               </h4>
 
               {shipmentPlan.shipmentType === "Sea" && (
                 <div className="space-y-3">
-                  <Input 
-                    placeholder="Shipping Line" 
-                    value={shipmentPlan.shippingLine || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, shippingLine: e.target.value})}
-                  />
-                  <Input 
-                    placeholder="Vessel Name" 
-                    value={shipmentPlan.vesselName || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, vesselName: e.target.value})}
-                  />
-                  <Input 
-                    placeholder="Container Number" 
-                    value={shipmentPlan.containerNumber || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, containerNumber: e.target.value})}
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="Shipping Line" 
+                      value={shipmentPlan.shippingLine || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, shippingLine: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Vessel Name" 
+                      value={shipmentPlan.vesselName || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, vesselName: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="Voyage Number" 
+                      value={shipmentPlan.voyageNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, voyageNumber: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Container Number" 
+                      value={shipmentPlan.containerNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, containerNumber: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="BL Number" 
+                      value={shipmentPlan.blNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, blNumber: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Seal Number" 
+                      value={shipmentPlan.sealNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, sealNumber: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Loading Port</Label>
+                      <Input 
+                        placeholder="Port of Loading" 
+                        value={shipmentPlan.portOfLoading || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, portOfLoading: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Destination Port</Label>
+                      <Input 
+                        placeholder="Port of Destination" 
+                        value={shipmentPlan.portOfDestination || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, portOfDestination: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Departure Date</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.departureDate ? new Date(shipmentPlan.departureDate).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, departureDate: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">ETA Arrival</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.etaArrival ? new Date(shipmentPlan.etaArrival).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, etaArrival: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
               {shipmentPlan.shipmentType === "Air" && (
                 <div className="space-y-3">
-                  <Input 
-                    placeholder="Airline Name" 
-                    value={shipmentPlan.airlineName || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, airlineName: e.target.value})}
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="Airline Name" 
+                      value={shipmentPlan.airlineName || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, airlineName: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Flight Number" 
+                      value={shipmentPlan.flightNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, flightNumber: e.target.value})}
+                    />
+                  </div>
                   <Input 
                     placeholder="AWB Number" 
                     value={shipmentPlan.awbNumber || ""} 
                     onChange={(e) => setShipmentPlan({...shipmentPlan, awbNumber: e.target.value})}
                   />
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Departure Airport</Label>
+                      <Input 
+                        placeholder="Departure" 
+                        value={shipmentPlan.departureAirport || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, departureAirport: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Arrival Airport</Label>
+                      <Input 
+                        placeholder="Arrival" 
+                        value={shipmentPlan.arrivalAirport || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, arrivalAirport: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Flight Departure</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.flightDeparture ? new Date(shipmentPlan.flightDeparture).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, flightDeparture: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">ETA Arrival</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.etaArrivalAir ? new Date(shipmentPlan.etaArrivalAir).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, etaArrivalAir: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
               {shipmentPlan.shipmentType === "Road" && (
                 <div className="space-y-3">
-                  <Input 
-                    placeholder="Transport Company" 
-                    value={shipmentPlan.transportCompany || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, transportCompany: e.target.value})}
-                  />
-                  <Input 
-                    placeholder="Truck Number" 
-                    value={shipmentPlan.truckNumber || ""} 
-                    onChange={(e) => setShipmentPlan({...shipmentPlan, truckNumber: e.target.value})}
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="Transport Company" 
+                      value={shipmentPlan.transportCompany || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, transportCompany: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Truck Number" 
+                      value={shipmentPlan.truckNumber || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, truckNumber: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input 
+                      placeholder="Driver Name" 
+                      value={shipmentPlan.driverName || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, driverName: e.target.value})}
+                    />
+                    <Input 
+                      placeholder="Driver Phone" 
+                      value={shipmentPlan.driverPhone || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, driverPhone: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Pickup Location</Label>
+                      <Input 
+                        placeholder="Pickup" 
+                        value={shipmentPlan.pickupLocation || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, pickupLocation: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Delivery Location</Label>
+                      <Input 
+                        placeholder="Delivery" 
+                        value={shipmentPlan.deliveryLocation || ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, deliveryLocation: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Dispatch Date</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.dispatchDateRoad ? new Date(shipmentPlan.dispatchDateRoad).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, dispatchDateRoad: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400">Delivery Date</Label>
+                      <Input 
+                        type="date"
+                        value={shipmentPlan.deliveryDateRoad ? new Date(shipmentPlan.deliveryDateRoad).toISOString().split('T')[0] : ""} 
+                        onChange={(e) => setShipmentPlan({...shipmentPlan, deliveryDateRoad: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Custom Clearance Section */}
+              <div className="pt-4 border-t border-slate-200 mt-4 space-y-3">
+                <h4 className="font-semibold text-sm flex items-center text-indigo-600">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Custom Clearance
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input 
+                    placeholder="Clearing Agent" 
+                    value={shipmentPlan.clearingAgent || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, clearingAgent: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="Bill of Entry" 
+                    value={shipmentPlan.billOfEntry || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, billOfEntry: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-slate-400">Import Duty (₹)</Label>
+                    <Input 
+                      type="number"
+                      placeholder="Duty Amount" 
+                      value={shipmentPlan.importDuty || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, importDuty: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-slate-400">GST Paid (₹)</Label>
+                    <Input 
+                      type="number"
+                      placeholder="GST Amount" 
+                      value={shipmentPlan.gstPaid || ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, gstPaid: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-slate-400">Custom Status</Label>
+                    <Select 
+                      value={shipmentPlan.customStatus || "Pending"} 
+                      onValueChange={(v) => setShipmentPlan({...shipmentPlan, customStatus: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Cleared">Cleared</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-slate-400">Clearance Date</Label>
+                    <Input 
+                      type="date"
+                      value={shipmentPlan.clearanceDate ? new Date(shipmentPlan.clearanceDate).toISOString().split('T')[0] : ""} 
+                      onChange={(e) => setShipmentPlan({...shipmentPlan, clearanceDate: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

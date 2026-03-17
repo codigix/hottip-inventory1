@@ -27,6 +27,7 @@ import LogisticsReports from "./Reports";
 import LogisticsTasks from "./Tasks";
 import LogisticsAttendance from "./Attendance";
 import VendorTracking from "./VendorTracking";
+import DeliveryChallans from "./DeliveryChallans";
 
 const sidebarItems = [
   {
@@ -59,6 +60,14 @@ const sidebarItems = [
     icon: MapPin,
     path: '/logistics/vendor-tracking',
     description: 'Track import shipments from vendors',
+    tourConfig: null,
+  },
+  {
+    id: 'delivery-challans',
+    label: 'Delivery Challans',
+    icon: FileText,
+    path: '/logistics/delivery-challans',
+    description: 'View and download delivery challans',
     tourConfig: null,
   },
   {
@@ -107,6 +116,7 @@ export default function LogisticsLayout() {
     if (location.includes('/shipment-orders')) return 'shipment-orders';
     if (location.includes('/shipment-planning')) return 'shipment-planning';
     if (location.includes('/vendor-tracking')) return 'vendor-tracking';
+    if (location.includes('/delivery-challans')) return 'delivery-challans';
     if (location.includes('/reports')) return 'reports';
     if (location.includes('/tasks')) return 'tasks';
     if (location.includes('/attendance')) return 'attendance';
@@ -217,6 +227,9 @@ export default function LogisticsLayout() {
           </Route>
           <Route path="/logistics/vendor-tracking">
             <VendorTracking />
+          </Route>
+          <Route path="/logistics/delivery-challans">
+            <DeliveryChallans />
           </Route>
           <Route path="/logistics/reports">
             <LogisticsReports />

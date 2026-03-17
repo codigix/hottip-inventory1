@@ -254,11 +254,16 @@ export default function SalesOrders() {
     mutationFn: ({ orderId, status }: { orderId: string | number; status: string }) => {
       return apiRequest("PUT", `/sales-orders/${orderId}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/sales-orders"] });
+      // If status was changed to shipped, also invalidate logistics queries
+      if (variables.status === 'shipped') {
+        queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+        queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
+      }
       toast({
         title: "Success",
-        description: "Order status updated successfully.",
+        description: `Order status updated to ${variables.status} successfully.`,
       });
       setActionInProgressId(null);
     },

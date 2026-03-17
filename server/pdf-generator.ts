@@ -365,6 +365,113 @@ export async function generateInvoicePDF(
   }
 }
 
+interface DeliveryChallanItem {
+  description: string;
+  hsn: string;
+  quantity: number;
+  unit: string;
+}
+
+interface DeliveryChallanPDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    stateName: string;
+    stateCode: string;
+    email: string;
+  };
+  receiver: {
+    name: string;
+    address: string;
+    gstNo: string;
+    phone: string;
+  };
+  challan: {
+    challanNumber: string;
+    date: string;
+    orderNo: string;
+    dispatchMode: string;
+    vehicleNo: string;
+    importDuty?: number;
+    gstPaid?: number;
+    totalAmount?: number;
+    items: DeliveryChallanItem[];
+  };
+}
+
+/**
+ * Generate PDF from delivery challan data using EJS template
+ */
+export async function generateDeliveryChallanPDF(
+  challanData: DeliveryChallanPDFData
+): Promise<Buffer> {
+  try {
+    console.log("📄 Rendering delivery challan EJS template...");
+
+    // Render EJS template
+    const templatePath = path.join(__dirname, "templates", "delivery-challan.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, challanData);
+    console.log(`📄 EJS rendered successfully, HTML length: ${html.length}`);
+
+    console.log("🚀 Launching Puppeteer for delivery challan...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating delivery challan PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log(`✅ Delivery Challan PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating delivery challan PDF:", error);
+    throw new Error(
+      `Failed to generate delivery challan PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
 /**
  * Alternative: Generate PDF using html-pdf-node (lighter alternative to Puppeteer)
  * Uncomment and install html-pdf-node if you prefer this method
