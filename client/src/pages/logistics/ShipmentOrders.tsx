@@ -77,7 +77,7 @@ interface ShipmentMetrics {
 export default function ShipmentOrders() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("list");
+  const [activeTab, setActiveTab] = useState("customer");
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<LogisticsShipment | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
@@ -239,6 +239,10 @@ export default function ShipmentOrders() {
 
   const filteredShipments = useMemo(() => {
     return shipments.filter(shipment => {
+      // First, filter by tab type
+      if (activeTab === "customer" && !shipment.clientId) return false;
+      if (activeTab === "vendor" && !shipment.vendorId) return false;
+
       if (!searchTerm) return true;
       const query = searchTerm.toLowerCase();
       return (
@@ -252,7 +256,7 @@ export default function ShipmentOrders() {
         shipment.vendor?.name?.toLowerCase().includes(query)
       );
     });
-  }, [shipments, searchTerm]);
+  }, [shipments, searchTerm, activeTab]);
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -309,12 +313,11 @@ export default function ShipmentOrders() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-muted/50 p-1">
-          <TabsTrigger value="list" className="px-6">Order List</TabsTrigger>
-          <TabsTrigger value="analysis" className="px-6">Order Analysis</TabsTrigger>
+          <TabsTrigger value="customer" className="px-6">Customer Shipments</TabsTrigger>
+          <TabsTrigger value="vendor" className="px-6">Vendor Shipments</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-none shadow-sm bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -492,91 +495,9 @@ export default function ShipmentOrders() {
                   )}
                 </TableBody>
               </Table>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="analysis" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-none shadow-sm bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-3xl font-bold">{metrics?.onTimeDeliveryRate || 92}%</p>
-                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +2.4% from last month
-                    </p>
-                  </div>
-                  <div className="h-12 w-24 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="h-6 w-6 text-emerald-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Avg. Delivery Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-3xl font-bold">{metrics?.averageDeliveryTime || 3.5} Days</p>
-                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
-                      <Clock className="h-3 w-3 mr-1" /> -0.5 days improvement
-                    </p>
-                  </div>
-                  <div className="h-12 w-24 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <Package className="h-6 w-6 text-blue-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Order Fulfillment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-3xl font-bold">98.2%</p>
-                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
-                      <RefreshCw className="h-3 w-3 mr-1" /> Stable performance
-                    </p>
-                  </div>
-                  <div className="h-12 w-24 bg-indigo-50 rounded-lg flex items-center justify-center">
-                    <ShoppingCart className="h-6 w-6 text-indigo-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="border-none shadow-sm bg-card/50">
-            <CardHeader>
-              <CardTitle>Shipment Volume Analysis</CardTitle>
-              <CardDescription>Monthly shipment volume and fulfillment trends</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="p-4 rounded-full bg-primary/10 mb-6">
-                <TrendingUp className="h-12 w-12 text-primary animate-pulse" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Detailed Analytics Dashboard</h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-8">
-                Detailed charts and trend analysis are being generated based on your real-time shipment data.
-              </p>
-              <div className="flex items-center space-x-4">
-                <Button className="px-8 bg-primary text-primary-foreground">Generate Full Report</Button>
-                <Button variant="outline">View Historical Data</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
+    </Tabs>
 
       {/* View Shipment Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
