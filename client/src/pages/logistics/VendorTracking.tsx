@@ -99,10 +99,12 @@ export default function VendorTracking() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      
       // Update local selected shipment if open
       if (selectedShipment) {
-        const updated = processedData.find(s => s.dbId === selectedShipment.dbId);
-        if (updated) setSelectedShipment(updated);
+        // Find the updated shipment in the newly fetched data (or optimistic update)
+        // Since we invalidated, we can just update the status locally for immediate feedback
+        setSelectedShipment((prev: any) => prev ? { ...prev, status: variables.status } : null);
       }
     },
     onError: (error: any) => {
@@ -119,9 +121,8 @@ export default function VendorTracking() {
   };
 
   const processedData = useMemo(() => {
-    // Only include shipments that have a plan
+    // Show all shipments that have some tracking progress or plan
     return shipments
-      .filter(item => item.plan && item.plan.planId)
       .map(item => {
         const plan = item.plan || {};
         

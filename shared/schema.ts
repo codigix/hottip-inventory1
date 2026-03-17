@@ -779,14 +779,14 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 // =====================
 export const accountsPayables = pgTable("accounts_payables", {
   id: uuid("id").defaultRandom().primaryKey(),
-  poId: uuid("poId"),
-  inboundQuotationId: uuid("inboundQuotationId").references(
+  poId: uuid("poid"),
+  inboundQuotationId: uuid("inboundquotationid").references(
     () => inboundQuotations.id
   ),
-  supplierId: uuid("supplierId")
+  supplierId: uuid("supplierid")
     .notNull()
     .references(() => suppliers.id),
-  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountDue: numeric("amountdue", { precision: 10, scale: 2 }).notNull(),
   amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default("0"),
   dueDate: timestamp("duedate").notNull(),
   notes: text("notes"),
@@ -1622,8 +1622,8 @@ export const insertGstReturnSchema = z.object({
 
 // Accounts Payable schema
 export const insertAccountsPayableSchema = z.object({
-  poId: z.union([z.string().uuid(), z.literal("")]).optional(),
-  inboundQuotationId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  poId: z.string().uuid().nullable().optional(),
+  inboundQuotationId: z.string().uuid().nullable().optional(),
   supplierId: z.string().uuid(),
   amountDue: z.number().positive(),
   dueDate: z.string(),

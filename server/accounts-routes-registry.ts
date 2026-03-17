@@ -669,6 +669,10 @@ export function registerAccountsRoutes(app: Express) {
           inboundQuotationId: validatedData.inboundQuotationId || null,
           supplierId: validatedData.supplierId,
           amountDue: validatedData.amountDue.toString(),
+          dueDate: validatedData.dueDate
+            ? new Date(validatedData.dueDate)
+            : null,
+          notes: validatedData.notes,
         })
         .where(eq(accountsPayables.id, id))
         .returning();

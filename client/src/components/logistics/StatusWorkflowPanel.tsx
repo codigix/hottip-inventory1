@@ -129,7 +129,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: StatusUpdateForm }) => {
       return await apiRequest(`/logistics/shipments/${shipmentId}/status`, {
         method: "PUT",
-        body: JSON.stringify(data),
+        body: data,
       });
     },
     onSuccess: (data, variables) => {
@@ -138,7 +138,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
       
       // If status is 'delivered', open delivery challan
       if (variables.data.status === 'delivered') {
-        openAuthenticatedPdf(`/api/logistics/shipments/${variables.shipmentId}/delivery-challan`);
+        openAuthenticatedPdf(`/logistics/shipments/${variables.shipmentId}/delivery-challan`);
       }
 
       setShowStatusUpdate(false);
@@ -163,7 +163,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: any }) => {
       return await apiRequest(`/logistics/shipments/${shipmentId}/close`, {
         method: "POST",
-        body: JSON.stringify(data),
+        body: data,
       });
     },
     onSuccess: () => {

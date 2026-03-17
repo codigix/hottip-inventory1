@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   FileText, 
   Search, 
@@ -7,7 +7,9 @@ import {
   Package, 
   MapPin, 
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Send,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,9 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useState, useMemo } from "react";
 import { openAuthenticatedPdf } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function DeliveryChallans() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
 
   const { data: shipments = [], isLoading } = useQuery<any[]>({
     queryKey: ['/logistics/shipments']
@@ -51,6 +56,43 @@ export default function DeliveryChallans() {
 
   const handleViewChallan = (shipmentId: string) => {
     openAuthenticatedPdf(`/api/logistics/shipments/${shipmentId}/delivery-challan`);
+  };
+
+  const sendToAccountsMutation = useMutation({
+    mutationFn: async (shipment: any) => {
+      const importDuty = Number(shipment.plan?.importDuty || 0);
+      const gstPaid = Number(shipment.plan?.gstPaid || 0);
+      const totalAmount = importDuty + gstPaid;
+
+      // In a real scenario, we'd need a valid supplier ID from the database
+      // For now, use the vendorId if present, or a fallback for demo
+      const supplierId = shipment.vendorId || shipment.supplierId || "00000000-0000-0000-0000-000000000001";
+
+      return apiRequest("POST", "/accounts-payables", {
+        supplierId,
+        amountDue: totalAmount,
+        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days from now
+        notes: `Duty & GST for Shipment ${shipment.consignmentNumber} (PO: ${shipment.poNumber || 'N/A'})`,
+        poId: shipment.poId || null
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sent to Accounts",
+        description: "The shipment financial details have been forwarded to Accounts Payable.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send to accounts.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSendToAccounts = (shipment: any) => {
+    sendToAccountsMutation.mutate(shipment);
   };
 
   if (isLoading) {
@@ -131,14 +173,30 @@ export default function DeliveryChallans() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right py-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 text-primary hover:text-primary hover:bg-primary/5"
-                        onClick={() => handleViewChallan(item.id)}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-1" /> View PDF
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 text-primary hover:text-primary hover:bg-primary/5"
+                          onClick={() => handleViewChallan(item.id)}
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" /> View PDF
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                          onClick={() => handleSendToAccounts(item)}
+                          disabled={sendToAccountsMutation.isPending}
+                        >
+                          {sendToAccountsMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4 mr-1" />
+                          )}
+                          Send
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
