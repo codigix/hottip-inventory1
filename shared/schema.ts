@@ -1013,6 +1013,8 @@ export const vendorCommunications = pgTable("vendor_communications", {
 export const logisticsShipmentStatusEnum = pgEnum("logistics_shipment_status", [
   "created",
   "planned",
+  "packed",
+  "dispatched",
   "vendor_ready",
   "picked_up",
   "export_customs",
@@ -2000,7 +2002,10 @@ export const insertLogisticsLeaveRequestSchema = z.object({
 // LOGISTICS STATUS UTILS
 // =====================
 export const LOGISTICS_SHIPMENT_STATUSES = [
+  "created",
   "planned",
+  "packed",
+  "dispatched",
   "vendor_ready",
   "picked_up",
   "export_customs",

@@ -2063,6 +2063,9 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
           clientId: updatedOrder.customerId,
           dispatchDate: new Date().toISOString(),
           currentStatus: 'packed',
+          isApproved: true,
+          approvalDate: new Date(),
+          approvalNotes: 'Auto-approved for Sales Order fulfillment',
           notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
           createdBy: userId || updatedOrder.userId,
           assignedTo: userId || updatedOrder.userId,
@@ -3082,6 +3085,12 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
           updatedAt: new Date(),
         })
         .returning();
+      
+      // Also update the shipment status to 'planned'
+      if (plan.shipmentId) {
+        await this.updateShipmentStatus(plan.shipmentId, { status: 'planned' });
+      }
+      
       return plan;
     } catch (error) {
       console.error(`❌ [STORAGE] Error creating shipment plan:`, error);
@@ -3100,6 +3109,15 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
         })
         .where(eq(logisticsShipmentPlans.id, id))
         .returning();
+      
+      // Also ensure the shipment status is 'planned' if it's currently earlier in the flow
+      if (plan.shipmentId) {
+        const shipment = await this.getLogisticsShipment(plan.shipmentId);
+        if (shipment && (shipment.currentStatus === 'created' || shipment.currentStatus === 'packed')) {
+          await this.updateShipmentStatus(plan.shipmentId, { status: 'planned' });
+        }
+      }
+      
       return plan;
     } catch (error) {
       console.error(`❌ [STORAGE] Error updating shipment plan:`, error);

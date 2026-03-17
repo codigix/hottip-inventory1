@@ -466,6 +466,18 @@ export default function ShipmentOrders() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50"
+                              onClick={() => {
+                                setSelectedShipment(shipment);
+                                setIsPlanningDialogOpen(true);
+                              }}
+                              title="Shipment Planning"
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
                               className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5"
                               onClick={() => handleViewDetails(shipment)}
                             >
@@ -685,6 +697,148 @@ export default function ShipmentOrders() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1 sm:flex-none"
             >
               {approveShipmentMutation.isPending ? "Approving..." : "Approve Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shipment Planning Dialog */}
+      <Dialog open={isPlanningDialogOpen} onOpenChange={setIsPlanningDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+              <Calendar className="h-6 w-6 text-indigo-600" />
+              <span>Shipment Planning: {selectedShipment?.consignmentNumber}</span>
+            </DialogTitle>
+            <DialogDescription>
+              Configure transport details, carrier information and expected schedule
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Transport Type</Label>
+                <Select 
+                  value={shipmentPlan.shipmentType} 
+                  onValueChange={(val) => setShipmentPlan({...shipmentPlan, shipmentType: val})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select transport" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sea">Sea Freight</SelectItem>
+                    <SelectItem value="Air">Air Freight</SelectItem>
+                    <SelectItem value="Road">Road Transport</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Forwarder / Agent</Label>
+                <Input 
+                  value={shipmentPlan.forwarderAgent || ""} 
+                  onChange={(e) => setShipmentPlan({...shipmentPlan, forwarderAgent: e.target.value})}
+                  placeholder="Carrier name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Planned Dispatch</Label>
+                  <Input 
+                    type="date"
+                    value={shipmentPlan.plannedDispatch ? new Date(shipmentPlan.plannedDispatch).toISOString().split('T')[0] : ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, plannedDispatch: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Expected Arrival</Label>
+                  <Input 
+                    type="date"
+                    value={shipmentPlan.expectedArrival ? new Date(shipmentPlan.expectedArrival).toISOString().split('T')[0] : ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, expectedArrival: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <h4 className="font-semibold text-sm flex items-center">
+                {shipmentPlan.shipmentType === "Sea" && <Ship className="mr-2 h-4 w-4" />}
+                {shipmentPlan.shipmentType === "Air" && <Plane className="mr-2 h-4 w-4" />}
+                {shipmentPlan.shipmentType === "Road" && <Truck className="mr-2 h-4 w-4" />}
+                Transport Details
+              </h4>
+
+              {shipmentPlan.shipmentType === "Sea" && (
+                <div className="space-y-3">
+                  <Input 
+                    placeholder="Shipping Line" 
+                    value={shipmentPlan.shippingLine || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, shippingLine: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="Vessel Name" 
+                    value={shipmentPlan.vesselName || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, vesselName: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="Container Number" 
+                    value={shipmentPlan.containerNumber || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, containerNumber: e.target.value})}
+                  />
+                </div>
+              )}
+
+              {shipmentPlan.shipmentType === "Air" && (
+                <div className="space-y-3">
+                  <Input 
+                    placeholder="Airline Name" 
+                    value={shipmentPlan.airlineName || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, airlineName: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="AWB Number" 
+                    value={shipmentPlan.awbNumber || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, awbNumber: e.target.value})}
+                  />
+                </div>
+              )}
+
+              {shipmentPlan.shipmentType === "Road" && (
+                <div className="space-y-3">
+                  <Input 
+                    placeholder="Transport Company" 
+                    value={shipmentPlan.transportCompany || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, transportCompany: e.target.value})}
+                  />
+                  <Input 
+                    placeholder="Truck Number" 
+                    value={shipmentPlan.truckNumber || ""} 
+                    onChange={(e) => setShipmentPlan({...shipmentPlan, truckNumber: e.target.value})}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPlanningDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (shipmentPlan.id) {
+                  updatePlanMutation.mutate({ id: shipmentPlan.id, plan: shipmentPlan });
+                } else {
+                  createPlanMutation.mutate(shipmentPlan);
+                }
+              }}
+              disabled={createPlanMutation.isPending || updatePlanMutation.isPending}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {createPlanMutation.isPending || updatePlanMutation.isPending ? "Saving..." : "Save Planning"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -20,7 +20,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Info,
-  Eye
+  Eye,
+  Box,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,7 +52,10 @@ import { useToast } from "@/hooks/use-toast";
 import { getNextStatus, getPreviousStatus } from "@shared/schema";
 
 const trackingStages = [
-  { id: 'planned', label: 'Planned', icon: Package, color: 'bg-slate-100 text-slate-600', description: 'Shipment plan created' },
+  { id: 'created', label: 'Created', icon: Package, color: 'bg-slate-50 text-slate-500', description: 'Shipment created' },
+  { id: 'planned', label: 'Planned', icon: CalendarIcon, color: 'bg-slate-100 text-slate-600', description: 'Shipment plan created' },
+  { id: 'packed', label: 'Packed', icon: Box, color: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
+  { id: 'dispatched', label: 'Dispatched', icon: Truck, color: 'bg-blue-50 text-blue-500', description: 'Shipment left warehouse' },
   { id: 'vendor_ready', label: 'Vendor Ready', icon: Factory, color: 'bg-purple-100 text-purple-600', description: 'Material ready at vendor factory' },
   { id: 'picked_up', label: 'Picked Up', icon: Truck, color: 'bg-blue-100 text-blue-600', description: 'Forwarder collected shipment' },
   { id: 'export_customs', label: 'Export Customs', icon: FileText, color: 'bg-orange-100 text-orange-600', description: 'China export clearance done' },
@@ -123,7 +128,7 @@ export default function VendorTracking() {
       let status = (plan.status || item.currentStatus || "planned").toLowerCase().replace(/\s+/g, '_');
       
       // Basic normalization if needed
-      if (status === 'created') status = 'planned';
+      if (status === 'shipped') status = 'dispatched';
 
       // ETA
       const etaDate = plan.expectedArrival || plan.etaArrival || plan.etaArrivalAir || plan.deliveryDateRoad || item.expectedDeliveryDate;
