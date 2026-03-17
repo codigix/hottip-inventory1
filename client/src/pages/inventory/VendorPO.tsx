@@ -53,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -113,6 +113,52 @@ export default function VendorPO() {
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [, setLocation] = useLocation();
+
+  const createShipmentMutation = useMutation({
+    mutationFn: async (po: any) => {
+      console.log("📦 Creating shipment from PO:", po);
+      const shipmentItems = Array.isArray(po.items) 
+        ? po.items.map((item: any) => ({
+            materialName: item.itemName,
+            type: item.description,
+            qty: item.quantity,
+            unit: item.unit
+          }))
+        : [];
+
+      return apiRequest("POST", "/logistics/shipments", {
+        consignmentNumber: `SHP-${po.poNumber}-${Date.now().toString().slice(-4)}`,
+        poNumber: po.poNumber,
+        source: "Main Warehouse",
+        destination: "Customer Site",
+        vendorId: po.supplierId,
+        notes: `Automatically created from Purchase Order ${po.poNumber}`,
+        currentStatus: "created",
+        createdBy: user?.id,
+        assignedTo: user?.id,
+        items: shipmentItems
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order created successfully. Redirecting...",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      // Redirect to shipment orders page as requested
+      setTimeout(() => {
+        setLocation("/logistics/shipment-orders");
+      }, 1000);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create shipment order",
+        variant: "destructive",
+      });
+    },
+  });
 
   // PO Form State
   const [poItems, setPoItems] = useState<any[]>([
@@ -175,19 +221,19 @@ export default function VendorPO() {
     setGstType("IGST");
   };
 
-  const { data: purchaseOrders = [], isLoading: isLoadingPO } = useQuery({
+  const { data: purchaseOrders = [], isLoading: isLoadingPO } = useQuery<any[]>({
     queryKey: ["/purchase-orders"],
   });
 
-  const { data: suppliersData = [] } = useQuery({
+  const { data: suppliersData = [] } = useQuery<any>({
     queryKey: ["/suppliers"],
   });
 
-  const { data: quotations = [] } = useQuery({
+  const { data: quotations = [] } = useQuery<any[]>({
     queryKey: ["/vendor-quotations"],
   });
 
-  const suppliers = Array.isArray(suppliersData) ? suppliersData : (suppliersData?.suppliers || []);
+  const suppliers = Array.isArray(suppliersData) ? suppliersData : ((suppliersData as any)?.suppliers || []);
 
   const handleQuotationSelect = (quotationId: string) => {
     setPoQuotation(quotationId);
@@ -428,6 +474,28 @@ export default function VendorPO() {
                   </TableCell>
                   <TableCell className="text-right py-4">
                     <div className="flex justify-end space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                        title="Create Shipment Order"
+                        onClick={async () => {
+                          try {
+                            // Fetch full PO details with items before creating shipment
+                            const fullPO = await apiRequest("GET", `/purchase-orders/${po.id}`);
+                            createShipmentMutation.mutate(fullPO);
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to fetch PO details",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        disabled={createShipmentMutation.isPending}
+                      >
+                        <Truck className="h-4 w-4" />
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 

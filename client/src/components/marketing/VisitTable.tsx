@@ -16,6 +16,7 @@ import {
   Upload,
   Eye,
   Timer,
+  FileText,
   AlertCircle,
 } from "lucide-react";
 
@@ -102,6 +103,7 @@ export default function VisitTable({
     null
   );
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<VisitStatus>("scheduled");
   const [statusNotes, setStatusNotes] = useState("");
   const { toast } = useToast();
@@ -414,6 +416,16 @@ export default function VisitTable({
                             Edit
                           </DropdownMenuItem>
 
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedVisit(visit);
+                              setReportOpen(true);
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                            View Report
+                          </DropdownMenuItem>
+
                           {canCheckIn(visit) && (
                             <DropdownMenuItem onClick={() => onCheckIn(visit)}>
                               <Navigation className="h-4 w-4 mr-2" />
@@ -508,6 +520,16 @@ export default function VisitTable({
                       <DropdownMenuItem onClick={() => onEdit(visit)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedVisit(visit);
+                          setReportOpen(true);
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                        View Report
                       </DropdownMenuItem>
 
                       {canCheckIn(visit) && (
@@ -687,6 +709,119 @@ export default function VisitTable({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Visit Report Dialog */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+              <FileText className="h-5 w-5 text-blue-500" />
+              Field Visit Report - {selectedVisit?.visitNumber}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium italic">
+              Detailed information about the visit and activities
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedVisit && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Date & Time</p>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium">
+                      {format(new Date(selectedVisit.plannedDate), "MMMM dd, yyyy")}
+                    </span>
+                  </div>
+                  {selectedVisit.plannedStartTime && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium">
+                        {format(new Date(selectedVisit.plannedStartTime), "hh:mm a")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Status & Performance</p>
+                  <div className="mt-1">
+                    <Badge
+                      variant={getStatusInfo(selectedVisit.status).variant}
+                      className={`${getStatusInfo(selectedVisit.status).bgColor} ${getStatusInfo(selectedVisit.status).color} capitalize flex items-center space-x-1 w-fit`}
+                    >
+                      {selectedVisit.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                  {getVisitDuration(selectedVisit) && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Timer className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium">Duration: {getVisitDuration(selectedVisit)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Customer / Lead</p>
+                  <p className="text-sm font-bold">
+                    {selectedVisit.lead?.firstName} {selectedVisit.lead?.lastName}
+                  </p>
+                  {selectedVisit.lead?.companyName && (
+                    <p className="text-xs text-slate-500">{selectedVisit.lead.companyName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Assigned To</p>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm font-medium">
+                      {selectedVisit.assignedToUser?.firstName} {selectedVisit.assignedToUser?.lastName}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Location & Address</p>
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                  <span className="text-sm">
+                    {selectedVisit.visitAddress}
+                    {selectedVisit.visitCity && `, ${selectedVisit.visitCity}`}
+                  </span>
+                </div>
+                {selectedVisit.latitude && selectedVisit.longitude && (
+                  <p className="text-[10px] text-green-600 font-medium pl-6">
+                    GPS Coordinates: {selectedVisit.latitude}, {selectedVisit.longitude}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Visit Purpose & Summary</p>
+                <p className="text-sm font-bold text-blue-700 dark:text-blue-400">
+                  {getPurposeText(selectedVisit.purpose)}
+                </p>
+                {selectedVisit.notes && (
+                  <div className="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedVisit.notes}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end pt-4 border-t">
+                <Button 
+                  onClick={() => setReportOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6"
+                >
+                  Close Report
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

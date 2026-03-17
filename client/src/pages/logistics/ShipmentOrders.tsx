@@ -1,0 +1,773 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Plus, Search, Filter, Download, ShoppingCart, Clock, CheckCircle, Package, TrendingUp, RefreshCw, Eye, Trash2, CheckCircle2, XCircle, Calendar, MapPin, Plane, Ship, Truck, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+// Types
+type LogisticsShipmentStatus = 'created' | 'packed' | 'dispatched' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'closed';
+
+interface LogisticsShipment {
+  id: string;
+  consignmentNumber: string;
+  poNumber?: string;
+  source: string;
+  destination: string;
+  clientId?: string;
+  vendorId?: string;
+  dispatchDate?: string;
+  expectedDeliveryDate?: string;
+  deliveredAt?: string;
+  closedAt?: string;
+  currentStatus: LogisticsShipmentStatus;
+  isApproved?: boolean;
+  approvalDate?: string;
+  approvalNotes?: string;
+  approvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  items?: any[];
+  client?: { id: string; name: string; };
+  vendor?: { id: string; name: string; };
+  vendorName?: string;
+  clientName?: string;
+}
+
+interface ShipmentMetrics {
+  totalShipments: number;
+  activeShipments: number;
+  deliveredShipments: number;
+  pendingShipments: number;
+  averageDeliveryTime: number;
+  onTimeDeliveryRate: number;
+}
+
+export default function ShipmentOrders() {
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("list");
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<LogisticsShipment | null>(null);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isPlanningDialogOpen, setIsPlanningDialogOpen] = useState(false);
+  const [approvalNotes, setApprovalNotes] = useState("");
+  const [shipmentPlan, setShipmentPlan] = useState<any>({
+    shipmentType: "Sea",
+    shipmentMode: "Import",
+    incoterms: "FOB",
+    status: "Planned",
+  });
+
+  const approveShipmentMutation = useMutation({
+    mutationFn: async ({ id, isApproved, notes }: { id: string, isApproved: boolean, notes: string }) => {
+      return apiRequest("POST", `/logistics/shipments/${id}/approve`, { isApproved, notes });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment approval status updated.",
+      });
+      setIsApproveDialogOpen(false);
+      setApprovalNotes("");
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+  });
+
+  const createPlanMutation = useMutation({
+    mutationFn: async (plan: any) => {
+      return apiRequest("POST", "/logistics/shipments/plans", plan);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment plan created successfully.",
+      });
+      setIsPlanningDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ id, plan }: { id: string, plan: any }) => {
+      return apiRequest("PUT", `/logistics/shipments/plans/${id}`, plan);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment plan updated successfully.",
+      });
+      setIsPlanningDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+  });
+
+  // Fetch plan for selected shipment when planning dialog opens
+  const { data: existingPlan, isLoading: isLoadingPlan } = useQuery({
+    queryKey: ['/logistics/shipments', selectedShipment?.id, 'plan'],
+    queryFn: async () => {
+      if (!selectedShipment?.id) return null;
+      try {
+        const res = await apiRequest("GET", `/logistics/shipments/${selectedShipment.id}/plan`);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    },
+    enabled: isPlanningDialogOpen && !!selectedShipment?.id,
+  });
+
+  useMemo(() => {
+    if (existingPlan) {
+      setShipmentPlan(existingPlan);
+    } else if (selectedShipment) {
+      setShipmentPlan({
+        shipmentId: selectedShipment.id,
+        planId: `PLAN-${selectedShipment.consignmentNumber}`,
+        shipmentType: "Sea",
+        shipmentMode: "Import",
+        incoterms: "FOB",
+        status: "Planned",
+      });
+    }
+  }, [existingPlan, selectedShipment, isPlanningDialogOpen]);
+
+  // Fetch shipments data
+  const { data: shipments = [], isLoading } = useQuery<LogisticsShipment[]>({
+    queryKey: ['/logistics/shipments']
+  });
+
+  const { data: vendorsData = [] } = useQuery<any>({
+    queryKey: ["/suppliers"],
+  });
+
+  const vendors = Array.isArray(vendorsData) ? vendorsData : ((vendorsData as any)?.suppliers || []);
+
+  const getVendorName = (shipment: LogisticsShipment | any) => {
+    if (!shipment) return "N/A";
+    
+    // Check flat properties first (now provided by backend mapping)
+    if (shipment.vendorName) return shipment.vendorName;
+    if (shipment.clientName) return shipment.clientName;
+    if (shipment.customerName) return shipment.customerName;
+    if (shipment.supplierName) return shipment.supplierName;
+    
+    // Check joined objects as fallback
+    if (shipment.vendor?.name) return shipment.vendor.name;
+    if (shipment.poVendor?.name) return shipment.poVendor.name;
+    if (shipment.client?.name) return shipment.client.name;
+    if (shipment.soCustomer?.name) return shipment.soCustomer.name;
+    if (shipment.customer?.name) return shipment.customer.name;
+    if (shipment.supplier?.name) return shipment.supplier.name;
+    
+    // Match from local vendors list if we have an ID
+    const vId = shipment.vendorId || shipment.supplierId || shipment.clientId || shipment.customerId;
+    if (vId) {
+      const vendor = vendors.find((v: any) => v.id === vId);
+      if (vendor) return vendor.name;
+      
+      // If no name found but we have an ID, show a shortened ID
+      if (typeof vId === 'string' && vId.length > 8) {
+        return `ID: ${vId.substring(0, 8)}...`;
+      }
+    }
+    
+    return "N/A";
+  };
+
+  const deleteShipmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/logistics/shipments/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete shipment order",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleViewDetails = (shipment: LogisticsShipment) => {
+    setSelectedShipment(shipment);
+    setIsViewDialogOpen(true);
+  };
+
+  // Fetch shipment metrics
+  const { data: metrics } = useQuery<ShipmentMetrics>({
+    queryKey: ['/logistics/dashboard']
+  });
+
+  const filteredShipments = useMemo(() => {
+    return shipments.filter(shipment => {
+      if (!searchTerm) return true;
+      const query = searchTerm.toLowerCase();
+      return (
+        shipment.consignmentNumber.toLowerCase().includes(query) ||
+        (shipment.poNumber || "").toLowerCase().includes(query) ||
+        shipment.source.toLowerCase().includes(query) ||
+        shipment.destination.toLowerCase().includes(query) ||
+        shipment.vendorName?.toLowerCase().includes(query) ||
+        shipment.clientName?.toLowerCase().includes(query) ||
+        shipment.client?.name?.toLowerCase().includes(query) ||
+        shipment.vendor?.name?.toLowerCase().includes(query)
+      );
+    });
+  }, [shipments, searchTerm]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "delivered":
+        return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-normal">Delivered</Badge>;
+      case "dispatched":
+        return <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-normal">Dispatched</Badge>;
+      case "in_transit":
+        return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-normal">In Transit</Badge>;
+      case "packed":
+        return <Badge className="bg-orange-50 text-orange-600 border-orange-100 font-normal">Packed</Badge>;
+      default:
+        return <Badge className="bg-slate-50 text-slate-600 border-slate-100 font-normal">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateValue: string | Date | null | undefined) => {
+    if (!dateValue) return "N/A";
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return "N/A";
+    return format(date, "dd/MM/yyyy");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-8">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-4 gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Shipment Orders</h1>
+          <p className="text-muted-foreground">
+            Manage and track customer shipment orders
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button className="bg-primary text-primary-foreground">
+            <Plus className="mr-2 h-4 w-4" /> Create Order
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="list" className="px-6">Order List</TabsTrigger>
+          <TabsTrigger value="analysis" className="px-6">Order Analysis</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-blue-50">
+                    <ShoppingCart className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">Total Orders</p>
+                <p className="text-2xl font-bold">{metrics?.totalShipments || 0}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-orange-50">
+                    <Clock className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">Pending</p>
+                <p className="text-2xl font-bold">{metrics?.pendingShipments || 0}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-indigo-50">
+                    <Package className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">In Processing</p>
+                <p className="text-2xl font-bold">{metrics?.activeShipments || 0}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-green-50">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">Completed</p>
+                <p className="text-2xl font-bold">{metrics?.deliveredShipments || 0}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by order number or customer..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-muted/30 border-none h-11 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" className="h-11 px-5 border-slate-200">
+                  <Filter className="mr-2 h-4 w-4" /> Filters
+                </Button>
+                <Button variant="outline" className="h-11 px-5 border-slate-200">
+                  <Download className="mr-2 h-4 w-4" /> Export
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent border-slate-200">
+                    <TableHead className="w-[180px] py-4 font-semibold text-slate-700">Order #</TableHead>
+                    <TableHead className="py-4 font-semibold text-slate-700">PO Number</TableHead>
+                    <TableHead className="py-4 font-semibold text-slate-700">Client/Vendor</TableHead>
+                    <TableHead className="py-4 font-semibold text-slate-700">Route</TableHead>
+                    <TableHead className="py-4 font-semibold text-slate-700">Status</TableHead>
+                    <TableHead className="py-4 font-semibold text-slate-700">Dates</TableHead>
+                    <TableHead className="text-right py-4 font-semibold text-slate-700">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredShipments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground italic">
+                        No shipment orders found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredShipments.map((shipment) => (
+                      <TableRow key={shipment.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
+                        <TableCell className="font-bold text-primary py-4">
+                          {shipment.consignmentNumber}
+                        </TableCell>
+                        <TableCell className="py-4 font-medium text-slate-700">
+                          {shipment.poNumber || "N/A"}
+                        </TableCell>
+                        <TableCell className="py-4 font-medium text-slate-700">
+                          {shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A"}
+                        </TableCell>
+                        <TableCell className="py-4 text-slate-500">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground">From: {shipment.source}</span>
+                            <span className="text-xs text-muted-foreground">To: {shipment.destination}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1">
+                            {getStatusBadge(shipment.currentStatus)}
+                            {shipment.isApproved ? (
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] w-fit">
+                                <ShieldCheck className="h-3 w-3 mr-1" /> Approved
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-[10px] w-fit">
+                                Pending Approval
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 text-slate-600 text-xs">
+                          <div>Created: {formatDate(shipment.createdAt)}</div>
+                          {shipment.expectedDeliveryDate && (
+                            <div>Exp: {formatDate(shipment.expectedDeliveryDate)}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right py-4">
+                          <div className="flex justify-end space-x-2">
+                            {!shipment.isApproved && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"
+                                onClick={() => {
+                                  setSelectedShipment(shipment);
+                                  setIsApproveDialogOpen(true);
+                                }}
+                                title="Approve Shipment"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5"
+                              onClick={() => handleViewDetails(shipment)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                                  deleteShipmentMutation.mutate(shipment.id);
+                                }
+                              }}
+                              disabled={deleteShipmentMutation.isPending}
+                            >
+                              {deleteShipmentMutation.isPending ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">{metrics?.onTimeDeliveryRate || 92}%</p>
+                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +2.4% from last month
+                    </p>
+                  </div>
+                  <div className="h-12 w-24 bg-emerald-50 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-emerald-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg. Delivery Time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">{metrics?.averageDeliveryTime || 3.5} Days</p>
+                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
+                      <Clock className="h-3 w-3 mr-1" /> -0.5 days improvement
+                    </p>
+                  </div>
+                  <div className="h-12 w-24 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <Package className="h-6 w-6 text-blue-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-card/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Order Fulfillment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">98.2%</p>
+                    <p className="text-xs text-emerald-500 font-medium flex items-center mt-1">
+                      <RefreshCw className="h-3 w-3 mr-1" /> Stable performance
+                    </p>
+                  </div>
+                  <div className="h-12 w-24 bg-indigo-50 rounded-lg flex items-center justify-center">
+                    <ShoppingCart className="h-6 w-6 text-indigo-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-none shadow-sm bg-card/50">
+            <CardHeader>
+              <CardTitle>Shipment Volume Analysis</CardTitle>
+              <CardDescription>Monthly shipment volume and fulfillment trends</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="p-4 rounded-full bg-primary/10 mb-6">
+                <TrendingUp className="h-12 w-12 text-primary animate-pulse" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Detailed Analytics Dashboard</h3>
+              <p className="text-muted-foreground max-w-md mx-auto mb-8">
+                Detailed charts and trend analysis are being generated based on your real-time shipment data.
+              </p>
+              <div className="flex items-center space-x-4">
+                <Button className="px-8 bg-primary text-primary-foreground">Generate Full Report</Button>
+                <Button variant="outline">View Historical Data</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* View Shipment Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+              <Package className="h-6 w-6 text-primary" />
+              <span>Shipment Details: {selectedShipment?.consignmentNumber}</span>
+            </DialogTitle>
+            <DialogDescription>
+              View complete details and item list for this shipment
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedShipment && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Vendor / Client</p>
+                  <p className="font-semibold text-slate-700 leading-tight">
+                    {selectedShipment.vendorName || 
+                     selectedShipment.supplier?.name || 
+                     selectedShipment.vendor?.name || 
+                     selectedShipment.clientName || 
+                     "N/A"}
+                  </p>
+                  {(selectedShipment.supplier?.city || selectedShipment.supplier?.address) && (
+                    <p className="text-xs text-muted-foreground flex items-center">
+                      <MapPin className="h-2 w-2 mr-1" />
+                      {selectedShipment.supplier.city || selectedShipment.supplier.address}
+                    </p>
+                  )}
+                  {selectedShipment.poNumber && (
+                    <div className="mt-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase">PO Number</p>
+                      <p className="font-semibold text-indigo-600">{selectedShipment.poNumber}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Status</p>
+                  <div>{getStatusBadge(selectedShipment.currentStatus)}</div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Route</p>
+                  <p className="text-slate-600">From: {selectedShipment.source}</p>
+                  <p className="text-slate-600">To: {selectedShipment.destination}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Dates</p>
+                  <p className="text-slate-600 text-sm">Created: {formatDate(selectedShipment.createdAt)}</p>
+                  {selectedShipment.expectedDeliveryDate && (
+                    <p className="text-slate-600 text-sm">Expected: {formatDate(selectedShipment.expectedDeliveryDate)}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-slate-800 flex items-center border-b border-slate-100 pb-2">
+                  <ShoppingCart className="mr-2 h-4 w-4 text-primary" />
+                  SHIPMENT ITEMS
+                </h3>
+                
+                <div className="rounded-lg border border-slate-200 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="font-semibold">Material Name</TableHead>
+                        <TableHead className="font-semibold">Type/Description</TableHead>
+                        <TableHead className="font-semibold text-center">Qty</TableHead>
+                        <TableHead className="font-semibold text-center">Unit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        let displayItems = [];
+                        if (Array.isArray(selectedShipment.items)) {
+                          displayItems = selectedShipment.items;
+                        } else if (typeof selectedShipment.items === 'string') {
+                          try {
+                            displayItems = JSON.parse(selectedShipment.items);
+                          } catch (e) {
+                            console.error("Error parsing shipment items:", e);
+                          }
+                        }
+
+                        if (displayItems && displayItems.length > 0) {
+                          return displayItems.map((item: any, idx: number) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-medium">
+                                {item.materialName || item.itemName || item.name || "N/A"}
+                              </TableCell>
+                              <TableCell className="text-slate-600">
+                                {item.type || item.description || "N/A"}
+                              </TableCell>
+                              <TableCell className="text-center font-bold">
+                                {item.qty || item.quantity || 0}
+                              </TableCell>
+                              <TableCell className="text-center text-slate-500">
+                                {item.unit || "pcs"}
+                              </TableCell>
+                            </TableRow>
+                          ));
+                        }
+
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground italic">
+                              No items found for this shipment.
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {(selectedShipment as any).notes && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Notes</p>
+                  <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-lg text-slate-700 text-sm italic">
+                    {(selectedShipment as any).notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="px-8">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Shipment Dialog */}
+      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-emerald-600">
+              <ShieldCheck className="mr-2 h-5 w-5" />
+              Approve Shipment
+            </DialogTitle>
+            <DialogDescription>
+              Verify and approve this shipment order for further planning and execution.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">Shipment: <span className="font-bold text-primary">{selectedShipment?.consignmentNumber}</span></p>
+              <p className="text-sm text-slate-500">PO: {selectedShipment?.poNumber || "N/A"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Approval Notes (Optional)</Label>
+              <Textarea 
+                id="notes" 
+                placeholder="Add any specific instructions or notes for the planning team..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsApproveDialogOpen(false)}
+              className="flex-1 sm:flex-none"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => approveShipmentMutation.mutate({ id: selectedShipment!.id, isApproved: false, notes: approvalNotes })}
+              disabled={approveShipmentMutation.isPending}
+              className="flex-1 sm:flex-none"
+            >
+              Reject
+            </Button>
+            <Button 
+              onClick={() => approveShipmentMutation.mutate({ id: selectedShipment!.id, isApproved: true, notes: approvalNotes })}
+              disabled={approveShipmentMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1 sm:flex-none"
+            >
+              {approveShipmentMutation.isPending ? "Approving..." : "Approve Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

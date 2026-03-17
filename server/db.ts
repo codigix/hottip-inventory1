@@ -197,6 +197,151 @@ export const db = drizzle(pool, { schema });
       )
     `);
 
+    // ✅ Ensure logistics_shipments table exists with all required columns
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "logistics_shipments" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "consignmentNumber" text NOT NULL,
+        "poNumber" text,
+        "source" text NOT NULL,
+        "destination" text NOT NULL,
+        "clientId" uuid,
+        "vendorId" uuid,
+        "dispatchDate" timestamp,
+        "expectedDeliveryDate" timestamp,
+        "deliveredAt" timestamp,
+        "closedAt" timestamp,
+        "currentStatus" text NOT NULL DEFAULT 'created',
+        "notes" text,
+        "weight" numeric(10, 2),
+        "createdBy" uuid,
+        "assignedTo" uuid,
+        "items" jsonb,
+        "isApproved" boolean DEFAULT false,
+        "approvalDate" timestamp,
+        "approvalNotes" text,
+        "approvedBy" uuid,
+        "createdAt" timestamp DEFAULT now(),
+        "updatedAt" timestamp DEFAULT now()
+      )
+    `);
+
+    // ✅ FORCE currentStatus to be text to avoid enum mismatch issues
+    try {
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          -- If it's an enum or anything else, convert it to text
+          IF EXISTS (
+            SELECT 1 
+            FROM information_schema.columns 
+            WHERE table_name = 'logistics_shipments' 
+            AND column_name = 'currentStatus' 
+            AND data_type != 'text'
+          ) THEN
+            ALTER TABLE "logistics_shipments" ALTER COLUMN "currentStatus" TYPE text;
+          END IF;
+        END $$;
+      `);
+    } catch (err) {
+      console.error("⚠️ Error ensuring currentStatus is text:", err.message);
+    }
+
+    // Ensure missing columns are added to logistics_shipments if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'createdAt') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "createdAt" timestamp DEFAULT now();
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'updatedAt') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "updatedAt" timestamp DEFAULT now();
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'createdBy') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "createdBy" uuid;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'assignedTo') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "assignedTo" uuid;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'items') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "items" jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'poNumber') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "poNumber" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'isApproved') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "isApproved" boolean DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'approvalDate') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "approvalDate" timestamp;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'approvalNotes') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "approvalNotes" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'logistics_shipments' AND column_name = 'approvedBy') THEN
+          ALTER TABLE "logistics_shipments" ADD COLUMN "approvedBy" uuid;
+        END IF;
+      END $$;
+    `);
+
+    // Ensure logistics_shipment_plans table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "logistics_shipment_plans" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "shipmentId" uuid NOT NULL REFERENCES logistics_shipments(id) ON DELETE CASCADE,
+        "planId" text NOT NULL UNIQUE,
+        "shipmentType" text,
+        "shipmentMode" text,
+        "incoterms" text,
+        "forwarderAgent" text,
+        "plannedDispatch" timestamp,
+        "expectedArrival" timestamp,
+        "status" text DEFAULT 'Planned',
+        "shippingLine" text,
+        "vesselName" text,
+        "voyageNumber" text,
+        "containerNumber" text,
+        "containerType" text,
+        "sealNumber" text,
+        "blNumber" text,
+        "portOfLoading" text,
+        "portOfDestination" text,
+        "departureDate" timestamp,
+        "etaArrival" timestamp,
+        "airlineName" text,
+        "flightNumber" text,
+        "awbNumber" text,
+        "departureAirport" text,
+        "arrivalAirport" text,
+        "flightDeparture" timestamp,
+        "etaArrivalAir" timestamp,
+        "cargoWeight" numeric(10, 2),
+        "cargoVolume" numeric(10, 2),
+        "transportCompany" text,
+        "truckNumber" text,
+        "driverName" text,
+        "driverPhone" text,
+        "pickupLocation" text,
+        "deliveryLocation" text,
+        "dispatchDateRoad" timestamp,
+        "deliveryDateRoad" timestamp,
+        "clearingAgent" text,
+        "billOfEntry" text,
+        "importDuty" numeric(12, 2),
+        "gstPaid" numeric(12, 2),
+        "customStatus" text,
+        "clearanceDate" timestamp,
+        "createdAt" timestamp DEFAULT now(),
+        "updatedAt" timestamp DEFAULT now()
+      )
+    `);
+
+    // Update existing records to have a createdAt if null
+    await client.query(`
+      UPDATE "logistics_shipments" SET "createdAt" = now() WHERE "createdAt" IS NULL;
+      UPDATE "logistics_shipments" SET "updatedAt" = now() WHERE "updatedAt" IS NULL;
+    `);
+
     // ✅ Insert dummy Material Request if none exist
     const mrCountRes = await client.query('SELECT count(*) FROM material_requests');
     if (parseInt(mrCountRes.rows[0].count) === 0) {

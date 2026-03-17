@@ -150,6 +150,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     username: string;
+    department?: string;
   };
 }
 
@@ -170,6 +171,7 @@ const requireAuth = async (
         id: "00000000-0000-0000-0000-000000000001",
         role: "admin",
         username: "dev_admin",
+        department: "Administration",
       };
       next();
       return;
@@ -200,6 +202,7 @@ const requireAuth = async (
           id: decoded.sub,
           role: decoded.role,
           username: decoded.username,
+          department: decoded.department,
         };
         next();
         return;
@@ -569,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("?? Generating JWT token...");
       const token = jwt.sign(
-        { sub: user.id, role: user.role, username: user.username },
+        { sub: user.id, role: user.role, username: user.username, department: user.department },
         tokenSecret,
         { expiresIn: "15m", algorithm: "HS256" }
       );
@@ -3397,38 +3400,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create logistics shipment
   app.post("/api/logistics/shipments", requireAuth, async (req, res) => {
     try {
-      const data = logisticsShipmentInsertSchema.parse(req.body || {});
-      try {
-        const [row] = await db
-          .insert(logisticsShipments)
-          .values({
-            consignmentNumber: data.consignmentNumber,
-            source: data.source,
-            destination: data.destination,
-            currentStatus: data.currentStatus || "created",
-          })
-          .returning();
-        res.status(201).json(row);
-      } catch (dbErr) {
-        // Fallback to in-memory storage if DB insert fails (e.g., column mapping mismatch)
-        const rec = {
-          id: "mem-" + Date.now(),
-          consignmentNumber: data.consignmentNumber,
-          source: data.source,
-          destination: data.destination,
-          currentStatus: data.currentStatus || "created",
-          _fallback: true,
-        } as any;
-        inMemoryLogisticsShipments.push(rec);
-        res.status(201).json(rec);
-      }
+      console.log("📦 [API] Creating shipment with payload:", JSON.stringify(req.body, null, 2));
+      const row = await storage.createLogisticsShipment(req.body);
+      res.status(201).json(row);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res
-          .status(400)
-          .json({ error: "Invalid shipment data", details: error.errors });
-        return;
-      }
+      console.error("❌ [API] Error creating shipment:", error);
       res.status(500).json({ error: "Failed to create shipment" });
     }
   });

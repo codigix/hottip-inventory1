@@ -416,23 +416,6 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         new Date(quotation.quotationDate).toLocaleDateString(),
     },
     {
-      key: "totalAmount",
-      header: "Total Amount",
-      cell: (quotation: any) => {
-        let total = parseFloat(String(quotation.totalAmount)) || 0;
-        // Fallback if totalAmount is missing (calculated from subtotal and tax)
-        if (total === 0 && (quotation.subtotalAmount || quotation.taxAmount)) {
-          total = parseFloat(String(quotation.subtotalAmount || 0)) + 
-                  parseFloat(String(quotation.taxAmount || 0)) - 
-                  parseFloat(String(quotation.discountAmount || 0));
-        }
-        return `₹${total.toLocaleString("en-IN", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 2 
-        })}`;
-      },
-    },
-    {
       key: "status",
       header: "Status",
       cell: (quotation: any) => {

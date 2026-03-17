@@ -16,7 +16,8 @@ import {
   MoreHorizontal,
   PlusCircle,
   Calendar,
-  X
+  X,
+  Truck
 } from "lucide-react";
 import { 
   Card, 
@@ -57,7 +58,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -122,7 +123,40 @@ export default function VendorQuotations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
+
+  const createShipmentMutation = useMutation({
+    mutationFn: async (quotation: any) => {
+      return apiRequest("POST", "/logistics/shipments", {
+        consignmentNumber: `SHP-${quotation.quotationNumber}`,
+        source: "Main Warehouse",
+        destination: "Customer Site",
+        vendorId: quotation.senderId,
+        notes: `Automatically created from Quotation ${quotation.quotationNumber}`,
+        currentStatus: "created",
+        createdBy: user?.id,
+        assignedTo: user?.id
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order created successfully. Redirecting...",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      setTimeout(() => {
+        setLocation("/logistics/shipment-orders");
+      }, 1000);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create shipment order",
+        variant: "destructive",
+      });
+    },
+  });
   const [isRFQDialogOpen, setIsRFQDialogOpen] = useState(false);
   const [isReceivedQuoteDialogOpen, setIsReceivedQuoteDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -781,8 +815,6 @@ export default function VendorQuotations() {
                       <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0">Material Name</TableHead>
                       <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0">Type</TableHead>
                       <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-center w-20">Qty</TableHead>
-                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-right w-24">Rate</TableHead>
-                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-right w-24">Amount</TableHead>
                       <TableHead className="h-8 py-0 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>

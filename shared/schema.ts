@@ -1008,11 +1008,29 @@ export const vendorCommunications = pgTable("vendor_communications", {
 });
 
 // =====================
+// LOGISTICS ENUMS
+// =====================
+export const logisticsShipmentStatusEnum = pgEnum("logistics_shipment_status", [
+  "created",
+  "planned",
+  "vendor_ready",
+  "picked_up",
+  "export_customs",
+  "in_transit",
+  "arrived_india",
+  "import_customs",
+  "out_for_delivery",
+  "delivered",
+  "closed",
+]);
+
+// =====================
 // LOGISTICS SHIPMENTS
 // =====================
 export const logisticsShipments = pgTable("logistics_shipments", {
   id: uuid("id").defaultRandom().primaryKey(),
-  consignmentNumber: text("consignmentNumber").notNull(),
+  consignmentNumber: text("consignmentNumber").notNull().unique(),
+  poNumber: text("poNumber"),
   source: text("source").notNull(),
   destination: text("destination").notNull(),
   clientId: uuid("clientId"),
@@ -1024,7 +1042,93 @@ export const logisticsShipments = pgTable("logistics_shipments", {
   currentStatus: text("currentStatus").notNull().default("created"),
   notes: text("notes"),
   weight: numeric("weight", { precision: 10, scale: 2 }),
+  createdBy: uuid("createdBy"),
+  assignedTo: uuid("assignedTo"),
+  items: jsonb("items"),
+  isApproved: boolean("isApproved").default(false),
+  approvalDate: timestamp("approvalDate"),
+  approvalNotes: text("approvalNotes"),
+  approvedBy: uuid("approvedBy"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
 });
+
+// =====================
+// LOGISTICS SHIPMENT PLANS
+// =====================
+export const logisticsShipmentPlans = pgTable("logistics_shipment_plans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  shipmentId: uuid("shipmentId").references(() => logisticsShipments.id, { onDelete: "cascade" }),
+  planId: text("planId").notNull().unique(),
+  
+  // Basic Information
+  shipmentType: text("shipmentType"), // Air / Sea / Road
+  shipmentMode: text("shipmentMode"), // Import / Export
+  incoterms: text("incoterms"), // FOB / CIF / EXW
+  forwarderAgent: text("forwarderAgent"),
+  plannedDispatch: timestamp("plannedDispatch"),
+  expectedArrival: timestamp("expectedArrival"),
+  status: text("status").default("Planned"),
+
+  // Sea Freight Details
+  shippingLine: text("shippingLine"),
+  vesselName: text("vesselName"),
+  voyageNumber: text("voyageNumber"),
+  containerNumber: text("containerNumber"),
+  containerType: text("containerType"), // 20FT / 40FT
+  sealNumber: text("sealNumber"),
+  blNumber: text("blNumber"),
+  portOfLoading: text("portOfLoading"),
+  portOfDestination: text("portOfDestination"),
+  departureDate: timestamp("departureDate"),
+  etaArrival: timestamp("etaArrival"),
+
+  // Air Freight Details
+  airlineName: text("airlineName"),
+  flightNumber: text("flightNumber"),
+  awbNumber: text("awbNumber"),
+  departureAirport: text("departureAirport"),
+  arrivalAirport: text("arrivalAirport"),
+  flightDeparture: timestamp("flightDeparture"),
+  etaArrivalAir: timestamp("etaArrivalAir"),
+  cargoWeight: numeric("cargoWeight", { precision: 10, scale: 2 }),
+  cargoVolume: numeric("cargoVolume", { precision: 10, scale: 2 }),
+
+  // Truck Transport Details
+  transportCompany: text("transportCompany"),
+  truckNumber: text("truckNumber"),
+  driverName: text("driverName"),
+  driverPhone: text("driverPhone"),
+  pickupLocation: text("pickupLocation"),
+  deliveryLocation: text("deliveryLocation"),
+  dispatchDateRoad: timestamp("dispatchDateRoad"),
+  deliveryDateRoad: timestamp("deliveryDateRoad"),
+
+  // Custom Clearance
+  clearingAgent: text("clearingAgent"),
+  billOfEntry: text("billOfEntry"),
+  importDuty: numeric("importDuty", { precision: 12, scale: 2 }),
+  gstPaid: numeric("gstPaid", { precision: 12, scale: 2 }),
+  customStatus: text("customStatus"), // Pending / Cleared
+  clearanceDate: timestamp("clearanceDate"),
+
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export const logisticsShipmentPlanRelations = relations(logisticsShipmentPlans, ({ one }) => ({
+  shipment: one(logisticsShipments, {
+    fields: [logisticsShipmentPlans.shipmentId],
+    references: [logisticsShipments.id],
+  }),
+}));
+
+export const logisticsShipmentRelations = relations(logisticsShipments, ({ one }) => ({
+  plan: one(logisticsShipmentPlans, {
+    fields: [logisticsShipments.id],
+    references: [logisticsShipmentPlans.shipmentId],
+  }),
+}));
 
 // =====================
 // LOGISTICS TASKS
@@ -1765,6 +1869,8 @@ export const updateLogisticsShipmentSchema = z.object({
   currentStatus: z.string().optional(),
   notes: z.string().optional(),
   weight: z.number().optional(),
+  createdBy: z.string().uuid().optional(),
+  assignedTo: z.string().uuid().optional(),
 });
 
 export const logisticsShipmentFilterSchema = z.object({
@@ -1774,6 +1880,7 @@ export const logisticsShipmentFilterSchema = z.object({
   vendorId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  isApproved: z.string().transform(v => v === "true").optional(),
 });
 
 export const updateLogisticsShipmentStatusSchema = z.object({
@@ -1830,10 +1937,11 @@ export const logisticsTaskFilterSchema = z.object({
 // Placeholder for logistics shipment insert schema
 export const insertLogisticsShipmentSchema = z.object({
   consignmentNumber: z.string(),
+  poNumber: z.string().optional(),
   source: z.string(),
   destination: z.string(),
-  clientId: z.string().optional(),
-  vendorId: z.string().optional(),
+  clientId: z.string().uuid().nullable().optional(),
+  vendorId: z.string().uuid().nullable().optional(),
   dispatchDate: z.string().optional(),
   expectedDeliveryDate: z.string().optional(),
   deliveredAt: z.string().optional(),
@@ -1841,6 +1949,9 @@ export const insertLogisticsShipmentSchema = z.object({
   currentStatus: z.string().optional(),
   notes: z.string().optional(),
   weight: z.number().optional(),
+  createdBy: z.string().uuid().optional(),
+  assignedTo: z.string().uuid().optional(),
+  items: z.any().optional(),
 });
 
 // Placeholder for logistics checkpoint insert schema
@@ -1889,28 +2000,40 @@ export const insertLogisticsLeaveRequestSchema = z.object({
 // LOGISTICS STATUS UTILS
 // =====================
 export const LOGISTICS_SHIPMENT_STATUSES = [
-  "created",
-  "packed",
-  "dispatched",
+  "planned",
+  "vendor_ready",
+  "picked_up",
+  "export_customs",
   "in_transit",
+  "arrived_india",
+  "import_customs",
   "out_for_delivery",
   "delivered",
   "closed",
 ];
 
 export function getNextStatus(currentStatus: string): string | null {
-  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus);
+  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus.toLowerCase());
   if (index === -1 || index === LOGISTICS_SHIPMENT_STATUSES.length - 1) {
     return null; // no next status
   }
   return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
+
+export function getPreviousStatus(currentStatus: string): string | null {
+  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus.toLowerCase());
+  if (index <= 0) {
+    return null; // no previous status
+  }
+  return LOGISTICS_SHIPMENT_STATUSES[index - 1];
+}
+
 export function isValidStatusTransition(
   currentStatus: string,
   nextStatus: string
 ): boolean {
-  const next = getNextStatus(currentStatus);
-  return next === nextStatus;
+  // Allow jumping to any status for now to be flexible, but usually it's sequential
+  return LOGISTICS_SHIPMENT_STATUSES.includes(nextStatus.toLowerCase());
 }
 
 export const taskStatusEnum = pgEnum("task_status", [
@@ -2153,6 +2276,71 @@ export const insertMoldDetailSchema = z.object({
   quotationFor: z.string().optional(),
   userId: z.string().uuid().optional(),
 });
+
+export const insertLogisticsShipmentPlanSchema = z.object({
+  shipmentId: z.string().uuid(),
+  planId: z.string(),
+  shipmentType: z.enum(["Air", "Sea", "Road"]).optional(),
+  shipmentMode: z.enum(["Import", "Export"]).optional(),
+  incoterms: z.enum(["FOB", "CIF", "EXW"]).optional(),
+  forwarderAgent: z.string().optional(),
+  plannedDispatch: z.string().or(z.date()).optional(),
+  expectedArrival: z.string().or(z.date()).optional(),
+  status: z.string().optional().default("Planned"),
+
+  // Sea Freight Details
+  shippingLine: z.string().optional(),
+  vesselName: z.string().optional(),
+  voyageNumber: z.string().optional(),
+  containerNumber: z.string().optional(),
+  containerType: z.enum(["20FT", "40FT"]).optional(),
+  sealNumber: z.string().optional(),
+  blNumber: z.string().optional(),
+  portOfLoading: z.string().optional(),
+  portOfDestination: z.string().optional(),
+  departureDate: z.string().or(z.date()).optional(),
+  etaArrival: z.string().or(z.date()).optional(),
+
+  // Air Freight Details
+  airlineName: z.string().optional(),
+  flightNumber: z.string().optional(),
+  awbNumber: z.string().optional(),
+  departureAirport: z.string().optional(),
+  arrivalAirport: z.string().optional(),
+  flightDeparture: z.string().or(z.date()).optional(),
+  etaArrivalAir: z.string().or(z.date()).optional(),
+  cargoWeight: z.coerce.number().optional(),
+  cargoVolume: z.coerce.number().optional(),
+
+  // Truck Transport Details
+  transportCompany: z.string().optional(),
+  truckNumber: z.string().optional(),
+  driverName: z.string().optional(),
+  driverPhone: z.string().optional(),
+  pickupLocation: z.string().optional(),
+  deliveryLocation: z.string().optional(),
+  dispatchDateRoad: z.string().or(z.date()).optional(),
+  deliveryDateRoad: z.string().or(z.date()).optional(),
+
+  // Custom Clearance
+  clearingAgent: z.string().optional(),
+  billOfEntry: z.string().optional(),
+  importDuty: z.coerce.number().optional(),
+  gstPaid: z.coerce.number().optional(),
+  customStatus: z.enum(["Pending", "Cleared"]).optional(),
+  clearanceDate: z.string().or(z.date()).optional(),
+});
+
+export const updateLogisticsShipmentPlanSchema = insertLogisticsShipmentPlanSchema.partial();
+
+export const logisticsShipmentPlanFilterSchema = z.object({
+  shipmentId: z.string().uuid().optional(),
+  status: z.string().optional(),
+  planId: z.string().optional(),
+});
+
+export type LogisticsShipmentPlan = typeof logisticsShipmentPlans.$inferSelect;
+export type InsertLogisticsShipmentPlan = z.infer<typeof insertLogisticsShipmentPlanSchema>;
 
 // =====================
 // TYPE EXPORTS
