@@ -4,15 +4,10 @@ import {
   Truck, 
   Package, 
   MapPin, 
-  ClipboardList, 
   FileText, 
-  Clock,
   BarChart3,
-  Route as RouteIcon,
-  Activity,
   Calendar,
-  TrendingUp,
-  CheckCircle
+  TrendingUp
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
@@ -24,8 +19,6 @@ import LogisticsDashboard from "@/pages/LogisticsDashboard";
 import ShipmentOrders from "./ShipmentOrders";
 import ShipmentPlanning from "./ShipmentPlanning";
 import LogisticsReports from "./Reports";
-import LogisticsTasks from "./Tasks";
-import LogisticsAttendance from "./Attendance";
 import VendorTracking from "./VendorTracking";
 import DeliveryChallans from "./DeliveryChallans";
 
@@ -77,22 +70,6 @@ const sidebarItems = [
     path: '/logistics/reports',
     description: 'Delivery analytics and performance',
     tourConfig: null,
-  },
-  {
-    id: 'tasks',
-    label: 'Logistics Tasks',
-    icon: ClipboardList,
-    path: '/logistics/tasks',
-    description: 'Employee task assignment',
-    tourConfig: null,
-  },
-  {
-    id: 'attendance',
-    label: 'Logistics Attendance',
-    icon: Clock,
-    path: '/logistics/attendance',
-    description: 'Team attendance and GPS tracking',
-    tourConfig: null,
   }
 ];
 
@@ -118,8 +95,6 @@ export default function LogisticsLayout() {
     if (location.includes('/vendor-tracking')) return 'vendor-tracking';
     if (location.includes('/delivery-challans')) return 'delivery-challans';
     if (location.includes('/reports')) return 'reports';
-    if (location.includes('/tasks')) return 'tasks';
-    if (location.includes('/attendance')) return 'attendance';
     return 'dashboard';
   };
 
@@ -204,10 +179,6 @@ export default function LogisticsLayout() {
                   <span className="text-xs font-light">92%</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Pending Tasks</span>
-                <span className="text-xs font-light">8</span>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -233,12 +204,6 @@ export default function LogisticsLayout() {
           </Route>
           <Route path="/logistics/reports">
             <LogisticsReports />
-          </Route>
-          <Route path="/logistics/tasks">
-            <LogisticsTasks />
-          </Route>
-          <Route path="/logistics/attendance">
-            <LogisticsAttendance />
           </Route>
           <Route>
             <div className="p-8">
