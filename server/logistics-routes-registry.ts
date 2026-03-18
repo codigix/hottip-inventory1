@@ -70,41 +70,37 @@ export const getLogisticsShipments = async (
     
     const filters = logisticsShipmentFilterSchema.parse(req.query);
 
-    // Role-based access control - employees can only see shipments assigned to them or created by them
-    if (req.user!.role === "employee") {
-      // Force employee filter to only see their shipments
-      filters.employeeId = req.user!.id;
-    }
+    // Fetch ALL shipments first to apply robust in-memory filtering
+    // This solves issues with complex joins and ensures tab visibility works as expected
+    let shipments = await storage.getLogisticsShipments();
 
-    let shipments;
-    const hasFilters = Object.values(filters).some(
-      (value) => value !== undefined
-    );
-
+    // Apply filters in-memory
     if (filters.isApproved !== undefined) {
-      shipments = await storage.getLogisticsShipmentsByApprovedStatus(
-        filters.isApproved
-      );
-    } else if (filters.status) {
-      shipments = await storage.getLogisticsShipmentsByStatus(filters.status);
-    } else if (filters.employeeId) {
-      shipments = await storage.getLogisticsShipmentsByEmployee(
-        filters.employeeId
-      );
-    } else if (filters.clientId) {
-      shipments = await storage.getLogisticsShipmentsByClient(filters.clientId);
-    } else if (filters.vendorId) {
-      shipments = await storage.getLogisticsShipmentsByVendor(filters.vendorId);
-    } else if (filters.startDate && filters.endDate) {
-      shipments = await storage.getLogisticsShipmentsByDateRange(
-        new Date(filters.startDate),
-        new Date(filters.endDate)
-      );
-    } else {
-      shipments = await storage.getLogisticsShipments();
+      shipments = shipments.filter(s => s.isApproved === filters.isApproved);
+    }
+    
+    if (filters.status) {
+      shipments = shipments.filter(s => s.currentStatus === filters.status);
+    }
+    
+    if (filters.clientId) {
+      shipments = shipments.filter(s => s.clientId === filters.clientId);
+    }
+    
+    if (filters.vendorId) {
+      shipments = shipments.filter(s => s.vendorId === filters.vendorId);
     }
 
-    // Additional filtering for employees to ensure they only see their shipments
+    if (filters.startDate && filters.endDate) {
+      const start = new Date(filters.startDate);
+      const end = new Date(filters.endDate);
+      shipments = shipments.filter(s => {
+        const created = new Date(s.createdAt);
+        return created >= start && created <= end;
+      });
+    }
+
+    // Role-based access control - employees can only see shipments assigned to them or created by them
     // Logistics personnel can see all shipments
     const isLogisticsPersonnel = req.user!.department?.toLowerCase() === "logistics";
     if (req.user!.role === "employee" && !isLogisticsPersonnel) {

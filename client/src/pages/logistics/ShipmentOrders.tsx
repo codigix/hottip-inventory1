@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Search, Filter, Download, ShoppingCart, Clock, CheckCircle, Package, TrendingUp, RefreshCw, Eye, Trash2, CheckCircle2, XCircle, Calendar, MapPin, Plane, Ship, Truck, ShieldCheck } from "lucide-react";
+import { useLocation } from "wouter";
+import { Plus, Search, Filter, Download, ShoppingCart, Clock, CheckCircle, Package, TrendingUp, RefreshCw, Eye, Trash2, CheckCircle2, XCircle, Calendar, MapPin, Plane, Ship, Truck, ShieldCheck, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,7 @@ interface LogisticsShipment {
   vendor?: { id: string; name: string; };
   vendorName?: string;
   clientName?: string;
+  plan?: any;
 }
 
 interface ShipmentMetrics {
@@ -76,6 +78,7 @@ interface ShipmentMetrics {
 
 export default function ShipmentOrders() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("customer");
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -112,10 +115,12 @@ export default function ShipmentOrders() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Shipment plan created successfully.",
+        description: "Shipment plan created successfully. Redirecting to tracking...",
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      // Redirect to Vendor Tracking
+      setLocation("/logistics/vendor-tracking");
     },
   });
 
@@ -126,10 +131,12 @@ export default function ShipmentOrders() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Shipment plan updated successfully.",
+        description: "Shipment plan updated successfully. Redirecting to tracking...",
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      // Redirect to Vendor Tracking
+      setLocation("/logistics/vendor-tracking");
     },
   });
 
@@ -159,6 +166,8 @@ export default function ShipmentOrders() {
         shipmentMode: "Import",
         incoterms: "FOB",
         status: "Planned",
+        plannedDispatch: selectedShipment.dispatchDate,
+        expectedArrival: selectedShipment.expectedDeliveryDate,
       });
     }
   }, [existingPlan, selectedShipment, isPlanningDialogOpen]);
@@ -239,22 +248,35 @@ export default function ShipmentOrders() {
 
   const filteredShipments = useMemo(() => {
     return shipments.filter(shipment => {
-      // First, filter by tab type
-      if (activeTab === "customer" && !shipment.clientId) return false;
-      if (activeTab === "vendor" && !shipment.vendorId) return false;
+      // First, apply search term filter if it exists
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const matchesSearch = 
+          shipment.consignmentNumber.toLowerCase().includes(query) ||
+          (shipment.poNumber || "").toLowerCase().includes(query) ||
+          shipment.source.toLowerCase().includes(query) ||
+          shipment.destination.toLowerCase().includes(query) ||
+          shipment.vendorName?.toLowerCase().includes(query) ||
+          shipment.clientName?.toLowerCase().includes(query) ||
+          shipment.client?.name?.toLowerCase().includes(query) ||
+          shipment.vendor?.name?.toLowerCase().includes(query);
+        
+        if (!matchesSearch) return false;
+      }
 
-      if (!searchTerm) return true;
-      const query = searchTerm.toLowerCase();
-      return (
-        shipment.consignmentNumber.toLowerCase().includes(query) ||
-        (shipment.poNumber || "").toLowerCase().includes(query) ||
-        shipment.source.toLowerCase().includes(query) ||
-        shipment.destination.toLowerCase().includes(query) ||
-        shipment.vendorName?.toLowerCase().includes(query) ||
-        shipment.clientName?.toLowerCase().includes(query) ||
-        shipment.client?.name?.toLowerCase().includes(query) ||
-        shipment.vendor?.name?.toLowerCase().includes(query)
-      );
+      // Then, filter by tab type
+      if (activeTab === "customer") {
+        // Show if explicitly a client shipment OR if it doesn't have explicit vendor IDs
+        // This ensures auto-created SO shipments (which might have null clientId but are still customer-facing) show here
+        return !!shipment.clientId || !!shipment.clientName || (!shipment.vendorId && !shipment.vendorName);
+      }
+      
+      if (activeTab === "vendor") {
+        // Show only if it has explicit vendor IDs (direct or joined)
+        return !!shipment.vendorId || !!shipment.vendorName;
+      }
+
+      return true;
     });
   }, [shipments, searchTerm, activeTab]);
 
@@ -430,7 +452,7 @@ export default function ShipmentOrders() {
                         <TableCell className="py-4">
                           <div className="flex flex-col gap-1">
                             {getStatusBadge(shipment.currentStatus)}
-                            {shipment.isApproved ? (
+                            {shipment.isApproved === true ? (
                               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] w-fit">
                                 <ShieldCheck className="h-3 w-3 mr-1" /> Approved
                               </Badge>
@@ -475,6 +497,17 @@ export default function ShipmentOrders() {
                             >
                               <Calendar className="h-4 w-4" />
                             </Button>
+                            {shipment.plan && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"
+                                onClick={() => setLocation("/logistics/vendor-tracking")}
+                                title="Go to Tracking"
+                              >
+                                <Route className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button 
                               variant="ghost" 
                               size="icon" 

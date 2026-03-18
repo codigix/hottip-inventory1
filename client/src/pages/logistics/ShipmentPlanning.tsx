@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, Legend
 } from "recharts";
-import { Plus, Search, Filter, Download, Calendar as CalendarIcon, MapPin, Route, Clock, TrendingUp, Eye, Package, ShoppingCart, Ship, Plane, Truck, ShieldCheck, CheckCircle2, MoreVertical, Edit, FileText, Anchor } from "lucide-react";
+import { Plus, Search, Filter, Download, Calendar as CalendarIcon, MapPin, Route, Clock, TrendingUp, Eye, Package, ShoppingCart, Ship, Plane, Truck, ShieldCheck, CheckCircle2, MoreVertical, Edit, FileText, Anchor, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -133,6 +134,7 @@ const typeDistribution = [
 
 export default function ShipmentPlanning() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("list");
   const [isPlanningDialogOpen, setIsPlanningDialogOpen] = useState(false);
@@ -165,10 +167,12 @@ export default function ShipmentPlanning() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Shipment plan created successfully.",
+        description: "Shipment plan created successfully. Redirecting to tracking...",
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      // Redirect to Vendor Tracking after successful planning
+      setLocation("/logistics/vendor-tracking");
     },
     onError: (error: any) => {
       toast({
@@ -186,15 +190,37 @@ export default function ShipmentPlanning() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Shipment plan updated successfully.",
+        description: "Shipment plan updated successfully. Redirecting to tracking...",
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      // Redirect to Vendor Tracking after successful planning
+      setLocation("/logistics/vendor-tracking");
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update shipment plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteShipmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/logistics/shipments/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete shipment order",
         variant: "destructive",
       });
     },
@@ -444,6 +470,33 @@ export default function ShipmentPlanning() {
                             >
                               <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
                             </Button>
+                            {shipment.plan && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white h-8"
+                                onClick={() => setLocation("/logistics/vendor-tracking")}
+                              >
+                                <Route className="h-4 w-4 mr-2" /> Tracking
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                                  deleteShipmentMutation.mutate(shipment.id);
+                                }
+                              }}
+                              disabled={deleteShipmentMutation.isPending}
+                            >
+                              {deleteShipmentMutation.isPending ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -542,6 +595,12 @@ export default function ShipmentPlanning() {
       {/* Shipment Planning Dialog */}
       <Dialog open={isPlanningDialogOpen} onOpenChange={setIsPlanningDialogOpen}>
         <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{isReadOnly ? "View Shipment Plan" : "Shipment Planning"}</DialogTitle>
+            <DialogDescription>
+              Optimize routes and schedule future shipments
+            </DialogDescription>
+          </DialogHeader>
           <div className="bg-primary px-6 py-8 text-white sticky top-0 z-10">
             <div className="flex justify-between items-start">
               <div>

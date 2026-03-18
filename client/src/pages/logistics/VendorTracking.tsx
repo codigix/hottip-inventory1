@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
-  Package, 
   Factory, 
   Truck, 
   FileText, 
@@ -22,7 +21,10 @@ import {
   Info,
   Eye,
   Box,
-  Calendar as CalendarIcon
+  Package,
+  Calendar as CalendarIcon,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,9 +55,8 @@ import { getNextStatus, getPreviousStatus } from "@shared/schema";
 import { openAuthenticatedPdf } from "@/lib/utils";
 
 const trackingStages = [
-  { id: 'created', label: 'Created', icon: Package, color: 'bg-slate-50 text-slate-500', description: 'Shipment created' },
   { id: 'planned', label: 'Planned', icon: CalendarIcon, color: 'bg-slate-100 text-slate-600', description: 'Shipment plan created' },
-  { id: 'packed', label: 'Packed', icon: Box, color: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
+  { id: 'packed', label: 'Packed', icon: Package, color: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
   { id: 'dispatched', label: 'Dispatched', icon: Truck, color: 'bg-blue-50 text-blue-500', description: 'Shipment left warehouse' },
   { id: 'vendor_ready', label: 'Vendor Ready', icon: Factory, color: 'bg-purple-100 text-purple-600', description: 'Material ready at vendor factory' },
   { id: 'picked_up', label: 'Picked Up', icon: Truck, color: 'bg-blue-100 text-blue-600', description: 'Forwarder collected shipment' },
@@ -116,6 +117,26 @@ export default function VendorTracking() {
     },
   });
 
+  const deleteShipmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/logistics/shipments/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete shipment order",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStatusUpdate = (shipmentId: string, newStatus: string) => {
     updateStatusMutation.mutate({ shipmentId, status: newStatus });
   };
@@ -123,6 +144,16 @@ export default function VendorTracking() {
   const processedData = useMemo(() => {
     // Show all shipments that have some tracking progress or plan
     return shipments
+      .filter(item => {
+        // Only show vendor shipments in Vendor Tracking (direct or via PO join)
+        if (!item.vendorId && !item.vendorName) return false;
+
+        const plan = item.plan || {};
+        const status = (item.currentStatus || plan.status || "created").toLowerCase().replace(/\s+/g, '_');
+        
+        // Show all vendor shipments even if they are just 'created'
+        return true;
+      })
       .map(item => {
         const plan = item.plan || {};
         
@@ -350,6 +381,23 @@ export default function VendorTracking() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                              deleteShipmentMutation.mutate(item.dbId);
+                            }
+                          }}
+                          disabled={deleteShipmentMutation.isPending}
+                        >
+                          {deleteShipmentMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -365,7 +413,7 @@ export default function VendorTracking() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center">
-              <Package className="mr-2 h-6 w-6 text-primary" />
+              <Box className="mr-2 h-6 w-6 text-primary" />
               Shipment Details: {selectedShipment?.id}
             </DialogTitle>
             <DialogDescription>
@@ -580,7 +628,7 @@ export default function VendorTracking() {
                 {/* Shipment Items */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center">
-                    <Package className="mr-2 h-4 w-4" /> Shipment Items
+                    <Box className="mr-2 h-4 w-4" /> Shipment Items
                   </h3>
                   <div className="border rounded-xl overflow-hidden">
                     <Table>
