@@ -134,6 +134,7 @@ export default function DeliveryChallans() {
               <TableRow className="hover:bg-transparent border-slate-200">
                 <TableHead className="py-4 font-semibold text-slate-700">Challan #</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700">Consignment #</TableHead>
+                <TableHead className="py-4 font-semibold text-slate-700">PO #</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700">Client / Vendor</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700">Route</TableHead>
                 <TableHead className="py-4 font-semibold text-slate-700 text-right">Delivery Date</TableHead>
@@ -152,9 +153,9 @@ export default function DeliveryChallans() {
                   <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
                     <TableCell className="font-bold text-primary py-4">DC-{item.consignmentNumber.split('-').pop()}</TableCell>
                     <TableCell className="py-4 font-medium">{item.consignmentNumber}</TableCell>
+                    <TableCell className="py-4 font-medium">{item.poNumber || "N/A"}</TableCell>
                     <TableCell className="py-4">
                       <div className="font-medium text-slate-900">{item.clientName || item.vendorName || "N/A"}</div>
-                      <div className="text-[10px] text-muted-foreground">PO: {item.poNumber || "N/A"}</div>
                     </TableCell>
                     <TableCell className="py-4 text-xs text-slate-500">
                       <div className="flex items-center">

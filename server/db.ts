@@ -155,11 +155,22 @@ export const db = drizzle(pool, { schema });
         "department" text NOT NULL,
         "status" text NOT NULL DEFAULT 'DRAFT',
         "purpose" text NOT NULL DEFAULT 'Purchase Request',
+        "quotationId" uuid REFERENCES outbound_quotations(id),
         "requiredBy" timestamp,
         "notes" text,
         "createdAt" timestamp NOT NULL DEFAULT now(),
         "updatedAt" timestamp NOT NULL DEFAULT now()
       )
+    `);
+
+    // Ensure missing columns are added to material_requests if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'material_requests' AND column_name = 'quotationId') THEN
+          ALTER TABLE "material_requests" ADD COLUMN "quotationId" uuid REFERENCES outbound_quotations(id);
+        END IF;
+      END $$;
     `);
 
     // ✅ Ensure material_request_items table exists
@@ -284,7 +295,84 @@ export const db = drizzle(pool, { schema });
       END $$;
     `);
 
-    // Ensure logistics_shipment_plans table exists
+    // ✅ Ensure accounts_receivables table exists with all required columns
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "accounts_receivables" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "invoiceId" uuid REFERENCES invoices(id),
+        "customerId" uuid NOT NULL REFERENCES customers(id),
+        "amountDue" numeric(10, 2) NOT NULL,
+        "amountPaid" numeric(10, 2) DEFAULT 0,
+        "dueDate" timestamp NOT NULL,
+        "notes" text,
+        "status" text NOT NULL DEFAULT 'pending',
+        "paymentMode" text,
+        "paymentDate" timestamp,
+        "paymentDetails" jsonb,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
+    // Ensure missing columns are added to accounts_receivables if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_receivables' AND column_name = 'paymentMode') THEN
+          ALTER TABLE "accounts_receivables" ADD COLUMN "paymentMode" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_receivables' AND column_name = 'paymentDate') THEN
+          ALTER TABLE "accounts_receivables" ADD COLUMN "paymentDate" timestamp;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_receivables' AND column_name = 'paymentDetails') THEN
+          ALTER TABLE "accounts_receivables" ADD COLUMN "paymentDetails" jsonb;
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure accounts_payables table exists with all required columns
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "accounts_payables" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "poId" uuid,
+        "inboundQuotationId" uuid REFERENCES inbound_quotations(id),
+        "supplierId" uuid NOT NULL,
+        "amountDue" numeric(10, 2) NOT NULL,
+        "amountPaid" numeric(10, 2) DEFAULT 0,
+        "dueDate" timestamp NOT NULL,
+        "notes" text,
+        "status" text NOT NULL DEFAULT 'pending',
+        "paymentMode" text,
+        "paymentDate" timestamp,
+        "paymentDetails" jsonb,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
+    // Ensure missing columns are added to accounts_payables if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'paymentMode') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "paymentMode" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'paymentDate') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "paymentDate" timestamp;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'paymentDetails') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "paymentDetails" jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'amountPaid') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "amountPaid" numeric(10, 2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'dueDate') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "dueDate" timestamp;
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure logistics_shipment_plans table exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS "logistics_shipment_plans" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -362,6 +450,71 @@ export const db = drizzle(pool, { schema });
         `, [requestId, row.id, 50, row.unit || 'pcs', 'Testing item']);
       }
     }
+
+    // ✅ DROP foreign key constraint on accounts_payables.supplierId
+    // Since supplierId can come from customers or suppliers (vendors) through inbound quotations, 
+    // it should not have a hard FK constraint.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 
+          FROM information_schema.table_constraints 
+          WHERE constraint_name = 'accounts_payables_supplierId_fkey' 
+          AND table_name = 'accounts_payables'
+        ) THEN
+          ALTER TABLE "accounts_payables" DROP CONSTRAINT "accounts_payables_supplierId_fkey";
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure accounts_payables table exists with all required columns
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "accounts_payables" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "poId" uuid,
+        "inboundQuotationId" uuid,
+        "supplierId" uuid NOT NULL,
+        "amountDue" numeric(10, 2) NOT NULL,
+        "amountPaid" numeric(10, 2) DEFAULT 0,
+        "dueDate" timestamp NOT NULL,
+        "notes" text,
+        "status" text NOT NULL DEFAULT 'pending',
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
+    // Ensure missing columns are added to accounts_payables if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'amountPaid') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "amountPaid" numeric(10, 2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'dueDate') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "dueDate" timestamp;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'poId') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "poId" uuid;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'inboundQuotationId') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "inboundQuotationId" uuid;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'notes') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "notes" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'status') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "status" text NOT NULL DEFAULT 'pending';
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'createdAt') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "createdAt" timestamp DEFAULT now();
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'accounts_payables' AND column_name = 'updatedAt') THEN
+          ALTER TABLE "accounts_payables" ADD COLUMN "updatedAt" timestamp DEFAULT now();
+        END IF;
+      END $$;
+    `);
 
     client.release();
   } catch (err) {

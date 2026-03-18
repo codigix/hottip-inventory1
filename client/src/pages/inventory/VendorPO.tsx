@@ -212,6 +212,61 @@ export default function VendorPO() {
     },
   });
 
+  const downloadPOMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const blob = await apiRequest(`/purchase-orders/${id}/pdf`, {
+        method: "GET",
+        responseType: "blob"
+      });
+      
+      const fileURL = URL.createObjectURL(blob);
+      const fileLink = document.createElement('a');
+      fileLink.href = fileURL;
+      
+      const po = purchaseOrders.find((p: any) => p.id === id);
+      fileLink.download = `PO-${po?.poNumber || id}.pdf`;
+      
+      document.body.appendChild(fileLink);
+      fileLink.click();
+      
+      document.body.removeChild(fileLink);
+      window.URL.revokeObjectURL(fileURL);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Purchase Order PDF downloaded.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download PDF",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendToAccountsMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/purchase-orders/${id}/send-to-accounts`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Purchase Order sent to accounts payables.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/purchase-orders"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send to accounts",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setPoItems([{ id: Math.random().toString(36).substr(2, 9), itemName: "", description: "", quantity: 1, unit: "pcs", unitPrice: 0, amount: 0 }]);
     setPoSupplier("");
@@ -495,6 +550,26 @@ export default function VendorPO() {
                         disabled={createShipmentMutation.isPending}
                       >
                         <Truck className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                        title="Download PO PDF"
+                        onClick={() => downloadPOMutation.mutate(po.id)}
+                        disabled={downloadPOMutation.isPending}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
+                        title="Send to Accounts"
+                        onClick={() => sendToAccountsMutation.mutate(po.id)}
+                        disabled={sendToAccountsMutation.isPending || po.status === "processing"}
+                      >
+                        <Send className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="ghost" 

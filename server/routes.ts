@@ -163,6 +163,8 @@ const requireAuth = async (
   try {
     const authHeader = req.headers.authorization;
     
+    console.log(`[Auth] Path: ${req.path}, Authorization: ${authHeader ? 'Present' : 'Missing'}`);
+
     // DEVELOPMENT MODE BYPASS: Only if NO authentication token is provided
     if (process.env.NODE_ENV === "development" && !authHeader) {
       // Set a default admin user for development
@@ -178,6 +180,7 @@ const requireAuth = async (
     }
 
     if (!authHeader) {
+      console.log(`[Auth] 401 - Missing Authorization header for ${req.path}`);
       res.status(401).json({ error: "Authentication required" });
       return;
     }
@@ -206,7 +209,8 @@ const requireAuth = async (
         };
         next();
         return;
-      } catch (jwtError) {
+      } catch (jwtError: any) {
+        console.error(`[Auth] JWT Verification failed for ${req.path}: ${jwtError.message}`);
         // In production, JWT failure is final
         if (process.env.NODE_ENV === "production") {
           res.status(401).json({ error: "Invalid authentication token" });

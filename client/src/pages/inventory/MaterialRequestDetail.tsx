@@ -15,7 +15,8 @@ import {
   Calendar,
   MoreVertical,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
+  CheckCircle
 } from "lucide-react";
 import { 
   Card, 
@@ -33,17 +34,70 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Link, useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useRoute, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function MaterialRequestDetail() {
   const [, params] = useRoute("/inventory/material-requests/:id");
+  const [, setLocation] = useLocation();
   const id = params?.id;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: request, isLoading } = useQuery({
-    queryKey: [`/material-requests/${id}`],
+  const { data: request, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: [`/api/material-requests/${id}`],
     enabled: !!id,
+  });
+
+  const generateRFQMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/material-requests/${id}/generate-rfq`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "RFQ Generated",
+        description: "Request for Quotation has been created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+      setLocation("/inventory/vendor-quotations");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const releaseMaterialMutation = useMutation({
+    mutationFn: async () => {
+      const itemsToRelease = lineItems.map((item: any) => ({
+        productId: item.productId,
+        quantity: item.quantity
+      }));
+      return apiRequest("POST", `/api/material-requests/${id}/release`, {
+        items: itemsToRelease
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Materials Released",
+        description: "Material release processed and inventory updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -154,8 +208,15 @@ export default function MaterialRequestDetail() {
                 </div>
                 <CardTitle className="text-lg">Line Items</CardTitle>
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-blue-600 border-blue-100 bg-blue-50/50">
-                <RefreshCw className="mr-2 h-3.5 w-3.5" /> Refresh Stock
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-blue-600 border-blue-100 bg-blue-50/50"
+                onClick={() => refetch()}
+                disabled={isRefetching}
+              >
+                <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} /> 
+                {isRefetching ? "Refreshing..." : "Refresh Stock"}
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -173,45 +234,52 @@ export default function MaterialRequestDetail() {
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No items in this request.</TableCell>
                     </TableRow>
-                  ) : lineItems.map((item: any) => (
-                    <TableRow key={item.id} className="group">
-                      <TableCell className="py-5 px-6">
-                        <div className="space-y-1">
-                          <p className="text-[0.7rem] font-medium text-slate-400 uppercase tracking-wider">
-                            {item.productSku || item.sparePartNumber || (item.notes ? "ITEM" : "N/A")}
-                          </p>
-                          <p className="text-sm font-semibold text-slate-700">
-                            {item.productName || item.sparePartName || item.notes || "Unknown Item"}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-5 px-6 text-center font-medium">
-                        {item.quantity} {item.unit}
-                      </TableCell>
-                      <TableCell className="py-5 px-6 text-center">
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-slate-700">Check Stock</p>
-                          <p className="text-[0.7rem] text-blue-500 font-medium">Main Warehouse</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-5 px-6 text-right">
-                        <div className="flex flex-col items-end gap-1">
-                          <Badge variant="outline" 
-                            className={`text-[0.65rem] font-medium px-1.5 py-0 ${
-                              item.status === "in stock" 
-                                ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                : "bg-red-50 text-red-600 border-red-100"
-                            }`}
-                          >
-                            {item.status || "PENDING"}
-                          </Badge>
-                          <Badge variant="outline" className="text-[0.65rem] font-medium bg-slate-100/50 border-slate-200 px-1.5 py-0">
-                            {request.status}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  ) : lineItems.map((item: any) => {
+                    const stockValue = item.productId ? item.productStock : item.sparePartStock;
+                    const isOutOfStock = stockValue < item.quantity;
+                    
+                    return (
+                      <TableRow key={item.id} className="group">
+                        <TableCell className="py-5 px-6">
+                          <div className="space-y-1">
+                            <p className="text-[0.7rem] font-medium text-slate-400 uppercase tracking-wider">
+                              {item.productSku || item.sparePartNumber || (item.notes ? "ITEM" : "N/A")}
+                            </p>
+                            <p className="text-sm font-semibold text-slate-700">
+                              {item.productName || item.sparePartName || item.notes || "Unknown Item"}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-5 px-6 text-center font-medium">
+                          {item.quantity} {item.unit}
+                        </TableCell>
+                        <TableCell className="py-5 px-6 text-center">
+                          <div className="space-y-1">
+                            <p className={`text-sm font-bold ${isOutOfStock ? 'text-red-600' : 'text-slate-700'}`}>
+                              {stockValue != null ? `${stockValue} ${item.unit}` : "Check Stock"}
+                            </p>
+                            <p className="text-[0.7rem] text-blue-500 font-medium">Main Warehouse</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-5 px-6 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" 
+                              className={`text-[0.65rem] font-medium px-1.5 py-0 ${
+                                !isOutOfStock 
+                                  ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                  : "bg-red-50 text-red-600 border-red-100"
+                              }`}
+                            >
+                              {!isOutOfStock ? "In Stock" : "Out of Stock"}
+                            </Badge>
+                            <Badge variant="outline" className="text-[0.65rem] font-medium bg-slate-100/50 border-slate-200 px-1.5 py-0">
+                              {request.status}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -321,15 +389,51 @@ export default function MaterialRequestDetail() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Notes Card */}
+          {request.notes && (
+            <Card className="shadow-sm border-slate-200/60 overflow-hidden">
+              <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
+                <div className="flex items-center space-x-2 text-slate-500">
+                  <Info className="h-4 w-4" />
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider">Request Notes & Details</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5">
+                <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed">
+                  {request.notes}
+                </pre>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
       {/* Footer Actions */}
       <div className="fixed bottom-0 right-0 left-[320px] bg-white border-t border-slate-100 p-4 flex justify-end items-center space-x-3 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-10">
         <Button variant="ghost" className="text-slate-500 font-medium px-8 h-11">Cancel</Button>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-11 rounded-lg">
-          Request Quote (RFQ) <Send className="ml-2 h-4 w-4" />
-        </Button>
+        
+        {request.status !== "FULFILLED" && request.status !== "CANCELLED" && (
+          <>
+            <Button 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11 rounded-lg"
+              onClick={() => releaseMaterialMutation.mutate()}
+              disabled={releaseMaterialMutation.isPending || lineItems.some((item: any) => (item.productId ? item.productStock : item.sparePartStock) < item.quantity)}
+            >
+              {releaseMaterialMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Release Material
+            </Button>
+
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-11 rounded-lg"
+              onClick={() => generateRFQMutation.mutate()}
+              disabled={generateRFQMutation.isPending}
+            >
+              {generateRFQMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}
+              Request Quote (RFQ)
+            </Button>
+          </>
+        )}
       </div>
       <div className="h-20"></div> {/* Spacer for fixed footer */}
     </div>

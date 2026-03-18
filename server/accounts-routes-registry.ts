@@ -9,6 +9,7 @@ import {
   accountsPayables,
   suppliers,
   inboundQuotations,
+  purchaseOrders,
   gstReturns,
   accountTasks,
   insertAccountTaskSchema,
@@ -66,29 +67,13 @@ export function registerAccountsRoutes(app: Express) {
 
       const totalReceivables = receivablesResult[0]?.total || 0;
 
-      // Get total outstanding payables
-      let totalPayables = 0;
-      try {
-        const payablesResult = await db
-          .select({
-            total: sql<number>`SUM(${accountsPayables.amountDue} - ${accountsPayables.amountPaid})`,
-          })
-          .from(accountsPayables)
-          .where(sql`${accountsPayables.status} != 'paid'`);
-
-        totalPayables = payablesResult[0]?.total || 0;
-      } catch (error) {
-        console.error("Error fetching payables total:", error);
-        totalPayables = 0;
-      }
-
       // For cash flow, we could calculate based on recent transactions
       // For now, return 0 as placeholder
       const cashFlow = { inflow: 0, outflow: 0 };
 
       res.json({
         totalReceivables,
-        totalPayables,
+        totalPayables: 0,
         cashFlow,
       });
     } catch (error) {
@@ -213,65 +198,6 @@ export function registerAccountsRoutes(app: Express) {
                 : 0,
           },
         };
-      } else if (
-        reportType === "payables" ||
-        reportType === "Accounts Payable"
-      ) {
-        title = "Accounts Payable Report";
-
-        try {
-          const payables = await db
-            .select({
-              id: accountsPayables.id,
-              poId: accountsPayables.poId,
-              supplierId: accountsPayables.supplierId,
-              amountDue: accountsPayables.amountDue,
-              amountPaid: accountsPayables.amountPaid,
-              dueDate: accountsPayables.dueDate,
-              status: accountsPayables.status,
-              createdAt: accountsPayables.createdAt,
-              supplier: {
-                id: suppliers.id,
-                name: suppliers.name,
-              },
-            })
-            .from(accountsPayables)
-            .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
-            .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
-            .orderBy(accountsPayables.createdAt);
-
-          const totalAmount = payables.reduce(
-            (sum, p) => sum + parseFloat(p.amountDue),
-            0
-          );
-          const totalPaid = payables.reduce(
-            (sum, p) => sum + parseFloat(p.amountPaid || 0),
-            0
-          );
-          const totalOutstanding = totalAmount - totalPaid;
-
-          reportData = {
-            payables,
-            summary: {
-              totalAmount,
-              totalPaid,
-              totalOutstanding,
-              recordCount: payables.length,
-            },
-          };
-        } catch (error) {
-          console.error("Error fetching payables data:", error);
-          // Return empty data if table doesn't exist
-          reportData = {
-            payables: [],
-            summary: {
-              totalAmount: 0,
-              totalPaid: 0,
-              totalOutstanding: 0,
-              recordCount: 0,
-            },
-          };
-        }
       } else {
         return res.status(400).json({ message: "Invalid report type" });
       }
@@ -380,9 +306,14 @@ export function registerAccountsRoutes(app: Express) {
             id: customers.id,
             name: customers.name,
           },
+          invoice: {
+            id: invoices.id,
+            invoiceNumber: invoices.invoiceNumber,
+          },
         })
         .from(accountsReceivables)
         .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+        .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
         .orderBy(accountsReceivables.createdAt);
 
       res.json(receivables);
@@ -511,7 +442,7 @@ export function registerAccountsRoutes(app: Express) {
     async (req, res) => {
       try {
         const { id } = req.params;
-        const { amount, notes } = req.body;
+        const { amount, notes, paymentMode, paymentDate, paymentDetails } = req.body;
 
         if (!amount || isNaN(parseFloat(amount))) {
           return res.status(400).json({ message: "Valid amount is required" });
@@ -546,6 +477,9 @@ export function registerAccountsRoutes(app: Express) {
           .set({
             amountPaid: newAmountPaid,
             status: newStatus,
+            paymentMode: paymentMode || receivable.paymentMode,
+            paymentDate: paymentDate ? new Date(paymentDate) : (receivable.paymentDate || new Date()),
+            paymentDetails: paymentDetails || receivable.paymentDetails,
             notes: notes
               ? `${receivable.notes || ""}\nPayment: ${amount} (${notes})`
               : receivable.notes,
@@ -581,13 +515,31 @@ export function registerAccountsRoutes(app: Express) {
           supplier: {
             id: suppliers.id,
             name: suppliers.name,
-            email: suppliers.email,
-            phone: suppliers.phone,
+          },
+          user: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            username: users.username,
+          },
+          purchaseOrder: {
+            id: purchaseOrders.id,
+            poNumber: purchaseOrders.poNumber,
+          },
+          inboundQuotation: {
+            id: inboundQuotations.id,
+            quotationNumber: inboundQuotations.quotationNumber,
           },
         })
         .from(accountsPayables)
         .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
-        .orderBy(accountsPayables.id);
+        .leftJoin(users, eq(accountsPayables.supplierId, users.id))
+        .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+        .leftJoin(
+          inboundQuotations,
+          eq(accountsPayables.inboundQuotationId, inboundQuotations.id)
+        )
+        .orderBy(accountsPayables.createdAt);
 
       res.json(payables);
     } catch (error) {
@@ -642,17 +594,20 @@ export function registerAccountsRoutes(app: Express) {
           inboundQuotationId: validatedData.inboundQuotationId || null,
           supplierId: validatedData.supplierId,
           amountDue: validatedData.amountDue.toString(),
-          dueDate: validatedData.dueDate
-            ? new Date(validatedData.dueDate)
-            : null,
+          amountPaid: validatedData.amountPaid ? validatedData.amountPaid.toString() : "0",
+          dueDate: new Date(validatedData.dueDate),
           notes: validatedData.notes,
+          status: validatedData.status || "pending",
         })
         .returning();
 
       res.status(201).json(payable[0]);
     } catch (error) {
       console.error("Error creating payable:", error);
-      res.status(400).json({ message: "Invalid data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -669,10 +624,11 @@ export function registerAccountsRoutes(app: Express) {
           inboundQuotationId: validatedData.inboundQuotationId || null,
           supplierId: validatedData.supplierId,
           amountDue: validatedData.amountDue.toString(),
-          dueDate: validatedData.dueDate
-            ? new Date(validatedData.dueDate)
-            : null,
+          amountPaid: validatedData.amountPaid ? validatedData.amountPaid.toString() : "0",
+          dueDate: new Date(validatedData.dueDate),
           notes: validatedData.notes,
+          status: validatedData.status || "pending",
+          updatedAt: new Date(),
         })
         .where(eq(accountsPayables.id, id))
         .returning();
@@ -709,14 +665,14 @@ export function registerAccountsRoutes(app: Express) {
     }
   });
 
-  // Record payment for payable
+  // Record payable payment
   app.post(
     "/api/accounts-payables/:id/payment",
     requireAuth,
     async (req, res) => {
       try {
         const { id } = req.params;
-        const { amount, notes } = req.body;
+        const { amount, notes, paymentMode, paymentDate, paymentDetails } = req.body;
 
         if (!amount || isNaN(parseFloat(amount))) {
           return res.status(400).json({ message: "Valid amount is required" });
@@ -735,21 +691,23 @@ export function registerAccountsRoutes(app: Express) {
 
         const payable = current[0];
         const newAmountPaid =
-          parseFloat(payable.amountPaid || 0) + parseFloat(amount);
-        const remainingAmount = parseFloat(payable.amountDue) - newAmountPaid;
+          parseFloat(payable.amountPaid || "0") + parseFloat(amount);
+        const remainingAmount =
+          parseFloat(payable.amountDue) - newAmountPaid;
 
         let newStatus = "partial";
         if (remainingAmount <= 0) {
           newStatus = "paid";
-        } else if (remainingAmount < parseFloat(payable.amountDue)) {
-          newStatus = "partial";
         }
 
         const updated = await db
           .update(accountsPayables)
           .set({
-            amountPaid: newAmountPaid,
+            amountPaid: newAmountPaid.toString(),
             status: newStatus,
+            paymentMode: paymentMode || payable.paymentMode,
+            paymentDate: paymentDate ? new Date(paymentDate) : (payable.paymentDate || new Date()),
+            paymentDetails: paymentDetails || payable.paymentDetails,
             notes: notes
               ? `${payable.notes || ""}\nPayment: ${amount} (${notes})`
               : payable.notes,

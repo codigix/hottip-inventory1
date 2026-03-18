@@ -119,6 +119,7 @@ export const materialRequests = pgTable("material_requests", {
   department: text("department").notNull(),
   status: materialRequestStatus("status").notNull().default("DRAFT"),
   purpose: text("purpose").notNull().default("Purchase Request"),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
   requiredBy: timestamp("requiredBy"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -559,6 +560,7 @@ export const quotationStatus = pgEnum("quotation_status", [
   "rejected",
   "received",
   "under_review",
+  "rfq",
 ]);
 
 export const outboundQuotations = pgTable("outbound_quotations", {
@@ -757,6 +759,15 @@ export const accountsReceivableStatus = pgEnum("accounts_receivable_status", [
   "overdue",
 ]);
 
+export const paymentMode = pgEnum("payment_mode", [
+  "bank_transfer",
+  "upi",
+  "cheque",
+  "cash",
+  "credit_card",
+  "debit_card",
+]);
+
 export const accountsReceivables = pgTable("accounts_receivables", {
   id: uuid("id").defaultRandom().primaryKey(),
   invoiceId: uuid("invoiceId")
@@ -770,6 +781,9 @@ export const accountsReceivables = pgTable("accounts_receivables", {
   dueDate: timestamp("dueDate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
+  paymentMode: paymentMode("paymentMode"),
+  paymentDate: timestamp("paymentDate"),
+  paymentDetails: jsonb("paymentDetails"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -779,20 +793,23 @@ export const accountsReceivables = pgTable("accounts_receivables", {
 // =====================
 export const accountsPayables = pgTable("accounts_payables", {
   id: uuid("id").defaultRandom().primaryKey(),
-  poId: uuid("poid"),
-  inboundQuotationId: uuid("inboundquotationid").references(
+  poId: uuid("poId"),
+  inboundQuotationId: uuid("inboundQuotationId").references(
     () => inboundQuotations.id
   ),
-  supplierId: uuid("supplierid")
+  supplierId: uuid("supplierId")
     .notNull()
     .references(() => suppliers.id),
-  amountDue: numeric("amountdue", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default("0"),
-  dueDate: timestamp("duedate").notNull(),
+  amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default("0"),
+  dueDate: timestamp("dueDate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
-  createdAt: timestamp("createdat").defaultNow().notNull(),
-  updatedAt: timestamp("updatedat").defaultNow().notNull(),
+  paymentMode: paymentMode("paymentMode"),
+  paymentDate: timestamp("paymentDate"),
+  paymentDetails: jsonb("paymentDetails"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 // =====================

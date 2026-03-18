@@ -215,6 +215,41 @@ export default function VendorQuotations() {
     },
   });
 
+  const downloadRFQMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const blob = await apiRequest(`/vendor-quotations/${id}/pdf`, {
+        method: "GET",
+        responseType: "blob"
+      });
+      
+      const fileURL = URL.createObjectURL(blob);
+      const fileLink = document.createElement('a');
+      fileLink.href = fileURL;
+      
+      const q = quotations.find((item: any) => item.id === id);
+      fileLink.download = `RFQ-${q?.quotationNumber || id}.pdf`;
+      
+      document.body.appendChild(fileLink);
+      fileLink.click();
+      
+      document.body.removeChild(fileLink);
+      window.URL.revokeObjectURL(fileURL);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "RFQ PDF downloaded.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download PDF",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setRfqItems([{ id: Math.random().toString(36).substr(2, 9), materialName: "", type: "", designQty: 1, rate: 0, amount: 0 }]);
     setRfqVendor("");
@@ -557,6 +592,16 @@ export default function VendorQuotations() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
+                            className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                            title="Download PDF"
+                            onClick={() => downloadRFQMutation.mutate(q.id)}
+                            disabled={downloadRFQMutation.isPending}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
                             className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
                             onClick={() => {
                               if (window.confirm("Are you sure you want to delete this quotation?")) {
@@ -669,6 +714,16 @@ export default function VendorQuotations() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
+                            className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                            title="Download PDF"
+                            onClick={() => downloadRFQMutation.mutate(q.id)}
+                            disabled={downloadRFQMutation.isPending}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
                             className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
                             onClick={() => {
                               if (window.confirm("Are you sure you want to delete this quotation?")) {
@@ -698,7 +753,7 @@ export default function VendorQuotations() {
       </Tabs>
 
       <Dialog open={isReceivedQuoteDialogOpen} onOpenChange={setIsReceivedQuoteDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
           <DialogHeader className="px-5 py-3 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
             <div className="space-y-0.5">
               <DialogTitle className="text-base font-bold text-slate-800">Add Received Quotation</DialogTitle>
@@ -814,7 +869,9 @@ export default function VendorQuotations() {
                     <TableRow className="hover:bg-transparent border-slate-100 h-8">
                       <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0">Material Name</TableHead>
                       <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0">Type</TableHead>
-                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-center w-20">Qty</TableHead>
+                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-center w-16">Qty</TableHead>
+                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-right w-24">Rate</TableHead>
+                      <TableHead className="text-[10px] font-bold text-slate-400 uppercase h-8 py-0 text-right w-24">Amount</TableHead>
                       <TableHead className="h-8 py-0 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1163,8 +1220,12 @@ export default function VendorQuotations() {
                       <TableHead className="text-xs font-bold py-3">Material Name</TableHead>
                       <TableHead className="text-xs font-bold py-3">Type</TableHead>
                       <TableHead className="text-xs font-bold py-3 text-center">Qty</TableHead>
-                      <TableHead className="text-xs font-bold py-3 text-right">Rate</TableHead>
-                      <TableHead className="text-xs font-bold py-3 text-right">Amount</TableHead>
+                      {selectedQuotation?.status !== 'rfq' && (
+                        <>
+                          <TableHead className="text-xs font-bold py-3 text-right">Rate</TableHead>
+                          <TableHead className="text-xs font-bold py-3 text-right">Amount</TableHead>
+                        </>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1173,8 +1234,12 @@ export default function VendorQuotations() {
                         <TableCell className="text-sm py-3 font-medium">{item.materialName}</TableCell>
                         <TableCell className="text-sm py-3">{item.type}</TableCell>
                         <TableCell className="text-sm py-3 text-center">{item.designQty}</TableCell>
-                        <TableCell className="text-sm py-3 text-right">₹{(item.rate || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-sm py-3 text-right font-bold">₹{(item.amount || 0).toLocaleString()}</TableCell>
+                        {selectedQuotation?.status !== 'rfq' && (
+                          <>
+                            <TableCell className="text-sm py-3 text-right">₹{(item.rate || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-sm py-3 text-right font-bold">₹{(item.amount || 0).toLocaleString()}</TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1182,22 +1247,24 @@ export default function VendorQuotations() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <div className="w-72 space-y-3 bg-slate-50 p-5 rounded-xl border border-slate-100">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Subtotal</span>
-                  <span className="font-bold text-slate-700">₹{(selectedQuotation?.financialBreakdown?.subtotal || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm text-slate-500">
-                  <span>GST (18%)</span>
-                  <span className="font-bold">₹{(selectedQuotation?.financialBreakdown?.gst || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-                  <span className="text-indigo-600 font-extrabold">Total Amount</span>
-                  <span className="text-indigo-600 font-black text-xl">₹{(parseFloat(selectedQuotation?.totalAmount) || 0).toLocaleString()}</span>
+            {selectedQuotation?.status !== 'rfq' && (
+              <div className="flex justify-end">
+                <div className="w-72 space-y-3 bg-slate-50 p-5 rounded-xl border border-slate-100">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Subtotal</span>
+                    <span className="font-bold text-slate-700">₹{(selectedQuotation?.financialBreakdown?.subtotal || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-slate-500">
+                    <span>GST (18%)</span>
+                    <span className="font-bold">₹{(selectedQuotation?.financialBreakdown?.gst || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                    <span className="text-indigo-600 font-extrabold">Total Amount</span>
+                    <span className="text-indigo-600 font-black text-xl">₹{(parseFloat(selectedQuotation?.totalAmount) || 0).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {selectedQuotation?.notes && (
               <div className="space-y-2">

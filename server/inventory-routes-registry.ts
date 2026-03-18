@@ -8,10 +8,12 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
-import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
-import { sql, eq, lte } from "drizzle-orm";
+import { sql, eq, lte, desc } from "drizzle-orm";
+import { generatePurchaseOrderPDF, generateRFQPDF } from "./pdf-generator";
+import { numberToWords } from "./utils/number-to-words";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -933,8 +935,10 @@ export function registerInventoryRoutes(
           notes: materialRequestItems.notes,
           productName: products.name,
           productSku: products.sku,
+          productStock: products.stock,
           sparePartName: spareParts.name,
           sparePartNumber: spareParts.partNumber,
+          sparePartStock: spareParts.stock,
         })
         .from(materialRequestItems)
         .leftJoin(products, eq(materialRequestItems.productId, products.id))
@@ -993,6 +997,142 @@ export function registerInventoryRoutes(
     } catch (e) {
       console.error("Error deleting material request:", e);
       res.status(500).json({ error: "Failed to delete material request" });
+    }
+  });
+  
+  // Generate RFQ from Material Request
+  app.post("/api/material-requests/:id/generate-rfq", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Fetch the material request and its items
+      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      if (!request) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      const items = await db
+        .select({
+          id: materialRequestItems.id,
+          productId: materialRequestItems.productId,
+          sparePartId: materialRequestItems.sparePartId,
+          quantity: materialRequestItems.quantity,
+          unit: materialRequestItems.unit,
+          productName: products.name,
+          sparePartName: spareParts.name,
+        })
+        .from(materialRequestItems)
+        .leftJoin(products, eq(materialRequestItems.productId, products.id))
+        .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
+        .where(eq(materialRequestItems.requestId, id));
+
+      if (items.length === 0) {
+        return res.status(400).json({ error: "No items found in material request" });
+      }
+
+      // Find first available supplier as a placeholder
+      const [firstSupplier] = await db.select().from(suppliers).limit(1);
+      if (!firstSupplier) {
+        return res.status(400).json({ error: "No suppliers found. Please add a supplier first." });
+      }
+
+      const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}`;
+      
+      const quotationItems = items.map(item => ({
+        id: Math.random().toString(36).substr(2, 9),
+        materialName: item.productName || item.sparePartName || "Unknown Item",
+        type: item.productId ? "Product" : "Spare Part",
+        designQty: Number(item.quantity),
+        rate: 0,
+        amount: 0,
+      }));
+
+      const [newQuotation] = await db.insert(vendorQuotations).values({
+        quotationNumber,
+        quotationDate: new Date(),
+        status: "rfq",
+        senderId: firstSupplier.id,
+        userId: userId,
+        quotationItems: quotationItems,
+        totalAmount: "0",
+        financialBreakdown: {
+          subtotal: 0,
+          gst: 0,
+          total: 0
+        },
+        notes: `Auto-generated from Material Request ${request.requestNumber}`,
+      }).returning();
+
+      // Update material request status to PROCESSING
+      await db.update(materialRequests)
+        .set({ status: "PROCESSING", updatedAt: new Date() })
+        .where(eq(materialRequests.id, id));
+
+      res.status(201).json(newQuotation);
+    } catch (e) {
+      console.error("Error generating RFQ:", e);
+      res.status(500).json({ error: "Failed to generate RFQ" });
+    }
+  });
+
+  // Release material and update inventory
+  app.post("/api/material-requests/:id/release", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { items } = req.body; // Array of { productId, quantity }
+      const userId = req.user?.id;
+
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      if (!request) return res.status(404).json({ error: "Material request not found" });
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "No items provided for release" });
+      }
+
+      await db.transaction(async (tx) => {
+        for (const item of items) {
+          const { productId, quantity } = item;
+          
+          if (productId) {
+            // Create a stock transaction (OUT)
+            await tx.insert(stockTransactions).values({
+              userId: userId,
+              productId,
+              type: 'out',
+              reason: 'Material Release',
+              quantity: Number(quantity),
+              referenceNumber: request.requestNumber,
+              notes: `Released for Material Request ${request.requestNumber}`,
+            });
+
+            // Update product stock balance
+            await tx
+              .update(products)
+              .set({
+                stock: sql`${products.stock} - ${Number(quantity)}`,
+                updatedAt: new Date()
+              })
+              .where(eq(products.id, productId));
+          }
+        }
+
+        // Update request status to FULFILLED
+        await tx.update(materialRequests)
+          .set({ status: "FULFILLED", updatedAt: new Date() })
+          .where(eq(materialRequests.id, id));
+      });
+
+      res.status(200).json({ message: "Materials released successfully" });
+    } catch (e) {
+      console.error("Error releasing materials:", e);
+      res.status(500).json({ error: "Failed to release materials" });
     }
   });
 
@@ -1073,6 +1213,65 @@ export function registerInventoryRoutes(
     } catch (e) {
       console.error("Error deleting vendor quotation:", e);
       res.status(500).json({ error: "Failed to delete vendor quotation" });
+    }
+  });
+
+  // GET - generate RFQ PDF for vendor quotation
+  app.get("/api/vendor-quotations/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Fetch quotation with supplier
+      const [quotation] = await db
+        .select({
+          q: vendorQuotations,
+          supplier: suppliers,
+        })
+        .from(vendorQuotations)
+        .leftJoin(suppliers, eq(vendorQuotations.senderId, suppliers.id))
+        .where(eq(vendorQuotations.id, id));
+
+      if (!quotation) {
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+
+      const pdfData = {
+        company: {
+          name: "HOTTIP INVENTORY SYSTEM",
+          address: "Main Office, Industrial Area, Phase 1",
+          gstNo: "27AAACH1234A1Z1",
+          email: "procurement@hottip.com",
+          phone: "+91-9876543210"
+        },
+        supplier: {
+          name: quotation.supplier?.name || "N/A",
+          address: quotation.supplier?.address || "N/A",
+          gstNo: quotation.supplier?.gstNumber || "N/A",
+          phone: quotation.supplier?.phone || "N/A",
+          email: quotation.supplier?.email || "N/A"
+        },
+        rfq: {
+          quotationNumber: quotation.q.quotationNumber,
+          date: quotation.q.quotationDate ? new Date(quotation.q.quotationDate).toLocaleDateString() : "N/A",
+          validUntil: quotation.q.validUntil ? new Date(quotation.q.validUntil).toLocaleDateString() : "N/A",
+          subject: quotation.q.subject || "Request for Quotation",
+          notes: quotation.q.notes || "",
+          items: (quotation.q.quotationItems as any[]) || []
+        }
+      };
+
+      const pdfBuffer = await generateRFQPDF(pdfData as any);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=RFQ-${quotation.q.quotationNumber}.pdf`
+      );
+      res.end(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating RFQ PDF:", error);
+      res.status(500).json({ error: "Failed to generate RFQ PDF" });
     }
   });
 
@@ -1183,6 +1382,132 @@ export function registerInventoryRoutes(
     } catch (e) {
       console.error("Error deleting purchase order:", e);
       res.status(500).json({ error: "Failed to delete purchase order" });
+    }
+  });
+
+  // GET - generate purchase order PDF
+  app.get("/api/purchase-orders/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Fetch purchase order with items and supplier
+      const [order] = await db
+        .select({
+          po: purchaseOrders,
+          supplier: suppliers,
+        })
+        .from(purchaseOrders)
+        .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      const items = await db
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      const totalAmount = Number(order.po.totalAmount);
+      const subtotal = items.reduce((sum, item) => sum + Number(item.amount), 0);
+      const taxAmount = totalAmount - subtotal;
+
+      const pdfData = {
+        company: {
+          name: "HOTTIP INVENTORY SYSTEM",
+          address: "Main Office, Industrial Area, Phase 1",
+          gstNo: "27AAACH1234A1Z1",
+          email: "procurement@hottip.com",
+          phone: "+91-9876543210"
+        },
+        supplier: {
+          name: order.supplier?.name || "N/A",
+          address: order.supplier?.address || "N/A",
+          gstNo: order.supplier?.gstNumber || "N/A",
+          phone: order.supplier?.phone || "N/A",
+          email: order.supplier?.email || "N/A"
+        },
+        po: {
+          poNumber: order.po.poNumber,
+          date: order.po.orderDate ? new Date(order.po.orderDate).toLocaleDateString() : "N/A",
+          deliveryPeriod: order.po.expectedDelivery || "N/A",
+          subtotal: Number(subtotal) || 0,
+          gstAmount: Number(taxAmount) || 0,
+          total: Number(totalAmount) || 0,
+          amountInWords: numberToWords(Number(totalAmount) || 0),
+          notes: order.po.notes || "",
+          items: items.map(item => ({
+            description: item.itemName,
+            hsn: item.description || "N/A",
+            quantity: Number(item.quantity) || 0,
+            unit: item.unit || "pcs",
+            rate: Number(item.unitPrice) || 0,
+            amount: Number(item.amount) || 0
+          }))
+        }
+      };
+
+      const pdfBuffer = await generatePurchaseOrderPDF(pdfData as any);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=PO-${order.po.poNumber}.pdf`
+      );
+      res.end(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PO PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
+  // POST - send purchase order to accounts payables
+  app.post("/api/purchase-orders/:id/send-to-accounts", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      // Check if already sent
+      const [existing] = await db
+        .select()
+        .from(accountsPayables)
+        .where(eq(accountsPayables.poId, id));
+
+      if (existing) {
+        return res.status(400).json({ error: "Already sent to accounts" });
+      }
+
+      // Create accounts payable entry
+      await db.insert(accountsPayables).values({
+        supplierId: order.supplierId,
+        poId: order.id,
+        amountDue: order.totalAmount,
+        amountPaid: "0",
+        dueDate: order.expectedDelivery ? new Date() : new Date(), // Use delivery date or current
+        status: "pending",
+        notes: `Auto-generated from PO: ${order.poNumber}`,
+      });
+
+      // Update PO status
+      await db
+        .update(purchaseOrders)
+        .set({ status: "processing" })
+        .where(eq(purchaseOrders.id, id));
+
+      res.json({ success: true, message: "Successfully sent to accounts" });
+    } catch (error) {
+      console.error("Error sending to accounts:", error);
+      res.status(500).json({ error: "Failed to send to accounts" });
     }
   });
 }

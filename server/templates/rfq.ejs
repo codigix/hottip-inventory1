@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request for Quotation - <%= rfq.quotationNumber %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #000;
+            padding: 15px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            color: #1a1a1a;
+        }
+        .header .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #4f46e5;
+        }
+        .company-info {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 10px;
+        }
+        .company-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            padding: 4px 0;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+        .two-column {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .column {
+            flex: 1;
+            border: 1.5px solid #333;
+            padding: 10px;
+        }
+        .column h3 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #4f46e5;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 3px;
+        }
+        .info-p p {
+            margin: 3px 0;
+            font-size: 10px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            border: 1.5px solid #333;
+        }
+        table th {
+            background-color: #e5e7eb;
+            font-weight: bold;
+            padding: 8px 6px;
+            text-align: left;
+            border: 1px solid #333;
+            font-size: 10px;
+        }
+        table td {
+            padding: 6px;
+            border: 1px solid #999;
+            font-size: 10px;
+        }
+        table th.text-center, table td.text-center {
+            text-align: center;
+        }
+        table th.text-right, table td.text-right {
+            text-align: right;
+        }
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .bottom-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+        .terms-section {
+            flex: 1;
+            border: 1.5px solid #333;
+            padding: 10px;
+        }
+        .terms-section h3 {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+        .terms-section p {
+            margin: 3px 0;
+            font-size: 10px;
+        }
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .signature-box {
+            text-align: right;
+            padding: 8px;
+        }
+        .signature-space {
+            height: 50px;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 6px;
+            font-style: italic;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1><%= company.name %></h1>
+        <p class="title">REQUEST FOR QUOTATION (RFQ)</p>
+    </div>
+
+    <!-- Company Info -->
+    <div class="company-info">
+        <%= company.address %>
+    </div>
+    <div class="company-details">
+        <div><strong>GSTIN:</strong> <%= company.gstNo %></div>
+        <div><strong>Email:</strong> <%= company.email %></div>
+        <div><strong>Phone:</strong> <%= company.phone %></div>
+    </div>
+
+    <!-- Vendor and RFQ Details -->
+    <div class="two-column">
+        <div class="column info-p">
+            <h3>Vendor / Supplier</h3>
+            <p><strong><%= supplier.name %></strong></p>
+            <p><%= supplier.address %></p>
+            <p><strong>GSTIN:</strong> <%= supplier.gstNo %></p>
+            <p><strong>Phone:</strong> <%= supplier.phone %></p>
+            <p><strong>Email:</strong> <%= supplier.email %></p>
+        </div>
+        <div class="column">
+            <h3>RFQ Details</h3>
+            <div class="details-grid">
+                <div><strong>RFQ No:</strong></div>
+                <div style="color: #4f46e5; font-weight: bold;"><%= rfq.quotationNumber %></div>
+                
+                <div><strong>Date:</strong></div>
+                <div><%= rfq.date %></div>
+                
+                <div><strong>Valid Until:</strong></div>
+                <div><%= rfq.validUntil || 'N/A' %></div>
+                
+                <div><strong>Subject:</strong></div>
+                <div><%= rfq.subject %></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;" class="text-center">Sr.</th>
+                <th style="width: 65%;">Description / Material Name</th>
+                <th style="width: 15%;" class="text-center">Qty</th>
+                <th style="width: 15%;" class="text-center">Unit</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% rfq.items.forEach(function(item, i) { %>
+            <tr>
+                <td class="text-center bold"><%= i + 1 %></td>
+                <td>
+                    <div class="bold"><%= item.materialName %></div>
+                    <% if (item.type) { %>
+                    <div style="font-size: 9px; color: #666;"><%= item.type %></div>
+                    <% } %>
+                </td>
+                <td class="text-center"><%= item.designQty %></td>
+                <td class="text-center"><%= item.unit || 'pcs' %></td>
+            </tr>
+            <% }) %>
+        </tbody>
+    </table>
+
+    <!-- Notes -->
+    <div class="bottom-section">
+        <div class="terms-section">
+            <h3>Instructions / Notes</h3>
+            <p><%= rfq.notes || 'Please provide your best quotation for the above items including taxes, delivery charges, and lead time.' %></p>
+        </div>
+    </div>
+
+    <!-- Signature -->
+    <div class="signature-section">
+        <div></div>
+        <div class="signature-box">
+            <p><strong>For <%= company.name %></strong></p>
+            <div class="signature-space"></div>
+            <p>Authorised Signatory</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        This is a Computer Generated Request for Quotation
+    </div>
+</body>
+</html>

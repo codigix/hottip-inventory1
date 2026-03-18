@@ -62,6 +62,7 @@ import {
   Trash2,
   CreditCard,
   ExternalLink,
+  X,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -81,6 +82,16 @@ const receivableFormSchema = insertAccountsReceivableSchema.extend({
 
 const paymentFormSchema = z.object({
   amount: z.string().min(1, "Payment amount is required"),
+  date: z.string().min(1, "Payment date is required"),
+  paymentMode: z.enum(["bank_transfer", "upi", "cheque", "cash", "credit_card", "debit_card"]),
+  bankName: z.string().optional(),
+  transactionId: z.string().optional(),
+  referenceNumber: z.string().optional(),
+  upiId: z.string().optional(),
+  chequeNumber: z.string().optional(),
+  chequeDate: z.string().optional(),
+  cardLast4: z.string().optional(),
+  receivedBy: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -150,6 +161,8 @@ export default function AccountsReceivables() {
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       amount: "",
+      date: new Date().toISOString().split("T")[0],
+      paymentMode: "bank_transfer",
       notes: "",
     },
   });
@@ -264,17 +277,56 @@ export default function AccountsReceivables() {
   const recordPaymentMutation = useMutation({
     mutationFn: ({
       id,
-      amount,
-      notes,
-    }: {
+      ...data
+    }: PaymentFormData & {
       id: string;
-      amount: number;
-      notes?: string;
-    }) =>
-      apiRequest(`/accounts-receivables/${id}/payment`, {
+    }) => {
+      const { 
+        amount, 
+        date, 
+        paymentMode, 
+        notes,
+        bankName,
+        transactionId,
+        referenceNumber,
+        upiId,
+        chequeNumber,
+        chequeDate,
+        cardLast4,
+        receivedBy
+      } = data;
+
+      // Extract details based on mode
+      const paymentDetails: any = {};
+      if (paymentMode === "bank_transfer") {
+        paymentDetails.bankName = bankName;
+        paymentDetails.transactionId = transactionId;
+        paymentDetails.referenceNumber = referenceNumber;
+      } else if (paymentMode === "upi") {
+        paymentDetails.upiId = upiId;
+        paymentDetails.transactionId = transactionId;
+      } else if (paymentMode === "cheque") {
+        paymentDetails.chequeNumber = chequeNumber;
+        paymentDetails.chequeDate = chequeDate;
+        paymentDetails.bankName = bankName;
+      } else if (paymentMode === "credit_card" || paymentMode === "debit_card") {
+        paymentDetails.cardLast4 = cardLast4;
+        paymentDetails.transactionId = transactionId;
+      } else if (paymentMode === "cash") {
+        paymentDetails.receivedBy = receivedBy;
+      }
+
+      return apiRequest(`/accounts-receivables/${id}/payment`, {
         method: "POST",
-        body: JSON.stringify({ amount, notes }),
-      }),
+        body: JSON.stringify({ 
+          amount: parseFloat(amount), 
+          paymentDate: date,
+          paymentMode,
+          paymentDetails,
+          notes 
+        }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-receivables"] });
       queryClient.invalidateQueries({
@@ -326,6 +378,16 @@ export default function AccountsReceivables() {
       parseFloat(receivable.amountDue) - parseFloat(receivable.amountPaid);
     paymentForm.reset({
       amount: remainingAmount.toString(),
+      date: new Date().toISOString().split("T")[0],
+      paymentMode: "bank_transfer",
+      bankName: "",
+      transactionId: "",
+      referenceNumber: "",
+      upiId: "",
+      chequeNumber: "",
+      chequeDate: "",
+      cardLast4: "",
+      receivedBy: "",
       notes: "",
     });
     setIsPaymentOpen(true);
@@ -339,9 +401,8 @@ export default function AccountsReceivables() {
   const handlePaymentSubmit = (data: PaymentFormData) => {
     if (selectedReceivable) {
       recordPaymentMutation.mutate({
+        ...data,
         id: selectedReceivable.id,
-        amount: parseFloat(data.amount),
-        notes: data.notes,
       });
     }
   };
@@ -357,7 +418,7 @@ export default function AccountsReceivables() {
     (receivable: AccountsReceivable & { customer?: any; invoice?: any }) => {
       const customerName = receivable.customer?.name || "Unknown Customer";
       const invoiceNumber =
-        receivable.invoice?.number ||
+        receivable.invoice?.invoiceNumber ||
         (receivable.invoiceId ? receivable.invoiceId : "No Invoice");
       const matchesSearch =
         customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -930,37 +991,36 @@ export default function AccountsReceivables() {
 
       {/* Record Payment Dialog */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+        <DialogContent className="max-w-md p-8 rounded-3xl border-none shadow-2xl">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-2xl font-black tracking-tight text-foreground">Record Payment</DialogTitle>
           </DialogHeader>
+
           {selectedReceivable && (
-            <div className="mb-4 p-3 bg-muted rounded-lg">
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-light">
+            <div className="mb-8 p-6 bg-muted/30 rounded-2xl border border-border/40">
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-semibold">Customer:</span>
+                  <span className="font-bold text-foreground truncate max-w-[180px]">
                     {selectedReceivable.customer?.name || "Unknown Customer"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount Due:</span>
-                  <span className="font-light">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-semibold">Amount Due:</span>
+                  <span className="font-bold text-foreground">
                     ₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paid So Far:</span>
-                  <span className="font-light">
-                    ₹
-                    {parseFloat(selectedReceivable.amountPaid).toLocaleString()}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-semibold">Paid So Far:</span>
+                  <span className="font-bold text-foreground text-muted-foreground/60">
+                    ₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between border-t pt-1">
-                  <span className="text-muted-foreground">Remaining:</span>
-                  <span className="font-bold text-primary">
-                    ₹
-                    {(
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-border/60">
+                  <span className="text-foreground font-black uppercase text-xs tracking-widest">Remaining:</span>
+                  <span className="font-black text-primary text-xl">
+                    ₹{(
                       parseFloat(selectedReceivable.amountDue) -
                       parseFloat(selectedReceivable.amountPaid)
                     ).toLocaleString()}
@@ -969,64 +1029,271 @@ export default function AccountsReceivables() {
               </div>
             </div>
           )}
+
           <Form {...paymentForm}>
             <form
               onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
-              className="space-y-4"
+              className="space-y-6"
             >
+              <div className="grid grid-cols-2 gap-6">
+                <FormField
+                  control={paymentForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/80">Amount *</FormLabel>
+                      <FormControl>
+                        <div className="relative group">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold group-focus-within:text-primary transition-colors">₹</span>
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            className="pl-8 font-bold border-muted-foreground/20 focus:border-primary transition-all shadow-none h-12 rounded-xl bg-muted/10"
+                            data-testid="input-payment-amount"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-[10px]" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={paymentForm.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/80">Date *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="date" 
+                          className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-12 rounded-xl bg-muted/10 font-bold"
+                          data-testid="input-payment-date" 
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px]" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={paymentForm.control}
-                name="amount"
+                name="paymentMode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Payment Amount</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        data-testid="input-payment-amount"
-                      />
-                    </FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/80">Payment Mode *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-12 rounded-xl bg-muted/10 font-bold" data-testid="select-payment-mode">
+                          <SelectValue placeholder="Select Mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
+                        <SelectItem value="bank_transfer" className="rounded-xl py-3 font-medium">Bank Transfer</SelectItem>
+                        <SelectItem value="upi" className="rounded-xl py-3 font-medium">UPI</SelectItem>
+                        <SelectItem value="cheque" className="rounded-xl py-3 font-medium">Cheque</SelectItem>
+                        <SelectItem value="cash" className="rounded-xl py-3 font-medium">Cash</SelectItem>
+                        <SelectItem value="credit_card" className="rounded-xl py-3 font-medium">Credit Card</SelectItem>
+                        <SelectItem value="debit_card" className="rounded-xl py-3 font-medium">Debit Card</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-[10px]" />
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                {paymentForm.watch("paymentMode") === "bank_transfer" && (
+                  <div className="grid grid-cols-1 gap-5 p-5 bg-primary/5 rounded-2xl border border-primary/10 shadow-inner">
+                    <FormField
+                      control={paymentForm.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Bank Name</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g. HDFC Bank" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={paymentForm.control}
+                        name="transactionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">TXN ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="TXN123..." className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={paymentForm.control}
+                        name="referenceNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Ref #</FormLabel>
+                            <FormControl><Input {...field} placeholder="REF123..." className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Other conditional fields similarly styled ... */}
+                {paymentForm.watch("paymentMode") === "upi" && (
+                  <div className="grid grid-cols-1 gap-5 p-5 bg-primary/5 rounded-2xl border border-primary/10 shadow-inner">
+                    <FormField
+                      control={paymentForm.control}
+                      name="upiId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">UPI ID</FormLabel>
+                          <FormControl><Input {...field} placeholder="username@upi" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={paymentForm.control}
+                      name="transactionId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Transaction ID</FormLabel>
+                          <FormControl><Input {...field} placeholder="TXN123..." className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {paymentForm.watch("paymentMode") === "cheque" && (
+                  <div className="grid grid-cols-1 gap-5 p-5 bg-primary/5 rounded-2xl border border-primary/10 shadow-inner">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={paymentForm.control}
+                        name="chequeNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Cheque #</FormLabel>
+                            <FormControl><Input {...field} placeholder="000123" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={paymentForm.control}
+                        name="chequeDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Date</FormLabel>
+                            <FormControl><Input {...field} type="date" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={paymentForm.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Bank Name</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g. ICICI Bank" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {paymentForm.watch("paymentMode") === "cash" && (
+                  <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10 shadow-inner">
+                    <FormField
+                      control={paymentForm.control}
+                      name="receivedBy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Received By</FormLabel>
+                          <FormControl><Input {...field} placeholder="Employee name" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {(paymentForm.watch("paymentMode") === "credit_card" || paymentForm.watch("paymentMode") === "debit_card") && (
+                  <div className="grid grid-cols-1 gap-5 p-5 bg-primary/5 rounded-2xl border border-primary/10 shadow-inner">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={paymentForm.control}
+                        name="cardLast4"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">Card Last 4</FormLabel>
+                            <FormControl><Input {...field} maxLength={4} placeholder="1234" className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={paymentForm.control}
+                        name="transactionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-primary/70 tracking-wider">TXN ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="TXN123..." className="h-10 text-sm font-semibold rounded-lg bg-white border-primary/10" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <FormField
                 control={paymentForm.control}
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Payment Notes (Optional)</FormLabel>
+                    <FormLabel className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/80">Remarks (Optional)</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Payment details, reference number, etc."
+                        placeholder="Additional payment details..."
+                        className="min-h-[100px] border-muted-foreground/20 focus:border-primary transition-all shadow-none resize-none rounded-xl text-sm bg-muted/10 font-medium"
                         data-testid="input-payment-notes"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-[10px]" />
                   </FormItem>
                 )}
               />
-              <div className="flex justify-end space-x-2">
+
+              <div className="flex gap-4 pt-4">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
+                  className="flex-1 font-bold text-muted-foreground hover:bg-muted/50 rounded-2xl h-14 uppercase tracking-widest text-xs"
                   onClick={() => setIsPaymentOpen(false)}
-                  data-testid="button-cancel-payment"
                 >
-                  Cancel
+                  CANCEL
                 </Button>
                 <Button
                   type="submit"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white font-black rounded-2xl shadow-[0_10px_20px_-10px_rgba(var(--primary),0.5)] h-14 uppercase tracking-widest text-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
                   disabled={recordPaymentMutation.isPending}
-                  data-testid="button-submit-payment"
                 >
-                  {recordPaymentMutation.isPending
-                    ? "Recording..."
-                    : "Record Payment"}
+                  {recordPaymentMutation.isPending ? "PROCESSING..." : "CONFIRM PAYMENT"}
                 </Button>
               </div>
             </form>

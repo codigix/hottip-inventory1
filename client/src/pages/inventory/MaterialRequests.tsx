@@ -222,9 +222,11 @@ export default function MaterialRequests() {
                     {request.requiredBy ? format(new Date(request.requiredBy), "dd-MM-yyyy") : "N/A"}
                   </TableCell>
                   <TableCell className="py-4">
-                    <div className="flex items-center space-x-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                      <span className="text-sm text-muted-foreground italic">Check Status</span>
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-1.5 w-1.5 rounded-full ${request.status === 'FULFILLED' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span className={`text-sm font-medium ${request.status === 'FULFILLED' ? 'text-emerald-600' : 'text-slate-500 italic'}`}>
+                        {request.status === 'FULFILLED' ? "Available" : "Check Details"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right py-4">

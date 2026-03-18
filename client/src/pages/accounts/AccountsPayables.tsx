@@ -61,6 +61,7 @@ import {
   Edit,
   Trash2,
   DollarSign,
+  X,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -90,6 +91,15 @@ type PayableFormData = z.infer<typeof payableFormSchema>;
 const paymentFormSchema = z.object({
   amount: z.string().min(1, "Payment amount is required"),
   date: z.string().min(1, "Payment date is required"),
+  paymentMode: z.enum(["bank_transfer", "upi", "cheque", "cash", "credit_card", "debit_card"]),
+  bankName: z.string().optional(),
+  transactionId: z.string().optional(),
+  referenceNumber: z.string().optional(),
+  upiId: z.string().optional(),
+  chequeNumber: z.string().optional(),
+  chequeDate: z.string().optional(),
+  cardLast4: z.string().optional(),
+  receivedBy: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -137,7 +147,7 @@ export default function AccountsPayables() {
   });
 
   const { data: inboundQuotations = [] } = useQuery({
-    queryKey: ["/quotations/inbound"],
+    queryKey: ["/inbound-quotations"],
   });
 
   // Form setup
@@ -162,6 +172,7 @@ export default function AccountsPayables() {
     defaultValues: {
       amount: "",
       date: new Date().toISOString().split("T")[0],
+      paymentMode: "bank_transfer",
       notes: "",
     },
   });
@@ -258,15 +269,53 @@ export default function AccountsPayables() {
   });
 
   const recordPaymentMutation = useMutation({
-    mutationFn: ({ id, ...data }: PaymentFormData & { id: string }) =>
-      apiRequest(`/accounts-payables/${id}/payment`, {
+    mutationFn: ({ id, ...data }: PaymentFormData & { id: string }) => {
+      const { 
+        amount, 
+        date, 
+        paymentMode, 
+        notes,
+        bankName,
+        transactionId,
+        referenceNumber,
+        upiId,
+        chequeNumber,
+        chequeDate,
+        cardLast4,
+        receivedBy
+      } = data;
+
+      // Extract details based on mode
+      const paymentDetails: any = {};
+      if (paymentMode === "bank_transfer") {
+        paymentDetails.bankName = bankName;
+        paymentDetails.transactionId = transactionId;
+        paymentDetails.referenceNumber = referenceNumber;
+      } else if (paymentMode === "upi") {
+        paymentDetails.upiId = upiId;
+        paymentDetails.transactionId = transactionId;
+      } else if (paymentMode === "cheque") {
+        paymentDetails.chequeNumber = chequeNumber;
+        paymentDetails.chequeDate = chequeDate;
+        paymentDetails.bankName = bankName;
+      } else if (paymentMode === "credit_card" || paymentMode === "debit_card") {
+        paymentDetails.cardLast4 = cardLast4;
+        paymentDetails.transactionId = transactionId;
+      } else if (paymentMode === "cash") {
+        paymentDetails.receivedBy = receivedBy;
+      }
+
+      return apiRequest(`/accounts-payables/${id}/payment`, {
         method: "POST",
         body: JSON.stringify({
-          amount: parseFloat(data.amount),
-          date: new Date(data.date).toISOString(),
-          notes: data.notes,
+          amount: parseFloat(amount),
+          paymentDate: date,
+          paymentMode,
+          paymentDetails,
+          notes,
         }),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/accounts-payables"] });
       queryClient.invalidateQueries({
@@ -346,6 +395,15 @@ export default function AccountsPayables() {
     paymentForm.reset({
       amount: remainingAmount.toString(),
       date: new Date().toISOString().split("T")[0],
+      paymentMode: "bank_transfer",
+      bankName: "",
+      transactionId: "",
+      referenceNumber: "",
+      upiId: "",
+      chequeNumber: "",
+      chequeDate: "",
+      cardLast4: "",
+      receivedBy: "",
       notes: "",
     });
     setIsPaymentOpen(true);
@@ -711,14 +769,17 @@ export default function AccountsPayables() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPayables.map((payable: AccountsPayable) => {
-                    const supplier = suppliers.find(
+                  filteredPayables.map((payable: any) => {
+                    const supplier = payable.supplier || suppliers.find(
                       (s: any) => s.id === payable.supplierId
                     );
-                    const po = purchaseOrders.find(
+                    const user = payable.user;
+                    const displayName = supplier?.name || (user ? `${user.firstName} ${user.lastName}` : "Unknown Supplier");
+
+                    const po = payable.purchaseOrder || purchaseOrders.find(
                       (po: any) => po.id === payable.poId
                     );
-                    const quotation = inboundQuotations.find(
+                    const quotation = payable.inboundQuotation || inboundQuotations.find(
                       (q: any) => q.id === payable.inboundQuotationId
                     );
                     const remainingAmount =
@@ -735,7 +796,7 @@ export default function AccountsPayables() {
                             href={`/sales/suppliers/${payable.supplierId}`}
                             className="hover:underline flex items-center"
                           >
-                            {supplier?.name || "Unknown Supplier"}
+                            {displayName}
                             <ExternalLink className="h-3 w-3 ml-1" />
                           </Link>
                         </TableCell>
@@ -745,7 +806,7 @@ export default function AccountsPayables() {
                               href={`/sales/purchase-orders/${payable.poId}`}
                               className="hover:underline flex items-center"
                             >
-                              PO: {po.number}
+                              PO: {po.poNumber || po.number}
                               <ExternalLink className="h-3 w-3 ml-1" />
                             </Link>
                           ) : quotation ? (
@@ -753,7 +814,7 @@ export default function AccountsPayables() {
                               href={`/sales/quotations/inbound/${payable.inboundQuotationId}`}
                               className="hover:underline flex items-center"
                             >
-                              QT: {quotation.number}
+                              QT: {quotation.quotationNumber || quotation.number}
                               <ExternalLink className="h-3 w-3 ml-1" />
                             </Link>
                           ) : (
@@ -927,115 +988,321 @@ export default function AccountsPayables() {
 
       {/* Record Payment Dialog */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
-            <DialogDescription>
-              Record a payment against this accounts payable entry.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedPayable && (
-            <div className="mb-4 p-4 bg-muted rounded-lg">
-              <p className="text-sm">
-                <strong>Supplier:</strong>{" "}
-                {suppliers.find((s: any) => s.id === selectedPayable.supplierId)
-                  ?.name || "Unknown"}
-              </p>
-              <p className="text-sm">
-                <strong>Amount Due:</strong> ₹
-                {parseFloat(selectedPayable.amountDue).toLocaleString()}
-              </p>
-              <p className="text-sm">
-                <strong>Already Paid:</strong> ₹
-                {parseFloat(selectedPayable.amountPaid).toLocaleString()}
-              </p>
-              <p className="text-sm">
-                <strong>Remaining:</strong> ₹
-                {(
-                  parseFloat(selectedPayable.amountDue) -
-                  parseFloat(selectedPayable.amountPaid)
-                ).toLocaleString()}
-              </p>
-            </div>
-          )}
-          <Form {...paymentForm}>
-            <form
-              onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
-              className="space-y-4"
+        <DialogContent className="max-w-md p-0 overflow-hidden rounded-xl border-none shadow-2xl">
+          <div className="bg-primary px-6 py-4 flex justify-between items-center">
+            <DialogTitle className="text-white font-bold tracking-tight">Record Payment</DialogTitle>
+            <button 
+              onClick={() => setIsPaymentOpen(false)}
+              className="text-white/70 hover:text-white transition-colors"
             >
-              <FormField
-                control={paymentForm.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Payment Amount</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        data-testid="input-payment-amount"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={paymentForm.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Payment Date</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="date"
-                        data-testid="input-payment-date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={paymentForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Payment notes"
-                        data-testid="input-payment-notes"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsPaymentOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={recordPaymentMutation.isPending}
-                  data-testid="button-record-payment"
-                >
-                  {recordPaymentMutation.isPending
-                    ? "Recording..."
-                    : "Record Payment"}
-                </Button>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="p-6 pt-4">
+            {selectedPayable && (
+              <div className="mb-6 p-4 bg-muted/40 rounded-xl border border-border/50 shadow-sm">
+                <div className="grid grid-cols-1 gap-2.5 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Supplier:</span>
+                    <span className="font-bold text-foreground text-right truncate max-w-[200px]">
+                      {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Amount Due:</span>
+                    <span className="font-semibold text-foreground text-right">
+                      ₹{parseFloat(selectedPayable.amountDue).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Already Paid:</span>
+                    <span className="font-semibold text-foreground text-right">
+                      ₹{parseFloat(selectedPayable.amountPaid).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/60">
+                    <span className="text-muted-foreground font-bold">Remaining:</span>
+                    <span className="font-extrabold text-primary text-lg">
+                      ₹{(
+                        parseFloat(selectedPayable.amountDue) -
+                        parseFloat(selectedPayable.amountPaid)
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </form>
-          </Form>
+            )}
+
+            <Form {...paymentForm}>
+              <form
+                onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
+                className="space-y-5"
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={paymentForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Amount *</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
+                            <Input
+                              {...field}
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              className="pl-7 font-bold border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10"
+                              data-testid="input-payment-amount"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-[11px]" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={paymentForm.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Date *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="date" 
+                            className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10"
+                            data-testid="input-payment-date" 
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[11px]" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={paymentForm.control}
+                  name="paymentMode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Payment Mode *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10" data-testid="select-payment-mode">
+                            <SelectValue placeholder="Select Mode" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="rounded-xl border-none shadow-xl">
+                          <SelectItem value="bank_transfer" className="py-2.5">Bank Transfer</SelectItem>
+                          <SelectItem value="upi" className="py-2.5">UPI</SelectItem>
+                          <SelectItem value="cheque" className="py-2.5">Cheque</SelectItem>
+                          <SelectItem value="cash" className="py-2.5">Cash</SelectItem>
+                          <SelectItem value="credit_card" className="py-2.5">Credit Card</SelectItem>
+                          <SelectItem value="debit_card" className="py-2.5">Debit Card</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-[11px]" />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  {paymentForm.watch("paymentMode") === "bank_transfer" && (
+                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                      <FormField
+                        control={paymentForm.control}
+                        name="bankName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] font-bold">Bank Name</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g. HDFC Bank" className="h-9 text-sm" /></FormControl>
+                            <FormMessage className="text-[11px]" />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField
+                          control={paymentForm.control}
+                          name="transactionId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">TXN ID</FormLabel>
+                              <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={paymentForm.control}
+                          name="referenceNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">Ref #</FormLabel>
+                              <FormControl><Input {...field} placeholder="REF123..." className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentForm.watch("paymentMode") === "upi" && (
+                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                      <FormField
+                        control={paymentForm.control}
+                        name="upiId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] font-bold">UPI ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="username@upi" className="h-9 text-sm" /></FormControl>
+                            <FormMessage className="text-[11px]" />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={paymentForm.control}
+                        name="transactionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] font-bold">Transaction ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
+                            <FormMessage className="text-[11px]" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {paymentForm.watch("paymentMode") === "cheque" && (
+                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField
+                          control={paymentForm.control}
+                          name="chequeNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">Cheque #</FormLabel>
+                              <FormControl><Input {...field} placeholder="000123" className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={paymentForm.control}
+                          name="chequeDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">Date</FormLabel>
+                              <FormControl><Input {...field} type="date" className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={paymentForm.control}
+                        name="bankName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] font-bold">Bank Name</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g. ICICI Bank" className="h-9 text-sm" /></FormControl>
+                            <FormMessage className="text-[11px]" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {(paymentForm.watch("paymentMode") === "credit_card" || paymentForm.watch("paymentMode") === "debit_card") && (
+                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField
+                          control={paymentForm.control}
+                          name="cardLast4"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">Card Last 4</FormLabel>
+                              <FormControl><Input {...field} maxLength={4} placeholder="1234" className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={paymentForm.control}
+                          name="transactionId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold">TXN ID</FormLabel>
+                              <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
+                              <FormMessage className="text-[11px]" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentForm.watch("paymentMode") === "cash" && (
+                    <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                      <FormField
+                        control={paymentForm.control}
+                        name="receivedBy"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[11px] font-bold">Paid By</FormLabel>
+                            <FormControl><Input {...field} placeholder="Employee name" className="h-9 text-sm" /></FormControl>
+                            <FormMessage className="text-[11px]" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <FormField
+                  control={paymentForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Remarks (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Additional payment details..."
+                          className="min-h-[80px] border-muted-foreground/20 focus:border-primary transition-all shadow-none resize-none rounded-xl text-sm"
+                          data-testid="input-payment-notes"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[11px]" />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-4 pt-3 pb-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex-1 font-bold text-muted-foreground hover:bg-muted rounded-xl h-11"
+                    onClick={() => setIsPaymentOpen(false)}
+                  >
+                    CANCEL
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg h-11 transition-all"
+                    disabled={recordPaymentMutation.isPending}
+                    data-testid="button-record-payment"
+                  >
+                    {recordPaymentMutation.isPending ? "PROCESSING..." : "CONFIRM PAYMENT"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
         </DialogContent>
       </Dialog>
 

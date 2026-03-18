@@ -211,7 +211,7 @@ export const updateLead = async (
 ): Promise<void> => {
   try {
     if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         req.params.id
       ) && req.params.id.length !== 36
     ) {
@@ -673,12 +673,33 @@ export const updateFieldVisit = async (
     }
 
     const visitData = insertFieldVisitSchema.partial().omit({ 
-      id: true, 
+      id: true,
       visitNumber: true,
-      assignedByUser: true,
-      assignedToUser: true,
-      lead: true 
+      assignedBy: true,
+      createdBy: true
     } as any).parse(req.body);
+
+    // Robust Numeric/String handling for database compatibility
+    const parseNumeric = (val: any) => {
+      if (val === undefined) return undefined;
+      if (val === "" || val === "null" || val === null) return null;
+      return String(val);
+    };
+
+    if (req.body.travelExpense !== undefined) {
+      visitData.travelExpense = parseNumeric(req.body.travelExpense);
+    }
+    
+    // Check for other potential numeric fields
+    if ((req.body as any).latitude !== undefined) {
+      (visitData as any).latitude = parseNumeric((req.body as any).latitude);
+    }
+    if ((req.body as any).longitude !== undefined) {
+      (visitData as any).longitude = parseNumeric((req.body as any).longitude);
+    }
+
+    console.log(`Updating field visit ${req.params.id} with data:`, JSON.stringify(visitData, null, 2));
+
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
     await storage.createActivity({
       userId: req.user!.id,
@@ -689,13 +710,17 @@ export const updateFieldVisit = async (
     });
     res.json(visit);
   } catch (error) {
+    console.error(`Error updating field visit ${req.params.id}:`, error);
     if (error instanceof z.ZodError) {
       res
         .status(400)
         .json({ error: "Invalid visit data", details: error.errors });
       return;
     }
-    res.status(500).json({ error: "Failed to update field visit" });
+    res.status(500).json({ 
+      error: "Failed to update field visit", 
+      details: error instanceof Error ? error.message : "Unknown error" 
+    });
   }
 };
 
