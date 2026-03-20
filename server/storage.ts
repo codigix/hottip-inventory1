@@ -584,13 +584,32 @@ class Storage {
     try {
       console.log(`📦 [STORAGE] PO ${purchaseOrder.poNumber} marked as delivered. Updating stock...`);
       for (const item of purchaseOrder.items) {
-        if (item.productId) {
-          console.log(`📦 [STORAGE] Processing item: ${item.itemName} (ID: ${item.productId})`);
+        let productId = item.productId;
+        
+        // Fallback: Link by name if productId is missing
+        if (!productId && item.itemName) {
+          console.log(`🔍 [STORAGE] item.productId is null for "${item.itemName}". Attempting fallback lookup...`);
+          const [matchedProduct] = await db
+            .select()
+            .from(products)
+            .where(
+              sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${item.itemName})) OR LOWER(TRIM(${products.sku})) = LOWER(TRIM(${item.itemName}))`
+            )
+            .limit(1);
+          
+          if (matchedProduct) {
+            productId = matchedProduct.id;
+            console.log(`✅ [STORAGE] Fallback match found for "${item.itemName}": ${productId}`);
+          }
+        }
+
+        if (productId) {
+          console.log(`📦 [STORAGE] Processing item: ${item.itemName} (ID: ${productId})`);
           await db.transaction(async (tx) => {
             // Create stock transaction
             const transactionData = {
               userId: purchaseOrder.userId,
-              productId: item.productId,
+              productId: productId,
               type: "in" as const,
               reason: "Purchase Order Receipt",
               quantity: item.quantity,
@@ -602,19 +621,19 @@ class Storage {
             await tx.insert(stockTransactions).values(transactionData);
 
             // Update product stock
-            console.log(`📦 [STORAGE] Updating product stock for: ${item.productId}`);
+            console.log(`📦 [STORAGE] Updating product stock for: ${productId}`);
             await tx
               .update(products)
               .set({
                 stock: sql`${products.stock} + ${item.quantity}`,
                 updatedAt: new Date(),
               })
-              .where(eq(products.id, item.productId));
+              .where(eq(products.id, productId));
             
-            console.log(`✅ [STORAGE] Updated stock for product ${item.productId} (+${item.quantity})`);
+            console.log(`✅ [STORAGE] Updated stock for product ${productId} (+${item.quantity})`);
           });
         } else {
-          console.log(`⚠️ [STORAGE] Skipping item ${item.itemName} as it has no productId`);
+          console.log(`⚠️ [STORAGE] Skipping item ${item.itemName} as it has no productId and fallback failed`);
         }
       }
     } catch (error) {

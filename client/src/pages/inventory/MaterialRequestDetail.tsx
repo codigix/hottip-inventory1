@@ -56,12 +56,12 @@ export default function MaterialRequestDetail() {
   const [selectedLocation, setSelectedLocation] = useState("Main Warehouse");
 
   const { data: request, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: [`/api/material-requests/${id}`],
+    queryKey: [`/material-requests/${id}`],
     enabled: !!id,
   });
 
   const { data: purchaseOrders } = useQuery({
-    queryKey: ["/api/purchase-orders"],
+    queryKey: ["/purchase-orders"],
   });
 
   const linkPOMutation = useMutation({
@@ -114,8 +114,9 @@ export default function MaterialRequestDetail() {
         title: "Materials Released",
         description: "Material release processed and inventory updated.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/stock-transactions"] });
     },
     onError: (error: Error) => {
       toast({
