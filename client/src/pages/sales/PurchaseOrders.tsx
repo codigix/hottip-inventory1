@@ -318,8 +318,11 @@ export default function PurchaseOrders() {
         const items = quotation.quotationItems || quotation.items || [];
         if (items.length > 0) {
           const mappedItems = items.map((item: any) => {
-            const itemName = item.displayDescription || item.partName || item.itemName || "";
-            const description = item.description || item.partDescription || "";
+            // For inbound/outbound quotations:
+            // partName/itemName/mouldNo usually contains the SKU/Part Number
+            // displayDescription/partDescription/description contains the friendly name
+            const itemName = item.partName || item.itemName || item.mouldNo || item.displayDescription || "";
+            const description = item.displayDescription || item.partDescription || item.description || "";
             const quantity = parseFloat(String(item.displayQty || item.qty || item.quantity || 1));
             const unit = item.uom || item.unit || "pcs";
             const unitPrice = parseFloat(String(item.displayRate || item.unitPrice || 0));

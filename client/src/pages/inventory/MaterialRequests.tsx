@@ -233,9 +233,9 @@ export default function MaterialRequests() {
                   </TableCell>
                   <TableCell className="py-4">
                     <div className="flex items-center space-x-2">
-                      <div className={`h-1.5 w-1.5 rounded-full ${request.status === 'FULFILLED' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                      <span className={`text-sm font-medium ${request.status === 'FULFILLED' ? 'text-emerald-600' : 'text-slate-500 italic'}`}>
-                        {request.status === 'FULFILLED' ? "Available" : "Check Details"}
+                      <div className={`h-1.5 w-1.5 rounded-full ${request.isAvailable ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                      <span className={`text-sm font-medium ${request.isAvailable ? 'text-emerald-600' : 'text-orange-600'}`}>
+                        {request.isAvailable ? "Available" : "Unavailable"}
                       </span>
                     </div>
                   </TableCell>

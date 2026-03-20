@@ -821,6 +821,26 @@ export function registerSalesRoutes(
     }
   });
 
+  // GET Material Request for Outbound Quotation
+  app.get("/api/outbound-quotations/:id/material-request", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const existingMR = await db.select()
+        .from(materialRequests)
+        .where(eq(materialRequests.quotationId, id))
+        .limit(1);
+      
+      if (existingMR.length === 0) {
+        return res.status(404).json({ error: "No Material Request found for this quotation" });
+      }
+      
+      res.json(existingMR[0]);
+    } catch (error: any) {
+      console.error("Error fetching linked Material Request:", error);
+      res.status(500).json({ error: "Failed to fetch linked Material Request" });
+    }
+  });
+
   // Manual Material Request Creation from Quotation
   app.post("/api/outbound-quotations/:id/material-request", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -877,36 +897,52 @@ export function registerSalesRoutes(
 
         // If not linked, try to find by name or sku
         if (!productId && !sparePartId) {
-          // Try exact match or fuzzy match by name/sku
-          const searchName = name.toLowerCase();
-          const searchDesc = desc.toLowerCase();
+          const sName = name.trim().toLowerCase();
+          const sDesc = desc.trim().toLowerCase();
+          const sSku = name.includes('(') ? name.split('(')[0].trim().toLowerCase() : sName;
+          const sPureName = name.includes('(') ? name.split('(')[1].split(')')[0].trim().toLowerCase() : sName;
 
-          const [existingProduct] = await db.select().from(products)
-            .where(or(
-              eq(sql`LOWER(${products.name})`, searchName),
-              eq(sql`LOWER(${products.sku})`, searchName),
-              // If name contains descriptive part in brackets, try searching just the bracketed part
-              searchName.includes('(') ? eq(sql`LOWER(${products.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
-              // Or if name is the parent and description is the actual product name
-              searchDesc ? eq(sql`LOWER(${products.name})`, searchDesc) : sql`false`
-            ))
-            .limit(1);
+          // Try to find product
+          const matchedProducts = await db.select({
+              id: products.id,
+              name: products.name,
+              sku: products.sku
+            }).from(products);
           
-          if (existingProduct) {
-            productId = existingProduct.id;
+          const foundProduct = matchedProducts.find(p => {
+            const pName = p.name.toLowerCase();
+            const pSku = p.sku.toLowerCase();
+            return pName === sName || 
+                   pSku === sName || 
+                   pSku === sSku || 
+                   pName === sPureName ||
+                   (sName.includes(pSku) && pSku.length > 3) ||
+                   (pName.includes(sPureName) && sPureName.length > 3);
+          });
+          
+          if (foundProduct) {
+            productId = foundProduct.id;
           } else {
-            // Search in spare parts
-            const [existingSpare] = await db.select().from(spareParts)
-              .where(or(
-                eq(sql`LOWER(${spareParts.name})`, searchName),
-                eq(sql`LOWER(${spareParts.partNumber})`, searchName),
-                searchName.includes('(') ? eq(sql`LOWER(${spareParts.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
-                searchDesc ? eq(sql`LOWER(${spareParts.name})`, searchDesc) : sql`false`
-              ))
-              .limit(1);
+            // Try spare parts
+            const matchedSpares = await db.select({
+                id: spareParts.id,
+                name: spareParts.name,
+                partNumber: spareParts.partNumber
+              }).from(spareParts);
             
-            if (existingSpare) {
-              sparePartId = existingSpare.id;
+            const foundSpare = matchedSpares.find(sp => {
+              const spName = sp.name.toLowerCase();
+              const spPart = sp.partNumber.toLowerCase();
+              return spName === sName || 
+                     spPart === sName || 
+                     spPart === sSku || 
+                     spName === sPureName ||
+                     (sName.includes(spPart) && spPart.length > 3) ||
+                     (spName.includes(sPureName) && sPureName.length > 3);
+            });
+            
+            if (foundSpare) {
+              sparePartId = foundSpare.id;
             }
           }
         }

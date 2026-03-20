@@ -47,6 +47,7 @@ import {
   Trash2,
   Package,
 } from "lucide-react";
+import MaterialRequestDialog from "@/components/inventory/MaterialRequestDialog";
 import {
   type Customer,
   type OutboundQuotation,
@@ -61,6 +62,8 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     useState<OutboundQuotation | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isMrDialogOpen, setIsMrDialogOpen] = useState(false);
+  const [mrQuotationId, setMrQuotationId] = useState<string | undefined>(undefined);
   const [filteredQuotations, setFilteredQuotations] = useState<
     OutboundQuotation[]
   >([]);
@@ -289,26 +292,10 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     }
   };
 
-  // Handler for manual Material Request creation
-  const handleCreateMaterialRequest = async (quotation: OutboundQuotation) => {
-    try {
-      const response = await apiRequest("POST", `/outbound-quotations/${quotation.id}/material-request`);
-      
-      toast({
-        title: "Success",
-        description: "Material Request created successfully",
-      });
-
-      // Optionally redirect to Material Requests page
-      // setLocation("/inventory/material-requests");
-    } catch (error: any) {
-      console.error("Failed to create material request:", error);
-      toast({
-        title: "Error",
-        description: error?.data?.error || error?.data?.details || "Failed to create material request",
-        variant: "destructive",
-      });
-    }
+  // Handler for opening Material Request dialog
+  const handleCreateMaterialRequest = (quotation: OutboundQuotation) => {
+    setMrQuotationId(quotation.id.toString());
+    setIsMrDialogOpen(true);
   };
 
   // Handler for Delete action
@@ -1066,6 +1053,12 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           )}
         </DialogContent>
       </Dialog>
+
+      <MaterialRequestDialog 
+        open={isMrDialogOpen} 
+        onOpenChange={setIsMrDialogOpen} 
+        quotationId={mrQuotationId}
+      />
     </div>
   );
 }

@@ -51,7 +51,6 @@ import {
   Truck,
   XCircle,
   Trash2,
-  Box,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -407,29 +406,7 @@ export default function SalesOrders() {
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </Button>
             )}
-            {order.status === 'confirmed' && !isMaterialReleased && (
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => handleUpdateStatus(order.id, 'material_released')}
-                disabled={isProcessing}
-                title="Release Material"
-              >
-                <Box className="h-4 w-4 text-orange-600" />
-              </Button>
-            )}
-            {(order.status === 'confirmed' && isMaterialReleased) && (
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => handleUpdateStatus(order.id, 'processing')}
-                disabled={isProcessing}
-                title="Start Processing"
-              >
-                <Truck className="h-4 w-4 text-blue-600" />
-              </Button>
-            )}
-            {order.status === 'processing' && (
+            {(order.status === 'confirmed' || order.status === 'processing') && (
                <Button 
                size="sm" 
                variant="ghost" 

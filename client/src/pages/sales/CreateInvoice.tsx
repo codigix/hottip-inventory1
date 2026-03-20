@@ -311,9 +311,15 @@ export default function CreateInvoice() {
                               itemSgstRate = (parseFloat(order.gstPercentage) / 2) || 9;
                             }
 
+                            const itemName = item.itemName || item.partName || "";
+                            const itemDescription = item.description || item.partDescription || "";
+                            const displayDescription = itemName && itemDescription 
+                              ? `${itemName} - ${itemDescription}` 
+                              : (itemName || itemDescription || "N/A");
+
                             return {
                               id: generateLineItemId(),
-                              description: item.description || item.itemName || "N/A",
+                              description: displayDescription,
                               hsnSac: "",
                               quantity: Number(item.quantity) || 1,
                               unitPrice: parseFloat(item.unitPrice) || 0,

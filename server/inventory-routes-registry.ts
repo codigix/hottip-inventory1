@@ -11,7 +11,7 @@ import { suppliers } from "@shared/schema";
 import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
-import { sql, eq, lte, desc } from "drizzle-orm";
+import { sql, eq, lte, desc, and, or, isNull, like } from "drizzle-orm";
 import { generatePurchaseOrderPDF, generateRFQPDF } from "./pdf-generator";
 import { numberToWords } from "./utils/number-to-words";
 
@@ -915,9 +915,47 @@ export function registerInventoryRoutes(
         .leftJoin(purchaseOrders, eq(materialRequests.purchaseOrderId, purchaseOrders.id))
         .orderBy(desc(materialRequests.createdAt));
       
-      const formattedRows = rows.map(r => ({
-        ...r.request,
-        poNumber: r.poNumber
+      const formattedRows = await Promise.all(rows.map(async (r) => {
+        if (r.request.status === 'FULFILLED') {
+          return {
+            ...r.request,
+            poNumber: r.poNumber,
+            isAvailable: true
+          };
+        }
+
+        // Fetch items for each request to check availability
+        const items = await db
+          .select({
+            quantity: materialRequestItems.quantity,
+            productStock: products.stock,
+            sparePartStock: spareParts.stock,
+            productId: materialRequestItems.productId,
+            sparePartId: materialRequestItems.sparePartId
+          })
+          .from(materialRequestItems)
+          .leftJoin(products, eq(materialRequestItems.productId, products.id))
+          .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
+          .where(eq(materialRequestItems.requestId, r.request.id));
+
+        let isAvailable = true;
+        if (items.length === 0) {
+          isAvailable = false;
+        } else {
+          for (const item of items) {
+            const stock = item.productId ? (item.productStock ?? 0) : (item.sparePartStock ?? 0);
+            if (stock < Number(item.quantity)) {
+              isAvailable = false;
+              break;
+            }
+          }
+        }
+
+        return {
+          ...r.request,
+          poNumber: r.poNumber,
+          isAvailable
+        };
       }));
       
       res.json(formattedRows);
@@ -1145,7 +1183,7 @@ export function registerInventoryRoutes(
 
       await db.transaction(async (tx) => {
         for (const item of items) {
-          const { productId, quantity, location } = item;
+          const { productId, sparePartId, quantity, location } = item;
           
           if (productId) {
             // Create a stock transaction (OUT)
@@ -1167,6 +1205,44 @@ export function registerInventoryRoutes(
                 updatedAt: new Date()
               })
               .where(eq(products.id, productId));
+
+            // Update MR item status to FULFILLED
+            await tx
+              .update(materialRequestItems)
+              .set({ status: 'FULFILLED' })
+              .where(and(
+                eq(materialRequestItems.requestId, id),
+                eq(materialRequestItems.productId, productId)
+              ));
+          } else if (sparePartId) {
+            // Create a stock transaction (OUT) for spare part
+            await tx.insert(stockTransactions).values({
+              userId: userId,
+              productId: null, // Should we add sparePartId to stockTransactions table? 
+              // For now, using referenceNumber to track
+              type: 'out',
+              reason: 'adjustment',
+              referenceNumber: request.requestNumber,
+              quantity: Number(quantity),
+              notes: `Spare Part Released: ${request.requestNumber} from ${location || 'Main Warehouse'}`,
+            });
+
+            // Update spare part stock balance
+            await tx
+              .update(spareParts)
+              .set({
+                stock: sql`${spareParts.stock} - ${Number(quantity)}`,
+              })
+              .where(eq(spareParts.id, sparePartId));
+
+            // Update MR item status to FULFILLED
+            await tx
+              .update(materialRequestItems)
+              .set({ status: 'FULFILLED' })
+              .where(and(
+                eq(materialRequestItems.requestId, id),
+                eq(materialRequestItems.sparePartId, sparePartId)
+              ));
           }
         }
 
@@ -1555,6 +1631,93 @@ export function registerInventoryRoutes(
     } catch (error) {
       console.error("Error sending to accounts:", error);
       res.status(500).json({ error: "Failed to send to accounts" });
+    }
+  });
+
+  // POST retry linking for unlinked material request items
+  app.post("/api/material-requests/:id/retry-linking", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      const unlinkedItems = await db.select()
+        .from(materialRequestItems)
+        .where(and(
+          eq(materialRequestItems.requestId, id),
+          isNull(materialRequestItems.productId),
+          isNull(materialRequestItems.sparePartId)
+        ));
+      
+      if (unlinkedItems.length === 0) {
+        return res.json({ message: "No unlinked items found" });
+      }
+
+      let linkedCount = 0;
+      for (const item of unlinkedItems) {
+        const rawName = (item.notes || "").trim();
+        if (!rawName) continue;
+
+        const sName = rawName.toLowerCase();
+        const sSku = rawName.includes('(') ? rawName.split('(')[0].trim().toLowerCase() : sName;
+        const sPureName = rawName.includes('(') ? rawName.split('(')[1].split(')')[0].trim().toLowerCase() : sName;
+
+        // Try to find product
+        const matchedProducts = await db.select({
+            id: products.id,
+            name: products.name,
+            sku: products.sku
+          }).from(products);
+        
+        const foundProduct = matchedProducts.find(p => {
+          const pName = p.name.toLowerCase();
+          const pSku = p.sku.toLowerCase();
+          return pName === sName || 
+                 pSku === sName || 
+                 pSku === sSku || 
+                 pName === sPureName ||
+                 (sName.includes(pSku) && pSku.length > 3) ||
+                 (pName.includes(sPureName) && sPureName.length > 3);
+        });
+        
+        if (foundProduct) {
+          await db.update(materialRequestItems)
+            .set({ productId: foundProduct.id })
+            .where(eq(materialRequestItems.id, item.id));
+          linkedCount++;
+        } else {
+          // Try spare parts
+          const matchedSpares = await db.select({
+              id: spareParts.id,
+              name: spareParts.name,
+              partNumber: spareParts.partNumber
+            }).from(spareParts);
+          
+          const foundSpare = matchedSpares.find(sp => {
+            const spName = sp.name.toLowerCase();
+            const spPart = sp.partNumber.toLowerCase();
+            return spName === sName || 
+                   spPart === sName || 
+                   spPart === sSku || 
+                   spName === sPureName ||
+                   (sName.includes(spPart) && spPart.length > 3) ||
+                   (spName.includes(sPureName) && sPureName.length > 3);
+          });
+          
+          if (foundSpare) {
+            await db.update(materialRequestItems)
+              .set({ sparePartId: foundSpare.id })
+              .where(eq(materialRequestItems.id, item.id));
+            linkedCount++;
+          }
+        }
+      }
+
+      res.json({ 
+        message: `Linked ${linkedCount} out of ${unlinkedItems.length} items`,
+        linkedCount
+      });
+    } catch (error) {
+      console.error("Error retrying linking:", error);
+      res.status(500).json({ error: "Failed to retry linking" });
     }
   });
 }

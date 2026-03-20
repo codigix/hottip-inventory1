@@ -102,6 +102,7 @@ export default function MaterialRequestDetail() {
     mutationFn: async () => {
       const itemsToRelease = lineItems.map((item: any) => ({
         productId: item.productId,
+        sparePartId: item.sparePartId,
         quantity: item.quantity,
         location: selectedLocation
       }));
@@ -117,6 +118,26 @@ export default function MaterialRequestDetail() {
       queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
       queryClient.invalidateQueries({ queryKey: ["/products"] });
       queryClient.invalidateQueries({ queryKey: ["/stock-transactions"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const retryLinkingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/material-requests/${id}/retry-linking`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Items re-linked with inventory successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
     },
     onError: (error: Error) => {
       toast({
@@ -150,6 +171,12 @@ export default function MaterialRequestDetail() {
   }
 
   const lineItems = request.items || [];
+  const allAvailable = lineItems.every((item: any) => {
+    const stockValue = item.productId ? item.productStock : (item.sparePartId ? item.sparePartStock : 0);
+    return (item.productId || item.sparePartId) && (Number(stockValue || 0) >= Number(item.quantity));
+  });
+  const anyUnlinked = lineItems.some((item: any) => !item.productId && !item.sparePartId);
+
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500 bg-slate-50/30 min-h-screen">
@@ -270,15 +297,16 @@ export default function MaterialRequestDetail() {
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No items in this request.</TableCell>
                     </TableRow>
                   ) : lineItems.map((item: any) => {
-                    const stockValue = item.productId ? item.productStock : item.sparePartStock;
-                    const isOutOfStock = stockValue < item.quantity;
+                    const stockValue = item.productId ? item.productStock : (item.sparePartId ? item.sparePartStock : null);
+                    const isLinked = item.productId || item.sparePartId;
+                    const isOutOfStock = isLinked ? (Number(stockValue || 0) < Number(item.quantity)) : true;
                     
                     return (
                       <TableRow key={item.id} className="group">
                         <TableCell className="py-5 px-6">
                           <div className="space-y-1">
                             <p className="text-[0.7rem] font-medium text-slate-400 uppercase tracking-wider">
-                              {item.productSku || item.sparePartNumber || (item.notes ? "ITEM" : "N/A")}
+                              {item.productSku || item.sparePartNumber || "UNLINKED"}
                             </p>
                             <p className="text-sm font-semibold text-slate-700">
                               {item.productName || item.sparePartName || item.notes || "Unknown Item"}
@@ -291,7 +319,7 @@ export default function MaterialRequestDetail() {
                         <TableCell className="py-5 px-6 text-center">
                           <div className="space-y-1">
                             <p className={`text-sm font-bold ${isOutOfStock ? 'text-red-600' : 'text-slate-700'}`}>
-                              {stockValue != null ? `${stockValue} ${item.unit}` : "Check Stock"}
+                              {isLinked ? `${stockValue ?? 0} ${item.unit}` : "Check Stock"}
                             </p>
                             <p className="text-[0.7rem] text-blue-500 font-medium">Main Warehouse</p>
                           </div>
@@ -300,15 +328,17 @@ export default function MaterialRequestDetail() {
                           <div className="flex flex-col items-end gap-1">
                             <Badge variant="outline" 
                               className={`text-[0.65rem] font-medium px-1.5 py-0 ${
-                                !isOutOfStock 
-                                  ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                  : "bg-red-50 text-red-600 border-red-100"
+                                item.status === 'FULFILLED'
+                                  ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                  : isLinked && !isOutOfStock 
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                    : "bg-red-50 text-red-600 border-red-100"
                               }`}
                             >
-                              {!isOutOfStock ? "In Stock" : "Out of Stock"}
+                              {item.status === 'FULFILLED' ? "FULFILLED" : isLinked ? (!isOutOfStock ? "Available" : "Out of Stock") : "Not Linked"}
                             </Badge>
                             <Badge variant="outline" className="text-[0.65rem] font-medium bg-slate-100/50 border-slate-200 px-1.5 py-0">
-                              {request.status}
+                              {item.status === 'FULFILLED' || request.status === 'FULFILLED' ? "FULFILLED" : (item.status || "PENDING")}
                             </Badge>
                           </div>
                         </TableCell>
@@ -357,9 +387,9 @@ export default function MaterialRequestDetail() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-slate-400 font-medium uppercase tracking-wider">Select Warehouse</label>
-                    <div className="flex items-center space-x-1 text-orange-500">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span className="text-[0.7rem] font-bold">Partial Stock</span>
+                    <div className={`flex items-center space-x-1 ${allAvailable ? 'text-emerald-500' : 'text-orange-500'}`}>
+                      {allAvailable ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                      <span className="text-[0.7rem] font-bold">{allAvailable ? 'Full Stock' : 'Stock Issue'}</span>
                     </div>
                   </div>
                   <Select value={selectedLocation} onValueChange={setSelectedLocation}>
@@ -373,12 +403,27 @@ export default function MaterialRequestDetail() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg flex space-x-3">
-                  <Info className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
-                  <p className="text-[0.75rem] text-orange-800 leading-relaxed font-medium">
-                    Stock is insufficient globally. A Purchase Order may be required for some items.
+                <div className={`p-3 border rounded-lg flex space-x-3 ${allAvailable ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'}`}>
+                  {allAvailable ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" /> : <Info className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />}
+                  <p className={`text-[0.75rem] leading-relaxed font-medium ${allAvailable ? 'text-emerald-800' : 'text-orange-800'}`}>
+                    {allAvailable 
+                      ? "All items are available in stock. You can proceed with material release."
+                      : anyUnlinked 
+                        ? "Some items are not linked to inventory. Try 'Retry Linking' or check product names."
+                        : "Stock is insufficient for some items. A Purchase Order or production plan may be required."}
                   </p>
                 </div>
+                {anyUnlinked && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-xs font-bold border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
+                    onClick={() => retryLinkingMutation.mutate()}
+                    disabled={retryLinkingMutation.isPending}
+                  >
+                    {retryLinkingMutation.isPending ? <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-2" />}
+                    Retry Linking Items
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -487,7 +532,11 @@ export default function MaterialRequestDetail() {
               disabled={
                 releaseMaterialMutation.isPending || 
                 lineItems.length === 0 ||
-                lineItems.some((item: any) => !item.productId || (item.productStock < item.quantity))
+                lineItems.some((item: any) => {
+                  if (!item.productId && !item.sparePartId) return true;
+                  const stock = item.productId ? item.productStock : item.sparePartStock;
+                  return Number(stock || 0) < Number(item.quantity);
+                })
               }
             >
               {releaseMaterialMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
