@@ -66,27 +66,27 @@ export default function MaterialRequestDetail() {
 
   const linkPOMutation = useMutation({
     mutationFn: async (purchaseOrderId: string) => {
-      return apiRequest("PUT", `/api/material-requests/${id}`, { purchaseOrderId });
+      return apiRequest("PUT", `/material-requests/${id}`, { purchaseOrderId });
     },
     onSuccess: () => {
       toast({
         title: "PO Linked",
         description: "Purchase Order has been linked to this material request.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
     },
   });
 
   const generateRFQMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/material-requests/${id}/generate-rfq`);
+      return apiRequest("POST", `/material-requests/${id}/generate-rfq`);
     },
     onSuccess: () => {
       toast({
         title: "RFQ Generated",
         description: "Request for Quotation has been created successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
       setLocation("/inventory/vendor-quotations");
     },
     onError: (error: Error) => {
@@ -105,7 +105,7 @@ export default function MaterialRequestDetail() {
         quantity: item.quantity,
         location: selectedLocation
       }));
-      return apiRequest("POST", `/api/material-requests/${id}/release`, {
+      return apiRequest("POST", `/material-requests/${id}/release`, {
         items: itemsToRelease
       });
     },

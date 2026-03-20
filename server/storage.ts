@@ -611,7 +611,7 @@ class Storage {
               userId: purchaseOrder.userId,
               productId: productId,
               type: "in" as const,
-              reason: "Purchase Order Receipt",
+              reason: "purchase",
               quantity: item.quantity,
               unitCost: item.unitPrice,
               referenceNumber: purchaseOrder.poNumber,

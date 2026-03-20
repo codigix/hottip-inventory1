@@ -346,13 +346,13 @@ export default function StockManagement() {
   const ledgerColumns = [
     {
       key: "productName",
-      header: "Material", // Now shows product name
-      cell: (t: any) => t.productName || t.name || 'N/A'
+      header: "Material Name",
+      cell: (t: any) => t.productName || 'N/A'
     },
     {
       key: "productSku",
-      header: "Item Code", // Now shows SKU
-      cell: (t: any) => t.productSku || t.sku || 'N/A'
+      header: "SKU",
+      cell: (t: any) => t.productSku || 'N/A'
     },
     {
       key: "createdAt",
@@ -443,7 +443,7 @@ export default function StockManagement() {
             className={viewMode === 'ledger' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
           >
             <List className="h-4 w-4 mr-2" />
-            Stock Ledger
+            Material Ledger
           </Button>
           <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
             <DialogTrigger asChild>
@@ -735,18 +735,6 @@ export default function StockManagement() {
           
           <Button
             variant="outline"
-            onClick={() => {
-              setTransactionType('out');
-              setIsStockTransactionDialogOpen(true);
-            }}
-            data-testid="button-stock-out"
-            data-tour="inventory-stock-out-button"
-          >
-            <TrendingDown className="h-4 w-4 mr-2" />
-            Stock Out
-          </Button>
-          <Button
-            variant="outline"
             onClick={handleRefresh}
             data-testid="button-refresh-stock"
             data-tour="inventory-refresh-button"
@@ -815,7 +803,7 @@ export default function StockManagement() {
               ) : (
                 <>
                   <List className="h-5 w-5 text-indigo-500" />
-                  <span>Stock Ledger (Transaction History)</span>
+                  <span>Material Ledger (Transaction History)</span>
                 </>
               )}
             </CardTitle>
@@ -853,13 +841,15 @@ export default function StockManagement() {
                 />
               </>
             ) : (
-              <DataTable
-                data={stockTransactions || []}
-                columns={ledgerColumns}
-                searchable={true}
-                searchKey="productName"
-                isLoading={transactionsLoading}
-              />
+              <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                <DataTable
+                  data={stockTransactions || []}
+                  columns={ledgerColumns}
+                  searchable={true}
+                  searchKey="productName"
+                  isLoading={transactionsLoading}
+                />
+              </div>
             )}
           </CardContent>
         </Card>

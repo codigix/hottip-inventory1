@@ -277,7 +277,8 @@ export function registerInventoryRoutes(
             productSku: products.sku,
           })
           .from(stockTransactions)
-          .leftJoin(products, eq(stockTransactions.productId, products.id));
+          .leftJoin(products, eq(stockTransactions.productId, products.id))
+          .orderBy(desc(stockTransactions.createdAt));
         res.status(200).json(rows);
       } catch (error) {
         console.error("Error fetching stock transactions:", error);

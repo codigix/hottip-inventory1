@@ -2105,7 +2105,7 @@ export const stockTransactionReason = [
 ] as const;
 export const stockTransactions = pgTable("stock_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("productId"), // 👈 camelCase with quotes
+  productId: uuid("productId"),
   batchId: uuid("batchId"),
   type: text("type"),
   reason: text("reason"),

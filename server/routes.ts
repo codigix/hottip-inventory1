@@ -1186,20 +1186,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Save vendor communication
 
-  // Stock transactions (stubbed)
-  app.get("/api/stock-transactions", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db
-        .select()
-        .from(stockTransactions)
-        .orderBy(desc(stockTransactions.id)); // order by id, or createdAt if you have
-      res.json(rows);
-    } catch (error) {
-      console.error("Error fetching stock transactions:", error);
-      res.status(500).json({ error: "Failed to fetch stock transactions" });
-    }
-  });
-
   // Reorder points (stubbed)
   app.get("/api/reorder-points", requireAuth, async (_req, res) => {
     // TODO: implement when reorderPoints table is added
