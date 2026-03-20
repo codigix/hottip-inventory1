@@ -45,6 +45,7 @@ import {
   Filter,
   Receipt,
   Trash2,
+  Package,
 } from "lucide-react";
 import {
   type Customer,
@@ -288,6 +289,28 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     }
   };
 
+  // Handler for manual Material Request creation
+  const handleCreateMaterialRequest = async (quotation: OutboundQuotation) => {
+    try {
+      const response = await apiRequest("POST", `/outbound-quotations/${quotation.id}/material-request`);
+      
+      toast({
+        title: "Success",
+        description: "Material Request created successfully",
+      });
+
+      // Optionally redirect to Material Requests page
+      // setLocation("/inventory/material-requests");
+    } catch (error: any) {
+      console.error("Failed to create material request:", error);
+      toast({
+        title: "Error",
+        description: error?.data?.error || error?.data?.details || "Failed to create material request",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handler for Delete action
   const handleDeleteQuotation = async (quotation: OutboundQuotation) => {
     if (!window.confirm(`Are you sure you want to delete quotation ${quotation.quotationNumber}?\n\nThis will also delete all related sales orders and invoices.`)) {
@@ -416,23 +439,6 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         new Date(quotation.quotationDate).toLocaleDateString(),
     },
     {
-      key: "totalAmount",
-      header: "Total Amount",
-      cell: (quotation: any) => {
-        let total = parseFloat(String(quotation.totalAmount)) || 0;
-        // Fallback if totalAmount is missing (calculated from subtotal and tax)
-        if (total === 0 && (quotation.subtotalAmount || quotation.taxAmount)) {
-          total = parseFloat(String(quotation.subtotalAmount || 0)) + 
-                  parseFloat(String(quotation.taxAmount || 0)) - 
-                  parseFloat(String(quotation.discountAmount || 0));
-        }
-        return `₹${total.toLocaleString("en-IN", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 2 
-        })}`;
-      },
-    },
-    {
       key: "status",
       header: "Status",
       cell: (quotation: any) => {
@@ -484,6 +490,14 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             title="Mark as Sent"
           >
             <Send className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleCreateMaterialRequest(quotation)}
+            title="Create Material Request"
+          >
+            <Package className="h-4 w-4 text-blue-600" />
           </Button>
           <Button
             size="sm"
@@ -872,13 +886,13 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                           <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
                             <td className="p-2">
                               <div>
-                                <div className="font-medium">{item.itemName}</div>
-                                {item.description && (
-                                  <div className="text-xs text-muted-foreground">{item.description}</div>
+                                <div className="font-medium">{item.partName || item.itemName || item.partDescription || "Item"}</div>
+                                {(item.partName || item.itemName) && item.partDescription && (
+                                  <div className="text-xs text-muted-foreground">{item.partDescription}</div>
                                 )}
                               </div>
                             </td>
-                            <td className="p-2">{item.quantity}</td>
+                            <td className="p-2">{item.quantity || item.qty}</td>
                             <td className="p-2">{item.uom || 'NOS'}</td>
                             <td className="p-2">
                               ₹{parseFloat(item.unitPrice || item.rate || 0).toLocaleString()}

@@ -209,15 +209,61 @@ export default function SalesOrders() {
     },
   });
 
+  const createShipmentMutation = useMutation({
+    mutationFn: async (order: any) => {
+      console.log("📦 Creating shipment from Sales Order:", order);
+      const shipmentItems = Array.isArray(order.items) 
+        ? order.items.map((item: any) => ({
+            materialName: item.itemName,
+            type: item.description,
+            qty: item.quantity,
+            unit: item.unit
+          }))
+        : [];
+
+      return apiRequest("POST", "/logistics/shipments", {
+        consignmentNumber: `SHP-${order.orderNumber}-${Date.now().toString().slice(-4)}`,
+        poNumber: order.orderNumber,
+        source: "Main Warehouse",
+        destination: order.customer?.address || "Customer Site",
+        clientId: order.customerId,
+        notes: `Automatically created from Sales Order ${order.orderNumber}`,
+        currentStatus: "created",
+        createdBy: user?.id,
+        assignedTo: user?.id,
+        items: shipmentItems
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Shipment order created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create shipment order",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: string | number; status: string }) => {
       return apiRequest("PUT", `/sales-orders/${orderId}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/sales-orders"] });
+      // If status was changed to shipped, also invalidate logistics queries
+      if (variables.status === 'shipped') {
+        queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+        queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
+      }
       toast({
         title: "Success",
-        description: "Order status updated successfully.",
+        description: `Order status updated to ${variables.status} successfully.`,
       });
       setActionInProgressId(null);
     },
@@ -387,9 +433,11 @@ export default function SalesOrders() {
                <Button 
                size="sm" 
                variant="ghost" 
-               onClick={() => handleUpdateStatus(order.id, 'shipped')}
+               onClick={() => {
+                 handleUpdateStatus(order.id, 'shipped');
+               }}
                disabled={isProcessing}
-               title="Ship Order"
+               title="Ship Order & Create Shipment"
              >
                <Truck className="h-4 w-4 text-orange-600" />
              </Button>

@@ -365,6 +365,323 @@ export async function generateInvoicePDF(
   }
 }
 
+export interface POItem {
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  unit: string;
+}
+
+export interface POPDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    email: string;
+    phone: string;
+  };
+  supplier: {
+    name: string;
+    address: string;
+    gstNo: string;
+    phone: string;
+    email: string;
+  };
+  po: {
+    poNumber: string;
+    date: string;
+    deliveryPeriod: string;
+    subtotal: number;
+    gstAmount: number;
+    total: number;
+    amountInWords: string;
+    notes: string;
+    items: POItem[];
+  };
+}
+
+/**
+ * Generate PDF from purchase order data using EJS template
+ */
+export async function generatePurchaseOrderPDF(
+  poData: POPDFData
+): Promise<Buffer> {
+  try {
+    console.log("📄 Rendering purchase order EJS template...");
+
+    // Render EJS template
+    const templatePath = path.join(__dirname, "templates", "purchase-order.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, poData);
+
+    console.log("🚀 Launching Puppeteer for purchase order...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating PO PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log("✅ PO PDF generated successfully");
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating PO PDF:", error);
+    throw new Error(
+      `Failed to generate PO PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
+export interface RFQItem {
+  materialName: string;
+  type: string;
+  designQty: number;
+  unit: string;
+}
+
+export interface RFQPDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    email: string;
+    phone: string;
+  };
+  supplier: {
+    name: string;
+    address: string;
+    gstNo: string;
+    phone: string;
+    email: string;
+  };
+  rfq: {
+    quotationNumber: string;
+    date: string;
+    validUntil: string;
+    subject: string;
+    notes: string;
+    items: RFQItem[];
+  };
+}
+
+/**
+ * Generate PDF from RFQ data using EJS template
+ */
+export async function generateRFQPDF(
+  rfqData: RFQPDFData
+): Promise<Buffer> {
+  try {
+    console.log("📄 Rendering RFQ EJS template...");
+
+    // Render EJS template
+    const templatePath = path.join(__dirname, "templates", "rfq.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, rfqData);
+
+    console.log("🚀 Launching Puppeteer for RFQ...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating RFQ PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log("✅ RFQ PDF generated successfully");
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating RFQ PDF:", error);
+    throw new Error(
+      `Failed to generate RFQ PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
+interface DeliveryChallanItem {
+  description: string;
+  hsn: string;
+  quantity: number;
+  unit: string;
+}
+
+interface DeliveryChallanPDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    stateName: string;
+    stateCode: string;
+    email: string;
+  };
+  receiver: {
+    name: string;
+    address: string;
+    gstNo: string;
+    phone: string;
+  };
+  challan: {
+    challanNumber: string;
+    date: string;
+    orderNo: string;
+    dispatchMode: string;
+    vehicleNo: string;
+    importDuty?: number;
+    gstPaid?: number;
+    totalAmount?: number;
+    items: DeliveryChallanItem[];
+  };
+}
+
+/**
+ * Generate PDF from delivery challan data using EJS template
+ */
+export async function generateDeliveryChallanPDF(
+  challanData: DeliveryChallanPDFData
+): Promise<Buffer> {
+  try {
+    console.log("📄 Rendering delivery challan EJS template...");
+
+    // Render EJS template
+    const templatePath = path.join(__dirname, "templates", "delivery-challan.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, challanData);
+    console.log(`📄 EJS rendered successfully, HTML length: ${html.length}`);
+
+    console.log("🚀 Launching Puppeteer for delivery challan...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating delivery challan PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log(`✅ Delivery Challan PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating delivery challan PDF:", error);
+    throw new Error(
+      `Failed to generate delivery challan PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
 /**
  * Alternative: Generate PDF using html-pdf-node (lighter alternative to Puppeteer)
  * Uncomment and install html-pdf-node if you prefer this method

@@ -8,9 +8,12 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
-import { sql, eq, lte } from "drizzle-orm";
+import { sql, eq, lte, desc } from "drizzle-orm";
+import { generatePurchaseOrderPDF, generateRFQPDF } from "./pdf-generator";
+import { numberToWords } from "./utils/number-to-words";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -39,7 +42,7 @@ export function registerInventoryRoutes(
 
       const [sumRow] = await db
         .select({
-          totalValue: sql`COALESCE(SUM(CASE WHEN ${products.price} IS NULL THEN 0 ELSE ${products.price} END * COALESCE(${products.stock}, 0)), 0)`,
+          totalValue: sql`COALESCE(SUM(CASE WHEN ${products.costPrice} IS NULL THEN 0 ELSE ${products.costPrice} END * COALESCE(${products.stock}, 0)), 0)`,
         })
         .from(products);
 
@@ -106,10 +109,6 @@ export function registerInventoryRoutes(
           body.stock != null && !Number.isNaN(Number(body.stock))
             ? Number(body.stock)
             : 0;
-        const price =
-          body.price != null && !Number.isNaN(Number(body.price))
-            ? Number(body.price)
-            : 0;
         const costPrice =
           body.costPrice != null && !Number.isNaN(Number(body.costPrice))
             ? Number(body.costPrice)
@@ -129,7 +128,6 @@ export function registerInventoryRoutes(
             description,
             category,
             stock,
-            price,
             costPrice,
             lowStockThreshold,
             unit,
@@ -157,8 +155,6 @@ export function registerInventoryRoutes(
         if (typeof body.sku === "string") update.sku = body.sku.trim();
         if (body.stock != null && !Number.isNaN(Number(body.stock)))
           update.stock = Number(body.stock);
-        if (body.price != null && !Number.isNaN(Number(body.price)))
-          update.price = Number(body.price);
 
         const [row] = await db
           .update(products)
@@ -338,8 +334,8 @@ export function registerInventoryRoutes(
           sku: product.sku,
           category: product.category,
           currentStock: product.stock,
-          price: product.price,
-          value: (Number(product.price) * product.stock).toFixed(2),
+          costPrice: product.costPrice,
+          value: (Number(product.costPrice) * product.stock).toFixed(2),
           lowStockThreshold: product.lowStockThreshold,
           status:
             product.stock <= (product.lowStockThreshold || 10)
@@ -500,7 +496,7 @@ export function registerInventoryRoutes(
           }
           categoryStats[category].items += 1;
           categoryStats[category].value +=
-            Number(product.price) * product.stock;
+            Number(product.costPrice) * product.stock;
           categoryStats[category].stock += product.stock;
         });
 
@@ -523,7 +519,7 @@ export function registerInventoryRoutes(
 
         const analytics = {
           totalInventoryValue: productsData
-            .reduce((sum, p) => sum + Number(p.price) * p.stock, 0)
+            .reduce((sum, p) => sum + Number(p.costPrice) * p.stock, 0)
             .toFixed(2),
           totalProducts: productsData.length,
           lowStockAlerts: productsData.filter(
@@ -570,8 +566,8 @@ export function registerInventoryRoutes(
           SKU: product.sku,
           Category: product.category,
           "Current Stock": product.stock,
-          Price: product.price,
-          "Total Value": (Number(product.price) * product.stock).toFixed(2),
+          "Cost Price": product.costPrice,
+          "Total Value": (Number(product.costPrice) * product.stock).toFixed(2),
           "Low Stock Threshold": product.lowStockThreshold,
           Status:
             product.stock <= (product.lowStockThreshold || 10)
@@ -757,7 +753,7 @@ export function registerInventoryRoutes(
           }
           categoryStats[category].items += 1;
           categoryStats[category].value +=
-            Number(product.price) * product.stock;
+            Number(product.costPrice) * product.stock;
           categoryStats[category].stock += product.stock;
         });
 
@@ -810,7 +806,7 @@ export function registerInventoryRoutes(
 
         let csvContent = "STOCK BALANCE REPORT\n";
         csvContent +=
-          "Product Name,SKU,Category,Current Stock,Price,Total Value,Low Stock Threshold,Status\n";
+          "Product Name,SKU,Category,Current Stock,Cost Price,Total Value,Low Stock Threshold,Status\n";
 
         productsData.forEach((product) => {
           const status =
@@ -819,8 +815,8 @@ export function registerInventoryRoutes(
               : "In Stock";
           csvContent += `"${product.name}","${product.sku}","${
             product.category
-          }",${product.stock},${product.price},${(
-            Number(product.price) * product.stock
+          }",${product.stock},${product.costPrice},${(
+            Number(product.costPrice) * product.stock
           ).toFixed(2)},${product.lowStockThreshold},"${status}"\n`;
         });
 
@@ -903,4 +899,661 @@ export function registerInventoryRoutes(
       }
     }
   );
+
+  // --- MATERIAL REQUEST ROUTES ---
+
+  // GET all material requests
+  app.get("/api/material-requests", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          request: materialRequests,
+          poNumber: purchaseOrders.poNumber
+        })
+        .from(materialRequests)
+        .leftJoin(purchaseOrders, eq(materialRequests.purchaseOrderId, purchaseOrders.id))
+        .orderBy(desc(materialRequests.createdAt));
+      
+      const formattedRows = rows.map(r => ({
+        ...r.request,
+        poNumber: r.poNumber
+      }));
+      
+      res.json(formattedRows);
+    } catch (e) {
+      console.error("Error fetching material requests:", e);
+      res.status(500).json({ error: "Failed to fetch material requests" });
+    }
+  });
+
+  // GET material request by ID
+  app.get("/api/material-requests/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [request] = await db
+        .select({
+          request: materialRequests,
+          poNumber: purchaseOrders.poNumber
+        })
+        .from(materialRequests)
+        .leftJoin(purchaseOrders, eq(materialRequests.purchaseOrderId, purchaseOrders.id))
+        .where(eq(materialRequests.id, id));
+      
+      if (!request) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      const items = await db
+        .select({
+          id: materialRequestItems.id,
+          requestId: materialRequestItems.requestId,
+          productId: materialRequestItems.productId,
+          sparePartId: materialRequestItems.sparePartId,
+          quantity: materialRequestItems.quantity,
+          unit: materialRequestItems.unit,
+          status: materialRequestItems.status,
+          notes: materialRequestItems.notes,
+          productName: products.name,
+          productSku: products.sku,
+          productStock: products.stock,
+          sparePartName: spareParts.name,
+          sparePartNumber: spareParts.partNumber,
+          sparePartStock: spareParts.stock,
+        })
+        .from(materialRequestItems)
+        .leftJoin(products, eq(materialRequestItems.productId, products.id))
+        .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
+        .where(eq(materialRequestItems.requestId, id));
+
+      res.json({ ...request.request, poNumber: request.poNumber, items });
+    } catch (e) {
+      console.error("Error fetching material request details:", e);
+      res.status(500).json({ error: "Failed to fetch material request details" });
+    }
+  });
+
+  // Update material request
+  app.put("/api/material-requests/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const [updated] = await db
+        .update(materialRequests)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(materialRequests.id, id))
+        .returning();
+        
+      if (!updated) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+      
+      res.json(updated);
+    } catch (e) {
+      console.error("Error updating material request:", e);
+      res.status(500).json({ error: "Failed to update material request" });
+    }
+  });
+
+  // POST create material request
+  app.post("/api/material-requests", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { items, ...requestData } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [newRequest] = await db.insert(materialRequests).values({
+        ...requestData,
+        requesterId: userId,
+        requestNumber: `MR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+      }).returning();
+
+      if (items && Array.isArray(items) && items.length > 0) {
+        const itemValues = items.map(item => ({
+          ...item,
+          requestId: newRequest.id,
+        }));
+        await db.insert(materialRequestItems).values(itemValues);
+      }
+
+      res.status(201).json(newRequest);
+    } catch (e) {
+      console.error("Error creating material request:", e);
+      res.status(500).json({ error: "Failed to create material request" });
+    }
+  });
+
+  // DELETE material request
+  app.delete("/api/material-requests/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db.delete(materialRequests).where(eq(materialRequests.id, id)).returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting material request:", e);
+      res.status(500).json({ error: "Failed to delete material request" });
+    }
+  });
+  
+  // Generate RFQ from Material Request
+  app.post("/api/material-requests/:id/generate-rfq", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Fetch the material request and its items
+      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      if (!request) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+
+      const items = await db
+        .select({
+          id: materialRequestItems.id,
+          productId: materialRequestItems.productId,
+          sparePartId: materialRequestItems.sparePartId,
+          quantity: materialRequestItems.quantity,
+          unit: materialRequestItems.unit,
+          productName: products.name,
+          sparePartName: spareParts.name,
+        })
+        .from(materialRequestItems)
+        .leftJoin(products, eq(materialRequestItems.productId, products.id))
+        .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
+        .where(eq(materialRequestItems.requestId, id));
+
+      if (items.length === 0) {
+        return res.status(400).json({ error: "No items found in material request" });
+      }
+
+      // Find first available supplier as a placeholder
+      const [firstSupplier] = await db.select().from(suppliers).limit(1);
+      if (!firstSupplier) {
+        return res.status(400).json({ error: "No suppliers found. Please add a supplier first." });
+      }
+
+      const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}`;
+      
+      const quotationItems = items.map(item => ({
+        id: Math.random().toString(36).substr(2, 9),
+        materialName: item.productName || item.sparePartName || "Unknown Item",
+        type: item.productId ? "Product" : "Spare Part",
+        designQty: Number(item.quantity),
+        rate: 0,
+        amount: 0,
+      }));
+
+      const [newQuotation] = await db.insert(vendorQuotations).values({
+        quotationNumber,
+        quotationDate: new Date(),
+        status: "rfq",
+        senderId: firstSupplier.id,
+        userId: userId,
+        quotationItems: quotationItems,
+        totalAmount: "0",
+        financialBreakdown: {
+          subtotal: 0,
+          gst: 0,
+          total: 0
+        },
+        notes: `Auto-generated from Material Request ${request.requestNumber}`,
+      }).returning();
+
+      // Update material request status to PROCESSING
+      await db.update(materialRequests)
+        .set({ status: "PROCESSING", updatedAt: new Date() })
+        .where(eq(materialRequests.id, id));
+
+      res.status(201).json(newQuotation);
+    } catch (e) {
+      console.error("Error generating RFQ:", e);
+      res.status(500).json({ error: "Failed to generate RFQ" });
+    }
+  });
+
+  // Release material and update inventory
+  app.post("/api/material-requests/:id/release", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { items } = req.body; // Array of { productId, quantity }
+      const userId = req.user?.id;
+
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      if (!request) return res.status(404).json({ error: "Material request not found" });
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "No items provided for release" });
+      }
+
+      await db.transaction(async (tx) => {
+        for (const item of items) {
+          const { productId, quantity, location } = item;
+          
+          if (productId) {
+            // Create a stock transaction (OUT)
+            await tx.insert(stockTransactions).values({
+              userId: userId,
+              productId,
+              type: 'out',
+              reason: 'adjustment',
+              referenceNumber: request.requestNumber,
+              quantity: Number(quantity),
+              notes: `Released for Material Request ${request.requestNumber} from ${location || 'Main Warehouse'}`,
+            });
+
+            // Update product stock balance
+            await tx
+              .update(products)
+              .set({
+                stock: sql`${products.stock} - ${Number(quantity)}`,
+                updatedAt: new Date()
+              })
+              .where(eq(products.id, productId));
+          }
+        }
+
+        // Update request status to FULFILLED
+        await tx.update(materialRequests)
+          .set({ status: "FULFILLED", updatedAt: new Date() })
+          .where(eq(materialRequests.id, id));
+      });
+
+      res.status(200).json({ message: "Materials released successfully" });
+    } catch (e) {
+      console.error("Error releasing materials:", e);
+      res.status(500).json({ error: "Failed to release materials" });
+    }
+  });
+
+  // --- VENDOR QUOTATION ROUTES ---
+
+  // GET all vendor quotations
+  app.get("/api/vendor-quotations", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(vendorQuotations)
+        .orderBy(sql`${vendorQuotations.createdAt} DESC`);
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching vendor quotations:", e);
+      res.status(500).json({ error: "Failed to fetch vendor quotations" });
+    }
+  });
+
+  // POST create vendor quotation (RFQ)
+  app.post("/api/vendor-quotations", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const body = { ...req.body };
+      
+      // Coerce dates
+      if (body.quotationDate) body.quotationDate = new Date(body.quotationDate);
+      if (body.validUntil) body.validUntil = new Date(body.validUntil);
+
+      const validatedData = insertVendorQuotationSchema.parse({
+        ...body,
+        userId: body.userId || req.user?.id,
+      });
+
+      const [newQuotation] = await db
+        .insert(vendorQuotations)
+        .values(validatedData)
+        .returning();
+
+      res.status(201).json(newQuotation);
+    } catch (e: any) {
+      console.error("❌ Error creating vendor quotation:");
+      if (e instanceof Error) {
+        console.error("Message:", e.message);
+        console.error("Stack:", e.stack);
+      } else {
+        console.error(String(e));
+      }
+      
+      if (e.errors) {
+        try {
+          console.error("Validation errors details:", JSON.stringify(e.errors));
+        } catch (jsonErr) {
+          console.error("Could not stringify validation errors");
+        }
+      }
+      
+      res.status(400).json({ 
+        error: "Invalid vendor quotation data", 
+        details: e.errors || (e instanceof Error ? e.message : String(e))
+      });
+    }
+  });
+
+  // DELETE vendor quotation
+  app.delete("/api/vendor-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(vendorQuotations)
+        .where(eq(vendorQuotations.id, id))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Vendor quotation not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting vendor quotation:", e);
+      res.status(500).json({ error: "Failed to delete vendor quotation" });
+    }
+  });
+
+  // GET - generate RFQ PDF for vendor quotation
+  app.get("/api/vendor-quotations/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Fetch quotation with supplier
+      const [quotation] = await db
+        .select({
+          q: vendorQuotations,
+          supplier: suppliers,
+        })
+        .from(vendorQuotations)
+        .leftJoin(suppliers, eq(vendorQuotations.senderId, suppliers.id))
+        .where(eq(vendorQuotations.id, id));
+
+      if (!quotation) {
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+
+      const pdfData = {
+        company: {
+          name: "HOTTIP INVENTORY SYSTEM",
+          address: "Main Office, Industrial Area, Phase 1",
+          gstNo: "27AAACH1234A1Z1",
+          email: "procurement@hottip.com",
+          phone: "+91-9876543210"
+        },
+        supplier: {
+          name: quotation.supplier?.name || "N/A",
+          address: quotation.supplier?.address || "N/A",
+          gstNo: quotation.supplier?.gstNumber || "N/A",
+          phone: quotation.supplier?.phone || "N/A",
+          email: quotation.supplier?.email || "N/A"
+        },
+        rfq: {
+          quotationNumber: quotation.q.quotationNumber,
+          date: quotation.q.quotationDate ? new Date(quotation.q.quotationDate).toLocaleDateString() : "N/A",
+          validUntil: quotation.q.validUntil ? new Date(quotation.q.validUntil).toLocaleDateString() : "N/A",
+          subject: quotation.q.subject || "Request for Quotation",
+          notes: quotation.q.notes || "",
+          items: (quotation.q.quotationItems as any[]) || []
+        }
+      };
+
+      const pdfBuffer = await generateRFQPDF(pdfData as any);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=RFQ-${quotation.q.quotationNumber}.pdf`
+      );
+      res.end(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating RFQ PDF:", error);
+      res.status(500).json({ error: "Failed to generate RFQ PDF" });
+    }
+  });
+
+  // --- PURCHASE ORDER ROUTES ---
+
+  // GET all purchase orders
+  app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(purchaseOrders)
+        .orderBy(sql`${purchaseOrders.createdAt} DESC`);
+      res.json(rows);
+    } catch (e) {
+      console.error("Error fetching purchase orders:", e);
+      res.status(500).json({ error: "Failed to fetch purchase orders" });
+    }
+  });
+
+  // GET purchase order details
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      const items = await db
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      res.json({ ...order, items });
+    } catch (e) {
+      console.error("Error fetching purchase order details:", e);
+      res.status(500).json({ error: "Failed to fetch purchase order details" });
+    }
+  });
+
+  // POST create purchase order
+  app.post("/api/purchase-orders", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { items, ...orderData } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Convert date string to Date object
+      if (orderData.orderDate) {
+        orderData.orderDate = new Date(orderData.orderDate);
+      }
+
+      const validatedData = insertPurchaseOrderSchema.parse({
+        ...orderData,
+        userId,
+        items,
+      });
+
+      const { items: validatedItems, ...dbOrderData } = validatedData;
+
+      const [newOrder] = await db
+        .insert(purchaseOrders)
+        .values(dbOrderData)
+        .returning();
+
+      if (validatedItems && validatedItems.length > 0) {
+        const itemValues = validatedItems.map((item) => ({
+          ...item,
+          purchaseOrderId: newOrder.id,
+          amount: String(Number(item.quantity) * Number(item.unitPrice)),
+          unitPrice: String(item.unitPrice),
+          quantity: Number(item.quantity),
+        }));
+        await db.insert(purchaseOrderItems).values(itemValues);
+      }
+
+      res.status(201).json(newOrder);
+    } catch (e: any) {
+      console.error("Error creating purchase order:", e);
+      res.status(400).json({ 
+        error: "Invalid purchase order data", 
+        details: e.errors || e.message 
+      });
+    }
+  });
+
+  // DELETE purchase order
+  app.delete("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(purchaseOrders)
+        .where(eq(purchaseOrders.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      res.status(204).end();
+    } catch (e) {
+      console.error("Error deleting purchase order:", e);
+      res.status(500).json({ error: "Failed to delete purchase order" });
+    }
+  });
+
+  // GET - generate purchase order PDF
+  app.get("/api/purchase-orders/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Fetch purchase order with items and supplier
+      const [order] = await db
+        .select({
+          po: purchaseOrders,
+          supplier: suppliers,
+        })
+        .from(purchaseOrders)
+        .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      const items = await db
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      const totalAmount = Number(order.po.totalAmount);
+      const subtotal = items.reduce((sum, item) => sum + Number(item.amount), 0);
+      const taxAmount = totalAmount - subtotal;
+
+      const pdfData = {
+        company: {
+          name: "HOTTIP INVENTORY SYSTEM",
+          address: "Main Office, Industrial Area, Phase 1",
+          gstNo: "27AAACH1234A1Z1",
+          email: "procurement@hottip.com",
+          phone: "+91-9876543210"
+        },
+        supplier: {
+          name: order.supplier?.name || "N/A",
+          address: order.supplier?.address || "N/A",
+          gstNo: order.supplier?.gstNumber || "N/A",
+          phone: order.supplier?.phone || "N/A",
+          email: order.supplier?.email || "N/A"
+        },
+        po: {
+          poNumber: order.po.poNumber,
+          date: order.po.orderDate ? new Date(order.po.orderDate).toLocaleDateString() : "N/A",
+          deliveryPeriod: order.po.expectedDelivery || "N/A",
+          subtotal: Number(subtotal) || 0,
+          gstAmount: Number(taxAmount) || 0,
+          total: Number(totalAmount) || 0,
+          amountInWords: numberToWords(Number(totalAmount) || 0),
+          notes: order.po.notes || "",
+          items: items.map(item => ({
+            description: item.itemName,
+            hsn: item.description || "N/A",
+            quantity: Number(item.quantity) || 0,
+            unit: item.unit || "pcs",
+            rate: Number(item.unitPrice) || 0,
+            amount: Number(item.amount) || 0
+          }))
+        }
+      };
+
+      const pdfBuffer = await generatePurchaseOrderPDF(pdfData as any);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=PO-${order.po.poNumber}.pdf`
+      );
+      res.end(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PO PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
+  // POST - send purchase order to accounts payables
+  app.post("/api/purchase-orders/:id/send-to-accounts", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      // Check if already sent
+      const [existing] = await db
+        .select()
+        .from(accountsPayables)
+        .where(eq(accountsPayables.poId, id));
+
+      if (existing) {
+        return res.status(400).json({ error: "Already sent to accounts" });
+      }
+
+      // Create accounts payable entry
+      await db.insert(accountsPayables).values({
+        supplierId: order.supplierId,
+        poId: order.id,
+        amountDue: order.totalAmount,
+        amountPaid: "0",
+        dueDate: order.expectedDelivery ? new Date() : new Date(), // Use delivery date or current
+        status: "pending",
+        notes: `Auto-generated from PO: ${order.poNumber}`,
+      });
+
+      // Update PO status
+      await db
+        .update(purchaseOrders)
+        .set({ status: "processing" })
+        .where(eq(purchaseOrders.id, id));
+
+      res.json({ success: true, message: "Successfully sent to accounts" });
+    } catch (error) {
+      console.error("Error sending to accounts:", error);
+      res.status(500).json({ error: "Failed to send to accounts" });
+    }
+  });
 }

@@ -3,16 +3,12 @@ import { useLocation, Link, Switch, Route } from "wouter";
 import { 
   Package, 
   TrendingUp, 
-  Wrench, 
-  QrCode, 
   ClipboardList, 
   FileText, 
-  Clock,
   Truck,
   AlertTriangle,
   BarChart3,
-  Building2,
-  Settings
+  Building2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
@@ -20,23 +16,19 @@ import {
   inventoryTour,
   inventoryStockManagementTour,
   inventoryVendorManagementTour,
-  inventorySpareToursPrefabricationTour,
-  inventoryBatchBarcodeTour,
-  inventoryTasksTour,
-  inventoryReportsTour,
-  inventoryAttendanceTour
+  inventoryReportsTour
 } from "@/components/tours/dashboardTour";
 import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import inventory pages (will create these next)
 import StockManagement from "./StockManagement";
 import VendorManagement from "./VendorManagement";
-import SparePartsFabrication from "./SparePartsFabrication";
-import BatchBarcode from "./BatchBarcode";
-import InventoryTasks from "./InventoryTasks";
 import InventoryReports from "./InventoryReports";
-import InventoryAttendance from "./InventoryAttendance";
 import InventoryDashboard from "../InventoryDashboard";
+import MaterialRequests from "./MaterialRequests";
+import MaterialRequestDetail from "./MaterialRequestDetail";
+import VendorQuotations from "./VendorQuotations";
+import VendorPO from "./VendorPO";
 
 const sidebarItems = [
   {
@@ -45,6 +37,30 @@ const sidebarItems = [
     icon: BarChart3,
     path: '/inventory',
     description: 'Inventory overview and key metrics',
+    tourConfig: null,
+  },
+  {
+    id: 'material-requests',
+    label: 'Material Requests',
+    icon: ClipboardList,
+    path: '/inventory/material-requests',
+    description: 'Manage material and stock requests',
+    tourConfig: null,
+  },
+  {
+    id: 'vendor-quotations',
+    label: 'Vendor Quotations',
+    icon: FileText,
+    path: '/inventory/vendor-quotations',
+    description: 'Manage quotations from vendors',
+    tourConfig: null,
+  },
+  {
+    id: 'vendor-po',
+    label: 'Vendor PO',
+    icon: Truck,
+    path: '/inventory/vendor-po',
+    description: 'Manage purchase orders to vendors',
     tourConfig: null,
   },
   {
@@ -64,44 +80,12 @@ const sidebarItems = [
     tourConfig: inventoryVendorManagementTour,
   },
   {
-    id: 'spare-parts',
-    label: 'Spare Parts & Fabrication',
-    icon: Wrench,
-    path: '/inventory/spare-parts',
-    description: 'Track part status and fabrication',
-    tourConfig: inventorySpareToursPrefabricationTour,
-  },
-  {
-    id: 'batch-barcode',
-    label: 'Batch & Barcode',
-    icon: QrCode,
-    path: '/inventory/batch-barcode',
-    description: 'Lot tracking and QR/barcode scanning',
-    tourConfig: inventoryBatchBarcodeTour,
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    icon: ClipboardList,
-    path: '/inventory/tasks',
-    description: 'Assign inventory tasks to employees',
-    tourConfig: inventoryTasksTour,
-  },
-  {
     id: 'reports',
     label: 'Reports',
     icon: FileText,
     path: '/inventory/reports',
     description: 'Stock reports, vendor history, forecasts',
     tourConfig: inventoryReportsTour,
-  },
-  {
-    id: 'attendance',
-    label: 'Attendance',
-    icon: Clock,
-    path: '/inventory/attendance',
-    description: 'Staff attendance and leave management',
-    tourConfig: inventoryAttendanceTour,
   }
 ];
 
@@ -122,13 +106,12 @@ export default function InventoryLayout() {
   
   const getActiveSidebarItem = () => {
     if (location === '/inventory') return 'dashboard';
+    if (location.includes('/material-requests')) return 'material-requests';
+    if (location.includes('/vendor-quotations')) return 'vendor-quotations';
+    if (location.includes('/vendor-po')) return 'vendor-po';
     if (location.includes('/stock')) return 'stock-management';
     if (location.includes('/vendors')) return 'vendors';
-    if (location.includes('/spare-parts')) return 'spare-parts';
-    if (location.includes('/batch-barcode')) return 'batch-barcode';
-    if (location.includes('/tasks')) return 'tasks';
     if (location.includes('/reports')) return 'reports';
-    if (location.includes('/attendance')) return 'attendance';
     return 'dashboard';
   };
 
@@ -218,26 +201,26 @@ export default function InventoryLayout() {
           <Route path="/inventory">
             <InventoryDashboard />
           </Route>
+          <Route path="/inventory/material-requests">
+            <MaterialRequests />
+          </Route>
+          <Route path="/inventory/material-requests/:id">
+            <MaterialRequestDetail />
+          </Route>
+          <Route path="/inventory/vendor-quotations">
+            <VendorQuotations />
+          </Route>
+          <Route path="/inventory/vendor-po">
+            <VendorPO />
+          </Route>
           <Route path="/inventory/stock">
             <StockManagement />
           </Route>
           <Route path="/inventory/vendors">
             <VendorManagement />
           </Route>
-          <Route path="/inventory/spare-parts">
-            <SparePartsFabrication />
-          </Route>
-          <Route path="/inventory/batch-barcode">
-            <BatchBarcode />
-          </Route>
-          <Route path="/inventory/tasks">
-            <InventoryTasks />
-          </Route>
           <Route path="/inventory/reports">
             <InventoryReports />
-          </Route>
-          <Route path="/inventory/attendance">
-            <InventoryAttendance />
           </Route>
           <Route>
             <div className="p-8">

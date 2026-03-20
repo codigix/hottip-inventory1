@@ -14,6 +14,7 @@ import {
 
 import { decimal } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // USERS table definition (inline, since ./users is missing)
@@ -95,6 +96,65 @@ export const insertFabricationOrderSchema = z.object({
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
+  notes: z.string().optional(),
+});
+
+// =====================
+// MATERIAL REQUESTS
+// =====================
+
+export const materialRequestStatus = pgEnum("material_request_status", [
+  "DRAFT",
+  "PENDING",
+  "APPROVED",
+  "PROCESSING",
+  "FULFILLED",
+  "CANCELLED",
+]);
+
+export const materialRequests = pgTable("material_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestNumber: text("requestNumber").notNull(),
+  requesterId: uuid("requesterId").notNull().references(() => users.id),
+  department: text("department").notNull(),
+  status: materialRequestStatus("status").notNull().default("DRAFT"),
+  purpose: text("purpose").notNull().default("Purchase Request"),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  purchaseOrderId: uuid("purchase_order_id").references(() => purchaseOrders.id),
+  requiredBy: timestamp("requiredBy"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const materialRequestItems = pgTable("material_request_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestId: uuid("requestId").notNull().references(() => materialRequests.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
+  sparePartId: uuid("sparePartId").references(() => spareParts.id),
+  quantity: numeric("quantity", { precision: 10, scale: 3 }).notNull(),
+  unit: text("unit").notNull(),
+  status: text("status").default("pending"),
+  notes: text("notes"),
+});
+
+export const insertMaterialRequestSchema = z.object({
+  requestNumber: z.string().optional(),
+  requesterId: z.string().uuid(),
+  department: z.string(),
+  status: z.enum(["DRAFT", "PENDING", "APPROVED", "PROCESSING", "FULFILLED", "CANCELLED"]).optional(),
+  purpose: z.string().optional(),
+  quotationId: z.string().uuid().optional().nullable(),
+  purchaseOrderId: z.string().uuid().optional().nullable(),
+  requiredBy: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const insertMaterialRequestItemSchema = z.object({
+  productId: z.string().uuid().optional(),
+  sparePartId: z.string().uuid().optional(),
+  quantity: z.coerce.number(),
+  unit: z.string(),
   notes: z.string().optional(),
 });
 
@@ -503,6 +563,7 @@ export const quotationStatus = pgEnum("quotation_status", [
   "rejected",
   "received",
   "under_review",
+  "rfq",
 ]);
 
 export const outboundQuotations = pgTable("outbound_quotations", {
@@ -626,7 +687,6 @@ export const products = pgTable("products", {
   description: text("description"),
   sku: text("sku").notNull().unique(),
   category: text("category").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull().default(0),
   stock: integer("stock").notNull().default(0),
   costPrice: decimal("costPrice", { precision: 10, scale: 2 }).default(0),
   lowStockThreshold: integer("lowStockThreshold").default(0),
@@ -702,6 +762,15 @@ export const accountsReceivableStatus = pgEnum("accounts_receivable_status", [
   "overdue",
 ]);
 
+export const paymentMode = pgEnum("payment_mode", [
+  "bank_transfer",
+  "upi",
+  "cheque",
+  "cash",
+  "credit_card",
+  "debit_card",
+]);
+
 export const accountsReceivables = pgTable("accounts_receivables", {
   id: uuid("id").defaultRandom().primaryKey(),
   invoiceId: uuid("invoiceId")
@@ -715,6 +784,9 @@ export const accountsReceivables = pgTable("accounts_receivables", {
   dueDate: timestamp("dueDate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
+  paymentMode: paymentMode("paymentMode"),
+  paymentDate: timestamp("paymentDate"),
+  paymentDetails: jsonb("paymentDetails"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -732,12 +804,55 @@ export const accountsPayables = pgTable("accounts_payables", {
     .notNull()
     .references(() => suppliers.id),
   amountDue: numeric("amountDue", { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric("amountpaid", { precision: 10, scale: 2 }).default("0"),
-  dueDate: timestamp("duedate").notNull(),
+  amountPaid: numeric("amountPaid", { precision: 10, scale: 2 }).default("0"),
+  dueDate: timestamp("dueDate").notNull(),
   notes: text("notes"),
   status: accountsReceivableStatus("status").notNull().default("pending"),
-  createdAt: timestamp("createdat").defaultNow().notNull(),
-  updatedAt: timestamp("updatedat").defaultNow().notNull(),
+  paymentMode: paymentMode("paymentMode"),
+  paymentDate: timestamp("paymentDate"),
+  paymentDetails: jsonb("paymentDetails"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// =====================
+// VENDOR QUOTATIONS
+// =====================
+export const vendorQuotations = pgTable("vendor_quotations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quotationNumber: text("quotationNumber").notNull(),
+  quotationDate: timestamp("quotationDate").notNull(),
+  validUntil: timestamp("validUntil"),
+  subject: text("subject"),
+  totalAmount: numeric("totalAmount"),
+  status: quotationStatus("status").notNull().default("rfq"),
+  notes: text("notes"),
+  attachmentPath: text("attachmentPath"),
+  attachmentName: text("attachmentName"),
+  senderId: uuid("senderId").notNull().references(() => suppliers.id),
+  userId: uuid("userId").notNull().references(() => users.id),
+  materialRequestId: uuid("material_request_id").references(() => materialRequests.id),
+  quotationItems: jsonb("quotationItems"),
+  financialBreakdown: jsonb("financialBreakdown"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+export type VendorQuotation = typeof vendorQuotations.$inferSelect;
+export type InsertVendorQuotation = typeof vendorQuotations.$inferInsert;
+
+export const insertVendorQuotationSchema = z.object({
+  quotationNumber: z.string(),
+  quotationDate: z.coerce.date(),
+  validUntil: z.coerce.date().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  totalAmount: z.string().optional().nullable(),
+  status: z.string().default("rfq"),
+  notes: z.string().optional().nullable(),
+  senderId: z.string().uuid(),
+  userId: z.string().uuid(),
+  materialRequestId: z.string().uuid().optional().nullable(),
+  quotationItems: z.any().optional().nullable(),
+  financialBreakdown: z.any().optional().nullable(),
 });
 
 // =====================
@@ -786,6 +901,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
   poNumber: text("poNumber").notNull().unique(),
   supplierId: uuid("supplierId").notNull(),
   quotationId: uuid("quotationId"),
+  materialRequestId: uuid("material_request_id").references(() => materialRequests.id),
   userId: uuid("userId")
     .notNull()
     .references(() => users.id),
@@ -845,6 +961,7 @@ export const insertPurchaseOrderSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
   supplierId: z.string().uuid("Invalid supplier ID"),
   quotationId: z.string().uuid().optional().nullable(),
+  materialRequestId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid("Invalid user ID"),
   orderDate: z.preprocess(
     (val) => (val ? new Date(val as string) : undefined),
@@ -915,11 +1032,31 @@ export const vendorCommunications = pgTable("vendor_communications", {
 });
 
 // =====================
+// LOGISTICS ENUMS
+// =====================
+export const logisticsShipmentStatusEnum = pgEnum("logistics_shipment_status", [
+  "created",
+  "planned",
+  "packed",
+  "dispatched",
+  "vendor_ready",
+  "picked_up",
+  "export_customs",
+  "in_transit",
+  "arrived_india",
+  "import_customs",
+  "out_for_delivery",
+  "delivered",
+  "closed",
+]);
+
+// =====================
 // LOGISTICS SHIPMENTS
 // =====================
 export const logisticsShipments = pgTable("logistics_shipments", {
   id: uuid("id").defaultRandom().primaryKey(),
-  consignmentNumber: text("consignmentNumber").notNull(),
+  consignmentNumber: text("consignmentNumber").notNull().unique(),
+  poNumber: text("poNumber"),
   source: text("source").notNull(),
   destination: text("destination").notNull(),
   clientId: uuid("clientId"),
@@ -931,7 +1068,93 @@ export const logisticsShipments = pgTable("logistics_shipments", {
   currentStatus: text("currentStatus").notNull().default("created"),
   notes: text("notes"),
   weight: numeric("weight", { precision: 10, scale: 2 }),
+  createdBy: uuid("createdBy"),
+  assignedTo: uuid("assignedTo"),
+  items: jsonb("items"),
+  isApproved: boolean("isApproved").default(false),
+  approvalDate: timestamp("approvalDate"),
+  approvalNotes: text("approvalNotes"),
+  approvedBy: uuid("approvedBy"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
 });
+
+// =====================
+// LOGISTICS SHIPMENT PLANS
+// =====================
+export const logisticsShipmentPlans = pgTable("logistics_shipment_plans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  shipmentId: uuid("shipmentId").references(() => logisticsShipments.id, { onDelete: "cascade" }),
+  planId: text("planId").notNull().unique(),
+  
+  // Basic Information
+  shipmentType: text("shipmentType"), // Air / Sea / Road
+  shipmentMode: text("shipmentMode"), // Import / Export
+  incoterms: text("incoterms"), // FOB / CIF / EXW
+  forwarderAgent: text("forwarderAgent"),
+  plannedDispatch: timestamp("plannedDispatch"),
+  expectedArrival: timestamp("expectedArrival"),
+  status: text("status").default("Planned"),
+
+  // Sea Freight Details
+  shippingLine: text("shippingLine"),
+  vesselName: text("vesselName"),
+  voyageNumber: text("voyageNumber"),
+  containerNumber: text("containerNumber"),
+  containerType: text("containerType"), // 20FT / 40FT
+  sealNumber: text("sealNumber"),
+  blNumber: text("blNumber"),
+  portOfLoading: text("portOfLoading"),
+  portOfDestination: text("portOfDestination"),
+  departureDate: timestamp("departureDate"),
+  etaArrival: timestamp("etaArrival"),
+
+  // Air Freight Details
+  airlineName: text("airlineName"),
+  flightNumber: text("flightNumber"),
+  awbNumber: text("awbNumber"),
+  departureAirport: text("departureAirport"),
+  arrivalAirport: text("arrivalAirport"),
+  flightDeparture: timestamp("flightDeparture"),
+  etaArrivalAir: timestamp("etaArrivalAir"),
+  cargoWeight: numeric("cargoWeight", { precision: 10, scale: 2 }),
+  cargoVolume: numeric("cargoVolume", { precision: 10, scale: 2 }),
+
+  // Truck Transport Details
+  transportCompany: text("transportCompany"),
+  truckNumber: text("truckNumber"),
+  driverName: text("driverName"),
+  driverPhone: text("driverPhone"),
+  pickupLocation: text("pickupLocation"),
+  deliveryLocation: text("deliveryLocation"),
+  dispatchDateRoad: timestamp("dispatchDateRoad"),
+  deliveryDateRoad: timestamp("deliveryDateRoad"),
+
+  // Custom Clearance
+  clearingAgent: text("clearingAgent"),
+  billOfEntry: text("billOfEntry"),
+  importDuty: numeric("importDuty", { precision: 12, scale: 2 }),
+  gstPaid: numeric("gstPaid", { precision: 12, scale: 2 }),
+  customStatus: text("customStatus"), // Pending / Cleared
+  clearanceDate: timestamp("clearanceDate"),
+
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export const logisticsShipmentPlanRelations = relations(logisticsShipmentPlans, ({ one }) => ({
+  shipment: one(logisticsShipments, {
+    fields: [logisticsShipmentPlans.shipmentId],
+    references: [logisticsShipments.id],
+  }),
+}));
+
+export const logisticsShipmentRelations = relations(logisticsShipments, ({ one }) => ({
+  plan: one(logisticsShipmentPlans, {
+    fields: [logisticsShipments.id],
+    references: [logisticsShipmentPlans.shipmentId],
+  }),
+}));
 
 // =====================
 // LOGISTICS TASKS
@@ -1423,8 +1646,8 @@ export const insertGstReturnSchema = z.object({
 
 // Accounts Payable schema
 export const insertAccountsPayableSchema = z.object({
-  poId: z.union([z.string().uuid(), z.literal("")]).optional(),
-  inboundQuotationId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  poId: z.string().uuid().nullable().optional(),
+  inboundQuotationId: z.string().uuid().nullable().optional(),
   supplierId: z.string().uuid(),
   amountDue: z.number().positive(),
   dueDate: z.string(),
@@ -1672,6 +1895,8 @@ export const updateLogisticsShipmentSchema = z.object({
   currentStatus: z.string().optional(),
   notes: z.string().optional(),
   weight: z.number().optional(),
+  createdBy: z.string().uuid().optional(),
+  assignedTo: z.string().uuid().optional(),
 });
 
 export const logisticsShipmentFilterSchema = z.object({
@@ -1681,6 +1906,7 @@ export const logisticsShipmentFilterSchema = z.object({
   vendorId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  isApproved: z.string().transform(v => v === "true").optional(),
 });
 
 export const updateLogisticsShipmentStatusSchema = z.object({
@@ -1737,10 +1963,11 @@ export const logisticsTaskFilterSchema = z.object({
 // Placeholder for logistics shipment insert schema
 export const insertLogisticsShipmentSchema = z.object({
   consignmentNumber: z.string(),
+  poNumber: z.string().optional(),
   source: z.string(),
   destination: z.string(),
-  clientId: z.string().optional(),
-  vendorId: z.string().optional(),
+  clientId: z.string().uuid().nullable().optional(),
+  vendorId: z.string().uuid().nullable().optional(),
   dispatchDate: z.string().optional(),
   expectedDeliveryDate: z.string().optional(),
   deliveredAt: z.string().optional(),
@@ -1748,6 +1975,9 @@ export const insertLogisticsShipmentSchema = z.object({
   currentStatus: z.string().optional(),
   notes: z.string().optional(),
   weight: z.number().optional(),
+  createdBy: z.string().uuid().optional(),
+  assignedTo: z.string().uuid().optional(),
+  items: z.any().optional(),
 });
 
 // Placeholder for logistics checkpoint insert schema
@@ -1797,27 +2027,42 @@ export const insertLogisticsLeaveRequestSchema = z.object({
 // =====================
 export const LOGISTICS_SHIPMENT_STATUSES = [
   "created",
+  "planned",
   "packed",
   "dispatched",
+  "vendor_ready",
+  "picked_up",
+  "export_customs",
   "in_transit",
+  "arrived_india",
+  "import_customs",
   "out_for_delivery",
   "delivered",
   "closed",
 ];
 
 export function getNextStatus(currentStatus: string): string | null {
-  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus);
+  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus.toLowerCase());
   if (index === -1 || index === LOGISTICS_SHIPMENT_STATUSES.length - 1) {
     return null; // no next status
   }
   return LOGISTICS_SHIPMENT_STATUSES[index + 1];
 }
+
+export function getPreviousStatus(currentStatus: string): string | null {
+  const index = LOGISTICS_SHIPMENT_STATUSES.indexOf(currentStatus.toLowerCase());
+  if (index <= 0) {
+    return null; // no previous status
+  }
+  return LOGISTICS_SHIPMENT_STATUSES[index - 1];
+}
+
 export function isValidStatusTransition(
   currentStatus: string,
   nextStatus: string
 ): boolean {
-  const next = getNextStatus(currentStatus);
-  return next === nextStatus;
+  // Allow jumping to any status for now to be flexible, but usually it's sequential
+  return LOGISTICS_SHIPMENT_STATUSES.includes(nextStatus.toLowerCase());
 }
 
 export const taskStatusEnum = pgEnum("task_status", [
@@ -2060,6 +2305,71 @@ export const insertMoldDetailSchema = z.object({
   quotationFor: z.string().optional(),
   userId: z.string().uuid().optional(),
 });
+
+export const insertLogisticsShipmentPlanSchema = z.object({
+  shipmentId: z.string().uuid(),
+  planId: z.string(),
+  shipmentType: z.enum(["Air", "Sea", "Road"]).optional(),
+  shipmentMode: z.enum(["Import", "Export"]).optional(),
+  incoterms: z.enum(["FOB", "CIF", "EXW"]).optional(),
+  forwarderAgent: z.string().optional(),
+  plannedDispatch: z.string().or(z.date()).optional(),
+  expectedArrival: z.string().or(z.date()).optional(),
+  status: z.string().optional().default("Planned"),
+
+  // Sea Freight Details
+  shippingLine: z.string().optional(),
+  vesselName: z.string().optional(),
+  voyageNumber: z.string().optional(),
+  containerNumber: z.string().optional(),
+  containerType: z.enum(["20FT", "40FT"]).optional(),
+  sealNumber: z.string().optional(),
+  blNumber: z.string().optional(),
+  portOfLoading: z.string().optional(),
+  portOfDestination: z.string().optional(),
+  departureDate: z.string().or(z.date()).optional(),
+  etaArrival: z.string().or(z.date()).optional(),
+
+  // Air Freight Details
+  airlineName: z.string().optional(),
+  flightNumber: z.string().optional(),
+  awbNumber: z.string().optional(),
+  departureAirport: z.string().optional(),
+  arrivalAirport: z.string().optional(),
+  flightDeparture: z.string().or(z.date()).optional(),
+  etaArrivalAir: z.string().or(z.date()).optional(),
+  cargoWeight: z.coerce.number().optional(),
+  cargoVolume: z.coerce.number().optional(),
+
+  // Truck Transport Details
+  transportCompany: z.string().optional(),
+  truckNumber: z.string().optional(),
+  driverName: z.string().optional(),
+  driverPhone: z.string().optional(),
+  pickupLocation: z.string().optional(),
+  deliveryLocation: z.string().optional(),
+  dispatchDateRoad: z.string().or(z.date()).optional(),
+  deliveryDateRoad: z.string().or(z.date()).optional(),
+
+  // Custom Clearance
+  clearingAgent: z.string().optional(),
+  billOfEntry: z.string().optional(),
+  importDuty: z.coerce.number().optional(),
+  gstPaid: z.coerce.number().optional(),
+  customStatus: z.enum(["Pending", "Cleared"]).optional(),
+  clearanceDate: z.string().or(z.date()).optional(),
+});
+
+export const updateLogisticsShipmentPlanSchema = insertLogisticsShipmentPlanSchema.partial();
+
+export const logisticsShipmentPlanFilterSchema = z.object({
+  shipmentId: z.string().uuid().optional(),
+  status: z.string().optional(),
+  planId: z.string().optional(),
+});
+
+export type LogisticsShipmentPlan = typeof logisticsShipmentPlans.$inferSelect;
+export type InsertLogisticsShipmentPlan = z.infer<typeof insertLogisticsShipmentPlanSchema>;
 
 // =====================
 // TYPE EXPORTS

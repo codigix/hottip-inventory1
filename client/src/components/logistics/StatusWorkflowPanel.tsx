@@ -23,6 +23,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { openAuthenticatedPdf } from "@/lib/utils";
 
 // Use shared types and validation helpers
 import type { 
@@ -44,7 +45,7 @@ interface StatusWorkflowPanelProps {
 
 // Status update form schema with proper enum validation
 const statusUpdateSchema = z.object({
-  status: z.enum(LOGISTICS_SHIPMENT_STATUSES, {
+  status: z.enum([LOGISTICS_SHIPMENT_STATUSES[0], ...LOGISTICS_SHIPMENT_STATUSES.slice(1)], {
     errorMap: () => ({ message: "Invalid status value" })
   }),
   notes: z.string().optional(),
@@ -128,12 +129,18 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: StatusUpdateForm }) => {
       return await apiRequest(`/logistics/shipments/${shipmentId}/status`, {
         method: "PUT",
-        body: JSON.stringify(data),
+        body: data,
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
       queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
+      
+      // If status is 'delivered', open delivery challan
+      if (variables.data.status === 'delivered') {
+        openAuthenticatedPdf(`/logistics/shipments/${variables.shipmentId}/delivery-challan`);
+      }
+
       setShowStatusUpdate(false);
       setSelectedShipment(null);
       form.reset();
@@ -156,7 +163,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
     mutationFn: async ({ shipmentId, data }: { shipmentId: string; data: any }) => {
       return await apiRequest(`/logistics/shipments/${shipmentId}/close`, {
         method: "POST",
-        body: JSON.stringify(data),
+        body: data,
       });
     },
     onSuccess: () => {

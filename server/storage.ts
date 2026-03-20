@@ -5,6 +5,7 @@ export type InsertCustomer = typeof customers.$inferInsert;
 import { db } from "./db";
 import {
   and,
+  or,
   desc,
   eq,
   gte,
@@ -14,6 +15,7 @@ import {
   count,
   avg,
   isNotNull,
+  aliasedTable,
 } from "drizzle-orm";
 import {
   users,
@@ -28,6 +30,7 @@ import {
   activities,
   stockTransactions,
   logisticsShipments,
+  logisticsShipmentPlans,
 } from "@shared/schema";
 
 // Minimal storage implementation providing only the methods used by the current routes
@@ -50,6 +53,7 @@ import {
   suppliers,
   outboundQuotations,
   inboundQuotations,
+  vendorQuotations,
   invoices,
   invoiceItems,
   purchaseOrders,
@@ -65,6 +69,8 @@ export type OutboundQuotation = typeof outboundQuotations.$inferSelect;
 export type InsertOutboundQuotation = typeof outboundQuotations.$inferInsert;
 export type InboundQuotation = typeof inboundQuotations.$inferSelect;
 export type InsertInboundQuotation = typeof inboundQuotations.$inferInsert;
+export type VendorQuotation = typeof vendorQuotations.$inferSelect;
+export type InsertVendorQuotation = typeof vendorQuotations.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
@@ -73,6 +79,8 @@ export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type InsertSalesOrder = typeof salesOrders.$inferInsert;
+export type LogisticsShipmentPlan = typeof logisticsShipmentPlans.$inferSelect;
+export type InsertLogisticsShipmentPlan = typeof logisticsShipmentPlans.$inferInsert;
 
 class Storage {
   // Find user by username or email
@@ -389,6 +397,28 @@ class Storage {
       throw new Error("Inbound quotation not found for update"); // Or return undefined if preferred
     }
     return row;
+  }
+
+  // Vendor Quotations CRUD
+  async createVendorQuotation(
+    insertQuotation: InsertVendorQuotation
+  ): Promise<VendorQuotation> {
+    const [row] = await db
+      .insert(vendorQuotations)
+      .values(insertQuotation)
+      .returning();
+    return row;
+  }
+
+  async getVendorQuotations(): Promise<VendorQuotation[]> {
+    return await db
+      .select()
+      .from(vendorQuotations)
+      .orderBy(desc(vendorQuotations.createdAt));
+  }
+
+  async deleteVendorQuotation(id: string): Promise<void> {
+    await db.delete(vendorQuotations).where(eq(vendorQuotations.id, id));
   }
 
   // Purchase Orders CRUD
@@ -1973,8 +2003,8 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     });
   }
 
-  async updateSalesOrderStatus(id: string, status: string): Promise<any> {
-    console.log(`💾 [STORAGE] updateSalesOrderStatus hit for ID: ${id}, status: ${status}`);
+  async updateSalesOrderStatus(id: string, status: string, userId?: string): Promise<any> {
+    console.log(`💾 [STORAGE] updateSalesOrderStatus hit for ID: ${id}, status: ${status}, userId: ${userId}`);
     const oldOrder = await this.getSalesOrder(id);
     if (!oldOrder) throw new Error(`Sales order with ID '${id}' not found.`);
 
@@ -2027,18 +2057,29 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       try {
         const shipmentData = {
           consignmentNumber: `SHP-${updatedOrder.orderNumber}-${Date.now()}`,
+          poNumber: updatedOrder.orderNumber, // Crucial: use SO number as PO link
           source: updatedOrder.source || 'Warehouse',
           destination: updatedOrder.destination || (updatedOrder.customer?.address || 'To Be Determined'),
           clientId: updatedOrder.customerId,
           dispatchDate: new Date().toISOString(),
           currentStatus: 'packed',
+          isApproved: true,
+          approvalDate: new Date(),
+          approvalNotes: 'Auto-approved for Sales Order fulfillment',
           notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
+          createdBy: userId || updatedOrder.userId,
+          assignedTo: userId || updatedOrder.userId,
+          items: updatedOrder.items?.map((item: any) => ({
+            materialName: item.itemName,
+            qty: item.quantity,
+            unit: item.unit,
+            type: item.description
+          })) || []
         };
         await this.createLogisticsShipment(shipmentData);
         console.log(`✅ [STORAGE] Shipment created successfully for SO: ${updatedOrder.orderNumber}`);
       } catch (shipmentError) {
         console.error(`❌ [STORAGE] Failed to create shipment for SO: ${updatedOrder.orderNumber}`, shipmentError);
-        // Don't fail the status update if shipment creation fails
       }
     }
 
@@ -2128,10 +2169,19 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async createLogisticsShipment(shipmentData: any): Promise<any> {
     try {
-      console.log(`📦 [STORAGE] Creating logistics shipment:`, shipmentData);
+      console.log(`📦 [STORAGE] Creating logistics shipment with data:`, JSON.stringify(shipmentData, null, 2));
       
       const insertData: any = { ...shipmentData, createdAt: new Date(), updatedAt: new Date() };
       
+      // Ensure items is handled correctly
+      if (insertData.items && typeof insertData.items === 'string') {
+        try {
+          insertData.items = JSON.parse(insertData.items);
+        } catch (e) {
+          console.error("❌ [STORAGE] Error parsing items JSON:", e);
+        }
+      }
+
       if (shipmentData.dispatchDate && typeof shipmentData.dispatchDate === 'string') {
         insertData.dispatchDate = new Date(shipmentData.dispatchDate);
       }
@@ -2148,6 +2198,14 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       const [shipment] = await db
         .insert(logisticsShipments)
         .values(insertData)
+        .onConflictDoUpdate({
+          target: logisticsShipments.consignmentNumber,
+          set: {
+            ...insertData,
+            items: insertData.items, // Ensure items are updated
+            updatedAt: new Date()
+          }
+        })
         .returning();
       
       console.log(`✅ [STORAGE] Shipment created:`, shipment.id);
@@ -2161,12 +2219,92 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     }
   }
 
+  private async getVendorNameById(id: string | null): Promise<string | null> {
+    if (!id) return null;
+    try {
+      const [s] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+      return s?.name || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private async getClientNameById(id: string | null): Promise<string | null> {
+    if (!id) return null;
+    try {
+      const [c] = await db.select().from(customers).where(eq(customers.id, id));
+      return c?.name || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Helper to map database rows to Shipment objects with joined data
+  private mapShipmentRow(row: any) {
+    const vendor = row.vendor || row.directVendor || row.poVendor || null;
+    const client = row.client || row.directClient || row.soCustomer || null;
+    
+    // Explicitly determine vendor name
+    let vendorName = row.vendorName || vendor?.name || row.poVendor?.name || row.directVendor?.name || null;
+    
+    // Explicitly determine client name
+    let clientName = row.clientName || client?.name || row.soCustomer?.name || row.directClient?.name || null;
+
+    const shipmentPoNumber = Array.isArray(row.shipment.poNumber) 
+      ? row.shipment.poNumber[0] 
+      : row.shipment.poNumber;
+
+    return {
+      ...row.shipment,
+      poNumber: shipmentPoNumber || row.po?.poNumber || row.so?.orderNumber || null,
+      client: client,
+      vendor: vendor,
+      supplier: vendor, // Alias vendor as supplier for consistency
+      clientName: clientName,
+      vendorName: vendorName,
+      currentStatus: row.shipment.currentStatus?.toLowerCase() || 'created',
+    };
+  }
+
   async getLogisticsShipments(): Promise<any[]> {
     try {
-      const shipments = await db.select().from(logisticsShipments);
-      return shipments.map(s => ({
-        ...s,
-        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
+        .from(logisticsShipments)
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
       }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments:`, error);
@@ -2176,15 +2314,81 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async getLogisticsShipment(id: string): Promise<any> {
     try {
-      const [shipment] = await db
-        .select()
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+
+      const [row] = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
         .from(logisticsShipments)
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
         .where(eq(logisticsShipments.id, id));
-      if (shipment) {
-        return {
-          ...shipment,
-          currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+
+      if (row) {
+        let shipmentData = {
+          ...this.mapShipmentRow({
+            ...row,
+            vendor: row.vendor || row.directVendor || row.poVendor,
+            client: row.client || row.directClient || row.soCustomer
+          }),
+          plan: row.plan
         };
+        
+        // If items are empty but we have a PO, fetch PO items
+        if ((!shipmentData.items || (Array.isArray(shipmentData.items) && shipmentData.items.length === 0)) && row.po) {
+          const poItems = await db
+            .select()
+            .from(purchaseOrderItems)
+            .where(eq(purchaseOrderItems.purchaseOrderId, row.po.id));
+          
+          if (poItems.length > 0) {
+            shipmentData.items = poItems.map(item => ({
+              materialName: item.itemName,
+              type: item.description || "",
+              qty: item.quantity,
+              unit: item.unit
+            }));
+          }
+        }
+        
+        // If items are empty but we have a SO, fetch SO items
+        if ((!shipmentData.items || (Array.isArray(shipmentData.items) && shipmentData.items.length === 0)) && row.so) {
+          const soItems = await db
+            .select()
+            .from(salesOrderItems)
+            .where(eq(salesOrderItems.salesOrderId, row.so.id));
+          
+          if (soItems.length > 0) {
+            shipmentData.items = soItems.map(item => ({
+              materialName: item.itemName,
+              type: item.description || "",
+              qty: item.quantity,
+              unit: item.unit || "pcs"
+            }));
+          }
+        }
+        
+        return shipmentData;
       }
       return null;
     } catch (error) {
@@ -2240,13 +2444,45 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async getLogisticsShipmentsByStatus(status: string): Promise<any[]> {
     try {
-      const shipments = await db.select().from(logisticsShipments);
-      return shipments
-        .filter(s => s.currentStatus?.toLowerCase() === status.toLowerCase())
-        .map(s => ({
-          ...s,
-          currentStatus: s.currentStatus?.toLowerCase() || 'created'
-        }));
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
+        .from(logisticsShipments)
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .where(eq(logisticsShipments.currentStatus, status.toLowerCase()))
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
+      }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments by status:`, error);
       return [];
@@ -2255,13 +2491,49 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async getLogisticsShipmentsByEmployee(employeeId: string): Promise<any[]> {
     try {
-      const shipments = await db
-        .select()
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
         .from(logisticsShipments)
-        .where(eq(logisticsShipments.assignedTo, employeeId));
-      return shipments.map(s => ({
-        ...s,
-        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .where(
+          or(
+            eq(logisticsShipments.assignedTo, employeeId),
+            eq(logisticsShipments.createdBy, employeeId)
+          )
+        )
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
       }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments by employee:`, error);
@@ -2271,13 +2543,44 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async getLogisticsShipmentsByClient(clientId: string): Promise<any[]> {
     try {
-      const shipments = await db
-        .select()
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
         .from(logisticsShipments)
-        .where(eq(logisticsShipments.clientId, clientId));
-      return shipments.map(s => ({
-        ...s,
-        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .where(eq(logisticsShipments.clientId, clientId))
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
       }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments by client:`, error);
@@ -2285,15 +2588,93 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     }
   }
 
+  async getLogisticsShipmentsByApprovedStatus(isApproved: boolean): Promise<any[]> {
+    try {
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
+        .from(logisticsShipments)
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .where(eq(logisticsShipments.isApproved, isApproved))
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching approved/unapproved shipments:`, error);
+      return [];
+    }
+  }
+
   async getLogisticsShipmentsByVendor(vendorId: string): Promise<any[]> {
     try {
-      const shipments = await db
-        .select()
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
         .from(logisticsShipments)
-        .where(eq(logisticsShipments.vendorId, vendorId));
-      return shipments.map(s => ({
-        ...s,
-        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
+        .where(eq(logisticsShipments.vendorId, vendorId))
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
       }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments by vendor:`, error);
@@ -2303,18 +2684,49 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
   async getLogisticsShipmentsByDateRange(startDate: string, endDate: string): Promise<any[]> {
     try {
-      const shipments = await db
-        .select()
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const soCustomers = aliasedTable(customers, "so_customers");
+      const directSuppliers = aliasedTable(suppliers, "direct_suppliers");
+      const directCustomers = aliasedTable(customers, "direct_customers");
+      
+      const results = await db
+        .select({
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+          so: salesOrders,
+          soCustomer: soCustomers,
+          directVendor: directSuppliers,
+          directClient: directCustomers,
+          plan: logisticsShipmentPlans,
+        })
         .from(logisticsShipments)
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${purchaseOrders.poNumber} AS TEXT)))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .leftJoin(salesOrders, sql`TRIM(LOWER(CAST(${logisticsShipments.poNumber} AS TEXT))) = TRIM(LOWER(CAST(${salesOrders.orderNumber} AS TEXT)))`)
+        .leftJoin(soCustomers, eq(salesOrders.customerId, soCustomers.id))
+        .leftJoin(directSuppliers, eq(logisticsShipments.vendorId, directSuppliers.id))
+        .leftJoin(directCustomers, eq(logisticsShipments.clientId, directCustomers.id))
+        .leftJoin(logisticsShipmentPlans, eq(logisticsShipments.id, logisticsShipmentPlans.shipmentId))
         .where(
           and(
-            gte(logisticsShipments.dispatchDate, startDate),
-            lte(logisticsShipments.dispatchDate, endDate)
+            gte(logisticsShipments.dispatchDate, new Date(startDate)),
+            lte(logisticsShipments.dispatchDate, new Date(endDate))
           )
-        );
-      return shipments.map(s => ({
-        ...s,
-        currentStatus: s.currentStatus?.toLowerCase() || 'created'
+        )
+        .orderBy(desc(logisticsShipments.createdAt));
+
+      return results.map(row => ({
+        ...this.mapShipmentRow({
+          ...row,
+          vendor: row.vendor || row.directVendor || row.poVendor,
+          client: row.client || row.directClient || row.soCustomer
+        }),
+        plan: row.plan
       }));
     } catch (error) {
       console.error(`❌ [STORAGE] Error fetching shipments by date range:`, error);
@@ -2465,6 +2877,251 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       console.log(`📋 [STORAGE] Activity: ${data.action} - ${data.details}`);
     } catch (error) {
       console.error(`❌ [STORAGE] Error creating activity:`, error);
+    }
+  }
+  async getLogisticsDashboardMetrics(): Promise<any> {
+    try {
+      const shipments = await db.select().from(logisticsShipments);
+      
+      const metrics = {
+        totalShipments: shipments.length,
+        activeShipments: shipments.filter(s => 
+          ['packed', 'dispatched', 'in_transit', 'out_for_delivery', 'picked_up', 'at_hub', 'custom_clearance', 'import_customs'].includes(s.currentStatus?.toLowerCase() || '')
+        ).length,
+        deliveredShipments: shipments.filter(s => 
+          s.currentStatus?.toLowerCase() === 'delivered'
+        ).length,
+        pendingShipments: shipments.filter(s => 
+          ['created', 'planned', 'scheduled'].includes(s.currentStatus?.toLowerCase() || '')
+        ).length,
+        averageDeliveryTime: 0,
+        onTimeDeliveryRate: 0
+      };
+
+      return metrics;
+    } catch (error) {
+      console.error("❌ [STORAGE] Error fetching dashboard metrics:", error);
+      return {
+        totalShipments: 0,
+        activeShipments: 0,
+        deliveredShipments: 0,
+        pendingShipments: 0,
+        averageDeliveryTime: 0,
+        onTimeDeliveryRate: 0
+      };
+    }
+  }
+
+  async getShipmentVolumeMetrics(): Promise<any[]> {
+    try {
+      // Mock daily volume data for the last 7 days
+      const results = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        results.push({
+          date: date.toISOString().split('T')[0],
+          volume: Math.floor(Math.random() * 50) + 10
+        });
+      }
+      return results;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getDeliveryPerformanceMetrics(): Promise<any> {
+    return {
+      onTime: 85,
+      delayed: 10,
+      cancelled: 5
+    };
+  }
+
+  async getDailyShipmentsReport(date: Date): Promise<any> {
+    try {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const shipments = await db.select()
+        .from(logisticsShipments)
+        .where(and(
+          gte(logisticsShipments.createdAt, startOfDay),
+          lte(logisticsShipments.createdAt, endOfDay)
+        ));
+
+      return {
+        date: date.toISOString().split('T')[0],
+        total: shipments.length,
+        delivered: shipments.filter(s => s.currentStatus === 'delivered').length,
+        pending: shipments.filter(s => s.currentStatus !== 'delivered').length,
+        shipments: shipments
+      };
+    } catch (error) {
+      return { date: date.toISOString().split('T')[0], total: 0, delivered: 0, pending: 0, shipments: [] };
+    }
+  }
+
+  async getAverageDeliveryTime(dateRange?: { start: Date; end: Date }): Promise<any> {
+    return { averageDays: 3.5 };
+  }
+
+  async getVendorPerformanceReport(vendorId?: string): Promise<any[]> {
+    return [];
+  }
+
+  async getLogisticsHealth(): Promise<any> {
+    return { status: "healthy", timestamp: new Date().toISOString() };
+  }
+
+  async approveShipment(id: string, approvalData: { approvedBy: string; notes?: string }): Promise<any> {
+    try {
+      const [shipment] = await db
+        .update(logisticsShipments)
+        .set({
+          isApproved: true,
+          approvalDate: new Date(),
+          approvalNotes: approvalData.notes,
+          approvedBy: approvalData.approvedBy,
+          updatedAt: new Date(),
+        })
+        .where(eq(logisticsShipments.id, id))
+        .returning();
+      return {
+        ...shipment,
+        currentStatus: shipment.currentStatus?.toLowerCase() || 'created'
+      };
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error approving shipment:`, error);
+      throw error;
+    }
+  }
+
+  async getShipmentPlans(): Promise<any[]> {
+    try {
+      const poSuppliers = aliasedTable(suppliers, "po_suppliers");
+      const results = await db
+        .select({
+          plan: logisticsShipmentPlans,
+          shipment: logisticsShipments,
+          client: customers,
+          vendor: suppliers,
+          po: purchaseOrders,
+          poVendor: poSuppliers,
+        })
+        .from(logisticsShipmentPlans)
+        .leftJoin(logisticsShipments, eq(logisticsShipmentPlans.shipmentId, logisticsShipments.id))
+        .leftJoin(customers, eq(logisticsShipments.clientId, customers.id))
+        .leftJoin(suppliers, eq(logisticsShipments.vendorId, suppliers.id))
+        .leftJoin(purchaseOrders, sql`TRIM(LOWER(${logisticsShipments.poNumber})) = TRIM(LOWER(${purchaseOrders.poNumber}))`)
+        .leftJoin(poSuppliers, eq(purchaseOrders.supplierId, poSuppliers.id))
+        .orderBy(desc(logisticsShipmentPlans.createdAt));
+
+      return results.map(row => ({
+        ...row.plan,
+        shipment: this.mapShipmentRow({
+          shipment: row.shipment,
+          client: row.client,
+          vendor: row.vendor,
+          po: row.po,
+          poVendor: row.poVendor
+        })
+      }));
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipment plans:`, error);
+      return [];
+    }
+  }
+
+  async getShipmentPlanByShipmentId(shipmentId: string): Promise<any> {
+    try {
+      const [plan] = await db
+        .select()
+        .from(logisticsShipmentPlans)
+        .where(eq(logisticsShipmentPlans.shipmentId, shipmentId));
+      return plan || null;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error fetching shipment plan:`, error);
+      return null;
+    }
+  }
+
+  private sanitizePlanData(planData: any) {
+    const sanitized = { ...planData };
+    const dateFields = [
+      'plannedDispatch',
+      'expectedArrival',
+      'departureDate',
+      'etaArrival',
+      'flightDeparture',
+      'etaArrivalAir',
+      'dispatchDateRoad',
+      'deliveryDateRoad',
+      'clearanceDate'
+    ];
+
+    dateFields.forEach(field => {
+      if (sanitized[field] && typeof sanitized[field] === 'string') {
+        const date = new Date(sanitized[field]);
+        if (!isNaN(date.getTime())) {
+          sanitized[field] = date;
+        }
+      }
+    });
+
+    return sanitized;
+  }
+
+  async createShipmentPlan(planData: InsertLogisticsShipmentPlan): Promise<any> {
+    try {
+      const sanitized = this.sanitizePlanData(planData);
+      const [plan] = await db
+        .insert(logisticsShipmentPlans)
+        .values({
+          ...sanitized,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      
+      // Also update the shipment status to 'planned'
+      if (plan.shipmentId) {
+        await this.updateShipmentStatus(plan.shipmentId, { status: 'planned' });
+      }
+      
+      return plan;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error creating shipment plan:`, error);
+      throw error;
+    }
+  }
+
+  async updateShipmentPlan(id: string, planData: Partial<InsertLogisticsShipmentPlan>): Promise<any> {
+    try {
+      const sanitized = this.sanitizePlanData(planData);
+      const [plan] = await db
+        .update(logisticsShipmentPlans)
+        .set({
+          ...sanitized,
+          updatedAt: new Date(),
+        })
+        .where(eq(logisticsShipmentPlans.id, id))
+        .returning();
+      
+      // Also ensure the shipment status is 'planned' if it's currently earlier in the flow
+      if (plan.shipmentId) {
+        const shipment = await this.getLogisticsShipment(plan.shipmentId);
+        if (shipment && (shipment.currentStatus === 'created' || shipment.currentStatus === 'packed')) {
+          await this.updateShipmentStatus(plan.shipmentId, { status: 'planned' });
+        }
+      }
+      
+      return plan;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error updating shipment plan:`, error);
+      throw error;
     }
   }
 }

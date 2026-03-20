@@ -9,11 +9,16 @@ import {
   invoiceItems,
   insertInvoiceSchema,
   invoiceStatus,
+  accountsReceivables,
   customers,
   users,
   insertSalesOrderSchema,
   moldDetailsTable,
   insertMoldDetailSchema,
+  materialRequests,
+  materialRequestItems,
+  products,
+  spareParts
 } from "@shared/schema";
 import { storage } from "./storage";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
@@ -22,7 +27,7 @@ import ejs from "ejs";
 import path from "path";
 import * as XLSX from "xlsx";
 import { generateInvoicePDF } from "./pdf-generator";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; username: string };
@@ -712,12 +717,224 @@ export function registerSalesRoutes(
         updatedAt: new Date()
       });
       const quotation = await storage.updateOutboundQuotation(id, quotationData);
+
+      // --- AUTOMATIC MATERIAL REQUEST CREATION ---
+      // If status is changed to 'sent', automatically create a material request
+      if (body.status === "sent") {
+        try {
+          const items = quotation.quotationItems as any[];
+          if (items && Array.isArray(items) && items.length > 0) {
+            // Enhance notes with Mold Details if available
+            let mrNotes = `Auto-generated from Outbound Quotation: ${quotation.quotationNumber}`;
+            const moldDetails = quotation.moldDetails as any[];
+            if (moldDetails && Array.isArray(moldDetails) && moldDetails.length > 0) {
+              mrNotes += "\n\nMold Configurations:";
+              moldDetails.forEach(mold => {
+                mrNotes += `\n- Part: ${mold.partName || 'N/A'}, Mold No: ${mold.mouldNo || 'N/A'}, Material: ${mold.plasticMaterial || 'N/A'}, Cavity: ${mold.noOfCavity || 'N/A'}, Drops: ${mold.noOfDrops || 'N/A'}`;
+              });
+            }
+
+            // Create Material Request
+            const [newMR] = await db.insert(materialRequests).values({
+              requestNumber: `MR-AUTO-${quotation.quotationNumber}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+              requesterId: quotation.userId,
+              department: "Sales/Production",
+              status: "DRAFT",
+              purpose: `Automatic Request for Quotation ${quotation.quotationNumber}`,
+              notes: mrNotes,
+            }).returning();
+
+            // Create Material Request Items
+            const mrItems = await Promise.all(items.map(async (item) => {
+              const name = item.partName || item.itemName || "Item";
+              const desc = item.partDescription || "";
+              const fullNotes = desc ? `${name} (${desc})` : name;
+
+              let productId = item.productId || null;
+              let sparePartId = item.sparePartId || null;
+
+              // If not linked, try to find by name or sku
+              if (!productId && !sparePartId) {
+                // Try exact match or fuzzy match by name/sku
+                const searchName = name.toLowerCase();
+                const searchDesc = desc.toLowerCase();
+
+                const [existingProduct] = await db.select().from(products)
+                  .where(or(
+                    eq(sql`LOWER(${products.name})`, searchName),
+                    eq(sql`LOWER(${products.sku})`, searchName),
+                    // If name contains descriptive part in brackets, try searching just the bracketed part
+                    searchName.includes('(') ? eq(sql`LOWER(${products.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
+                    // Or if name is the parent and description is the actual product name
+                    searchDesc ? eq(sql`LOWER(${products.name})`, searchDesc) : sql`false`
+                  ))
+                  .limit(1);
+                
+                if (existingProduct) {
+                  productId = existingProduct.id;
+                } else {
+                  // Search in spare parts
+                  const [existingSpare] = await db.select().from(spareParts)
+                    .where(or(
+                      eq(sql`LOWER(${spareParts.name})`, searchName),
+                      eq(sql`LOWER(${spareParts.partNumber})`, searchName),
+                      searchName.includes('(') ? eq(sql`LOWER(${spareParts.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
+                      searchDesc ? eq(sql`LOWER(${spareParts.name})`, searchDesc) : sql`false`
+                    ))
+                    .limit(1);
+                  
+                  if (existingSpare) {
+                    sparePartId = existingSpare.id;
+                  }
+                }
+              }
+
+              return {
+                requestId: newMR.id,
+                productId,
+                sparePartId,
+                quantity: String(item.qty || item.quantity || 0),
+                unit: item.uom || "pcs",
+                notes: fullNotes,
+              };
+            }));
+
+            if (mrItems.length > 0) {
+              await db.insert(materialRequestItems).values(mrItems);
+            }
+
+            console.log(`✅ Auto-created Material Request ${newMR.requestNumber} from Quotation ${quotation.quotationNumber}`);
+          }
+        } catch (mrError) {
+          console.error("⚠️ Failed to auto-create material request:", mrError);
+          // Don't fail the whole request if MR creation fails
+        }
+      }
+
       res.json(quotation);
     } catch (error: any) {
       console.error("❌ Error in PUT /api/outbound-quotations/:id:", error);
       res.status(400).json({
         error: "Failed to update outbound quotation",
         details: error.errors || error.message,
+      });
+    }
+  });
+
+  // Manual Material Request Creation from Quotation
+  app.post("/api/outbound-quotations/:id/material-request", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const quotation = await storage.getOutboundQuotation(id);
+      
+      if (!quotation) {
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+
+      // Check if MR already exists
+      const existingMR = await db.select().from(materialRequests).where(eq(materialRequests.quotationId, id)).limit(1);
+      if (existingMR.length > 0) {
+        return res.status(400).json({ 
+          error: "Material Request already exists", 
+          details: `MR ${existingMR[0].requestNumber} has already been created for this quotation.` 
+        });
+      }
+
+      const items = quotation.quotationItems as any[];
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "No items found in quotation to create a material request." });
+      }
+
+      // Enhance notes with Mold Details if available
+      let mrNotes = `Auto-generated from Outbound Quotation: ${quotation.quotationNumber}`;
+      const moldDetails = quotation.moldDetails as any[];
+      if (moldDetails && Array.isArray(moldDetails) && moldDetails.length > 0) {
+        mrNotes += "\n\nMold Configurations:";
+        moldDetails.forEach(mold => {
+          mrNotes += `\n- Part: ${mold.partName || 'N/A'}, Mold No: ${mold.mouldNo || 'N/A'}, Material: ${mold.plasticMaterial || 'N/A'}, Cavity: ${mold.noOfCavity || 'N/A'}, Drops: ${mold.noOfDrops || 'N/A'}`;
+        });
+      }
+
+      // Create Material Request
+      const [newMR] = await db.insert(materialRequests).values({
+        requestNumber: `MR-AUTO-${quotation.quotationNumber}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+        requesterId: quotation.userId || req.user?.id,
+        department: "Sales/Production",
+        status: "DRAFT",
+        purpose: `Manual Material Request for Quotation ${quotation.quotationNumber}`,
+        notes: mrNotes,
+        quotationId: quotation.id
+      }).returning();
+
+      // Create Material Request Items
+      const mrItems = await Promise.all(items.map(async (item) => {
+        const name = item.partName || item.itemName || "Item";
+        const desc = item.partDescription || "";
+        const fullNotes = desc ? `${name} (${desc})` : name;
+
+        let productId = item.productId || null;
+        let sparePartId = item.sparePartId || null;
+
+        // If not linked, try to find by name or sku
+        if (!productId && !sparePartId) {
+          // Try exact match or fuzzy match by name/sku
+          const searchName = name.toLowerCase();
+          const searchDesc = desc.toLowerCase();
+
+          const [existingProduct] = await db.select().from(products)
+            .where(or(
+              eq(sql`LOWER(${products.name})`, searchName),
+              eq(sql`LOWER(${products.sku})`, searchName),
+              // If name contains descriptive part in brackets, try searching just the bracketed part
+              searchName.includes('(') ? eq(sql`LOWER(${products.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
+              // Or if name is the parent and description is the actual product name
+              searchDesc ? eq(sql`LOWER(${products.name})`, searchDesc) : sql`false`
+            ))
+            .limit(1);
+          
+          if (existingProduct) {
+            productId = existingProduct.id;
+          } else {
+            // Search in spare parts
+            const [existingSpare] = await db.select().from(spareParts)
+              .where(or(
+                eq(sql`LOWER(${spareParts.name})`, searchName),
+                eq(sql`LOWER(${spareParts.partNumber})`, searchName),
+                searchName.includes('(') ? eq(sql`LOWER(${spareParts.name})`, searchName.split('(')[1].split(')')[0].trim()) : sql`false`,
+                searchDesc ? eq(sql`LOWER(${spareParts.name})`, searchDesc) : sql`false`
+              ))
+              .limit(1);
+            
+            if (existingSpare) {
+              sparePartId = existingSpare.id;
+            }
+          }
+        }
+
+        return {
+          requestId: newMR.id,
+          productId,
+          sparePartId,
+          quantity: String(item.qty || item.quantity || 0),
+          unit: item.uom || "pcs",
+          notes: fullNotes,
+        };
+      }));
+
+      if (mrItems.length > 0) {
+        await db.insert(materialRequestItems).values(mrItems);
+      }
+
+      res.status(201).json({
+        message: "Material Request created successfully",
+        materialRequest: newMR
+      });
+
+    } catch (error: any) {
+      console.error("❌ Error in POST /api/outbound-quotations/:id/material-request:", error);
+      res.status(500).json({ 
+        error: "Failed to create material request",
+        details: error.message 
       });
     }
   });
@@ -1288,16 +1505,25 @@ export function registerSalesRoutes(
         return res.status(404).json({ error: "Invoice not found" });
       }
 
-      // ✅ Fetch customer name (optional)
-      let customerName = "";
+      // ✅ Fetch customer details (optional)
+      let customerDetails = null;
       try {
         const [customer] = await db
-          .select({ name: customers.name })
+          .select()
           .from(customers)
           .where(eq(customers.id, invoice.customerId));
-        customerName = customer?.name || "Unknown Customer";
-      } catch {
-        customerName = "Unknown Customer";
+        if (customer) {
+          customerDetails = {
+            id: customer.id,
+            name: customer.name,
+            address: customer.address,
+            gstNumber: customer.gstNumber,
+            email: customer.email,
+            phone: customer.phone,
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching customer details:", err);
       }
 
       // ✅ Fetch line items
@@ -1306,12 +1532,12 @@ export function registerSalesRoutes(
         .from(invoiceItems)
         .where(eq(invoiceItems.invoiceId, id));
 
-      // ✅ Format structured response
+      // ✅ Format structured response to match frontend expectations
       const formattedInvoice = {
-        invoiceNumber: invoice.invoiceNumber,
-        customer: customerName,
-        invoiceDate: invoice.invoiceDate?.toISOString().split("T")[0] || "",
-        dueDate: invoice.dueDate?.toISOString().split("T")[0] || "",
+        ...invoice,
+        customer: customerDetails,
+        invoiceDate: invoice.invoiceDate?.toISOString() || "",
+        dueDate: invoice.dueDate?.toISOString() || "",
         subtotalAmount: Number(invoice.subtotalAmount) || 0,
         discountAmount: Number(invoice.discountAmount) || 0,
         cgstRate: Number(invoice.cgstRate) || 0,
@@ -1322,30 +1548,14 @@ export function registerSalesRoutes(
         igstAmount: Number(invoice.igstAmount) || 0,
         totalAmount: Number(invoice.totalAmount) || 0,
         balanceAmount: Number(invoice.balanceAmount) || 0,
-        billingAddress: invoice.billingAddress || "",
-        shippingAddress: invoice.shippingAddress || "",
-        clientGSTIN: invoice.billingGstNumber || "",
-        placeOfSupply: invoice.placeOfSupply || "",
-        paymentTerms: invoice.paymentTerms || "",
-        deliveryTerms: invoice.deliveryTerms || "",
-        transporter: invoice.transporterName || "",
-        ewayBillNumber: invoice.ewayBillNumber || "",
-        amountInWords: invoice.amountInWords || "",
-        packingCharges: Number(invoice.packingFee) || 0,
-        shippingCharges: Number(invoice.shippingFee) || 0,
-        otherCharges: Number(invoice.otherCharges) || 0,
-        additionalNotes: invoice.notes || "",
-        lineItems: items.map((item) => ({
-          description: item.description,
-          hsn_sac: item.hsnSac || "",
-          hsnSac: item.hsnSac || "",
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: Number(item.unitPrice),
-          amount: Number(item.amount) || Number(item.unitPrice) * item.quantity,
-          cgstPercent: Number(invoice.cgstRate) || 0,
-          sgstPercent: Number(invoice.sgstRate) || 0,
-          igstPercent: Number(invoice.igstRate) || 0,
+        items: items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity) || 0,
+          unitPrice: Number(item.unitPrice) || 0,
+          amount: Number(item.amount) || (Number(item.unitPrice) * Number(item.quantity)),
+          cgstRate: Number(item.cgstRate) || 0,
+          sgstRate: Number(item.sgstRate) || 0,
+          igstRate: Number(item.igstRate) || 0,
         })),
       };
 
@@ -1398,6 +1608,28 @@ export function registerSalesRoutes(
         .update(invoices)
         .set({ status: status as any })
         .where(eq(invoices.id, id));
+
+      // If status is "sent", create an accounts receivable entry if it doesn't already exist
+      if (status === "sent") {
+        const [existingReceivable] = await db
+          .select()
+          .from(accountsReceivables)
+          .where(eq(accountsReceivables.invoiceId, id));
+
+        if (!existingReceivable) {
+          await db.insert(accountsReceivables).values({
+            invoiceId: id,
+            customerId: existingInvoice.customerId,
+            amountDue: existingInvoice.totalAmount,
+            amountPaid: "0",
+            dueDate: existingInvoice.dueDate,
+            status: "pending",
+          });
+          console.log(
+            `✅ Created accounts receivable for invoice ${existingInvoice.invoiceNumber}`
+          );
+        }
+      }
 
       console.log(
         `✅ Invoice ${existingInvoice.invoiceNumber} status updated to ${status}`

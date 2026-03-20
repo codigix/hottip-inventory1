@@ -24,6 +24,7 @@ import {
   updateLogisticsTaskSchema,
   updateLogisticsTaskStatusSchema,
   logisticsTaskFilterSchema,
+  insertLogisticsShipmentPlanSchema,
 } from "@shared/schema";
 import { validateGPSCoordinates, validateGPSMovement } from "./gpsValidation";
 
@@ -36,10 +37,23 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     username: string;
+    department?: string;
   };
 }
 
+import { generateDeliveryChallanPDF } from "./pdf-generator";
+
 // Logistics Route Handlers
+
+// Helper to check if a user has management or department-wide access to logistics
+const isAuthorizedForLogistics = (user: any): boolean => {
+  if (!user) return false;
+  return (
+    user.role === "admin" ||
+    user.role === "manager" ||
+    user.department?.toLowerCase() === "logistics"
+  );
+};
 
 // ==========================================
 // LOGISTICS SHIPMENTS HANDLERS
@@ -50,40 +64,46 @@ export const getLogisticsShipments = async (
   res: Response
 ): Promise<void> => {
   try {
+    console.log("🚚 [LOGISTICS ROUTES] GET /api/logistics/shipments hit!");
+    console.log("🔍 Filters:", JSON.stringify(req.query));
+    console.log("👤 User:", JSON.stringify(req.user));
+    
     const filters = logisticsShipmentFilterSchema.parse(req.query);
 
-    // Role-based access control - employees can only see shipments assigned to them or created by them
-    if (req.user!.role === "employee") {
-      // Force employee filter to only see their shipments
-      filters.employeeId = req.user!.id;
+    // Fetch ALL shipments first to apply robust in-memory filtering
+    // This solves issues with complex joins and ensures tab visibility works as expected
+    let shipments = await storage.getLogisticsShipments();
+
+    // Apply filters in-memory
+    if (filters.isApproved !== undefined) {
+      shipments = shipments.filter(s => s.isApproved === filters.isApproved);
     }
-
-    let shipments;
-    const hasFilters = Object.values(filters).some(
-      (value) => value !== undefined
-    );
-
+    
     if (filters.status) {
-      shipments = await storage.getLogisticsShipmentsByStatus(filters.status);
-    } else if (filters.employeeId) {
-      shipments = await storage.getLogisticsShipmentsByEmployee(
-        filters.employeeId
-      );
-    } else if (filters.clientId) {
-      shipments = await storage.getLogisticsShipmentsByClient(filters.clientId);
-    } else if (filters.vendorId) {
-      shipments = await storage.getLogisticsShipmentsByVendor(filters.vendorId);
-    } else if (filters.startDate && filters.endDate) {
-      shipments = await storage.getLogisticsShipmentsByDateRange(
-        new Date(filters.startDate),
-        new Date(filters.endDate)
-      );
-    } else {
-      shipments = await storage.getLogisticsShipments();
+      shipments = shipments.filter(s => s.currentStatus === filters.status);
+    }
+    
+    if (filters.clientId) {
+      shipments = shipments.filter(s => s.clientId === filters.clientId);
+    }
+    
+    if (filters.vendorId) {
+      shipments = shipments.filter(s => s.vendorId === filters.vendorId);
     }
 
-    // Additional filtering for employees to ensure they only see their shipments
-    if (req.user!.role === "employee") {
+    if (filters.startDate && filters.endDate) {
+      const start = new Date(filters.startDate);
+      const end = new Date(filters.endDate);
+      shipments = shipments.filter(s => {
+        const created = new Date(s.createdAt);
+        return created >= start && created <= end;
+      });
+    }
+
+    // Role-based access control - employees can only see shipments assigned to them or created by them
+    // Logistics personnel can see all shipments
+    const isLogisticsPersonnel = req.user!.department?.toLowerCase() === "logistics";
+    if (req.user!.role === "employee" && !isLogisticsPersonnel) {
       shipments = shipments.filter(
         (shipment) =>
           shipment.assignedTo === req.user!.id ||
@@ -124,8 +144,10 @@ export const getLogisticsShipment = async (
     }
 
     // Authorization check - employees can only view shipments they're involved with
+    // Logistics personnel can see all shipments
     if (
       req.user!.role === "employee" &&
+      !isAuthorizedForLogistics(req.user) &&
       shipment.assignedTo !== req.user!.id &&
       shipment.createdBy !== req.user!.id
     ) {
@@ -136,6 +158,86 @@ export const getLogisticsShipment = async (
     res.json(shipment);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch shipment" });
+  }
+};
+
+export const getDeliveryChallan = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        req.params.id
+      )
+    ) {
+      res.status(400).json({ error: "Invalid shipment ID format" });
+      return;
+    }
+
+    const shipment = await storage.getLogisticsShipment(req.params.id);
+    if (!shipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+
+    const importDuty = Number(shipment.plan?.importDuty || 0);
+    const gstPaid = Number(shipment.plan?.gstPaid || 0);
+    const totalAmount = importDuty + gstPaid;
+
+    // Prepare data for Delivery Challan PDF
+    const challanData = {
+      company: {
+        name: "HOTTIP INDIA POLYMERS",
+        address: "123, Industrial Area, Phase-II, City - 411 001, State", // Default or from config
+        gstNo: "27AAAAA0000A1Z5", // Default or from config
+        stateName: "Maharashtra",
+        stateCode: "27",
+        email: "info@hottipolymers.com",
+      },
+      receiver: {
+        name: shipment.client?.name || shipment.clientName || "N/A",
+        address: shipment.client?.address || shipment.destination || "N/A",
+        gstNo: shipment.client?.gstNumber || "N/A",
+        phone: shipment.client?.phone || "N/A",
+      },
+      challan: {
+        challanNumber: `DC-${shipment.consignmentNumber}`,
+        date: new Date().toLocaleDateString("en-IN"),
+        orderNo: shipment.poNumber || "N/A",
+        dispatchMode: shipment.plan?.shipmentType || "Road",
+        vehicleNo:
+          shipment.plan?.truckNumber ||
+          shipment.plan?.flightNumber ||
+          shipment.plan?.voyageNumber ||
+          "N/A",
+        importDuty,
+        gstPaid,
+        totalAmount,
+        items:
+          shipment.items?.map((item: any) => ({
+            description: item.materialName || item.itemName || "Material",
+            hsn: item.hsn || "N/A",
+            quantity: item.qty || item.quantity || 0,
+            unit: item.unit || "pcs",
+          })) || [],
+      },
+    };
+
+    const pdfBuffer = await generateDeliveryChallanPDF(challanData);
+    console.log(`📦 PDF Buffer received, length: ${pdfBuffer.length}`);
+
+    res.status(200);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="delivery_challan_${shipment.consignmentNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf"`
+    );
+    res.end(pdfBuffer, "binary");
+  } catch (error) {
+    console.error("❌ Error generating Delivery Challan:", error);
+    res.status(500).json({ error: "Failed to generate Delivery Challan" });
   }
 };
 
@@ -150,6 +252,7 @@ export const createLogisticsShipment = async (
     if (!shipmentData.assignedTo) {
       shipmentData.assignedTo = req.user!.id;
     }
+    shipmentData.createdBy = req.user!.id;
 
     const shipment = await storage.createLogisticsShipment(shipmentData);
     await storage.createActivity({
@@ -193,10 +296,9 @@ export const updateLogisticsShipment = async (
       return;
     }
 
-    // Authorization check - only assignee, creator, or admin/manager can update
+    // Authorization check - only assignee, creator, or admin/manager/logistics personnel can update
     const canUpdate =
-      req.user!.role === "admin" ||
-      req.user!.role === "manager" ||
+      isAuthorizedForLogistics(req.user) ||
       existingShipment.assignedTo === req.user!.id ||
       existingShipment.createdBy === req.user!.id;
 
@@ -252,10 +354,11 @@ export const deleteLogisticsShipment = async (
       return;
     }
 
-    // Authorization check - only creator, admin, or manager can delete
+    // Authorization check - only creator, admin, or manager/logistics personnel can delete
+    // Allow deletion if createdBy is null (legacy data)
     const canDelete =
-      req.user!.role === "admin" ||
-      req.user!.role === "manager" ||
+      isAuthorizedForLogistics(req.user) ||
+      !existingShipment.createdBy ||
       existingShipment.createdBy === req.user!.id;
 
     if (!canDelete) {
@@ -276,6 +379,121 @@ export const deleteLogisticsShipment = async (
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: "Failed to delete shipment" });
+  }
+};
+
+export const approveLogisticsShipment = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { isApproved, notes } = req.body;
+
+    const shipment = await storage.getLogisticsShipment(id);
+    if (!shipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+
+    // Authorization check - only admin or manager or logistics department can approve
+    if (!isAuthorizedForLogistics(req.user)) {
+      res.status(403).json({ error: "Only admins, managers or logistics personnel can approve shipments" });
+      return;
+    }
+
+    const updatedShipment = await storage.updateLogisticsShipment(id, {
+      isApproved,
+      approvalNotes: notes,
+      approvalDate: isApproved ? new Date() : null,
+      approvedBy: isApproved ? req.user!.id : null,
+    });
+
+    await storage.createActivity({
+      userId: req.user!.id,
+      action: isApproved ? "APPROVE_SHIPMENT" : "REJECT_SHIPMENT",
+      entityType: "logistics_shipment",
+      entityId: id,
+      details: `${isApproved ? "Approved" : "Rejected"} shipment ${shipment.consignmentNumber}`,
+    });
+
+    res.json(updatedShipment);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to approve shipment" });
+  }
+};
+
+export const createLogisticsShipmentPlan = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const planData = insertLogisticsShipmentPlanSchema.parse(req.body);
+    const plan = await storage.createShipmentPlan(planData);
+
+    await storage.createActivity({
+      userId: req.user!.id,
+      action: "CREATE_SHIPMENT_PLAN",
+      entityType: "logistics_shipment_plan",
+      entityId: plan.id,
+      details: `Created shipment plan for shipment ${plan.shipmentId}`,
+    });
+
+    res.status(201).json(plan);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error("❌ [LOGISTICS] Zod validation error for shipment plan:", error.errors);
+      res.status(400).json({ error: "Invalid plan data", details: error.errors });
+      return;
+    }
+    res.status(500).json({ error: "Failed to create shipment plan" });
+  }
+};
+
+export const getLogisticsShipmentPlanByShipmentId = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { shipmentId } = req.params;
+    const plan = await storage.getShipmentPlanByShipmentId(shipmentId);
+    
+    if (!plan) {
+      res.status(404).json({ error: "Shipment plan not found" });
+      return;
+    }
+
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get shipment plan" });
+  }
+};
+
+export const updateLogisticsShipmentPlan = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const planData = insertLogisticsShipmentPlanSchema.partial().parse(req.body);
+    const plan = await storage.updateShipmentPlan(id, planData);
+
+    await storage.createActivity({
+      userId: req.user!.id,
+      action: "UPDATE_SHIPMENT_PLAN",
+      entityType: "logistics_shipment_plan",
+      entityId: id,
+      details: `Updated shipment plan ${id}`,
+    });
+
+    res.json(plan);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error("❌ [LOGISTICS] Zod validation error for shipment plan:", error.errors);
+      res.status(400).json({ error: "Invalid plan data", details: error.errors });
+      return;
+    }
+    res.status(500).json({ error: "Failed to update shipment plan" });
   }
 };
 
@@ -301,10 +519,9 @@ export const updateShipmentStatus = async (
       return;
     }
 
-    // Authorization check - only assignee, creator, or admin/manager can update status
+    // Authorization check - only assignee, creator, or admin/manager/logistics personnel can update status
     const canUpdate =
-      req.user!.role === "admin" ||
-      req.user!.role === "manager" ||
+      isAuthorizedForLogistics(req.user) ||
       existingShipment.assignedTo === req.user!.id ||
       existingShipment.createdBy === req.user!.id;
 
@@ -368,8 +585,10 @@ export const getShipmentTimeline = async (
     }
 
     // Authorization check - employees can only view timeline for shipments they're involved with
+    // Logistics personnel can see all shipments
     if (
       req.user!.role === "employee" &&
+      !isAuthorizedForLogistics(req.user) &&
       existingShipment.assignedTo !== req.user!.id &&
       existingShipment.createdBy !== req.user!.id
     ) {
@@ -407,10 +626,9 @@ export const closeShipment = async (
       return;
     }
 
-    // Authorization check - only assignee, creator, or admin/manager can close shipment
+    // Authorization check - only assignee, creator, or admin/manager/logistics personnel can close shipment
     const canClose =
-      req.user!.role === "admin" ||
-      req.user!.role === "manager" ||
+      isAuthorizedForLogistics(req.user) ||
       existingShipment.assignedTo === req.user!.id ||
       existingShipment.createdBy === req.user!.id;
 
@@ -455,7 +673,8 @@ export const getActiveShipments = async (
     let shipments = await storage.getActiveShipments();
 
     // Role-based access control - employees can only see shipments assigned to them or created by them
-    if (req.user!.role === "employee") {
+    // Logistics personnel can see all shipments
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
       shipments = shipments.filter(
         (shipment) =>
           shipment.assignedTo === req.user!.id ||
@@ -477,7 +696,8 @@ export const getOverdueShipments = async (
     let shipments = await storage.getOverdueShipments();
 
     // Role-based access control - employees can only see shipments assigned to them or created by them
-    if (req.user!.role === "employee") {
+    // Logistics personnel can see all shipments
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
       shipments = shipments.filter(
         (shipment) =>
           shipment.assignedTo === req.user!.id ||
@@ -505,7 +725,8 @@ export const searchShipments = async (
     let shipments = await storage.searchShipments(query);
 
     // Role-based access control - employees can only see shipments assigned to them or created by them
-    if (req.user!.role === "employee") {
+    // Logistics personnel can see all shipments
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
       shipments = shipments.filter(
         (shipment) =>
           shipment.assignedTo === req.user!.id ||
@@ -530,8 +751,9 @@ export const getLogisticsStatusUpdates = async (
   try {
     let updates = await storage.getLogisticsStatusUpdates();
 
-    // Role-based access control - employees can only see status updates for shipments they're involved with
-    if (req.user!.role === "employee") {
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      // Employees can only see status updates for shipments they're involved with
       // First get all shipments the user has access to
       const allShipments = await storage.getLogisticsShipments();
       const accessibleShipmentIds = allShipments
@@ -601,6 +823,7 @@ export const getStatusUpdatesByShipment = async (
     // Authorization check - employees can only view status updates for shipments they're involved with
     if (
       req.user!.role === "employee" &&
+      !isAuthorizedForLogistics(req.user) &&
       existingShipment.assignedTo !== req.user!.id &&
       existingShipment.createdBy !== req.user!.id
     ) {
@@ -632,8 +855,9 @@ export const getLogisticsCheckpoints = async (
   try {
     let checkpoints = await storage.getLogisticsCheckpoints();
 
-    // Role-based access control - employees can only see checkpoints for shipments they're involved with
-    if (req.user!.role === "employee") {
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      // Employees can only see checkpoints for shipments they're involved with
       // First get all shipments the user has access to
       const allShipments = await storage.getLogisticsShipments();
       const accessibleShipmentIds = allShipments
@@ -703,6 +927,7 @@ export const getCheckpointsByShipment = async (
     // Authorization check - employees can only view checkpoints for shipments they're involved with
     if (
       req.user!.role === "employee" &&
+      !isAuthorizedForLogistics(req.user) &&
       existingShipment.assignedTo !== req.user!.id &&
       existingShipment.createdBy !== req.user!.id
     ) {
@@ -761,7 +986,7 @@ export const getLogisticsTasks = async (
     const filters = logisticsTaskFilterSchema.parse(req.query);
 
     // Role-based access control
-    if (req.user!.role === "employee") {
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
       // Employees can only see tasks assigned to them or by them
       filters.assignedTo = filters.assignedTo || req.user!.id;
     }
@@ -802,6 +1027,7 @@ export const getLogisticsTask = async (
     // Authorization check - users can only view tasks they're involved with
     if (
       req.user!.role === "employee" &&
+      !isAuthorizedForLogistics(req.user) &&
       task.assignedTo !== req.user!.id &&
       task.assignedBy !== req.user!.id
     ) {
@@ -980,20 +1206,32 @@ export const getLogisticsAttendance = async (
     const { employeeId, date } = req.query;
     let attendance;
 
-    if (employeeId && date) {
-      attendance = await storage.getAttendance(
-        employeeId as string,
-        new Date(date as string)
-      );
-      // Convert single record to array for consistent response format
-      attendance = attendance ? [attendance] : [];
-    } else if (employeeId) {
-      attendance = await storage.getAttendanceByUser(employeeId as string);
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      // Employees can only see their own attendance
+      const userId = req.user!.id;
+      if (date) {
+        attendance = await storage.getAttendance(userId, new Date(date as string));
+        attendance = attendance ? [attendance] : [];
+      } else {
+        attendance = await storage.getAttendanceByUser(userId);
+      }
     } else {
-      attendance = await storage.getAllAttendanceWithUsers({
-        employeeId,
-        date,
-      });
+      if (employeeId && date) {
+        attendance = await storage.getAttendance(
+          employeeId as string,
+          new Date(date as string)
+        );
+        // Convert single record to array for consistent response format
+        attendance = attendance ? [attendance] : [];
+      } else if (employeeId) {
+        attendance = await storage.getAttendanceByUser(employeeId as string);
+      } else {
+        attendance = await storage.getAllAttendanceWithUsers({
+          employeeId,
+          date,
+        });
+      }
     }
 
     res.json(attendance);
@@ -1242,7 +1480,16 @@ export const getLogisticsAttendanceToday = async (
   res: Response
 ): Promise<void> => {
   try {
-    const todayAttendance = await storage.getTodayLogisticsAttendance();
+    let todayAttendance = await storage.getTodayLogisticsAttendance();
+
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      // Employees can only see their own attendance for today
+      todayAttendance = todayAttendance.filter(
+        (record) => record.userId === req.user!.id
+      );
+    }
+
     res.json(todayAttendance);
   } catch (error) {
     res
@@ -1379,6 +1626,12 @@ export const getLogisticsAttendanceMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
     const metrics = await storage.getLogisticsAttendanceMetrics();
     res.json(metrics);
   } catch (error) {
@@ -1397,6 +1650,12 @@ export const getLogisticsDashboardMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Role-based access control
+    if (req.user!.role === "employee" && !isAuthorizedForLogistics(req.user)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
     const metrics = await storage.getLogisticsDashboardMetrics();
     res.json(metrics);
   } catch (error) {
@@ -2042,8 +2301,8 @@ function checkLogisticsOwnership(entityType: string) {
 
       const { role } = req.user;
 
-      // Admin and manager roles have full access
-      if (role === "admin" || role === "manager") {
+      // Admin, manager and logistics personnel have full access
+      if (isAuthorizedForLogistics(req.user)) {
         return next();
       }
 
@@ -2102,6 +2361,12 @@ export const registerLogisticsRoutes = (
       handler: getLogisticsShipment,
     },
     {
+      method: "get",
+      path: "/api/logistics/shipments/:id/delivery-challan",
+      middlewares: ["requireAuth"],
+      handler: getDeliveryChallan,
+    },
+    {
       method: "post",
       path: "/api/logistics/shipments",
       middlewares: ["requireAuth"],
@@ -2118,6 +2383,30 @@ export const registerLogisticsRoutes = (
       path: "/api/logistics/shipments/:id",
       middlewares: ["requireAuth", "checkOwnership:shipment"],
       handler: deleteLogisticsShipment,
+    },
+    {
+      method: "post",
+      path: "/api/logistics/shipments/:id/approve",
+      middlewares: ["requireAuth"],
+      handler: approveLogisticsShipment,
+    },
+    {
+      method: "post",
+      path: "/api/logistics/shipments/plans",
+      middlewares: ["requireAuth"],
+      handler: createLogisticsShipmentPlan,
+    },
+    {
+      method: "get",
+      path: "/api/logistics/shipments/:shipmentId/plan",
+      middlewares: ["requireAuth"],
+      handler: getLogisticsShipmentPlanByShipmentId,
+    },
+    {
+      method: "put",
+      path: "/api/logistics/shipments/plans/:id",
+      middlewares: ["requireAuth"],
+      handler: updateLogisticsShipmentPlan,
     },
 
     // ==========================================

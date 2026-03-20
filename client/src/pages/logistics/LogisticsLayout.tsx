@@ -4,15 +4,10 @@ import {
   Truck, 
   Package, 
   MapPin, 
-  ClipboardList, 
   FileText, 
-  Clock,
   BarChart3,
-  Route as RouteIcon,
-  Activity,
   Calendar,
-  TrendingUp,
-  CheckCircle
+  TrendingUp
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
@@ -21,11 +16,11 @@ import { useTourNavigation } from "@/hooks/useTourNavigation";
 
 // Import logistics pages
 import LogisticsDashboard from "@/pages/LogisticsDashboard";
-import Shipments from "./Shipments";
-import StatusWorkflow from "./StatusWorkflow";
+import ShipmentOrders from "./ShipmentOrders";
+import ShipmentPlanning from "./ShipmentPlanning";
 import LogisticsReports from "./Reports";
-import LogisticsTasks from "./Tasks";
-import LogisticsAttendance from "./Attendance";
+import VendorTracking from "./VendorTracking";
+import DeliveryChallans from "./DeliveryChallans";
 
 const sidebarItems = [
   {
@@ -37,19 +32,35 @@ const sidebarItems = [
     tourConfig: null,
   },
   {
-    id: 'shipments',
-    label: 'Shipments',
-    icon: Package,
-    path: '/logistics/shipments',
-    description: 'Shipment management and tracking',
+    id: 'shipment-orders',
+    label: 'Shipment Orders',
+    icon: Truck,
+    path: '/logistics/shipment-orders',
+    description: 'Customer shipment orders',
     tourConfig: null,
   },
   {
-    id: 'status-workflow',
-    label: 'Status Workflow',
-    icon: RouteIcon,
-    path: '/logistics/status-workflow',
-    description: 'Status updates and POD management',
+    id: 'shipment-planning',
+    label: 'Shipment Planning',
+    icon: Calendar,
+    path: '/logistics/shipment-planning',
+    description: 'Optimize and schedule routes',
+    tourConfig: null,
+  },
+  {
+    id: 'vendor-tracking',
+    label: 'Vendor Tracking',
+    icon: MapPin,
+    path: '/logistics/vendor-tracking',
+    description: 'Track import shipments from vendors',
+    tourConfig: null,
+  },
+  {
+    id: 'delivery-challans',
+    label: 'Delivery Challans',
+    icon: FileText,
+    path: '/logistics/delivery-challans',
+    description: 'View and download delivery challans',
     tourConfig: null,
   },
   {
@@ -58,22 +69,6 @@ const sidebarItems = [
     icon: FileText,
     path: '/logistics/reports',
     description: 'Delivery analytics and performance',
-    tourConfig: null,
-  },
-  {
-    id: 'tasks',
-    label: 'Logistics Tasks',
-    icon: ClipboardList,
-    path: '/logistics/tasks',
-    description: 'Employee task assignment',
-    tourConfig: null,
-  },
-  {
-    id: 'attendance',
-    label: 'Logistics Attendance',
-    icon: Clock,
-    path: '/logistics/attendance',
-    description: 'Team attendance and GPS tracking',
     tourConfig: null,
   }
 ];
@@ -95,11 +90,11 @@ export default function LogisticsLayout() {
   
   const getActiveSidebarItem = () => {
     if (location === '/logistics') return 'dashboard';
-    if (location.includes('/shipments')) return 'shipments';
-    if (location.includes('/status-workflow')) return 'status-workflow';
+    if (location.includes('/shipment-orders')) return 'shipment-orders';
+    if (location.includes('/shipment-planning')) return 'shipment-planning';
+    if (location.includes('/vendor-tracking')) return 'vendor-tracking';
+    if (location.includes('/delivery-challans')) return 'delivery-challans';
     if (location.includes('/reports')) return 'reports';
-    if (location.includes('/tasks')) return 'tasks';
-    if (location.includes('/attendance')) return 'attendance';
     return 'dashboard';
   };
 
@@ -184,10 +179,6 @@ export default function LogisticsLayout() {
                   <span className="text-xs font-light">92%</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Pending Tasks</span>
-                <span className="text-xs font-light">8</span>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -199,20 +190,20 @@ export default function LogisticsLayout() {
           <Route path="/logistics">
             <LogisticsDashboard />
           </Route>
-          <Route path="/logistics/shipments">
-            <Shipments />
+          <Route path="/logistics/shipment-orders">
+            <ShipmentOrders />
           </Route>
-          <Route path="/logistics/status-workflow">
-            <StatusWorkflow />
+          <Route path="/logistics/shipment-planning">
+            <ShipmentPlanning />
+          </Route>
+          <Route path="/logistics/vendor-tracking">
+            <VendorTracking />
+          </Route>
+          <Route path="/logistics/delivery-challans">
+            <DeliveryChallans />
           </Route>
           <Route path="/logistics/reports">
             <LogisticsReports />
-          </Route>
-          <Route path="/logistics/tasks">
-            <LogisticsTasks />
-          </Route>
-          <Route path="/logistics/attendance">
-            <LogisticsAttendance />
           </Route>
           <Route>
             <div className="p-8">

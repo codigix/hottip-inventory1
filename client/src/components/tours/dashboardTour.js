@@ -213,12 +213,6 @@ export const inventoryStockManagementTour = {
       position: "bottom",
     },
     {
-      element: "[data-tour='inventory-reference-input']",
-      title: "Add Reference (Optional)",
-      text: "Add invoice number, PO number, or any reference for tracking and reconciliation.",
-      position: "bottom",
-    },
-    {
       element: "[data-tour='inventory-notes-textarea']",
       title: "Add Notes (Optional)",
       text: "Add any additional details about this transaction - condition, supplier info, etc.",
@@ -257,7 +251,7 @@ export const inventoryStockManagementTour = {
     {
       element: "[data-tour='recent-transactions-table']",
       title: "Recent Transactions History",
-      text: "View the audit trail of all recent stock movements. See transaction type, product, quantity, date, reason, and reference for full traceability.",
+      text: "View the audit trail of all recent stock movements. See transaction type, product, quantity, date, and reason for full traceability.",
       position: "top",
     },
   ],
@@ -3197,18 +3191,6 @@ export const logisticsFlowTour = {
       position: "right",
     },
     {
-      element: "[data-tour='logistics-shipments']",
-      title: "Shipment Management",
-      text: "Create, track, and manage shipments with real-time status updates and delivery coordination.",
-      position: "right",
-    },
-    {
-      element: "[data-tour='logistics-status-workflow']",
-      title: "Status Workflow",
-      text: "Monitor shipment status progression and manage proof of delivery (POD) processes.",
-      position: "right",
-    },
-    {
       element: "[data-tour='logistics-tasks']",
       title: "Logistics Tasks",
       text: "Assign and manage logistics-related tasks for your team members with route optimization.",
@@ -3226,119 +3208,11 @@ export const logisticsFlowTour = {
       text: "Track attendance and GPS location management for logistics team members.",
       position: "right",
     },
-    // Navigation to Shipments
-    {
-      element: "[data-tour='logistics-header']",
-      title: "Moving to Shipment Management",
-      text: "Click 'Next' to navigate to Shipment Management and continue the tour there.",
-      position: "bottom",
-      navigation: {
-        path: "/logistics/shipments",
-      },
-    },
-
-    // ===== SHIPMENTS SECTION =====
-    {
-      element: "[data-tour='logistics-shipments-header']",
-      title: "Shipment Management System",
-      text: "Comprehensive shipment creation, tracking, and delivery management with real-time updates.",
-      position: "bottom",
-    },
-    {
-      element: "[data-tour='logistics-create-shipment-button']",
-      title: "Create New Shipment",
-      text: "Create a new shipment with sender/receiver details, package information, and delivery requirements.",
-      position: "left",
-    },
-    {
-      element: "[data-tour='logistics-shipments-table']",
-      title: "Shipments Overview",
-      text: "View all shipments with tracking numbers, status, delivery dates, and current location.",
-      position: "top",
-    },
-    {
-      element: "[data-tour='logistics-shipments-filters']",
-      title: "Shipment Filters",
-      text: "Filter shipments by status, date range, delivery zone, or assigned driver for efficient management.",
-      position: "bottom",
-    },
-    {
-      element: "[data-tour='logistics-tracking-system']",
-      title: "Real-time Tracking",
-      text: "Monitor shipment locations in real-time with GPS tracking and estimated delivery times.",
-      position: "right",
-    },
-    {
-      element: "[data-tour='logistics-shipment-actions']",
-      title: "Shipment Actions",
-      text: "Update shipment status, reassign drivers, modify delivery details, or generate shipping labels.",
-      position: "left",
-    },
-    {
-      element: "[data-tour='logistics-route-optimization']",
-      title: "Route Optimization",
-      text: "Optimize delivery routes for multiple shipments to minimize time and fuel costs.",
-      position: "right",
-    },
-    // Navigation to Status Workflow
-    {
-      element: "[data-tour='logistics-shipments-header']",
-      title: "Moving to Status Workflow",
-      text: "Shipment management covered! Click 'Next' to navigate to Status Workflow.",
-      position: "bottom",
-      navigation: {
-        path: "/logistics/status-workflow",
-      },
-    },
-
-    // ===== STATUS WORKFLOW SECTION =====
-    {
-      element: "[data-tour='logistics-status-workflow-header']",
-      title: "Status Workflow Management",
-      text: "Track shipment status progression and manage proof of delivery processes with automated updates.",
-      position: "bottom",
-    },
-    {
-      element: "[data-tour='logistics-status-timeline']",
-      title: "Status Timeline",
-      text: "View complete shipment journey from pickup to delivery with timestamped status updates.",
-      position: "top",
-    },
-    {
-      element: "[data-tour='logistics-status-updates']",
-      title: "Status Update System",
-      text: "Automated and manual status updates: Booked → Picked Up → In Transit → Out for Delivery → Delivered.",
-      position: "right",
-    },
-    {
-      element: "[data-tour='logistics-pod-management']",
-      title: "Proof of Delivery (POD)",
-      text: "Manage digital signatures, photos, and delivery confirmations for completed shipments.",
-      position: "left",
-    },
-    {
-      element: "[data-tour='logistics-exception-handling']",
-      title: "Exception Handling",
-      text: "Manage delivery exceptions, rescheduling, and customer notifications for failed deliveries.",
-      position: "right",
-    },
-    {
-      element: "[data-tour='logistics-customer-communication']",
-      title: "Customer Communication",
-      text: "Automated SMS/email notifications for status updates and delivery tracking information.",
-      position: "bottom",
-    },
-    {
-      element: "[data-tour='logistics-workflow-actions']",
-      title: "Workflow Actions",
-      text: "Update shipment status, capture POD, handle exceptions, or communicate with customers.",
-      position: "left",
-    },
     // Navigation to Tasks
     {
-      element: "[data-tour='logistics-status-workflow-header']",
+      element: "[data-tour='logistics-header']",
       title: "Moving to Logistics Tasks",
-      text: "Status workflow covered! Click 'Next' to explore Logistics Tasks.",
+      text: "Dashboard covered! Click 'Next' to explore Logistics Tasks.",
       position: "bottom",
       navigation: {
         path: "/logistics/tasks",
@@ -4183,15 +4057,9 @@ export const logisticsTour = {
       position: "bottom",
     },
     {
-      element: "[data-tour='shipments']",
-      title: "Shipments",
-      text: "Create and track shipments.",
-      position: "right",
-    },
-    {
-      element: "[data-tour='status-workflow']",
-      title: "Status Workflow",
-      text: "Monitor shipment status and workflow.",
+      element: "[data-tour='logistics-tasks']",
+      title: "Logistics Tasks",
+      text: "Assign and manage logistics tasks.",
       position: "right",
     },
     {

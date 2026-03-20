@@ -3,17 +3,10 @@ import { useLocation, Link, Switch, Route } from "wouter";
 import { 
   DollarSign, 
   CreditCard, 
-  Receipt, 
-  Calculator, 
-  Landmark, 
-  Bell, 
-  ClipboardList, 
   FileText, 
-  Clock,
   BarChart3,
   TrendingUp,
-  AlertTriangle,
-  CheckCircle2
+  AlertTriangle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
@@ -24,12 +17,8 @@ import { useTourNavigation } from "@/hooks/useTourNavigation";
 import AccountsDashboard from "../AccountsDashboard";
 import AccountsReceivables from "./AccountsReceivables";
 import AccountsPayables from "./AccountsPayables";
-import TaxGst from "./TaxGst";
-import BankManagement from "./BankManagement";
-import AccountsReminders from "./AccountsReminders";
-import AccountsTasks from "./AccountsTasks";
 import AccountsReports from "./AccountsReports";
-import AccountsAttendance from "./AccountsAttendance";
+import PaymentHistory from "./PaymentHistory";
 
 const sidebarItems = [
   {
@@ -57,35 +46,11 @@ const sidebarItems = [
     tourConfig: null,
   },
   {
-    id: 'tax-gst',
-    label: 'Tax & GST',
-    icon: Calculator,
-    path: '/accounts/tax-gst',
-    description: 'Tax tracking and GST reconciliation',
-    tourConfig: null,
-  },
-  {
-    id: 'bank-management',
-    label: 'Bank Management',
-    icon: Landmark,
-    path: '/accounts/bank-management',
-    description: 'Bank account details and transactions',
-    tourConfig: null,
-  },
-  {
-    id: 'reminders',
-    label: 'Reminders',
-    icon: Bell,
-    path: '/accounts/reminders',
-    description: 'Automated due/overdue payment alerts',
-    tourConfig: null,
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    icon: ClipboardList,
-    path: '/accounts/tasks',
-    description: 'Assign tasks to accounts staff',
+    id: 'history',
+    label: 'Payment History',
+    icon: TrendingUp,
+    path: '/accounts/history',
+    description: 'Combined history of all payments',
     tourConfig: null,
   },
   {
@@ -94,14 +59,6 @@ const sidebarItems = [
     icon: FileText,
     path: '/accounts/reports',
     description: 'Daily collections, receivables, payables, GST exports',
-    tourConfig: null,
-  },
-  {
-    id: 'attendance',
-    label: 'Attendance',
-    icon: Clock,
-    path: '/accounts/attendance',
-    description: 'Accounts team attendance tracking',
     tourConfig: null,
   }
 ];
@@ -125,12 +82,8 @@ export default function AccountsLayout() {
     if (location === '/accounts') return 'dashboard';
     if (location.includes('/receivables')) return 'receivables';
     if (location.includes('/payables')) return 'payables';
-    if (location.includes('/tax-gst')) return 'tax-gst';
-    if (location.includes('/bank-management')) return 'bank-management';
-    if (location.includes('/reminders')) return 'reminders';
-    if (location.includes('/tasks')) return 'tasks';
+    if (location.includes('/history')) return 'history';
     if (location.includes('/reports')) return 'reports';
-    if (location.includes('/attendance')) return 'attendance';
     return 'dashboard';
   };
 
@@ -205,17 +158,6 @@ export default function AccountsLayout() {
                 <span className="text-xs text-muted-foreground">Pending Payables</span>
                 <span className="text-xs font-light">₹12.3L</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">GST Filed</span>
-                <div className="flex items-center space-x-1">
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span className="text-xs font-light">Current</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Active Reminders</span>
-                <span className="text-xs font-light">15</span>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -233,23 +175,11 @@ export default function AccountsLayout() {
           <Route path="/accounts/payables">
             <AccountsPayables />
           </Route>
-          <Route path="/accounts/tax-gst">
-            <TaxGst />
-          </Route>
-          <Route path="/accounts/bank-management">
-            <BankManagement />
-          </Route>
-          <Route path="/accounts/reminders">
-            <AccountsReminders />
-          </Route>
-          <Route path="/accounts/tasks">
-            <AccountsTasks />
+          <Route path="/accounts/history">
+            <PaymentHistory />
           </Route>
           <Route path="/accounts/reports">
             <AccountsReports />
-          </Route>
-          <Route path="/accounts/attendance">
-            <AccountsAttendance />
           </Route>
           <Route>
             <div className="p-8">

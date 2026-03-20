@@ -55,30 +55,30 @@ export default function FieldVisits() {
 
   /** ===== Queries ===== **/
   const { data: visitsData, isLoading: visitsLoading, error: visitsError } = useQuery<VisitWithDetails[]>({
-    queryKey: ["/api/field-visits"],
-    queryFn: () => apiRequest("/api/field-visits"),
+    queryKey: ["/field-visits"],
+    queryFn: () => apiRequest("/field-visits"),
   });
   const safeVisits = Array.isArray(visitsData) ? visitsData : [];
 
   const { data: usersData } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-    queryFn: () => apiRequest("/api/users"),
+    queryKey: ["/users"],
+    queryFn: () => apiRequest("/users"),
   });
   const users = Array.isArray(usersData) ? usersData : [];
 
   const { data: leadsData } = useQuery<Lead[]>({
-    queryKey: ["/api/marketing/leads"],
-    queryFn: () => apiRequest("/api/marketing/leads"),
+    queryKey: ["/marketing/leads"],
+    queryFn: () => apiRequest("/marketing/leads"),
   });
   const leads = Array.isArray(leadsData) ? leadsData : [];
 
   /** ===== Mutations ===== **/
   const createVisitMutation = useMutation({
     mutationFn: (data: InsertFieldVisit) =>
-      apiRequest("/api/field-visits", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/field-visits", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
       toast({ title: "Visit scheduled successfully!" });
       setIsFormOpen(false);
     },
@@ -89,9 +89,9 @@ export default function FieldVisits() {
 
   // Example delete mutation
   const deleteVisitMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/field-visits/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiRequest(`/field-visits/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
       toast({ title: "Visit deleted successfully" });
     },
     onError: (error: any) => {
@@ -168,9 +168,9 @@ const handleCheckOut = (visit: VisitWithDetails) => {
 };
 const checkInMutation = useMutation({
   mutationFn: (visitId: string) =>
-    apiRequest(`/api/field-visits/${visitId}/check-in`, { method: "POST" }),
+    apiRequest(`/field-visits/${visitId}/check-in`, { method: "POST" }),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
     toast({ title: "Checked in successfully!" });
   },
   onError: (error: any) => {
@@ -180,9 +180,9 @@ const checkInMutation = useMutation({
 
 const checkOutMutation = useMutation({
   mutationFn: (visitId: string) =>
-    apiRequest(`/api/field-visits/${visitId}/check-out`, { method: "POST" }),
+    apiRequest(`/field-visits/${visitId}/check-out`, { method: "POST" }),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
     toast({ title: "Checked out successfully!" });
   },
   onError: (error: any) => {
@@ -191,12 +191,12 @@ const checkOutMutation = useMutation({
 });
 const updateVisitMutation = useMutation({
   mutationFn: (data: VisitWithDetails) =>
-    apiRequest(`/api/field-visits/${data.id}`, {
+    apiRequest(`/field-visits/${data.id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
     toast({ title: "Visit updated successfully!" });
     setIsFormOpen(false);
     setSelectedVisit(null);

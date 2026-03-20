@@ -150,6 +150,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     username: string;
+    department?: string;
   };
 }
 
@@ -162,6 +163,8 @@ const requireAuth = async (
   try {
     const authHeader = req.headers.authorization;
     
+    console.log(`[Auth] Path: ${req.path}, Authorization: ${authHeader ? 'Present' : 'Missing'}`);
+
     // DEVELOPMENT MODE BYPASS: Only if NO authentication token is provided
     if (process.env.NODE_ENV === "development" && !authHeader) {
       // Set a default admin user for development
@@ -170,12 +173,14 @@ const requireAuth = async (
         id: "00000000-0000-0000-0000-000000000001",
         role: "admin",
         username: "dev_admin",
+        department: "Administration",
       };
       next();
       return;
     }
 
     if (!authHeader) {
+      console.log(`[Auth] 401 - Missing Authorization header for ${req.path}`);
       res.status(401).json({ error: "Authentication required" });
       return;
     }
@@ -200,10 +205,12 @@ const requireAuth = async (
           id: decoded.sub,
           role: decoded.role,
           username: decoded.username,
+          department: decoded.department,
         };
         next();
         return;
-      } catch (jwtError) {
+      } catch (jwtError: any) {
+        console.error(`[Auth] JWT Verification failed for ${req.path}: ${jwtError.message}`);
         // In production, JWT failure is final
         if (process.env.NODE_ENV === "production") {
           res.status(401).json({ error: "Invalid authentication token" });
@@ -569,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("?? Generating JWT token...");
       const token = jwt.sign(
-        { sub: user.id, role: user.role, username: user.username },
+        { sub: user.id, role: user.role, username: user.username, department: user.department },
         tokenSecret,
         { expiresIn: "15m", algorithm: "HS256" }
       );
@@ -724,10 +731,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Admin API routes (secured, admin only)
-  registerAdminRoutes(app);
-
-  // Accounts API routes (secured, accounts access required)
-  registerAccountsRoutes(app);
 
   // Users Routes - SECURED: Role-based scoping for user access
   app.get("/api/users", requireAuth, async (req, res) => {
@@ -3360,600 +3363,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json([]);
     }
   });
-
-  // Logistics dashboard endpoint
-  app.get("/api/logistics/dashboard", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db.select().from(logisticsShipments);
-      res.json({
-        totalShipments: rows.length,
-        inTransit: rows.filter((s) => s.currentStatus === "in_transit").length,
-        outForDelivery: rows.filter(
-          (s) => s.currentStatus === "out_for_delivery"
-        ).length,
-        delivered: rows.filter((s) => s.currentStatus === "delivered").length,
-      });
-    } catch (e) {
-      res.json({
-        totalShipments: 0,
-        inTransit: 0,
-        outForDelivery: 0,
-        delivered: 0,
-      });
-    }
-  });
-
-  // Logistics basic endpoints (fallbacks when full registry disabled)
-  app.get("/api/logistics/shipments", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db.select().from(logisticsShipments);
-      res.json(rows);
-    } catch (e) {
-      // DB unavailable; serve in-memory list
-      res.json(inMemoryLogisticsShipments);
-    }
-  });
-
-  // Create logistics shipment
-  app.post("/api/logistics/shipments", requireAuth, async (req, res) => {
-    try {
-      const data = logisticsShipmentInsertSchema.parse(req.body || {});
-      try {
-        const [row] = await db
-          .insert(logisticsShipments)
-          .values({
-            consignmentNumber: data.consignmentNumber,
-            source: data.source,
-            destination: data.destination,
-            currentStatus: data.currentStatus || "created",
-          })
-          .returning();
-        res.status(201).json(row);
-      } catch (dbErr) {
-        // Fallback to in-memory storage if DB insert fails (e.g., column mapping mismatch)
-        const rec = {
-          id: "mem-" + Date.now(),
-          consignmentNumber: data.consignmentNumber,
-          source: data.source,
-          destination: data.destination,
-          currentStatus: data.currentStatus || "created",
-          _fallback: true,
-        } as any;
-        inMemoryLogisticsShipments.push(rec);
-        res.status(201).json(rec);
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res
-          .status(400)
-          .json({ error: "Invalid shipment data", details: error.errors });
-        return;
-      }
-      res.status(500).json({ error: "Failed to create shipment" });
-    }
-  });
-
-  // Logistics attendance list
-  app.get("/api/logistics/attendance", requireAuth, async (_req, res) => {
-    try {
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
-      const rows = await db.select().from(logisticsAttendance);
-      const mapped = (rows as any[]).map((r) => ({
-        ...r,
-        checkIn: r.checkInTime,
-        checkOut: r.checkOutTime,
-        status: r.checkOutTime
-          ? "checked_out"
-          : r.checkInTime
-          ? "checked_in"
-          : "checked_out",
-      }));
-      res.json(mapped);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  // Logistics attendance today
-  app.get("/api/logistics/attendance/today", requireAuth, async (_req, res) => {
-    try {
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const rows = await db
-        .select()
-        .from(logisticsAttendance)
-        .where(
-          and(
-            gte(logisticsAttendance.date, today as any),
-            lt(logisticsAttendance.date, tomorrow as any)
-          )
-        );
-      const mapped = (rows as any[]).map((r) => ({
-        ...r,
-        checkIn: r.checkInTime,
-        checkOut: r.checkOutTime,
-        status: r.checkOutTime
-          ? "checked_out"
-          : r.checkInTime
-          ? "checked_in"
-          : "checked_out",
-      }));
-      res.json(mapped);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  // Logistics attendance metrics
-  app.get(
-    "/api/logistics/attendance/metrics",
-    requireAuth,
-    async (_req, res) => {
-      try {
-        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-        res.setHeader("Pragma", "no-cache");
-        res.setHeader("Expires", "0");
-        const all = await db.select().from(logisticsAttendance);
-        const mappedAll = (all as any[]).map((r) => ({
-          ...r,
-          status: (r as any).checkOutTime
-            ? "checked_out"
-            : (r as any).checkInTime
-            ? "checked_in"
-            : "checked_out",
-        }));
-        const checkedIn = mappedAll.filter(
-          (r) => r.status === "checked_in"
-        ).length;
-        const checkedOut = mappedAll.filter(
-          (r) => r.status === "checked_out"
-        ).length;
-        const totalPresent = mappedAll.length;
-        // Average hours where both checkInTime and checkOutTime exist
-        const hrs = (mappedAll as any[])
-          .filter((r) => (r as any).checkInTime && (r as any).checkOutTime)
-          .map(
-            (r) =>
-              (new Date((r as any).checkOutTime).getTime() -
-                new Date((r as any).checkInTime).getTime()) /
-              (1000 * 60 * 60)
-          );
-        const averageWorkHours = hrs.length
-          ? Math.round((hrs.reduce((a, b) => a + b, 0) / hrs.length) * 10) / 10
-          : 0;
-        // No deliveries columns in your DDL - set 0
-        const totalDeliveries = 0;
-        res.json({
-          totalPresent,
-          checkedIn,
-          checkedOut,
-          averageWorkHours,
-          totalDeliveries,
-          activeTasks: 0,
-        });
-      } catch (e) {
-        res.json({
-          totalPresent: 0,
-          checkedIn: 0,
-          checkedOut: 0,
-          averageWorkHours: 0,
-          totalDeliveries: 0,
-          activeTasks: 0,
-        });
-      }
-    }
-  );
-
-  // Logistics attendance check-in
-  app.post(
-    "/api/logistics/attendance/check-in",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const body = req.body || {};
-        const { userId, latitude, longitude, location } = body;
-        if (latitude == null || longitude == null) {
-          res
-            .status(400)
-            .json({ error: "latitude and longitude are required" });
-          return;
-        }
-        const isUuid = (s: string) =>
-          typeof s === "string" &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            s
-          );
-        const userIdSafe = isUuid(userId)
-          ? userId
-          : isUuid(req.user?.id || "")
-          ? req.user!.id
-          : null;
-        if (!userIdSafe) {
-          res.status(400).json({ error: "Valid userId (UUID) is required" });
-          return;
-        }
-        const [row] = await db
-          .insert(logisticsAttendance)
-          .values({
-            userId: userIdSafe as any,
-            date: new Date(),
-            checkInTime: new Date(),
-            checkInLatitude: latitude as any,
-            checkInLocation: location,
-          } as any)
-          .returning();
-        res.status(201).json({
-          ...row,
-          checkIn: (row as any).checkInTime,
-          checkOut: (row as any).checkOutTime,
-          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
-        });
-      } catch (e) {
-        res.status(500).json({ error: "Failed to check in" });
-      }
-    }
-  );
-
-  // Logistics attendance check-out
-  app.put(
-    "/api/logistics/attendance/:id/check-out",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const id = String(req.params.id);
-        const { location } = req.body || {};
-        const [row] = await db
-          .update(logisticsAttendance)
-          .set({
-            checkOutTime: new Date(),
-            checkOutLocation: location,
-          } as any)
-          .where(eq(logisticsAttendance.id as any, id as any))
-          .returning();
-        if (!row)
-          return res.status(404).json({ error: "Attendance not found" });
-        res.json({
-          ...row,
-          checkIn: (row as any).checkInTime,
-          checkOut: (row as any).checkOutTime,
-          status: (row as any).checkOutTime ? "checked_out" : "checked_in",
-        });
-      } catch (e) {
-        res.status(500).json({ error: "Failed to check out" });
-      }
-    }
-  );
-
-  // Logistics attendance photo upload URL
-  app.post(
-    "/api/logistics/attendance/photo/upload-url",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const { attendanceId, fileName, contentType, photoType } =
-          req.body || {};
-        if (!attendanceId || !fileName || !contentType || !photoType) {
-          res.status(400).json({
-            error:
-              "attendanceId, fileName, contentType, and photoType are required",
-          });
-          return;
-        }
-        const objectStorage = new ObjectStorageService();
-        const uploadURL = await objectStorage.getObjectEntityUploadURL();
-        const objectPath = `attendance-photos/${attendanceId}/${photoType}-${Date.now()}-${fileName}`;
-        res.json({ uploadURL, objectPath });
-      } catch (e) {
-        res.status(500).json({ error: "Failed to generate upload URL" });
-      }
-    }
-  );
-
-  // Logistics attendance update photo path
-  app.put(
-    "/api/logistics/attendance/:id/photo",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        // No-op for DB schema without photo columns; return 204
-        res.status(204).end();
-      } catch (e) {
-        res.status(500).json({ error: "Failed to update photo" });
-      }
-    }
-  );
-
-  // Logistics tasks endpoints (DB-first with in-memory fallback)
-  app.get("/api/logistics/tasks", requireAuth, async (_req, res) => {
-    try {
-      const rows = await db.select().from(logisticsTasks);
-      const all = Array.isArray(rows) ? rows : [];
-      if (inMemoryLogisticsTasks.length) {
-        res.json([...all, ...inMemoryLogisticsTasks]);
-      } else {
-        res.json(all);
-      }
-    } catch (e) {
-      res.json(inMemoryLogisticsTasks);
-    }
-  });
-
-  app.post(
-    "/api/logistics/tasks",
-    requireAuth,
-    async (req: AuthenticatedRequest, res) => {
-      try {
-        const body = req.body || {};
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        const assignedTo =
-          typeof body.assignedTo === "string" ? body.assignedTo.trim() : "";
-        if (!title || !assignedTo) {
-          res.status(400).json({ error: "title and assignedTo are required" });
-          return;
-        }
-        const description =
-          typeof body.description === "string"
-            ? body.description.trim()
-            : undefined;
-        const priority =
-          typeof body.priority === "string" ? body.priority : "medium";
-        const dueDate = body.dueDate ? new Date(body.dueDate) : null;
-
-        try {
-          const isUuid = (s: string) =>
-            typeof s === "string" &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-              s
-            );
-          const assignedByCandidate =
-            typeof body.assignedBy === "string"
-              ? body.assignedBy
-              : req.user?.id;
-          const assignedBySafe = isUuid(assignedByCandidate || "")
-            ? assignedByCandidate!
-            : assignedTo;
-          const [row] = await db
-            .insert(logisticsTasks)
-            .values({
-              title,
-              description,
-              priority,
-              assignedTo,
-              assignedBy: assignedBySafe,
-              status: "new",
-              dueDate,
-            })
-            .returning();
-          res.status(201).json(row);
-        } catch (dbErr) {
-          const rec: any = {
-            id: "mem-" + Date.now(),
-            title,
-            description: description || null,
-            priority,
-            assignedTo,
-            assignedBy: String(req.user!.id),
-            status: "new",
-            dueDate: body.dueDate || null,
-            startedDate: null,
-            completedDate: null,
-            shipmentId: body.shipmentId || undefined,
-            estimatedHours: body.estimatedHours || null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            _fallback: true,
-          };
-          inMemoryLogisticsTasks.push(rec);
-          res.status(201).json(rec);
-        }
-      } catch (e) {
-        res.status(500).json({ error: "Failed to create logistics task" });
-      }
-    }
-  );
-
-  app.put("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
-    try {
-      const id = String(req.params.id);
-      const body = req.body || {};
-
-      // Try DB update
-      try {
-        const patch: any = {};
-        if (typeof body.title === "string") patch.title = body.title.trim();
-        if (typeof body.description === "string")
-          patch.description = body.description.trim();
-        if (typeof body.status === "string") patch.status = body.status;
-        if (typeof body.priority === "string") patch.priority = body.priority;
-        if (body.dueDate !== undefined)
-          patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-        if (Object.keys(patch).length === 0) {
-          res.status(400).json({ error: "No valid fields to update" });
-          return;
-        }
-        const [row] = await db
-          .update(logisticsTasks)
-          .set(patch)
-          .where(eq(logisticsTasks.id, id as any))
-          .returning();
-        if (!row) {
-          res.status(404).json({ error: "Task not found" });
-          return;
-        }
-        res.json(row);
-        return;
-      } catch (dbErr) {
-        // Fallback to in-memory update
-      }
-
-      const idx = inMemoryLogisticsTasks.findIndex(
-        (t: any) => String(t.id) === id
-      );
-      if (idx === -1) {
-        res.status(404).json({ error: "Task not found" });
-        return;
-      }
-      const patch: any = {};
-      if (typeof body.title === "string") patch.title = body.title.trim();
-      if (typeof body.description === "string")
-        patch.description = body.description.trim();
-      if (typeof body.status === "string") patch.status = body.status;
-      if (typeof body.priority === "string") patch.priority = body.priority;
-      if (body.dueDate !== undefined) patch.dueDate = body.dueDate || null;
-      patch.updatedAt = new Date().toISOString();
-
-      inMemoryLogisticsTasks[idx] = {
-        ...inMemoryLogisticsTasks[idx],
-        ...patch,
-      };
-      res.json(inMemoryLogisticsTasks[idx]);
-    } catch (e) {
-      res.status(500).json({ error: "Failed to update logistics task" });
-    }
-  });
-
-  app.delete("/api/logistics/tasks/:id", requireAuth, async (req, res) => {
-    try {
-      const id = String(req.params.id);
-
-      // Try DB delete
-      try {
-        const [row] = await db
-          .delete(logisticsTasks)
-          .where(eq(logisticsTasks.id, id as any))
-          .returning();
-        if (!row) {
-          res.status(404).json({ error: "Task not found" });
-          return;
-        }
-        res.status(204).end();
-        return;
-      } catch (dbErr) {
-        // Fallback to in-memory delete
-      }
-
-      const idx = inMemoryLogisticsTasks.findIndex(
-        (t: any) => String(t.id) === id
-      );
-      if (idx === -1) {
-        res.status(404).json({ error: "Task not found" });
-        return;
-      }
-      inMemoryLogisticsTasks.splice(idx, 1);
-      res.status(204).end();
-    } catch (e) {
-      res.status(500).json({ error: "Failed to delete logistics task" });
-    }
-  });
-
-  // Logistics reports
-  app.get("/api/logistics/reports/daily", requireAuth, async (req, res) => {
-    try {
-      const from = req.query.from ? new Date(String(req.query.from)) : null;
-      const to = req.query.to ? new Date(String(req.query.to)) : null;
-      if (!from || !to) return res.json([]);
-      const toPlus = new Date(to);
-      toPlus.setDate(toPlus.getDate() + 1);
-      const rows = await db
-        .select()
-        .from(deliveries)
-        .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)));
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  app.get(
-    "/api/logistics/reports/vendor-performance",
-    requireAuth,
-    async (req, res) => {
-      try {
-        const from = req.query.from ? new Date(String(req.query.from)) : null;
-        const to = req.query.to ? new Date(String(req.query.to)) : null;
-        if (!from || !to) return res.json([]);
-        const toPlus = new Date(to);
-        toPlus.setDate(toPlus.getDate() + 1);
-        const rows = await db
-          .select({
-            vendorId: deliveries.vendorId,
-            vendorName: suppliers.name,
-            totalDeliveries: sql`COUNT(${deliveries.id})`,
-            totalVolume: sql`SUM(${deliveries.volume})`,
-          })
-          .from(deliveries)
-          .leftJoin(suppliers, eq(deliveries.vendorId, suppliers.id))
-          .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)))
-          .groupBy(deliveries.vendorId, suppliers.name);
-        res.json(rows);
-      } catch (e) {
-        res.json([]);
-      }
-    }
-  );
-
-  app.get("/api/logistics/reports/volume", requireAuth, async (req, res) => {
-    try {
-      const from = req.query.from ? new Date(String(req.query.from)) : null;
-      const to = req.query.to ? new Date(String(req.query.to)) : null;
-      if (!from || !to) return res.json([]);
-      const toPlus = new Date(to);
-      toPlus.setDate(toPlus.getDate() + 1);
-      const rows = await db
-        .select({
-          date: deliveries.date,
-          totalVolume: sql`SUM(${deliveries.volume})`,
-        })
-        .from(deliveries)
-        .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)))
-        .groupBy(deliveries.date)
-        .orderBy(deliveries.date);
-      res.json(rows);
-    } catch (e) {
-      res.json([]);
-    }
-  });
-
-  app.get(
-    "/api/logistics/reports/performance",
-    requireAuth,
-    async (req, res) => {
-      try {
-        const from = req.query.from ? new Date(String(req.query.from)) : null;
-        const to = req.query.to ? new Date(String(req.query.to)) : null;
-        if (!from || !to)
-          return res.json({
-            totalDeliveries: 0,
-            totalVolume: 0,
-            averageVolume: 0,
-          });
-        const toPlus = new Date(to);
-        toPlus.setDate(toPlus.getDate() + 1);
-        const [row] = await db
-          .select({
-            totalDeliveries: sql`COUNT(${deliveries.id})`,
-            totalVolume: sql`SUM(${deliveries.volume})`,
-            averageVolume: sql`AVG(${deliveries.volume})`,
-          })
-          .from(deliveries)
-          .where(and(gte(deliveries.date, from), lt(deliveries.date, toPlus)));
-        res.json({
-          totalDeliveries: Number((row as any)?.totalDeliveries || 0),
-          totalVolume: Number((row as any)?.totalVolume || 0),
-          averageVolume: Number((row as any)?.averageVolume || 0),
-        });
-      } catch (e) {
-        res.json({ totalDeliveries: 0, totalVolume: 0, averageVolume: 0 });
-      }
-    }
-  );
 
   // Basic health check route
   app.get("/api/health", (req, res) => {

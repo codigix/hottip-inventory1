@@ -73,7 +73,8 @@ export function registerSalesOrderRoutes(
       console.log(`📦 [SALES ORDER ROUTES] PUT /api/sales-orders/${req.params.id}/status hit! Status: ${status}`);
       const updatedOrder = await storage.updateSalesOrderStatus(
         req.params.id,
-        status
+        status,
+        (req as AuthenticatedRequest).user?.id
       );
       res.json(updatedOrder);
     } catch (error) {
