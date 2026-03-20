@@ -162,6 +162,7 @@ export default function VendorQuotations() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("request");
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
+  const [rfqSourceId, setRfqSourceId] = useState<string | null>(null);
   
   // RFQ Form State
   const [rfqItems, setRfqItems] = useState<RFQItem[]>([
@@ -173,16 +174,30 @@ export default function VendorQuotations() {
   const [rfqNotes, setRfqNotes] = useState("");
   const [rfqAttachment, setRfqAttachment] = useState<File | null>(null);
 
+  const updateQuotationStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string, status: string }) => {
+      return apiRequest("PATCH", `/vendor-quotations/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/vendor-quotations"] });
+    },
+  });
+
   const createRFQMutation = useMutation({
     mutationFn: async (data: any) => {
       return apiRequest("POST", "/vendor-quotations", data);
     },
     onSuccess: () => {
+      if (rfqSourceId) {
+        updateQuotationStatusMutation.mutate({ id: rfqSourceId, status: "responded" });
+        setActiveTab("analysis");
+      }
       toast({
         title: "Success",
-        description: "RFQ created and sent to vendor successfully.",
+        description: rfqSourceId ? "Quotation logged successfully." : "RFQ created and sent to vendor successfully.",
       });
       setIsRFQDialogOpen(false);
+      setIsReceivedQuoteDialogOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/vendor-quotations"] });
     },
@@ -257,6 +272,7 @@ export default function VendorQuotations() {
     setRfqValidUntil("");
     setRfqNotes("");
     setRfqAttachment(null);
+    setRfqSourceId(null);
   };
 
   const { data: materialRequests = [] } = useQuery({
@@ -415,13 +431,13 @@ export default function VendorQuotations() {
   const totalAmount = subtotal + gst;
 
   const rfqQuotations = quotations.filter((q: any) => 
-    (q.status !== 'received') && 
+    (q.status === 'rfq') && 
     (q.quotationNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.subject?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const receivedQuotations = quotations.filter((q: any) => 
-    (q.status === 'received') && 
+    (q.status === 'received' || q.status === 'approved' || q.status === 'under_review') && 
     (q.quotationNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.subject?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -441,6 +457,8 @@ export default function VendorQuotations() {
         return <Badge className="bg-orange-50 text-orange-600 border-orange-100 font-normal">Under Review</Badge>;
       case "rfq":
         return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-normal">Sent RFQ</Badge>;
+      case "responded":
+        return <Badge className="bg-slate-50 text-slate-600 border-slate-100 font-normal">RESPONDED</Badge>;
       case "rejected":
         return <Badge className="bg-red-50 text-red-600 border-red-100 font-normal">Rejected</Badge>;
       default:
@@ -463,14 +481,20 @@ export default function VendorQuotations() {
           </Button>
           <Button 
             className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => setIsReceivedQuoteDialogOpen(true)}
+            onClick={() => {
+              resetForm();
+              setIsReceivedQuoteDialogOpen(true);
+            }}
           >
             <Plus className="mr-2 h-4 w-4" /> Received Quote
           </Button>
           {activeTab === "request" && (
             <Button 
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => setIsRFQDialogOpen(true)}
+              onClick={() => {
+                resetForm();
+                setIsRFQDialogOpen(true);
+              }}
             >
               <Plus className="mr-2 h-4 w-4" /> Request Quotation
             </Button>
@@ -578,6 +602,34 @@ export default function VendorQuotations() {
                       </TableCell>
                       <TableCell className="text-right py-4">
                         <div className="flex justify-end space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                            title="Add Received Quotation"
+                            onClick={() => {
+                              resetForm();
+                              setRfqVendor(q.senderId);
+                              setRfqSourceId(q.id);
+                              
+                              // Pre-fill items from the RFQ
+                              if (q.quotationItems && Array.isArray(q.quotationItems)) {
+                                const mappedItems = q.quotationItems.map((item: any) => ({
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  materialName: item.materialName,
+                                  type: item.type || "Product",
+                                  designQty: parseFloat(item.designQty) || 0,
+                                  rate: 0,
+                                  amount: 0
+                                }));
+                                setRfqItems(mappedItems);
+                              }
+                              
+                              setIsReceivedQuoteDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -700,6 +752,23 @@ export default function VendorQuotations() {
                       </TableCell>
                       <TableCell className="text-right py-4">
                         <div className="flex justify-end space-x-1">
+                          {q.status !== 'approved' && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                              title="Approve Quotation"
+                              onClick={() => {
+                                updateQuotationStatusMutation.mutate({ id: q.id, status: "approved" });
+                                toast({
+                                  title: "Approved",
+                                  description: `Quotation ${q.quotationNumber} approved successfully.`,
+                                });
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="icon" 

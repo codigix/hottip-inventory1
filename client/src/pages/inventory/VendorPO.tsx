@@ -291,7 +291,7 @@ export default function VendorPO() {
   });
 
   const { data: materialRequests = [] } = useQuery<any[]>({
-    queryKey: ["/api/material-requests"],
+    queryKey: ["/material-requests"],
   });
 
   const suppliers = Array.isArray(suppliersData) ? suppliersData : ((suppliersData as any)?.suppliers || []);
@@ -357,18 +357,22 @@ export default function VendorPO() {
     const poData = {
       poNumber: `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       supplierId: poSupplier,
-      quotationId: poQuotation === "none" ? null : poQuotation,
-      materialRequestId: poMaterialRequest === "none" ? null : poMaterialRequest,
+      quotationId: (poQuotation === "none" || !poQuotation) ? null : poQuotation,
+      materialRequestId: (poMaterialRequest === "none" || !poMaterialRequest) ? null : poMaterialRequest,
       orderDate: new Date().toISOString(),
-      deliveryPeriod: poDeliveryPeriod,
+      deliveryPeriod: poDeliveryPeriod || null,
       status: "pending",
       subtotalAmount: subtotal,
       gstType,
       gstPercentage: 18,
       gstAmount,
       totalAmount,
-      notes: poNotes,
-      items: poItems.map(({ id, ...item }) => item)
+      notes: poNotes || null,
+      items: poItems.map(({ id, ...item }) => ({
+        ...item,
+        productId: item.productId || null,
+        description: item.description || null
+      }))
     };
 
     createPOMutation.mutate(poData);
@@ -393,6 +397,10 @@ export default function VendorPO() {
       deletePOMutation.mutate(id);
     }
   };
+
+  const approvedQuotations = useMemo(() => {
+    return quotations.filter((q: any) => q.status === "approved");
+  }, [quotations]);
 
   const filteredPO = useMemo(() => {
     return purchaseOrders.filter((po: any) => 
@@ -629,7 +637,7 @@ export default function VendorPO() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">-- No Quotation --</SelectItem>
-                  {quotations.map((q: any) => (
+                  {approvedQuotations.map((q: any) => (
                     <SelectItem key={q.id} value={q.id}>
                       {q.quotationNumber} - {getSupplierName(q.senderId)}
                     </SelectItem>

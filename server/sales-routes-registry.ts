@@ -897,10 +897,10 @@ export function registerSalesRoutes(
 
         // If not linked, try to find by name or sku
         if (!productId && !sparePartId) {
-          const sName = name.trim().toLowerCase();
+          const sName = fullNotes.trim().toLowerCase();
+          const sPureName = name.trim().toLowerCase();
+          const sSku = name.includes('(') ? name.split('(')[0].trim().toLowerCase() : sPureName;
           const sDesc = desc.trim().toLowerCase();
-          const sSku = name.includes('(') ? name.split('(')[0].trim().toLowerCase() : sName;
-          const sPureName = name.includes('(') ? name.split('(')[1].split(')')[0].trim().toLowerCase() : sName;
 
           // Try to find product
           const matchedProducts = await db.select({
@@ -909,16 +909,12 @@ export function registerSalesRoutes(
               sku: products.sku
             }).from(products);
           
-          const foundProduct = matchedProducts.find(p => {
-            const pName = p.name.toLowerCase();
-            const pSku = p.sku.toLowerCase();
-            return pName === sName || 
-                   pSku === sName || 
-                   pSku === sSku || 
-                   pName === sPureName ||
-                   (sName.includes(pSku) && pSku.length > 3) ||
-                   (pName.includes(sPureName) && sPureName.length > 3);
-          });
+          const foundProduct = matchedProducts.find(p => p.name.toLowerCase() === sName) ||
+                               matchedProducts.find(p => p.sku.toLowerCase() === sName) ||
+                               matchedProducts.find(p => p.sku.toLowerCase() === sSku) ||
+                               matchedProducts.find(p => p.name.toLowerCase() === sPureName) ||
+                               matchedProducts.find(p => sName.includes(p.sku.toLowerCase()) && p.sku.length > 3) ||
+                               matchedProducts.find(p => p.name.toLowerCase().includes(sName) && sName.length > 3);
           
           if (foundProduct) {
             productId = foundProduct.id;
@@ -930,16 +926,12 @@ export function registerSalesRoutes(
                 partNumber: spareParts.partNumber
               }).from(spareParts);
             
-            const foundSpare = matchedSpares.find(sp => {
-              const spName = sp.name.toLowerCase();
-              const spPart = sp.partNumber.toLowerCase();
-              return spName === sName || 
-                     spPart === sName || 
-                     spPart === sSku || 
-                     spName === sPureName ||
-                     (sName.includes(spPart) && spPart.length > 3) ||
-                     (spName.includes(sPureName) && sPureName.length > 3);
-            });
+            const foundSpare = matchedSpares.find(sp => sp.name.toLowerCase() === sName) ||
+                               matchedSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
+                               matchedSpares.find(sp => sp.partNumber.toLowerCase() === sSku) ||
+                               matchedSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
+                               matchedSpares.find(sp => sName.includes(sp.partNumber.toLowerCase()) && sp.partNumber.length > 3) ||
+                               matchedSpares.find(sp => sp.name.toLowerCase().includes(sName) && sName.length > 3);
             
             if (foundSpare) {
               sparePartId = foundSpare.id;

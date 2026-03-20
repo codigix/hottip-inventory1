@@ -1319,6 +1319,32 @@ export function registerInventoryRoutes(
     }
   });
 
+  // PATCH update vendor quotation
+  app.patch("/api/vendor-quotations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const body = req.body;
+      
+      const [updated] = await db
+        .update(vendorQuotations)
+        .set({
+          ...body,
+          updatedAt: new Date()
+        })
+        .where(eq(vendorQuotations.id, id))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Vendor quotation not found" });
+      }
+
+      res.json(updated);
+    } catch (e) {
+      console.error("Error updating vendor quotation:", e);
+      res.status(500).json({ error: "Failed to update vendor quotation" });
+    }
+  });
+
   // DELETE vendor quotation
   app.delete("/api/vendor-quotations/:id", requireAuth, async (req, res) => {
     try {
