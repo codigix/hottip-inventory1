@@ -345,17 +345,14 @@ export default function StockManagement() {
 
   const ledgerColumns = [
     {
-      key: "sku",
+      key: "productName",
       header: "Item Code",
-      cell: (t: any) => {
-        // console.log("Transaction Item Code:", t);
-        return t.productSku || t.sku || 'N/A';
-      }
+      cell: (t: any) => t.productName || t.name || 'N/A'
     },
     {
-      key: "productName",
+      key: "sku",
       header: "Material",
-      cell: (t: any) => t.productName || t.name || 'N/A'
+      cell: (t: any) => t.productSku || t.sku || 'N/A'
     },
     {
       key: "createdAt",
