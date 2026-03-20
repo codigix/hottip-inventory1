@@ -26,6 +26,7 @@ import {
   leaveRequests,
   leads,
   fieldVisits,
+  visitPurposeLogs,
   marketingTasks,
   activities,
   stockTransactions,
@@ -48,6 +49,8 @@ export type FieldVisit = typeof fieldVisits.$inferSelect;
 export type InsertFieldVisit = typeof fieldVisits.$inferInsert;
 export type MarketingTask = typeof marketingTasks.$inferSelect;
 export type InsertMarketingTask = typeof marketingTasks.$inferInsert;
+export type VisitPurposeLog = typeof visitPurposeLogs.$inferSelect;
+export type InsertVisitPurposeLog = typeof visitPurposeLogs.$inferInsert;
 
 import {
   suppliers,
@@ -1847,6 +1850,19 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     };
   }
 
+  async getVisitPurposeLogs(visitId: string): Promise<VisitPurposeLog[]> {
+    return await db
+      .select()
+      .from(visitPurposeLogs)
+      .where(eq(visitPurposeLogs.visitId, visitId))
+      .orderBy(desc(visitPurposeLogs.createdAt));
+  }
+
+  async createVisitPurposeLog(insertLog: InsertVisitPurposeLog): Promise<VisitPurposeLog> {
+    const [row] = await db.insert(visitPurposeLogs).values(insertLog).returning();
+    return row;
+  }
+
   async createFieldVisit(insertVisit: InsertFieldVisit): Promise<FieldVisit> {
     // Generate visit number if missing
     if (!insertVisit.visitNumber) {
@@ -1923,6 +1939,36 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       throw new Error(
         `Field visit with ID '${id}' not found for status update.`
       );
+    }
+    return row;
+  }
+
+  async checkInFieldVisit(id: string, update: any): Promise<FieldVisit> {
+    const [row] = await db
+      .update(fieldVisits)
+      .set({
+        ...update,
+        status: "in_progress",
+      })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Field visit with ID '${id}' not found for check-in.`);
+    }
+    return row;
+  }
+
+  async checkOutFieldVisit(id: string, update: any): Promise<FieldVisit> {
+    const [row] = await db
+      .update(fieldVisits)
+      .set({
+        ...update,
+        status: "completed",
+      })
+      .where(eq(fieldVisits.id, id))
+      .returning();
+    if (!row) {
+      throw new Error(`Field visit with ID '${id}' not found for check-out.`);
     }
     return row;
   }

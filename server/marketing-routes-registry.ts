@@ -634,6 +634,14 @@ export const createFieldVisit = async (
 
     const visit = await storage.createFieldVisit(visitData);
 
+    if (visit.purpose) {
+      await storage.createVisitPurposeLog({
+        visitId: visit.id,
+        purpose: visit.purpose,
+        status: "DONE"
+      });
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CREATE_FIELD_VISIT",
@@ -701,6 +709,16 @@ export const updateFieldVisit = async (
     console.log(`Updating field visit ${req.params.id} with data:`, JSON.stringify(visitData, null, 2));
 
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
+
+    // If purpose was updated, log it in history
+    if (visitData.purpose && visitData.purpose !== existingVisit.purpose) {
+      await storage.createVisitPurposeLog({
+        visitId: visit.id,
+        purpose: visitData.purpose,
+        status: "DONE"
+      });
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_FIELD_VISIT",
@@ -821,6 +839,18 @@ export const checkInFieldVisit = async (
       return;
     }
     res.status(500).json({ error: "Failed to check in to field visit" });
+  }
+};
+
+export const getVisitPurposeLogs = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const logs = await storage.getVisitPurposeLogs(req.params.id);
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch visit purpose logs" });
   }
 };
 
@@ -2722,6 +2752,18 @@ export function registerMarketingRoutes(
       path: "/api/field-visits/:id/check-out", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:field_visit"],
       handler: checkOutFieldVisit,
+    },
+    {
+      method: "get",
+      path: "/api/marketing/field-visits/:id/purpose-logs",
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: getVisitPurposeLogs,
+    },
+    {
+      method: "get",
+      path: "/api/field-visits/:id/purpose-logs", // Compatibility alias
+      middlewares: ["requireAuth", "checkOwnership:field_visit"],
+      handler: getVisitPurposeLogs,
     },
     {
       method: "put",

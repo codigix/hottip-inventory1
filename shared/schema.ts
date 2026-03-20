@@ -517,6 +517,25 @@ export const fieldVisits = pgTable("field_visits", {
 });
 
 // =====================
+// VISIT PURPOSE LOGS
+// =====================
+export const visitPurposeLogs = pgTable("visit_purpose_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  visitId: uuid("visitId")
+    .references(() => fieldVisits.id, { onDelete: "cascade" })
+    .notNull(),
+  purpose: varchar("purpose", { length: 100 }).notNull(),
+  visitDate: timestamp("visitDate").defaultNow().notNull(),
+  visitTime: timestamp("visitTime").defaultNow().notNull(),
+  status: varchar("status", { length: 20 }).default("DONE"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const insertVisitPurposeLogSchema = createInsertSchema(visitPurposeLogs);
+export type VisitPurposeLog = typeof visitPurposeLogs.$inferSelect;
+export type InsertVisitPurposeLog = typeof visitPurposeLogs.$inferInsert;
+
+// =====================
 // DELIVERIES
 // =====================
 export const deliveries = pgTable("deliveries", {
@@ -1703,19 +1722,23 @@ export const convertLeadSchema = z.object({
 
 // Placeholder for field visit check-in schema
 export const fieldVisitCheckInSchema = z.object({
-  visitId: z.number(),
+  visitId: z.string().optional(),
   checkInTime: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
   notes: z.string().optional(),
 });
 
 // Placeholder for field visit check-out schema
 export const fieldVisitCheckOutSchema = z.object({
-  visitId: z.number(),
+  visitId: z.string().optional(),
   checkOutTime: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  location: z.string().optional(),
+  photoPath: z.string().optional(),
   notes: z.string().optional(),
 });
 

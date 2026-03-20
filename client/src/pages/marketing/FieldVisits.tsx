@@ -150,45 +150,78 @@ export default function FieldVisits() {
     setGpsModalOpen(true);
   };
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string }) =>
+      apiRequest(`/field-visits/${id}/status`, { 
+        method: "PUT",
+        body: JSON.stringify({ status, notes })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
+      toast({ title: "Visit status updated successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating status", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleStatusUpdate = (visit: VisitWithDetails, status: VisitStatus) => {
-    // Implement status update mutation
-    console.log("Update status", visit, status);
+    const statusMap: Record<string, string> = {
+      scheduled: "Scheduled",
+      in_progress: "In Progress",
+      completed: "Completed",
+      cancelled: "Cancelled",
+    };
+    updateStatusMutation.mutate({ id: visit.id, status: statusMap[status] });
   };
 
   const handleProofUpload = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
     setProofModalOpen(true);
   };
-  const handleCheckIn = (visit: VisitWithDetails) => {
-    if (visit.id) checkInMutation.mutate(visit.id);
+  const handleCheckIn = (locationData: { latitude: number; longitude: number; location?: string; photoPath?: string }) => {
+    if (selectedVisit?.id) {
+      checkInMutation.mutate({ visitId: selectedVisit.id, data: locationData });
+    }
   };
 
-const handleCheckOut = (visit: VisitWithDetails) => {
-  if (visit.id) checkOutMutation.mutate(visit.id);
-};
-const checkInMutation = useMutation({
-  mutationFn: (visitId: string) =>
-    apiRequest(`/field-visits/${visitId}/check-in`, { method: "POST" }),
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-    toast({ title: "Checked in successfully!" });
-  },
-  onError: (error: any) => {
-    toast({ title: "Error checking in", description: error.message, variant: "destructive" });
-  },
-});
+  const handleCheckOut = (locationData: any) => {
+    if (selectedVisit?.id) {
+      checkOutMutation.mutate({ visitId: selectedVisit.id, data: locationData });
+    }
+  };
 
-const checkOutMutation = useMutation({
-  mutationFn: (visitId: string) =>
-    apiRequest(`/field-visits/${visitId}/check-out`, { method: "POST" }),
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-    toast({ title: "Checked out successfully!" });
-  },
-  onError: (error: any) => {
-    toast({ title: "Error checking out", description: error.message, variant: "destructive" });
-  },
-});
+  const checkInMutation = useMutation({
+    mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
+      apiRequest(`/field-visits/${visitId}/check-in`, { 
+        method: "POST",
+        body: JSON.stringify(data)
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
+      toast({ title: "Checked in successfully!" });
+      setGpsModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error checking in", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const checkOutMutation = useMutation({
+    mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
+      apiRequest(`/field-visits/${visitId}/check-out`, { 
+        method: "POST",
+        body: JSON.stringify(data)
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
+      toast({ title: "Checked out successfully!" });
+      setGpsModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error checking out", description: error.message, variant: "destructive" });
+    },
+  });
 const updateVisitMutation = useMutation({
   mutationFn: (data: VisitWithDetails) =>
     apiRequest(`/field-visits/${data.id}`, {
@@ -430,7 +463,7 @@ const updateVisitMutation = useMutation({
         action={gpsAction}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
-        isLoading={checkInMutation.isPending || checkOutMutation.isPending}
+        isLoading={gpsAction === 'check-in' ? checkInMutation.isPending : checkOutMutation.isPending}
       />
 
       {/* Proof Upload Modal */}

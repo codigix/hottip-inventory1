@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText } from "lucide-react";
+import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, Calendar as LucideCalendar, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,26 @@ interface VisitFormProps {
 export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isLoading = false }: VisitFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  // Fetch purpose logs for the selected visit
+  const { data: purposeLogs = [] } = useQuery<any[]>({
+    queryKey: [visit ? `/api/field-visits/${visit.id}/purpose-logs` : null],
+    enabled: !!visit?.id,
+  });
+
+  const getPurposeText = (purpose: string) => {
+    const purposeMap: Record<string, string> = {
+      initial_meeting: "Initial Meeting",
+      demo: "Product Demo",
+      follow_up: "Follow Up",
+      quotation_discussion: "Quotation Discussion",
+      negotiation: "Negotiation",
+      closing: "Closing",
+      support: "Support",
+      other: "Other",
+    };
+    return purposeMap[purpose] || purpose;
+  };
 
   const form = useForm<VisitFormData>({
     resolver: zodResolver(visitFormSchema),
@@ -362,6 +383,32 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 </FormItem>
               )}
             />
+
+            {visit && purposeLogs && purposeLogs.length > 0 && (
+              <div className="mt-4 space-y-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Visit Purpose History</p>
+                <div className="space-y-3">
+                  {purposeLogs
+                    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                    .map((log) => (
+                      <div key={log.id} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-800 last:border-0">
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            {getPurposeText(log.purpose)}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <LucideCalendar className="h-3 w-3" />
+                            <span>{format(new Date(log.visitDate), "dd MMM yyyy")}</span>
+                          </div>
+                        </div>
+                        <div className="text-xs font-bold text-green-600 uppercase">
+                          {log.status}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {/* Lead Information Card */}
             {selectedLead && (

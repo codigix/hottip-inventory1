@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
@@ -109,6 +109,18 @@ export default function VisitTable({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch visit history for the selected lead
+  const { data: visitHistory = [] } = useQuery<VisitWithDetails[]>({
+    queryKey: ["/api/field-visits", { leadId: selectedVisit?.leadId }],
+    enabled: !!selectedVisit?.leadId && reportOpen,
+  });
+
+  // Fetch purpose logs for the selected visit
+  const { data: purposeLogs = [] } = useQuery<any[]>({
+    queryKey: [selectedVisit ? `/api/field-visits/${selectedVisit.id}/purpose-logs` : null],
+    enabled: !!selectedVisit?.id && reportOpen,
+  });
+
   // Get status badge variant and icon
   const getStatusInfo = (status: string) => {
     const normalizedStatus = status.toLowerCase().replace(" ", "_");
@@ -183,47 +195,10 @@ export default function VisitTable({
   };
 
   const handleStatusUpdate = async () => {
-    if (selectedVisit) {
-      try {
-        const statusMap: Record<VisitStatus, string> = {
-          scheduled: "Scheduled",
-          in_progress: "In Progress",
-          completed: "Completed",
-          cancelled: "Cancelled",
-        };
-
-        const res = await fetch(`/api/field-visits/${selectedVisit.id}/status`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: statusMap[newStatus],
-            notes: statusNotes,
-          }),
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.message || `Server responded with ${res.status}`);
-        }
-        
-        // Invalidate the visits query to refresh the list
-        queryClient.invalidateQueries({ queryKey: ["/api/field-visits"] });
-
-        if (onStatusUpdate) {
-          onStatusUpdate(selectedVisit, newStatus);
-        }
-
-        setStatusUpdateOpen(false);
-        setStatusNotes("");
-        toast({ title: "Visit status updated successfully" });
-      } catch (err) {
-        console.error("Error updating status:", err);
-        toast({
-          title: "Error updating status",
-          description: err instanceof Error ? err.message : "An unexpected error occurred",
-          variant: "destructive",
-        });
-      }
+    if (selectedVisit && onStatusUpdate) {
+      onStatusUpdate(selectedVisit, newStatus);
+      setStatusUpdateOpen(false);
+      setStatusNotes("");
     }
   };
 
@@ -800,14 +775,42 @@ export default function VisitTable({
                 )}
               </div>
 
-              <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
-                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Visit Purpose & Summary</p>
-                <p className="text-sm font-bold text-blue-700 dark:text-blue-400">
-                  {getPurposeText(selectedVisit.purpose)}
-                </p>
+              <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">VISIT PURPOSE & SUMMARY</p>
+                <div className="space-y-3">
+                  {purposeLogs && purposeLogs.length > 0 ? (
+                    purposeLogs
+                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                      .map((log) => (
+                        <div key={log.id} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-800 last:border-0">
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                              {getPurposeText(log.purpose)}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <Calendar className="h-3 w-3" />
+                              <span>{format(new Date(log.visitDate), "dd MMM yyyy")}</span>
+                            </div>
+                          </div>
+                          <div className="text-xs font-bold text-green-600 uppercase">
+                            {log.status}
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-slate-400" />
+                      <p className="text-sm text-slate-500 italic">No visit purposes logged yet</p>
+                    </div>
+                  )}
+                </div>
+
                 {selectedVisit.notes && (
-                  <div className="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {selectedVisit.notes}
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Current Visit Notes</p>
+                    <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                      {selectedVisit.notes}
+                    </div>
                   </div>
                 )}
               </div>

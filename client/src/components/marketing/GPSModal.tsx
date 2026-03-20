@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapPin, Navigation, CheckCircle, AlertTriangle, Timer, Camera, Upload } from "lucide-react";
+import { uploadMarketingAttendancePhoto } from "@/lib/marketingPhotoUpload";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -58,6 +59,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
   const [nextAction, setNextAction] = useState('');
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -210,51 +212,65 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
     }
   };
 
-  // Handle camera capture
-  const capturePhoto = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Use back camera
-      });
-      
-      // Create video element to show camera feed
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-      
-      // This is a simplified implementation
-      // In a real app, you'd show a camera interface
-      alert('Camera feature requires additional implementation. Please use the upload button to select a photo.');
-      
-      stream.getTracks().forEach(track => track.stop());
-    } catch (error) {
-      alert('Camera access denied or not available');
+  // Handle camera capture - simplified mobile camera trigger
+  const capturePhoto = () => {
+    // Trigger the hidden file input with capture attribute
+    const cameraInput = document.getElementById('camera-capture') as HTMLInputElement;
+    if (cameraInput) {
+      cameraInput.click();
     }
   };
 
   // Handle form submission
-  const handleSubmit = () => {
-    if (!currentLocation) {
-      alert('Please get your current location first');
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!visit?.id) return;
 
-    const locationData = {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      location: address,
-      photoPath: uploadedPhoto ? URL.createObjectURL(uploadedPhoto) : undefined
-    };
+    setIsUploading(true);
+    let photoPath = undefined;
 
-    if (action === 'check-in') {
-      onCheckIn(locationData);
-    } else {
-      onCheckOut({
-        ...locationData,
-        visitNotes,
-        outcome,
-        nextAction
-      });
+    try {
+      if (uploadedPhoto) {
+        const photoResult = await uploadMarketingAttendancePhoto({
+          file: uploadedPhoto,
+          attendanceId: visit.id,
+          photoType: action === 'check-in' ? 'check-in' : 'check-out'
+        });
+
+        if (photoResult.success) {
+          photoPath = photoResult.objectPath;
+        } else {
+          console.error('Photo upload failed:', photoResult.error);
+          // We still continue with check-in even if photo fails, unless it's check-out where it might be required
+          if (action === 'check-out') {
+            alert('Photo upload is required for check-out. Please try again.');
+            setIsUploading(false);
+            return;
+          }
+        }
+      }
+
+      const locationData = {
+        latitude: currentLocation?.latitude || 0,
+        longitude: currentLocation?.longitude || 0,
+        location: address || (currentLocation ? `${currentLocation.latitude}, ${currentLocation.longitude}` : 'Manual check-in'),
+        photoPath
+      };
+
+      if (action === 'check-in') {
+        onCheckIn(locationData);
+      } else {
+        onCheckOut({
+          ...locationData,
+          visitNotes,
+          outcome,
+          nextAction
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -449,6 +465,14 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                     onChange={handlePhotoUpload}
                     className="hidden"
                   />
+                  <Input
+                    id="camera-capture"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
                 </Label>
               </div>
             </CardContent>
@@ -512,13 +536,13 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!currentLocation || isLoading || (action === 'check-out' && !uploadedPhoto)}
+              disabled={isLoading || isUploading || (action === 'check-out' && !uploadedPhoto)}
               data-testid="button-submit"
             >
-              {isLoading ? (
+              {isLoading || isUploading ? (
                 <>
                   <Timer className="h-4 w-4 mr-2 animate-spin" />
-                  {action === 'check-in' ? 'Checking In...' : 'Checking Out...'}
+                  {isUploading ? 'Uploading...' : (action === 'check-in' ? 'Checking In...' : 'Checking Out...')}
                 </>
               ) : (
                 <>
