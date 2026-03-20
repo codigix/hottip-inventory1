@@ -18,6 +18,7 @@ import AccountsDashboard from "../AccountsDashboard";
 import AccountsReceivables from "./AccountsReceivables";
 import AccountsPayables from "./AccountsPayables";
 import AccountsReports from "./AccountsReports";
+import PaymentHistory from "./PaymentHistory";
 
 const sidebarItems = [
   {
@@ -42,6 +43,14 @@ const sidebarItems = [
     icon: CreditCard,
     path: '/accounts/payables',
     description: 'Vendor payments linked to POs/quotations',
+    tourConfig: null,
+  },
+  {
+    id: 'history',
+    label: 'Payment History',
+    icon: TrendingUp,
+    path: '/accounts/history',
+    description: 'Combined history of all payments',
     tourConfig: null,
   },
   {
@@ -73,6 +82,7 @@ export default function AccountsLayout() {
     if (location === '/accounts') return 'dashboard';
     if (location.includes('/receivables')) return 'receivables';
     if (location.includes('/payables')) return 'payables';
+    if (location.includes('/history')) return 'history';
     if (location.includes('/reports')) return 'reports';
     return 'dashboard';
   };
@@ -164,6 +174,9 @@ export default function AccountsLayout() {
           </Route>
           <Route path="/accounts/payables">
             <AccountsPayables />
+          </Route>
+          <Route path="/accounts/history">
+            <PaymentHistory />
           </Route>
           <Route path="/accounts/reports">
             <AccountsReports />

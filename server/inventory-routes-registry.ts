@@ -905,8 +905,21 @@ export function registerInventoryRoutes(
   // GET all material requests
   app.get("/api/material-requests", requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select().from(materialRequests).orderBy(sql`${materialRequests.createdAt} DESC`);
-      res.json(rows);
+      const rows = await db
+        .select({
+          request: materialRequests,
+          poNumber: purchaseOrders.poNumber
+        })
+        .from(materialRequests)
+        .leftJoin(purchaseOrders, eq(materialRequests.purchaseOrderId, purchaseOrders.id))
+        .orderBy(desc(materialRequests.createdAt));
+      
+      const formattedRows = rows.map(r => ({
+        ...r.request,
+        poNumber: r.poNumber
+      }));
+      
+      res.json(formattedRows);
     } catch (e) {
       console.error("Error fetching material requests:", e);
       res.status(500).json({ error: "Failed to fetch material requests" });
@@ -917,7 +930,14 @@ export function registerInventoryRoutes(
   app.get("/api/material-requests/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const [request] = await db.select().from(materialRequests).where(eq(materialRequests.id, id));
+      const [request] = await db
+        .select({
+          request: materialRequests,
+          poNumber: purchaseOrders.poNumber
+        })
+        .from(materialRequests)
+        .leftJoin(purchaseOrders, eq(materialRequests.purchaseOrderId, purchaseOrders.id))
+        .where(eq(materialRequests.id, id));
       
       if (!request) {
         return res.status(404).json({ error: "Material request not found" });
@@ -945,10 +965,36 @@ export function registerInventoryRoutes(
         .leftJoin(spareParts, eq(materialRequestItems.sparePartId, spareParts.id))
         .where(eq(materialRequestItems.requestId, id));
 
-      res.json({ ...request, items });
+      res.json({ ...request.request, poNumber: request.poNumber, items });
     } catch (e) {
       console.error("Error fetching material request details:", e);
       res.status(500).json({ error: "Failed to fetch material request details" });
+    }
+  });
+
+  // Update material request
+  app.put("/api/material-requests/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const [updated] = await db
+        .update(materialRequests)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(materialRequests.id, id))
+        .returning();
+        
+      if (!updated) {
+        return res.status(404).json({ error: "Material request not found" });
+      }
+      
+      res.json(updated);
+    } catch (e) {
+      console.error("Error updating material request:", e);
+      res.status(500).json({ error: "Failed to update material request" });
     }
   });
 
@@ -1098,7 +1144,7 @@ export function registerInventoryRoutes(
 
       await db.transaction(async (tx) => {
         for (const item of items) {
-          const { productId, quantity } = item;
+          const { productId, quantity, location } = item;
           
           if (productId) {
             // Create a stock transaction (OUT)
@@ -1106,10 +1152,10 @@ export function registerInventoryRoutes(
               userId: userId,
               productId,
               type: 'out',
-              reason: 'Material Release',
-              quantity: Number(quantity),
+              reason: 'adjustment',
               referenceNumber: request.requestNumber,
-              notes: `Released for Material Request ${request.requestNumber}`,
+              quantity: Number(quantity),
+              notes: `Released for Material Request ${request.requestNumber} from ${location || 'Main Warehouse'}`,
             });
 
             // Update product stock balance

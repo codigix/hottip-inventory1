@@ -286,12 +286,19 @@ export default function ShipmentPlanning() {
 
   const filteredShipments = useMemo(() => {
     return shipments.filter(shipment => {
+      // For Planning page, we show all approved shipments (both Vendor and Customer)
+      // that are in a state where planning is appropriate (created, packed, planned)
+      
       if (!searchTerm) return true;
       const query = searchTerm.toLowerCase();
+      const vendorName = shipment.vendorName || shipment.vendor?.name || shipment.supplier?.name || "";
+      const clientName = shipment.clientName || shipment.client?.name || "";
+      
       return (
         shipment.consignmentNumber.toLowerCase().includes(query) ||
         (shipment.poNumber || "").toLowerCase().includes(query) ||
-        (shipment.vendorName || "").toLowerCase().includes(query)
+        vendorName.toLowerCase().includes(query) ||
+        clientName.toLowerCase().includes(query)
       );
     });
   }, [shipments, searchTerm]);
@@ -470,16 +477,6 @@ export default function ShipmentPlanning() {
                             >
                               <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
                             </Button>
-                            {shipment.plan && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white h-8"
-                                onClick={() => setLocation("/logistics/vendor-tracking")}
-                              >
-                                <Route className="h-4 w-4 mr-2" /> Tracking
-                              </Button>
-                            )}
                             <Button 
                               variant="ghost" 
                               size="icon" 

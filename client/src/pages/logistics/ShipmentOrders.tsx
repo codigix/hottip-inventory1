@@ -272,8 +272,12 @@ export default function ShipmentOrders() {
       }
       
       if (activeTab === "vendor") {
-        // Show only if it has explicit vendor IDs (direct or joined)
-        return !!shipment.vendorId || !!shipment.vendorName;
+        // Only show vendor shipments that are NOT yet fully planned/tracked
+        // Once planned, they should be managed in Vendor Tracking page
+        const isVendorShipment = !!shipment.vendorId || !!shipment.vendorName || !!shipment.vendor?.name || !!shipment.supplier?.name;
+        const isPlanned = shipment.currentStatus !== 'created' && shipment.currentStatus !== 'packed';
+        
+        return isVendorShipment && !isPlanned;
       }
 
       return true;
@@ -470,12 +474,12 @@ export default function ShipmentOrders() {
                           )}
                         </TableCell>
                         <TableCell className="text-right py-4">
-                          <div className="flex justify-end space-x-2">
-                            {!shipment.isApproved && (
+                          <div className="flex justify-end space-x-1">
+                            {(!shipment.isApproved || ['created', 'packed', 'planned'].includes(shipment.currentStatus?.toLowerCase())) && (
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"
+                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                 onClick={() => {
                                   setSelectedShipment(shipment);
                                   setIsApproveDialogOpen(true);
@@ -483,29 +487,6 @@ export default function ShipmentOrders() {
                                 title="Approve Shipment"
                               >
                                 <CheckCircle2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50"
-                              onClick={() => {
-                                setSelectedShipment(shipment);
-                                setIsPlanningDialogOpen(true);
-                              }}
-                              title="Shipment Planning"
-                            >
-                              <Calendar className="h-4 w-4" />
-                            </Button>
-                            {shipment.plan && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"
-                                onClick={() => setLocation("/logistics/vendor-tracking")}
-                                title="Go to Tracking"
-                              >
-                                <Route className="h-4 w-4" />
                               </Button>
                             )}
                             <Button 

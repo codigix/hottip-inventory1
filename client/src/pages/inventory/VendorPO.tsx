@@ -166,6 +166,7 @@ export default function VendorPO() {
   ]);
   const [poSupplier, setPoSupplier] = useState("");
   const [poQuotation, setPoQuotation] = useState("");
+  const [poMaterialRequest, setPoMaterialRequest] = useState("");
   const [poDeliveryPeriod, setPoDeliveryPeriod] = useState("");
   const [poNotes, setPoNotes] = useState("");
   const [gstType, setGstType] = useState<"IGST" | "CGST_SGST">("IGST");
@@ -271,6 +272,7 @@ export default function VendorPO() {
     setPoItems([{ id: Math.random().toString(36).substr(2, 9), itemName: "", description: "", quantity: 1, unit: "pcs", unitPrice: 0, amount: 0 }]);
     setPoSupplier("");
     setPoQuotation("");
+    setPoMaterialRequest("");
     setPoDeliveryPeriod("");
     setPoNotes("");
     setGstType("IGST");
@@ -286,6 +288,10 @@ export default function VendorPO() {
 
   const { data: quotations = [] } = useQuery<any[]>({
     queryKey: ["/vendor-quotations"],
+  });
+
+  const { data: materialRequests = [] } = useQuery<any[]>({
+    queryKey: ["/api/material-requests"],
   });
 
   const suppliers = Array.isArray(suppliersData) ? suppliersData : ((suppliersData as any)?.suppliers || []);
@@ -352,6 +358,7 @@ export default function VendorPO() {
       poNumber: `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       supplierId: poSupplier,
       quotationId: poQuotation === "none" ? null : poQuotation,
+      materialRequestId: poMaterialRequest === "none" ? null : poMaterialRequest,
       orderDate: new Date().toISOString(),
       deliveryPeriod: poDeliveryPeriod,
       status: "pending",
@@ -640,6 +647,23 @@ export default function VendorPO() {
                 <SelectContent>
                   {suppliers.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Material Request (Optional)</label>
+              <Select onValueChange={setPoMaterialRequest} value={poMaterialRequest}>
+                <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Link to Material Request" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- No Request --</SelectItem>
+                  {materialRequests.map((mr: any) => (
+                    <SelectItem key={mr.id} value={mr.id}>
+                      {mr.mRNumber || mr.id.slice(0, 8)} - {mr.department || 'N/A'}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

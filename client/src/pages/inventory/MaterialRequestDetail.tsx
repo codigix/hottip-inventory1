@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   ArrowLeft, 
   Printer, 
@@ -34,6 +34,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Link, useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -46,10 +53,28 @@ export default function MaterialRequestDetail() {
   const id = params?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedLocation, setSelectedLocation] = useState("Main Warehouse");
 
   const { data: request, isLoading, refetch, isRefetching } = useQuery({
     queryKey: [`/api/material-requests/${id}`],
     enabled: !!id,
+  });
+
+  const { data: purchaseOrders } = useQuery({
+    queryKey: ["/api/purchase-orders"],
+  });
+
+  const linkPOMutation = useMutation({
+    mutationFn: async (purchaseOrderId: string) => {
+      return apiRequest("PUT", `/api/material-requests/${id}`, { purchaseOrderId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "PO Linked",
+        description: "Purchase Order has been linked to this material request.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+    },
   });
 
   const generateRFQMutation = useMutation({
@@ -77,7 +102,8 @@ export default function MaterialRequestDetail() {
     mutationFn: async () => {
       const itemsToRelease = lineItems.map((item: any) => ({
         productId: item.productId,
-        quantity: item.quantity
+        quantity: item.quantity,
+        location: selectedLocation
       }));
       return apiRequest("POST", `/api/material-requests/${id}/release`, {
         items: itemsToRelease
@@ -191,7 +217,15 @@ export default function MaterialRequestDetail() {
             </div>
             <div>
               <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Linked PO</p>
-              <p className="text-sm font-bold text-blue-600">#N/A</p>
+              {request.purchaseOrderId ? (
+                <Link href={`/inventory/vendor-po/${request.purchaseOrderId}`}>
+                  <p className="text-sm font-bold text-blue-600 hover:underline cursor-pointer">
+                    #{request.poNumber || "View PO"}
+                  </p>
+                </Link>
+              ) : (
+                <p className="text-sm font-bold text-slate-400">#N/A</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -327,10 +361,16 @@ export default function MaterialRequestDetail() {
                       <span className="text-[0.7rem] font-bold">Partial Stock</span>
                     </div>
                   </div>
-                  <Button variant="outline" className="w-full justify-between text-slate-500 border-slate-200 font-light text-sm h-11">
-                    Select Warehouse...
-                    <ArrowLeft className="h-4 w-4 rotate-180" />
-                  </Button>
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                    <SelectTrigger className="w-full justify-between text-slate-800 border-slate-200 font-medium text-sm h-11 bg-white">
+                      <SelectValue placeholder="Select Warehouse..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Main Warehouse">Main Warehouse</SelectItem>
+                      <SelectItem value="Secondary Warehouse">Secondary Warehouse</SelectItem>
+                      <SelectItem value="Production Floor">Production Floor</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg flex space-x-3">
                   <Info className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
@@ -358,16 +398,40 @@ export default function MaterialRequestDetail() {
                   </div>
                   <span className="text-[0.7rem] font-bold text-slate-500">Linked Purchase Order:</span>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-blue-600">No Linked PO</p>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[0.7rem] text-slate-400">Status:</span>
-                    <Badge variant="outline" className="text-[0.6rem] font-bold bg-slate-100 text-slate-500 border-slate-200 py-0 h-4">NONE</Badge>
-                  </div>
+                <div className="space-y-3">
+                  {request.purchaseOrderId ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-blue-600">#{request.poNumber || "Linked PO"}</p>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[0.7rem] text-slate-400">Status:</span>
+                        <Badge variant="outline" className="text-[0.6rem] bg-emerald-50 text-emerald-600 border-emerald-100">
+                          Linked
+                        </Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold text-slate-400 italic">No PO Linked</p>
+                      <Select 
+                        onValueChange={(value) => linkPOMutation.mutate(value)}
+                        disabled={linkPOMutation.isPending}
+                      >
+                        <SelectTrigger className="w-full h-9 text-[0.7rem]">
+                          <SelectValue placeholder="Link existing PO..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {purchaseOrders?.filter((po: any) => po.status !== 'cancelled').map((po: any) => (
+                            <SelectItem key={po.id} value={po.id} className="text-[0.7rem]">
+                              #{po.poNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div className="space-y-4">
+                <div className="space-y-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-400 font-medium">Required By</span>
                   <Button variant="outline" size="sm" className="h-8 text-[0.75rem] font-medium text-slate-700 bg-slate-50 border-slate-200">
@@ -383,8 +447,9 @@ export default function MaterialRequestDetail() {
                   <span className="text-xs font-bold text-blue-600">{lineItems.length} Unique Items</span>
                 </div>
               </div>
+            </div>
 
-              <Button variant="outline" className="w-full text-slate-600 border-slate-200 font-medium text-xs h-10 bg-slate-50/50">
+            <Button variant="outline" className="w-full text-slate-600 border-slate-200 font-medium text-xs h-10 bg-slate-50/50">
                 <Printer className="mr-2 h-4 w-4" /> Print Document
               </Button>
             </CardContent>
@@ -418,7 +483,11 @@ export default function MaterialRequestDetail() {
             <Button 
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11 rounded-lg"
               onClick={() => releaseMaterialMutation.mutate()}
-              disabled={releaseMaterialMutation.isPending || lineItems.some((item: any) => (item.productId ? item.productStock : item.sparePartStock) < item.quantity)}
+              disabled={
+                releaseMaterialMutation.isPending || 
+                lineItems.length === 0 ||
+                lineItems.some((item: any) => !item.productId || (item.productStock < item.quantity))
+              }
             >
               {releaseMaterialMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
               Release Material

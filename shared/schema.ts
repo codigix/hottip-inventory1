@@ -120,6 +120,7 @@ export const materialRequests = pgTable("material_requests", {
   status: materialRequestStatus("status").notNull().default("DRAFT"),
   purpose: text("purpose").notNull().default("Purchase Request"),
   quotationId: uuid("quotationId").references(() => outboundQuotations.id),
+  purchaseOrderId: uuid("purchase_order_id").references(() => purchaseOrders.id),
   requiredBy: timestamp("requiredBy"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -143,6 +144,8 @@ export const insertMaterialRequestSchema = z.object({
   department: z.string(),
   status: z.enum(["DRAFT", "PENDING", "APPROVED", "PROCESSING", "FULFILLED", "CANCELLED"]).optional(),
   purpose: z.string().optional(),
+  quotationId: z.string().uuid().optional().nullable(),
+  purchaseOrderId: z.string().uuid().optional().nullable(),
   requiredBy: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -828,6 +831,7 @@ export const vendorQuotations = pgTable("vendor_quotations", {
   attachmentName: text("attachmentName"),
   senderId: uuid("senderId").notNull().references(() => suppliers.id),
   userId: uuid("userId").notNull().references(() => users.id),
+  materialRequestId: uuid("material_request_id").references(() => materialRequests.id),
   quotationItems: jsonb("quotationItems"),
   financialBreakdown: jsonb("financialBreakdown"),
   createdAt: timestamp("createdAt").defaultNow(),
@@ -846,6 +850,7 @@ export const insertVendorQuotationSchema = z.object({
   notes: z.string().optional().nullable(),
   senderId: z.string().uuid(),
   userId: z.string().uuid(),
+  materialRequestId: z.string().uuid().optional().nullable(),
   quotationItems: z.any().optional().nullable(),
   financialBreakdown: z.any().optional().nullable(),
 });
@@ -896,6 +901,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
   poNumber: text("poNumber").notNull().unique(),
   supplierId: uuid("supplierId").notNull(),
   quotationId: uuid("quotationId"),
+  materialRequestId: uuid("material_request_id").references(() => materialRequests.id),
   userId: uuid("userId")
     .notNull()
     .references(() => users.id),
@@ -955,6 +961,7 @@ export const insertPurchaseOrderSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
   supplierId: z.string().uuid("Invalid supplier ID"),
   quotationId: z.string().uuid().optional().nullable(),
+  materialRequestId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid("Invalid user ID"),
   orderDate: z.preprocess(
     (val) => (val ? new Date(val as string) : undefined),

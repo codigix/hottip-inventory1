@@ -186,7 +186,8 @@ export default function MaterialRequests() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[200px] py-4">ID</TableHead>
+                <TableHead className="w-[150px] py-4">ID</TableHead>
+                <TableHead className="py-4">PO Number</TableHead>
                 <TableHead className="py-4">Requester</TableHead>
                 <TableHead className="py-4">Status</TableHead>
                 <TableHead className="py-4">Required By</TableHead>
@@ -197,11 +198,11 @@ export default function MaterialRequests() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading material requests...</TableCell>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading material requests...</TableCell>
                 </TableRow>
               ) : materialRequests.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No material requests found.</TableCell>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No material requests found.</TableCell>
                 </TableRow>
               ) : materialRequests.map((request: any) => (
                 <TableRow key={request.id}>
@@ -209,6 +210,15 @@ export default function MaterialRequests() {
                     <Link href={`/inventory/material-requests/${request.id}`} className="hover:underline">
                       {request.requestNumber}
                     </Link>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    {request.poNumber ? (
+                      <Badge variant="outline" className="font-bold text-blue-600 border-blue-100 bg-blue-50/50">
+                        #{request.poNumber}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs italic">Not Linked</span>
+                    )}
                   </TableCell>
                   <TableCell className="py-4">{request.department}</TableCell>
                   <TableCell className="py-4">

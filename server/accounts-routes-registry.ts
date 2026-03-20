@@ -665,6 +665,66 @@ export function registerAccountsRoutes(app: Express) {
     }
   });
 
+  // Unified payment history
+  app.get("/api/accounts/payment-history", requireAuth, async (_req, res) => {
+    try {
+      // Fetch receivables
+      const receivables = await db
+        .select({
+          id: accountsReceivables.id,
+          amountPaid: accountsReceivables.amountPaid,
+          amountDue: accountsReceivables.amountDue,
+          paymentDate: accountsReceivables.paymentDate,
+          createdAt: accountsReceivables.createdAt,
+          paymentMode: accountsReceivables.paymentMode,
+          status: accountsReceivables.status,
+          partyName: customers.name,
+          partyType: sql`'Customer'`,
+          type: sql`'Receivable'`,
+          refType: sql`'Invoice'`,
+          refNumber: invoices.invoiceNumber,
+        })
+        .from(accountsReceivables)
+        .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+        .leftJoin(invoices, eq(accountsReceivables.invoiceId, invoices.id))
+        .where(sql`${accountsReceivables.amountPaid} > 0 OR ${accountsReceivables.status} = 'paid'`);
+
+      // Fetch payables
+      const payables = await db
+        .select({
+          id: accountsPayables.id,
+          amountPaid: accountsPayables.amountPaid,
+          amountDue: accountsPayables.amountDue,
+          paymentDate: accountsPayables.paymentDate,
+          createdAt: accountsPayables.createdAt,
+          paymentMode: accountsPayables.paymentMode,
+          status: accountsPayables.status,
+          partyName: suppliers.name,
+          partyType: sql`'Supplier'`,
+          type: sql`'Payable'`,
+          refType: sql`CASE WHEN ${accountsPayables.poId} IS NOT NULL THEN 'PO' ELSE 'Quotation' END`,
+          refNumber: sql`COALESCE(${purchaseOrders.poNumber}, ${inboundQuotations.quotationNumber})`,
+        })
+        .from(accountsPayables)
+        .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+        .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
+        .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
+        .where(sql`${accountsPayables.amountPaid} > 0 OR ${accountsPayables.status} = 'paid'`);
+
+      // Combine and sort
+      const history = [...receivables, ...payables].sort((a, b) => {
+        const dateA = new Date(a.paymentDate || a.createdAt).getTime();
+        const dateB = new Date(b.paymentDate || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Record payable payment
   app.post(
     "/api/accounts-payables/:id/payment",

@@ -81,7 +81,12 @@ export default function VendorTracking() {
 
   const getVendorName = (shipment: any) => {
     if (!shipment) return "N/A";
-    return shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name || shipment.clientName || "N/A";
+    const vName = shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name;
+    const cName = shipment.clientName || shipment.client?.name;
+    
+    if (vName) return vName;
+    if (cName) return `Client: ${cName}`;
+    return "N/A";
   };
 
   const updateStatusMutation = useMutation({
@@ -145,13 +150,15 @@ export default function VendorTracking() {
     // Show all shipments that have some tracking progress or plan
     return shipments
       .filter(item => {
-        // Only show vendor shipments in Vendor Tracking (direct or via PO join)
-        if (!item.vendorId && !item.vendorName) return false;
-
         const plan = item.plan || {};
+        const vName = item.vendorName || item.supplier?.name || item.vendor?.name;
+        
+        // Show if it's a vendor shipment OR if it's any shipment that HAS a plan
+        if (!item.vendorId && !vName && !item.plan) return false;
+
         const status = (item.currentStatus || plan.status || "created").toLowerCase().replace(/\s+/g, '_');
         
-        // Show all vendor shipments even if they are just 'created'
+        // Show all shipments even if they are just 'created' as long as they pass the filter above
         return true;
       })
       .map(item => {

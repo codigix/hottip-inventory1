@@ -1,24 +1,4 @@
 // Transaction Details Modal
-function TransactionDetailsModal({ open, onOpenChange, transaction }: { open: boolean; onOpenChange: (v: boolean) => void; transaction: any }) {
-  if (!transaction) return null;
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Transaction Details</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2">
-          <div><b>Type:</b> {transaction.type}</div>
-          <div><b>Product ID:</b> {transaction.productId}</div>
-          <div><b>Quantity:</b> {transaction.quantity}</div>
-          <div><b>Reason:</b> {transaction.reason}</div>
-          <div><b>Notes:</b> {transaction.notes || '-'}</div>
-          <div><b>Date:</b> {transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : '-'}</div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -125,13 +105,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StartTourButton } from "@/components/StartTourButton";
 import { inventoryStockManagementTour } from "@/components/tours/dashboardTour";
-import { Plus, Package, TrendingDown, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, Package, TrendingDown, TrendingUp, AlertTriangle, RefreshCw, List } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function StockManagement() {
   const [isStockTransactionDialogOpen, setIsStockTransactionDialogOpen] = useState(false);
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'in' | 'out'>('in');
+  const [viewMode, setViewMode] = useState<'overview' | 'ledger'>('overview');
   
   const productForm = useForm<ProductForm>({
     resolver: zodResolver(productFormSchema),
@@ -181,9 +162,6 @@ export default function StockManagement() {
   // For stock details modal
   const [viewProduct, setViewProduct] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  // For transaction details modal
-  const [viewTransaction, setViewTransaction] = useState<any>(null);
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   // For stock edit modal
   const [editProduct, setEditProduct] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -210,8 +188,30 @@ export default function StockManagement() {
     queryKey: ["/products"],
   });
 
-  // Fetch stock transactions
-  const { data: stockTransactions, isLoading: transactionsLoading } = useQuery({
+  // Auto-generate SKU from name
+  const productName = productForm.watch("name");
+  React.useEffect(() => {
+    const currentSku = productForm.getValues("sku");
+    if (isAddProductDialogOpen && productName && !currentSku && products) {
+      const productsArray = Array.isArray(products) ? products : [];
+      let nextNumber = 1;
+      if (productsArray.length > 0) {
+        const skuNumbers = productsArray
+          .map((p: any) => {
+            const match = p.sku?.match(/SKU-(\d+)/i);
+            return match ? parseInt(match[1]) : 0;
+          })
+          .filter((n: number) => n > 0);
+        if (skuNumbers.length > 0) {
+          nextNumber = Math.max(...skuNumbers) + 1;
+        }
+      }
+      const generatedSku = `SKU-${nextNumber.toString().padStart(3, '0')}`;
+      productForm.setValue("sku", generatedSku, { shouldValidate: true });
+    }
+  }, [productName, products, productForm, isAddProductDialogOpen]);
+
+  const { data: stockTransactions, isLoading: transactionsLoading } = useQuery<any[]>({
     queryKey: ["/stock-transactions"],
   });
 
@@ -343,64 +343,68 @@ export default function StockManagement() {
     }
   ];
 
-  // Stock transaction columns
-  const transactionColumns = [
+  const ledgerColumns = [
     {
-      key: "type",
-      header: "Type",
-      cell: (transaction: any) => (
-        <Badge variant={transaction.type === 'in' ? 'default' : 'outline'}>
-          {transaction.type === 'in' ? (
-            <>
-              <TrendingUp className="h-3 w-3 mr-1" />
-              Stock In
-            </>
-          ) : (
-            <>
-              <TrendingDown className="h-3 w-3 mr-1" />
-              Stock Out
-            </>
-          )}
-        </Badge>
-      ),
+      key: "sku",
+      header: "Item Code",
+      cell: (t: any) => {
+        // console.log("Transaction Item Code:", t);
+        return t.productSku || t.sku || 'N/A';
+      }
     },
     {
       key: "productName",
-      header: "Product",
-      cell: (transaction: any) => (
-        <div className="flex flex-col">
-          <span className="font-medium">
-            {transaction.productName || (
-              <span className="text-red-600 text-xs">[Product Deleted: {transaction.productId?.slice(0, 8)}...]</span>
-            )}
-          </span>
-          {transaction.productSku && (
-            <span className="text-xs text-muted-foreground">{transaction.productSku}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "quantity",
-      header: "Quantity",
-    },
-    {
-      key: "reason",
-      header: "Reason",
-      cell: (transaction: any) => (
-        <span className="capitalize">{transaction.reason.replace('_', ' ')}</span>
-      ),
+      header: "Material",
+      cell: (t: any) => t.productName || t.name || 'N/A'
     },
     {
       key: "createdAt",
       header: "Date",
-      cell: (transaction: any) => new Date(transaction.createdAt).toLocaleDateString(),
+      cell: (t: any) => t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'
+    },
+    {
+      key: "type",
+      header: "Type",
+      cell: (t: any) => (
+        <Badge variant={t.type === 'in' ? 'default' : 'outline'}>
+          {t.type === 'in' ? 'IN' : 'OUT'}
+        </Badge>
+      )
+    },
+    {
+      key: "quantity",
+      header: "Quantity",
+      cell: (t: any) => (
+        <span className={t.type === 'in' ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+          {t.type === 'in' ? '+' : '-'}{t.quantity}
+        </span>
+      )
+    },
+    {
+      key: "referenceNumber",
+      header: "Reference (PO/MR)",
+      cell: (t: any) => (
+        <Badge variant="secondary" className="font-mono text-[10px]">
+          {t.referenceNumber || 'N/A'}
+        </Badge>
+      )
+    },
+    {
+      key: "reason",
+      header: "Reason",
+      cell: (t: any) => {
+        const isMaterialRelease = t.reason === 'adjustment' && t.notes?.includes('Material Request');
+        return (
+          <span className="text-xs text-muted-foreground capitalize">
+            {isMaterialRelease ? 'Material Release' : t.reason}
+          </span>
+        );
+      }
     }
   ];
 
   // Calculate metrics
   const productsArray = Array.isArray(products) ? products : [];
-  const stockTransactionsArray = Array.isArray(stockTransactions) ? stockTransactions : [];
   
   const totalProducts = productsArray.length;
   const lowStockProducts = productsArray.filter((p: any) => p.stock <= (p.lowStockThreshold || 0)).length;
@@ -409,7 +413,6 @@ export default function StockManagement() {
     const stock = typeof product.stock === 'string' ? parseInt(product.stock) : (product.stock || 0);
     return sum + (costPrice * stock);
   }, 0);
-  const totalTransactions = stockTransactionsArray.length;
 
   if (productsLoading) {
     return (
@@ -437,6 +440,14 @@ export default function StockManagement() {
         </div>
         <StartTourButton tourConfig={inventoryStockManagementTour} tourName="inventory-stock-management" />
         <div className="flex items-center space-x-4">
+          <Button 
+            variant={viewMode === 'ledger' ? 'default' : 'outline'} 
+            onClick={() => setViewMode(viewMode === 'overview' ? 'ledger' : 'overview')}
+            className={viewMode === 'ledger' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+          >
+            <List className="h-4 w-4 mr-2" />
+            Stock Ledger
+          </Button>
           <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -693,11 +704,8 @@ export default function StockManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="purchase">Purchase</SelectItem>
-                      <SelectItem value="return">Return</SelectItem>
                       <SelectItem value="sale">Sale</SelectItem>
-                      <SelectItem value="damage">Damage</SelectItem>
                       <SelectItem value="adjustment">Adjustment</SelectItem>
-                      <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -795,97 +803,66 @@ export default function StockManagement() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Transactions Today</p>
-                <p className="text-2xl font-bold text-foreground">{totalTransactions}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <RefreshCw className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Stock Overview Table */}
+      {/* Stock Overview or Ledger Table */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center space-x-2">
-              <Package className="h-5 w-5" />
-              <span>Stock Overview</span>
+              {viewMode === 'overview' ? (
+                <>
+                  <Package className="h-5 w-5" />
+                  <span>Stock Overview</span>
+                </>
+              ) : (
+                <>
+                  <List className="h-5 w-5 text-indigo-500" />
+                  <span>Stock Ledger (Transaction History)</span>
+                </>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable
-              data={products || []}
-              columns={productColumns}
-              searchable={true}
-              searchKey="name"
-              onEdit={(product) => {
-                setEditProduct(product);
-                setIsEditModalOpen(true);
-              }}
-              onView={(product) => {
-                setViewProduct(product);
-                setIsDetailsModalOpen(true);
-              }}
-              actionsTourId="inventory-product-actions"
-              viewTourId="inventory-product-view"
-              editTourId="inventory-product-edit"
-            />
-            <StockDetailsModal
-              open={isDetailsModalOpen}
-              onOpenChange={setIsDetailsModalOpen}
-              product={viewProduct}
-            />
-            <StockEditModal
-              open={isEditModalOpen}
-              onOpenChange={setIsEditModalOpen}
-              product={editProduct}
-              onSave={(patch) => editMutation.mutate(patch)}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Recent Transactions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <RefreshCw className="h-5 w-5" />
-              <span>Recent Transactions</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {transactionsLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-12" />
-                ))}
-              </div>
-            ) : (
+            {viewMode === 'overview' ? (
               <>
                 <DataTable
-                  data={stockTransactions || []}
-                  columns={transactionColumns}
-                  searchable={false}
-                  onView={(transaction) => {
-                    setViewTransaction(transaction);
-                    setIsTransactionModalOpen(true);
+                  data={products || []}
+                  columns={productColumns}
+                  searchable={true}
+                  searchKey="name"
+                  onEdit={(product) => {
+                    setEditProduct(product);
+                    setIsEditModalOpen(true);
                   }}
-                  actionsTourId="inventory-transaction-actions"
-                  viewTourId="inventory-transaction-view"
+                  onView={(product) => {
+                    setViewProduct(product);
+                    setIsDetailsModalOpen(true);
+                  }}
+                  actionsTourId="inventory-product-actions"
+                  viewTourId="inventory-product-view"
+                  editTourId="inventory-product-edit"
                 />
-                <TransactionDetailsModal
-                  open={isTransactionModalOpen}
-                  onOpenChange={setIsTransactionModalOpen}
-                  transaction={viewTransaction}
+                <StockDetailsModal
+                  open={isDetailsModalOpen}
+                  onOpenChange={setIsDetailsModalOpen}
+                  product={viewProduct}
+                />
+                <StockEditModal
+                  open={isEditModalOpen}
+                  onOpenChange={setIsEditModalOpen}
+                  product={editProduct}
+                  onSave={(patch) => editMutation.mutate(patch)}
                 />
               </>
+            ) : (
+              <DataTable
+                data={stockTransactions || []}
+                columns={ledgerColumns}
+                searchable={true}
+                searchKey="productName"
+                isLoading={transactionsLoading}
+              />
             )}
           </CardContent>
         </Card>

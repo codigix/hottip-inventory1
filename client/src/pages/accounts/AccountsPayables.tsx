@@ -988,320 +988,386 @@ export default function AccountsPayables() {
 
       {/* Record Payment Dialog */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden rounded-xl border-none shadow-2xl">
-          <div className="bg-primary px-6 py-4 flex justify-between items-center">
-            <DialogTitle className="text-white font-bold tracking-tight">Record Payment</DialogTitle>
-            <button 
-              onClick={() => setIsPaymentOpen(false)}
-              className="text-white/70 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+        <DialogContent className="max-w-5xl h-[90vh] max-h-[95vh] p-0 border-none shadow-2xl bg-slate-50 flex flex-col overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              Process outbound payment to vendor
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="p-6 pt-4">
-            {selectedPayable && (
-              <div className="mb-6 p-4 bg-muted/40 rounded-xl border border-border/50 shadow-sm">
-                <div className="grid grid-cols-1 gap-2.5 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Supplier:</span>
-                    <span className="font-bold text-foreground text-right truncate max-w-[200px]">
-                      {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Amount Due:</span>
-                    <span className="font-semibold text-foreground text-right">
-                      ₹{parseFloat(selectedPayable.amountDue).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Already Paid:</span>
-                    <span className="font-semibold text-foreground text-right">
-                      ₹{parseFloat(selectedPayable.amountPaid).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/60">
-                    <span className="text-muted-foreground font-bold">Remaining:</span>
-                    <span className="font-extrabold text-primary text-lg">
-                      ₹{(
-                        parseFloat(selectedPayable.amountDue) -
-                        parseFloat(selectedPayable.amountPaid)
-                      ).toLocaleString()}
-                    </span>
-                  </div>
+          <div className="bg-primary px-6 py-6 text-white sticky top-0 z-20 shadow-lg">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-md">
+                  <DollarSign className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight leading-none mb-1">
+                    Record Payment
+                  </h2>
+                  <p className="opacity-70 text-xs font-medium uppercase tracking-widest">Outbound Vendor Payment</p>
                 </div>
               </div>
-            )}
+              <div className="text-right">
+                <div className="bg-white/10 px-6 py-2 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner inline-block">
+                  <p className="text-[10px] uppercase font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
+                  <p className="text-2xl font-black tabular-nums">
+                    ₹{selectedPayable ? (
+                      parseFloat(selectedPayable.amountDue) -
+                      parseFloat(selectedPayable.amountPaid)
+                    ).toLocaleString() : "0"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/50">
             <Form {...paymentForm}>
               <form
+                id="payment-form"
                 onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
-                className="space-y-5"
+                className="space-y-8"
               >
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={paymentForm.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Amount *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
-                            <Input
-                              {...field}
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              className="pl-7 font-bold border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10"
-                              data-testid="input-payment-amount"
-                            />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* Left Column: Vendor & Summary */}
+                  <div className="md:col-span-1 space-y-8">
+                    <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-500" />
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center">
+                        <CreditCard className="mr-2 h-4 w-4 text-primary" /> Payment Summary
+                      </h3>
+                      
+                      {selectedPayable && (
+                        <div className="space-y-6 relative z-10">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Supplier</Label>
+                            <p className="font-bold text-slate-800 text-lg leading-tight">
+                              {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown Vendor"}
+                            </p>
                           </div>
-                        </FormControl>
-                        <FormMessage className="text-[11px]" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={paymentForm.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Date *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="date" 
-                            className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10"
-                            data-testid="input-payment-date" 
+
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Payable</Label>
+                              <p className="font-bold text-slate-700">₹{parseFloat(selectedPayable.amountDue).toLocaleString()}</p>
+                            </div>
+                            <div className="space-y-1 text-right">
+                              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Already Paid</Label>
+                              <p className="font-bold text-emerald-600">₹{parseFloat(selectedPayable.amountPaid).toLocaleString()}</p>
+                            </div>
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-50">
+                            <div className="bg-slate-50 p-4 rounded-xl space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-slate-500">PO Ref</span>
+                                <Badge variant="secondary" className="bg-white text-slate-700 border-slate-100">
+                                  {selectedPayable.poId || "Manual Entry"}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-slate-500">Due Date</span>
+                                <span className="text-xs font-black text-slate-700">
+                                  {new Date(selectedPayable.dueDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                       <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center">
+                        <CreditCard className="mr-2 h-4 w-4 text-primary" /> Payment Method
+                      </h3>
+                      <FormField
+                        control={paymentForm.control}
+                        name="paymentMode"
+                        render={({ field }) => (
+                          <FormItem className="space-y-4">
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-slate-50 border-slate-100 h-12 rounded-xl font-bold">
+                                  <SelectValue placeholder="Select Method" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                <SelectItem value="bank_transfer" className="font-bold">Bank Transfer</SelectItem>
+                                <SelectItem value="upi" className="font-bold">UPI / QR</SelectItem>
+                                <SelectItem value="cheque" className="font-bold">Cheque</SelectItem>
+                                <SelectItem value="cash" className="font-bold">Cash</SelectItem>
+                                <SelectItem value="credit_card" className="font-bold">Credit Card</SelectItem>
+                                <SelectItem value="debit_card" className="font-bold">Debit Card</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage className="text-[10px] font-bold" />
+                          </FormItem>
+                        )}
+                      />
+                    </section>
+                  </div>
+
+                  {/* Middle & Right Column: Payment Form */}
+                  <div className="md:col-span-2 space-y-8">
+                    <section className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 pointer-events-none" />
+                       
+                       <div className="flex items-center mb-8 border-b border-slate-50 pb-6 relative z-10">
+                        <div className="bg-primary/5 p-4 rounded-2xl mr-5 shadow-inner">
+                          <DollarSign className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-black text-slate-800 tracking-tight">Payment Details</h3>
+                          <p className="text-sm text-slate-400 font-medium">Enter amount and transaction metadata</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-8 relative z-10">
+                        <FormField
+                          control={paymentForm.control}
+                          name="amount"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Payment Amount</FormLabel>
+                              <FormControl>
+                                <div className="relative group">
+                                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black group-focus-within:scale-110 transition-transform">₹</span>
+                                  <Input
+                                    {...field}
+                                    type="number"
+                                    step="0.01"
+                                    className="pl-9 h-14 bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-black text-xl rounded-2xl"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage className="text-[10px] font-bold" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={paymentForm.control}
+                          name="date"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Payment Date</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  type="date" 
+                                  className="h-14 bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-bold text-lg rounded-2xl"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-[10px] font-bold" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="mt-8 space-y-6 relative z-10">
+                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                          <div className="h-px bg-slate-100 flex-1" />
+                          Transaction Metadata
+                          <div className="h-px bg-slate-100 flex-1" />
+                        </h4>
+
+                        <div className="space-y-4">
+                          {paymentForm.watch("paymentMode") === "bank_transfer" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-300">
+                              <FormField
+                                control={paymentForm.control}
+                                name="bankName"
+                                render={({ field }) => (
+                                  <FormItem className="md:col-span-2">
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Receiving Bank</FormLabel>
+                                    <FormControl><Input {...field} placeholder="e.g. HDFC Bank Main" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="transactionId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">TXN ID</FormLabel>
+                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="referenceNumber"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Ref #</FormLabel>
+                                    <FormControl><Input {...field} placeholder="REF123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          {paymentForm.watch("paymentMode") === "upi" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-300">
+                              <FormField
+                                control={paymentForm.control}
+                                name="upiId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Vendor UPI ID</FormLabel>
+                                    <FormControl><Input {...field} placeholder="vendor@upi" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="transactionId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
+                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          {paymentForm.watch("paymentMode") === "cheque" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-300">
+                              <FormField
+                                control={paymentForm.control}
+                                name="chequeNumber"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Cheque Number</FormLabel>
+                                    <FormControl><Input {...field} placeholder="000123" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="chequeDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Cheque Date</FormLabel>
+                                    <FormControl><Input {...field} type="date" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="bankName"
+                                render={({ field }) => (
+                                  <FormItem className="md:col-span-2">
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Issuing Bank</FormLabel>
+                                    <FormControl><Input {...field} placeholder="e.g. HDFC Bank" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          {paymentForm.watch("paymentMode") === "cash" && (
+                            <div className="animate-in slide-in-from-bottom-2 duration-300">
+                              <FormField
+                                control={paymentForm.control}
+                                name="receivedBy"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Recipient Name</FormLabel>
+                                    <FormControl><Input {...field} placeholder="Who received the cash?" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          {(paymentForm.watch("paymentMode") === "credit_card" || paymentForm.watch("paymentMode") === "debit_card") && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-300">
+                              <FormField
+                                control={paymentForm.control}
+                                name="cardLast4"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Last 4 Digits</FormLabel>
+                                    <FormControl><Input {...field} placeholder="4242" maxLength={4} className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={paymentForm.control}
+                                name="transactionId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Auth Code</FormLabel>
+                                    <FormControl><Input {...field} placeholder="AUTH123" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          <FormField
+                            control={paymentForm.control}
+                            name="notes"
+                            render={({ field }) => (
+                              <FormItem className="pt-4 border-t border-slate-50">
+                                <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Internal Remarks</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    {...field} 
+                                    placeholder="Add any additional details about this payment..." 
+                                    className="min-h-[100px] bg-slate-50 border-slate-100 rounded-2xl p-4 font-medium focus:bg-white transition-all shadow-inner"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormMessage className="text-[11px]" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={paymentForm.control}
-                  name="paymentMode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Payment Mode *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="border-muted-foreground/20 focus:border-primary transition-all shadow-none h-10" data-testid="select-payment-mode">
-                            <SelectValue placeholder="Select Mode" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="rounded-xl border-none shadow-xl">
-                          <SelectItem value="bank_transfer" className="py-2.5">Bank Transfer</SelectItem>
-                          <SelectItem value="upi" className="py-2.5">UPI</SelectItem>
-                          <SelectItem value="cheque" className="py-2.5">Cheque</SelectItem>
-                          <SelectItem value="cash" className="py-2.5">Cash</SelectItem>
-                          <SelectItem value="credit_card" className="py-2.5">Credit Card</SelectItem>
-                          <SelectItem value="debit_card" className="py-2.5">Debit Card</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage className="text-[11px]" />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  {paymentForm.watch("paymentMode") === "bank_transfer" && (
-                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                      <FormField
-                        control={paymentForm.control}
-                        name="bankName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold">Bank Name</FormLabel>
-                            <FormControl><Input {...field} placeholder="e.g. HDFC Bank" className="h-9 text-sm" /></FormControl>
-                            <FormMessage className="text-[11px]" />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormField
-                          control={paymentForm.control}
-                          name="transactionId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">TXN ID</FormLabel>
-                              <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={paymentForm.control}
-                          name="referenceNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">Ref #</FormLabel>
-                              <FormControl><Input {...field} placeholder="REF123..." className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {paymentForm.watch("paymentMode") === "upi" && (
-                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                      <FormField
-                        control={paymentForm.control}
-                        name="upiId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold">UPI ID</FormLabel>
-                            <FormControl><Input {...field} placeholder="username@upi" className="h-9 text-sm" /></FormControl>
-                            <FormMessage className="text-[11px]" />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={paymentForm.control}
-                        name="transactionId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold">Transaction ID</FormLabel>
-                            <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
-                            <FormMessage className="text-[11px]" />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {paymentForm.watch("paymentMode") === "cheque" && (
-                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormField
-                          control={paymentForm.control}
-                          name="chequeNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">Cheque #</FormLabel>
-                              <FormControl><Input {...field} placeholder="000123" className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={paymentForm.control}
-                          name="chequeDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">Date</FormLabel>
-                              <FormControl><Input {...field} type="date" className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={paymentForm.control}
-                        name="bankName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold">Bank Name</FormLabel>
-                            <FormControl><Input {...field} placeholder="e.g. ICICI Bank" className="h-9 text-sm" /></FormControl>
-                            <FormMessage className="text-[11px]" />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {(paymentForm.watch("paymentMode") === "credit_card" || paymentForm.watch("paymentMode") === "debit_card") && (
-                    <div className="grid grid-cols-1 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormField
-                          control={paymentForm.control}
-                          name="cardLast4"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">Card Last 4</FormLabel>
-                              <FormControl><Input {...field} maxLength={4} placeholder="1234" className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={paymentForm.control}
-                          name="transactionId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[11px] font-bold">TXN ID</FormLabel>
-                              <FormControl><Input {...field} placeholder="TXN123..." className="h-9 text-sm" /></FormControl>
-                              <FormMessage className="text-[11px]" />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentForm.watch("paymentMode") === "cash" && (
-                    <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                      <FormField
-                        control={paymentForm.control}
-                        name="receivedBy"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold">Paid By</FormLabel>
-                            <FormControl><Input {...field} placeholder="Employee name" className="h-9 text-sm" /></FormControl>
-                            <FormMessage className="text-[11px]" />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <FormField
-                  control={paymentForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Remarks (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Additional payment details..."
-                          className="min-h-[80px] border-muted-foreground/20 focus:border-primary transition-all shadow-none resize-none rounded-xl text-sm"
-                          data-testid="input-payment-notes"
-                        />
-                      </FormControl>
-                      <FormMessage className="text-[11px]" />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex gap-4 pt-3 pb-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="flex-1 font-bold text-muted-foreground hover:bg-muted rounded-xl h-11"
-                    onClick={() => setIsPaymentOpen(false)}
-                  >
-                    CANCEL
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg h-11 transition-all"
-                    disabled={recordPaymentMutation.isPending}
-                    data-testid="button-record-payment"
-                  >
-                    {recordPaymentMutation.isPending ? "PROCESSING..." : "CONFIRM PAYMENT"}
-                  </Button>
+                    </section>
+                  </div>
                 </div>
               </form>
             </Form>
+          </div>
+
+          <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between sticky bottom-0 z-30 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.05)] mt-auto">
+            <div className="flex items-center text-slate-400 text-xs font-bold italic">
+              <Clock className="mr-2 h-4 w-4" />
+              Last updated: {new Date().toLocaleDateString()}
+            </div>
+            <div className="flex gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => setIsPaymentOpen(false)}
+                className="px-8 h-12 rounded-xl font-bold text-slate-500 hover:bg-slate-50"
+              >
+                DISCARD
+              </Button>
+              <Button
+                form="payment-form"
+                type="submit"
+                disabled={recordPaymentMutation.isPending}
+                className="px-10 h-12 rounded-xl font-black bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all active:scale-95"
+              >
+                {recordPaymentMutation.isPending ? "PROCESSING..." : "CONFIRM PAYMENT"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
