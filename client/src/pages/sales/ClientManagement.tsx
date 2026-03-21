@@ -197,10 +197,11 @@ export default function ClientManagement() {
     {
       key: "name",
       header: "Client Name",
+      sortable: true,
       cell: (customer: any) => (
         <div data-tour="sales-client-name-column">
-          <div className="font-light">{customer.name}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className=" text-slate-800">{customer.name}</div>
+          <div className="text-[10px] text-slate-400  font-medium">
             {customer.companyType || "Individual"}
           </div>
         </div>
@@ -209,27 +210,30 @@ export default function ClientManagement() {
     {
       key: "email",
       header: "Contact",
+      sortable: true,
       cell: (customer: any) => (
         <div data-tour="sales-client-contact-column">
-          <div className="text-sm">{customer.email}</div>
-          <div className="text-xs text-muted-foreground">{customer.phone}</div>
+          <div className="text-xs text-slate-600">{customer.email}</div>
+          <div className="text-[10px] text-slate-400">{customer.phone}</div>
         </div>
       ),
     },
     {
       key: "gstNumber",
       header: "GST Number",
+      sortable: true,
       cell: (customer: any) => (
-        <div className="text-sm font-mono">
+        <div className="text-xs font-mono text-slate-600">
           {customer.gstNumber || "Not Provided"}
         </div>
       ),
     },
     {
-      key: "location",
+      key: "city",
       header: "Location",
+      sortable: true,
       cell: (customer: any) => (
-        <div className="text-sm">
+        <div className="text-xs text-slate-600">
           {customer.city}, {customer.state}
         </div>
       ),
@@ -237,19 +241,25 @@ export default function ClientManagement() {
     {
       key: "creditLimit",
       header: "Credit Limit",
-      cell: (customer: any) =>
-        `₹${parseFloat(customer.creditLimit || 0).toLocaleString("en-IN")}`,
+      sortable: true,
+      cell: (customer: any) => (
+        <span className="text-xs font-medium text-slate-700">
+          ₹{parseFloat(customer.creditLimit || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
-      key: "status",
+      key: "isActive",
       header: "Status",
+      sortable: true,
       cell: (customer: any) => (
         <div data-tour="sales-client-status-column">
           <Badge
+            variant="outline"
             className={
               customer.isActive
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-100 text-[10px] py-0 h-5"
+                : "bg-slate-50 text-slate-500 border-slate-200 text-[10px] py-0 h-5"
             }
           >
             {customer.isActive ? "ACTIVE" : "INACTIVE"}
@@ -259,42 +269,17 @@ export default function ClientManagement() {
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "History",
       cell: (customer: any) => (
-        <div className="flex items-center space-x-2" data-tour="sales-client-actions">
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-view-client-${customer.id}`}
-            onClick={() => handleViewClient(customer)}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-edit-client-${customer.id}`}
-            onClick={() => handleEditClient(customer)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid={`button-history-client-${customer.id}`}
-            onClick={() => handleHistoryClient(customer)}
-          >
-            <History className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            data-testid={`button-delete-client-${customer.id}`}
-            onClick={() => handleDeleteClient(customer)}
-          >
-            Delete
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          data-testid={`button-history-client-${customer.id}`}
+          onClick={() => handleHistoryClient(customer)}
+        >
+          <History className="h-4 w-4 text-slate-400" />
+        </Button>
       ),
     },
   ];
@@ -328,29 +313,29 @@ export default function ClientManagement() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 bg-slate-50 min-h-full space-y-3">
+      <div className="flex justify-between items-center">
         <div data-tour="sales-client-header">
           <h1
-            className="text-3xl font-bold tracking-tight"
+            className="text-xl  text-slate-800"
             data-testid="text-client-management-title"
           >
             Client Database
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-xs text-slate-500 ">
             Customer management with full history tracking
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-client" data-tour="sales-add-client-button">
+            <Button className="bg-primary hover:bg-primary text-white border-none " data-testid="button-new-client" data-tour="sales-add-client-button">
               <Plus className="h-4 w-4 mr-2" /> Add Client
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl bg-white">
             <DialogHeader>
-              <DialogTitle>Add New Client</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl  text-slate-800">Add New Client</DialogTitle>
+              <DialogDescription className="text-slate-500">
                 Enter the client details below. All required fields must be
                 filled.
               </DialogDescription>
@@ -554,16 +539,30 @@ export default function ClientManagement() {
           </DialogContent>
         </Dialog>
       </div>
-      <Card>
-        <CardContent data-tour="sales-client-list">
+      <div className="">
+        <div className="border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Users className="h-5 w-5 text-slate-400" />
+            <h2 className="text-sm  text-slate-700">Client List</h2>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+              {customers.length}
+            </Badge>
+          </div>
+        </div>
+        <div className="mt-2" data-tour="sales-client-list">
           <DataTable
             data={customers || []}
             columns={columns}
+            isLoading={isLoading}
+            onEdit={handleEditClient}
+            onView={handleViewClient}
+            onDelete={handleDeleteClient}
             searchable={true}
             searchKey="name"
+            searchPlaceholder="Search clients by name..."
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Edit Client Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -790,15 +789,15 @@ export default function ClientManagement() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Client Name
                   </label>
-                  <p className="text-base mt-1 font-semibold">
+                  <p className="text-base mt-1 ">
                     {viewClient.name}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Email
                   </label>
                   <p className="text-base mt-1">{viewClient.email || "N/A"}</p>
@@ -806,13 +805,13 @@ export default function ClientManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Phone
                   </label>
                   <p className="text-base mt-1">{viewClient.phone || "N/A"}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     GST Number
                   </label>
                   <p className="text-base mt-1 font-mono">
@@ -821,13 +820,13 @@ export default function ClientManagement() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-sm  text-gray-500">
                   Address
                 </label>
                 <p className="text-base mt-1">{viewClient.address || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-sm  text-gray-500">
                   Created At
                 </label>
                 <p className="text-base mt-1">
@@ -857,13 +856,13 @@ export default function ClientManagement() {
           </DialogHeader>
           {historyClient && (
             <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-md">
-                <p className="text-sm font-semibold">{historyClient.name}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="bg-muted p-4 rounded">
+                <p className="text-sm ">{historyClient.name}</p>
+                <p className="text-xs text-gray-500">
                   {historyClient.email || "No email"}
                 </p>
               </div>
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-gray-500">
                 <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-sm">Client history feature coming soon</p>
                 <p className="text-xs mt-2">
@@ -893,7 +892,7 @@ export default function ClientManagement() {
           </DialogHeader>
           {deleteClient && (
             <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-md">
+              <div className="bg-muted p-4 rounded">
                 <p className="text-sm">
                   <strong>Client Name:</strong> {deleteClient.name}
                 </p>

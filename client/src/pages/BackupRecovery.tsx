@@ -47,18 +47,18 @@ function BackupRecovery() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="admin-backup-header">Backup & Recovery</h1>
-          <p className="text-muted-foreground">Manage system backups and restore points for disaster recovery.</p>
+          <h1 className="text-xl  text-foreground " data-tour="admin-backup-header">Backup & Recovery</h1>
+          <p className="text-gray-500">Manage system backups and restore points for disaster recovery.</p>
         </div>
         <StartTourButton tourConfig={adminBackupTour} tourName="admin-backup" />
       </div>
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-lg p-2 space-y-3">
         <div className="flex flex-wrap gap-3">
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg  hover:bg-blue-700"
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending}
             data-tour="admin-backup-create-button"
@@ -68,9 +68,9 @@ function BackupRecovery() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-tour="admin-backup-schedule">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Frequency</p>
+            <p className="text-sm text-gray-500 mb-1">Frequency</p>
             <select
-              className="border rounded px-3 py-2 w-full"
+              className="border rounded p-2 w-full"
               value={scheduleFrequency}
               onChange={(event) => setScheduleFrequency(event.target.value)}
             >
@@ -80,9 +80,9 @@ function BackupRecovery() {
             </select>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Retention</p>
+            <p className="text-sm text-gray-500 mb-1">Retention</p>
             <select
-              className="border rounded px-3 py-2 w-full"
+              className="border rounded p-2 w-full"
               value={retentionDays}
               onChange={(event) => setRetentionDays(event.target.value)}
             >
@@ -92,9 +92,9 @@ function BackupRecovery() {
             </select>
           </div>
           <div className="flex flex-col justify-end">
-            <p className="text-sm text-muted-foreground mb-1">Auto Backups</p>
+            <p className="text-sm text-gray-500 mb-1">Auto Backups</p>
             <button
-              className={`px-3 py-2 rounded border ${autoBackupEnabled ? "bg-green-50 border-green-200" : "bg-gray-50"}`}
+              className={`p-2 rounded border ${autoBackupEnabled ? "bg-green-50 border-green-200" : "bg-gray-50"}`}
               onClick={() => setAutoBackupEnabled((prev) => !prev)}
             >
               {autoBackupEnabled ? "Enabled" : "Disabled"}
@@ -102,7 +102,7 @@ function BackupRecovery() {
           </div>
         </div>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load backups."}</div>
         ) : (
@@ -126,7 +126,7 @@ function BackupRecovery() {
                       <td className="py-2 px-3">{backup.size} MB</td>
                       <td className="py-2 px-3">
                         <button
-                          className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 shadow-sm"
+                          className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 "
                           onClick={() => restoreMutation.mutate(backup.id)}
                           disabled={restoreMutation.isPending}
                           data-tour="admin-backup-restore-button"
@@ -147,7 +147,7 @@ function BackupRecovery() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">No backups found.</td>
+                    <td colSpan={5} className="py-8 text-center text-gray-500">No backups found.</td>
                   </tr>
                 )}
               </tbody>

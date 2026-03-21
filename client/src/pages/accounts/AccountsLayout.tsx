@@ -90,16 +90,16 @@ export default function AccountsLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-80 bg-card border-r border-border p-6">
-        <div className="mb-8">
+      <div className="w-64 bg-card border-r border-border p-2">
+        {/* <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <h1 className="text-2xl font-bold text-foreground" data-tour="accounts-header">Accounts Dashboard</h1>
+            <h1 className="text-xl  text-foreground" data-tour="accounts-header">Accounts Dashboard</h1>
             <StartTourButton tourConfig={tourConfigWithNavigation} tourName="accounts-flow-tour" navigationHandler={navigationHandler} />
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-500">
             Comprehensive financial management system
           </p>
-        </div>
+        </div> */}
 
         <div className="space-y-2">
           {sidebarItems.map((item) => {
@@ -113,7 +113,7 @@ export default function AccountsLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
+                  className={`p-2 rounded transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
@@ -123,9 +123,9 @@ export default function AccountsLayout() {
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />
                     <div>
-                      <div className="text-[0.875rem]">{item.label}</div>
+                      <div className="text-xs">{item.label}</div>
                       <div className={`text-xs ${
-                        isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                        isActive ? 'text-primary-foreground/80' : 'text-gray-500'
                       }`}>
                         {/* {item.description} */}
                       </div>
@@ -148,14 +148,14 @@ export default function AccountsLayout() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Overdue Receivables</span>
+                <span className="text-xs text-gray-500">Overdue Receivables</span>
                 <div className="flex items-center space-x-1">
                   <AlertTriangle className="h-3 w-3 text-orange-500" />
                   <span className="text-xs font-light">₹8.5L</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Pending Payables</span>
+                <span className="text-xs text-gray-500">Pending Payables</span>
                 <span className="text-xs font-light">₹12.3L</span>
               </div>
             </CardContent>
@@ -182,11 +182,11 @@ export default function AccountsLayout() {
             <AccountsReports />
           </Route>
           <Route>
-            <div className="p-8">
+            <div className="p-4">
               <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Page Not Found</h2>
-                  <p className="text-muted-foreground">
+                <CardContent className="">
+                  <h2 className="text-lg  mb-2">Page Not Found</h2>
+                  <p className="text-gray-500">
                     The requested accounts page could not be found.
                   </p>
                 </CardContent>

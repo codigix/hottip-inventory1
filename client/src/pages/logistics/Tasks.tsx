@@ -242,7 +242,7 @@ export default function LogisticsTasks() {
       <Card className={cn("mb-3 hover:shadow-md transition-shadow", isOverdue && "border-red-200")} data-testid={`task-card-${task.id}`}>
         <CardContent className="p-4">
           <div className="flex justify-between items-start mb-2">
-            <h4 className="font-semibold text-sm truncate">{task.title}</h4>
+            <h4 className=" text-sm truncate">{task.title}</h4>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid={`task-menu-${task.id}`}>
@@ -267,7 +267,7 @@ export default function LogisticsTasks() {
           </div>
 
           {task.description && (
-            <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
+            <p className="text-xs text-gray-500 mb-3 line-clamp-2">{task.description}</p>
           )}
 
           <div className="flex items-center justify-between text-xs">
@@ -299,7 +299,7 @@ export default function LogisticsTasks() {
     : "NA"}
 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground" data-testid={`text-assignee-${task.id}`}>
+              <span className="text-xs text-gray-500" data-testid={`text-assignee-${task.id}`}>
                 {task.assignee
   ? `${task.assignee.firstName} ${task.assignee.lastName}`
   : "Unassigned"}
@@ -309,7 +309,7 @@ export default function LogisticsTasks() {
             {task.dueDate && (
               <div className={cn(
                 "flex items-center space-x-1 text-xs",
-                isOverdue ? "text-red-600" : "text-muted-foreground"
+                isOverdue ? "text-red-600" : "text-gray-500"
               )}>
                 <CalendarDays className="h-3 w-3" />
                 <span data-testid={`text-due-date-${task.id}`}>{format(new Date(task.dueDate), 'MMM dd')}</span>
@@ -351,10 +351,10 @@ export default function LogisticsTasks() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="heading-tasks">
+          <h1 className="text-xl text-black" data-testid="heading-tasks">
             Logistics Tasks
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-500">
             Manage task assignments and track progress
           </p>
         </div>
@@ -495,7 +495,7 @@ export default function LogisticsTasks() {
                                 variant="outline"
                                 className={cn(
                                   "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
+                                  !field.value && "text-gray-500"
                                 )}
                                 data-testid="button-create-due-date"
                               >
@@ -554,7 +554,7 @@ export default function LogisticsTasks() {
           <div className="flex items-center space-x-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search tasks..."
                   value={searchQuery}
@@ -620,7 +620,7 @@ export default function LogisticsTasks() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <StatusIcon className="h-4 w-4" />
-                    <h3 className="font-semibold text-sm">{config.label}</h3>
+                    <h3 className=" text-sm">{config.label}</h3>
                     <Badge variant="secondary" className="text-xs">
                       {statusTasks.length}
                     </Badge>
@@ -633,7 +633,7 @@ export default function LogisticsTasks() {
                       <TaskCard key={task.id} task={task} />
                     ))}
                     {statusTasks.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
+                      <div className="text-center py-8 text-gray-500 text-sm">
                         No {config.label.toLowerCase()} tasks
                       </div>
                     )}
@@ -660,7 +660,7 @@ export default function LogisticsTasks() {
                 <TaskCard key={task.id} task={task} />
               ))}
               {filteredTasks.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-gray-500">
                   No tasks found matching your filters
                 </div>
               )}

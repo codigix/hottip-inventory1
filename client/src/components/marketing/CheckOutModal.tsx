@@ -421,7 +421,7 @@ export default function CheckOutModal({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Check-in Time</p>
+                  <p className="text-sm text-gray-500">Check-in Time</p>
                   <p className="font-light" data-testid="checkin-time-display">
                     {checkInTime
                       ? new Date(checkInTime).toLocaleTimeString("en-US", {
@@ -433,7 +433,7 @@ export default function CheckOutModal({
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Work Duration</p>
+                  <p className="text-sm text-gray-500">Work Duration</p>
                   <p
                     className="font-light text-green-600"
                     data-testid="work-duration-display"
@@ -556,7 +556,7 @@ export default function CheckOutModal({
             <CardContent className="space-y-4">
               {isLoadingLocation && (
                 <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-blue-600"></div>
                   <span>Getting your location...</span>
                 </div>
               )}
@@ -586,13 +586,13 @@ export default function CheckOutModal({
                   {/* Location Details */}
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Latitude:</span>
+                      <span className="text-gray-500">Latitude:</span>
                       <p className="font-light" data-testid="location-latitude">
                         {currentLocation.latitude.toFixed(6)}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Longitude:</span>
+                      <span className="text-gray-500">Longitude:</span>
                       <p
                         className="font-light"
                         data-testid="location-longitude"
@@ -706,7 +706,7 @@ export default function CheckOutModal({
 
               {isUploadingPhoto && (
                 <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-blue-600"></div>
                   <span className="text-sm">Uploading photo...</span>
                 </div>
               )}
@@ -742,7 +742,7 @@ export default function CheckOutModal({
             >
               {isLoading || isUploadingPhoto ? (
                 <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-white"></div>
                   <span>
                     {isUploadingPhoto
                       ? "Uploading Photo..."

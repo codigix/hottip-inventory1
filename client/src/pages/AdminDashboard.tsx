@@ -102,8 +102,8 @@ function MetricCard({
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-white/80 mb-1">{title}</p>
-              <p className="text-3xl font-bold text-white mb-2">{value}</p>
+              <p className="text-sm  text-white/80 mb-1">{title}</p>
+              <p className="text-3xl  text-white mb-2">{value}</p>
               {trend && trendValue && (
                 <div className="flex items-center gap-1">
                   <TrendingUp
@@ -116,7 +116,7 @@ function MetricCard({
               )}
             </div>
             <div
-              className={`p-3 rounded-full ${iconColor} bg-white/20 backdrop-blur-sm`}
+              className={`p-3 rounded ${iconColor} bg-white/20 backdrop-blur-sm`}
             >
               <Icon className="w-6 h-6 text-white" />
             </div>
@@ -143,9 +143,9 @@ function DashboardContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl  text-gray-800 mb-2">
             Admin Dashboard
           </h1>
           <p className="text-gray-600">
@@ -163,9 +163,9 @@ function DashboardContent() {
 
   if (error) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl  text-gray-800 mb-2">
             Admin Dashboard
           </h1>
           <p className="text-gray-600">
@@ -173,7 +173,7 @@ function DashboardContent() {
           </p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600 font-medium">
+          <p className="text-red-600 ">
             {error.message || "Failed to load overview."}
           </p>
         </div>
@@ -239,7 +239,7 @@ function DashboardContent() {
   ];
 
   return (
-    <div className="space-y-8" data-tour="admin-dashboard">
+    <div className="space-y-3" data-tour="admin-dashboard">
       {/* Header with Purple/Indigo Theme */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -248,10 +248,10 @@ function DashboardContent() {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2" data-tour="welcome-header">
+            <h1 className="text-xl  text-black" data-tour="welcome-header">
               Admin Dashboard
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-xs">
               System-wide overview with analytics and insights
             </p>
           </div>
@@ -271,7 +271,7 @@ function DashboardContent() {
         >
           <Card className="shadow-lg border-0">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+              <CardTitle className="text-lg  text-gray-700 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-600" />
                 System Activity
               </CardTitle>
@@ -297,7 +297,7 @@ function DashboardContent() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="text-center -mt-4">
-                <p className="text-3xl font-bold text-indigo-600">
+                <p className="text-3xl  text-indigo-600">
                   {systemActivity}%
                 </p>
                 <p className="text-sm text-gray-600">Active Operations</p>
@@ -317,7 +317,7 @@ function DashboardContent() {
         >
           <Card className="shadow-lg border-0">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+              <CardTitle className="text-lg  text-gray-700 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-indigo-600" />
                 Growth Trends
               </CardTitle>
@@ -395,7 +395,7 @@ function DashboardContent() {
       >
         <Card className="shadow-lg border-0">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-700">
+            <CardTitle className="text-lg  text-gray-700">
               Department Activity Overview
             </CardTitle>
           </CardHeader>
@@ -434,7 +434,7 @@ function DashboardContent() {
 
       {/* 👥 Users & Contacts */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>👥</span> Users & Contacts
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -487,7 +487,7 @@ function DashboardContent() {
 
       {/* 📢 Marketing */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>📢</span> Marketing
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -529,7 +529,7 @@ function DashboardContent() {
 
       {/* 🚚 Logistics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>🚚</span> Logistics
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -560,7 +560,7 @@ function DashboardContent() {
 
       {/* 📦 Inventory & Manufacturing */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>📦</span> Inventory & Manufacturing
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -613,7 +613,7 @@ function DashboardContent() {
 
       {/* 💰 Sales & Quotations */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>💰</span> Sales & Quotations
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -666,7 +666,7 @@ function DashboardContent() {
 
       {/* 💵 Accounts & Finance */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center gap-2">
+        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
           <span>💵</span> Accounts & Finance
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

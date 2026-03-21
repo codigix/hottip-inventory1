@@ -305,19 +305,19 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
               <CardContent className="space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Customer:</span>
+                    <span className="text-gray-500">Customer:</span>
                     <p className="font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                       {visit.lead?.companyName && ` - ${visit.lead.companyName}`}
                     </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Purpose:</span>
+                    <span className="text-gray-500">Purpose:</span>
                     <p className="font-light capitalize">{visit.purpose?.replace('_', ' ') || ""}</p>
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Address:</span>
+                  <span className="text-gray-500">Address:</span>
                   <p className="font-light">{visit.visitAddress}</p>
                 </div>
               </CardContent>
@@ -351,22 +351,22 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Latitude:</span>
+                      <span className="text-gray-500">Latitude:</span>
                       <p className="font-mono">{currentLocation.latitude.toFixed(6)}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Longitude:</span>
+                      <span className="text-gray-500">Longitude:</span>
                       <p className="font-mono">{currentLocation.longitude.toFixed(6)}</p>
                     </div>
                   </div>
                   
                   <div>
-                    <span className="text-muted-foreground">Address:</span>
+                    <span className="text-gray-500">Address:</span>
                     <p className="font-light">{address || 'Getting address...'}</p>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <span className="text-muted-foreground">Accuracy:</span>
+                    <span className="text-gray-500">Accuracy:</span>
                     <Badge 
                       variant={currentLocation.accuracy <= 50 ? 'default' : 'secondary'}
                       className={currentLocation.accuracy <= 50 ? 'bg-green-100 text-green-800' : ''}
@@ -385,7 +385,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
                         </span>
                       </div>
                       {locationAccuracy.warning && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-gray-500 mt-1">
                           {locationAccuracy.warning}
                         </p>
                       )}

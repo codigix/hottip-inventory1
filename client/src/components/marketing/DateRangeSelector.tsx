@@ -165,7 +165,7 @@ export default function DateRangeSelector({
               variant="outline"
               className={cn(
                 "w-full justify-start text-left font-normal",
-                !dateRange.from && "text-muted-foreground"
+                !dateRange.from && "text-gray-500"
               )}
               data-testid="custom-date-range-trigger"
             >
@@ -240,7 +240,7 @@ export default function DateRangeSelector({
       </div>
 
       {/* Quick Info */}
-      <div className="text-sm text-muted-foreground self-center">
+      <div className="text-sm text-gray-500 self-center">
         {dateRange.from && dateRange.to && (
           <span data-testid="date-range-info">
             {Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} days

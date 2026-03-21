@@ -12,7 +12,7 @@ import React from 'react';
 export default function AdminDashboard() {
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+      <h1 className="text-3xl  mb-6">Admin Dashboard</h1>
       
       <div className="grid grid-cols-4 gap-4">
         {/* Stats cards */}
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
     <div className="p-6">
       {/* Header with tour button */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl ">Admin Dashboard</h1>
         <StartTourButton
           tourConfig={dashboardTourConfig}
           tourName="dashboardTourDone"
@@ -90,7 +90,7 @@ export default function InventoryLayout() {
     <div className="space-y-6">
       {/* Header with tour */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Inventory Management</h1>
+        <h1 className="text-3xl ">Inventory Management</h1>
         <StartTourButton
           tourConfig={inventoryTourConfig}
           tourName="inventoryTourDone"
@@ -99,7 +99,7 @@ export default function InventoryLayout() {
 
       {/* Tour-enabled sections */}
       <div data-tour="inventory-overview" className="bg-white rounded shadow p-6">
-        <h2 className="text-xl font-semibold">Inventory Overview</h2>
+        <h2 className="text-xl ">Inventory Overview</h2>
         {/* Content */}
       </div>
 
@@ -251,7 +251,7 @@ export default function MarketingLayout() {
       {!isTourDone('marketingTourDone') && showAutoStartPrompt && (
         <div className="bg-blue-50 border border-blue-200 rounded p-4 flex justify-between items-center">
           <div>
-            <h3 className="font-semibold text-blue-900">New to Marketing Module?</h3>
+            <h3 className=" text-blue-900">New to Marketing Module?</h3>
             <p className="text-sm text-blue-700 mt-1">
               Take a quick tour to learn how to manage campaigns effectively.
             </p>
@@ -275,7 +275,7 @@ export default function MarketingLayout() {
 
       {/* Header with tour button */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Marketing</h1>
+        <h1 className="text-3xl ">Marketing</h1>
         <StartTourButton
           tourConfig={marketingTourConfig}
           tourName="marketingTourDone"
@@ -314,7 +314,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl ">Dashboard</h1>
         
         {canSeeTour && (
           <StartTourButton
@@ -343,7 +343,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl ">Dashboard</h1>
         
         {isTourEnabled && (
           <StartTourButton

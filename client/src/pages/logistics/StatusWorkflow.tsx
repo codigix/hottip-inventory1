@@ -68,9 +68,9 @@ export default function StatusWorkflow() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <div className="flex items-center space-x-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
               <span>Failed to load shipments data</span>
@@ -82,12 +82,12 @@ export default function StatusWorkflow() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Status Workflow</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl text-black">Status Workflow</h1>
+          <p className="text-gray-500">
             Manage shipment status transitions and workflow operations
           </p>
         </div>
@@ -107,48 +107,48 @@ export default function StatusWorkflow() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <div className="flex items-center space-x-2">
               <Package className="h-8 w-8 text-blue-600" />
               <div>
-                <p className="text-2xl font-bold">{totalShipments}</p>
-                <p className="text-xs text-muted-foreground">Total Shipments</p>
+                <p className="text-2xl ">{totalShipments}</p>
+                <p className="text-xs text-gray-500">Total Shipments</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <div className="flex items-center space-x-2">
               <Truck className="h-8 w-8 text-orange-600" />
               <div>
-                <p className="text-2xl font-bold">{workflowMetrics.in_transit || 0}</p>
-                <p className="text-xs text-muted-foreground">In Transit</p>
+                <p className="text-2xl ">{workflowMetrics.in_transit || 0}</p>
+                <p className="text-xs text-gray-500">In Transit</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <div className="flex items-center space-x-2">
               <MapPin className="h-8 w-8 text-purple-600" />
               <div>
-                <p className="text-2xl font-bold">{workflowMetrics.out_for_delivery || 0}</p>
-                <p className="text-xs text-muted-foreground">Out for Delivery</p>
+                <p className="text-2xl ">{workflowMetrics.out_for_delivery || 0}</p>
+                <p className="text-xs text-gray-500">Out for Delivery</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold">{workflowMetrics.delivered || 0}</p>
-                <p className="text-xs text-muted-foreground">Delivered</p>
+                <p className="text-2xl ">{workflowMetrics.delivered || 0}</p>
+                <p className="text-xs text-gray-500">Delivered</p>
               </div>
             </div>
           </CardContent>

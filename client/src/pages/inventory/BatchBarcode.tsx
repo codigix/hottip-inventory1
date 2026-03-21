@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { QrCode, Scan, Package, Plus, Download, Search } from "lucide-react";
+import { QrCode, Scan, Package, Plus, Search, LayoutGrid, ClipboardList, History, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function BatchBarcode() {
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
 
-  // Mock data
+  // Mock data (replace with actual query if needed)
   const batches = [
     {
       id: "1",
@@ -54,45 +55,62 @@ export default function BatchBarcode() {
   const batchColumns = [
     {
       key: "batchNumber",
-      header: "Batch Number",
+      header: "Batch Details",
       cell: (batch: any) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-            <Package className="h-4 w-4 text-primary" />
-          </div>
-          <span className="font-light">{batch.batchNumber}</span>
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-900">{batch.batchNumber}</span>
+          <span className="text-xs text-slate-500">{batch.productName}</span>
         </div>
       ),
     },
     {
-      key: "productName",
-      header: "Product",
-    },
-    {
       key: "quantity",
-      header: "Quantity",
+      header: "Inventory Status",
       cell: (batch: any) => (
-        <div>
-          <p className="font-light">{batch.remainingQuantity}/{batch.quantity}</p>
-          <p className="text-xs text-muted-foreground">Remaining/Total</p>
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-700">{batch.remainingQuantity} / {batch.quantity}</span>
+          <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+            <div 
+              className="h-full bg-primary rounded-full" 
+              style={{ width: `${(batch.remainingQuantity / batch.quantity) * 100}%` }}
+            />
+          </div>
         </div>
       ),
     },
     {
       key: "manufactureDate",
-      header: "Manufacture Date",
-      cell: (batch: any) => new Date(batch.manufactureDate).toLocaleDateString(),
+      header: "Timeline",
+      cell: (batch: any) => (
+        <div className="flex flex-col text-xs">
+          <span className="text-slate-600">MFG: {new Date(batch.manufactureDate).toLocaleDateString()}</span>
+          <span className="text-slate-400">EXP: {new Date(batch.expiryDate).toLocaleDateString()}</span>
+        </div>
+      ),
     },
     {
       key: "location",
-      header: "Location",
+      header: "Storage",
+      cell: (batch: any) => (
+        <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-normal">
+          {batch.location}
+        </Badge>
+      )
     },
     {
       key: "qualityStatus",
-      header: "Quality Status",
+      header: "QC Status",
       cell: (batch: any) => (
-        <Badge variant={batch.qualityStatus === 'approved' ? 'default' : 'outline'}>
-          {batch.qualityStatus.charAt(0).toUpperCase() + batch.qualityStatus.slice(1)}
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal",
+            batch.qualityStatus === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            batch.qualityStatus === 'pending' && "bg-amber-50 text-amber-700 border-amber-200",
+            batch.qualityStatus === 'rejected' && "bg-red-50 text-red-700 border-red-200"
+          )}
+        >
+          {batch.qualityStatus}
         </Badge>
       ),
     }
@@ -101,64 +119,74 @@ export default function BatchBarcode() {
   const barcodeColumns = [
     {
       key: "barcode",
-      header: "Barcode/QR Code",
+      header: "Identifier",
       cell: (code: any) => (
-        <div className="flex items-center space-x-3">
-          <QrCode className="h-6 w-6" />
-          <div>
-            <p className="font-mono text-sm">{code.barcode}</p>
-            <p className="text-xs text-muted-foreground">{code.type} Code</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+            <QrCode className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-mono text-xs font-medium text-slate-900">{code.barcode}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{code.type} Code</span>
           </div>
         </div>
       ),
     },
     {
-      key: "entityType",
-      header: "Linked To",
+      key: "entityId",
+      header: "Linked Reference",
       cell: (code: any) => (
-        <div>
-          <p className="capitalize">{code.entityType}</p>
-          <p className="text-sm text-muted-foreground">{code.entityId}</p>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-slate-700">{code.entityId}</span>
+          <span className="text-[10px] text-slate-400 capitalize">{code.entityType} Entity</span>
         </div>
       ),
     },
     {
       key: "generatedAt",
-      header: "Generated",
-      cell: (code: any) => new Date(code.generatedAt).toLocaleDateString(),
+      header: "Registration",
+      cell: (code: any) => (
+        <span className="text-slate-500 text-xs">{new Date(code.generatedAt).toLocaleDateString()}</span>
+      ),
     }
   ];
 
+  const metrics = [
+    { label: "Active Batches", value: "24", icon: Package, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Generated Codes", value: "156", icon: QrCode, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Scanned Today", value: "42", icon: Scan, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Expiring Soon", value: "3", icon: AlertCircle, color: "text-slate-600", bg: "bg-slate-50" },
+  ];
+
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-batch-barcode-header">Batch & Barcode Management</h1>
-          <p className="text-muted-foreground">Lot tracking and QR/barcode scanning support</p>
+          <h1 className="text-xl  text-slate-900 ">Batch & Barcode Management</h1>
+          <p className="text-xs text-slate-500">Track production lots and manage product identification systems.</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-batch" data-tour="inventory-create-batch-button">
+              <Button className="bg-primary hover:bg-primary text-white shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Batch
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Create New Batch</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-slate-900">Create New Batch</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="batchNumber">Batch Number</Label>
-                  <Input id="batchNumber" placeholder="BTH-2024-XXX" data-testid="input-batch-number" />
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Batch Number</Label>
+                  <Input className="border-slate-200" placeholder="BTH-2024-XXX" />
                 </div>
-                <div>
-                  <Label htmlFor="product">Product</Label>
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Product</Label>
                   <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product..." />
+                    <SelectTrigger className="border-slate-200">
+                      <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">Steel Rods</SelectItem>
@@ -166,29 +194,29 @@ export default function BatchBarcode() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input id="quantity" type="number" placeholder="100" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Quantity</Label>
+                    <Input type="number" className="border-slate-200" placeholder="100" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Location</Label>
+                    <Input className="border-slate-200" placeholder="WH-A-001" />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="location">Storage Location</Label>
-                  <Input id="location" placeholder="WH-A-001" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Manufacture Date</Label>
+                    <Input type="date" className="border-slate-200" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Expiry Date</Label>
+                    <Input type="date" className="border-slate-200" />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="manufactureDate">Manufacture Date</Label>
-                  <Input id="manufactureDate" type="date" />
-                </div>
-                <div>
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
-                  <Input id="expiryDate" type="date" />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsBatchDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button data-testid="button-save-batch">
-                    Create Batch
-                  </Button>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="ghost" onClick={() => setIsBatchDialogOpen(false)} className="text-slate-600">Cancel</Button>
+                  <Button className="bg-primary hover:bg-primary text-white px-8">Create Batch</Button>
                 </div>
               </div>
             </DialogContent>
@@ -196,153 +224,120 @@ export default function BatchBarcode() {
 
           <Dialog open={isScanDialogOpen} onOpenChange={setIsScanDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-scan-barcode" data-tour="inventory-barcode-scanner">
-                <Scan className="h-4 w-4 mr-2" />
-                Scan Barcode
+              <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm">
+                <Scan className="h-4 w-4 mr-2 text-slate-400" />
+                Scan Code
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Scan Barcode/QR Code</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-slate-900">Code Scanner</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                  <QrCode className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Point camera at barcode/QR code</p>
-                  <Button className="mt-4" variant="outline">
-                    Start Camera
+              <div className="space-y-6 pt-4 text-center">
+                <div className="aspect-square w-full max-w-[280px] mx-auto border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50/50 relative overflow-hidden group">
+                  <QrCode className="h-24 w-24 text-slate-200 group-hover:text-slate-300 transition-colors" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/5 to-transparent animate-scan" />
+                  <Button variant="outline" className="mt-8 border-slate-200 bg-white">
+                    Activate Camera
                   </Button>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Or enter code manually:</p>
-                  <Input placeholder="Enter barcode..." data-testid="input-manual-barcode" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <Input className="pl-10 border-slate-200 bg-slate-50/50" placeholder="Enter code manually..." />
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-
-          <Button variant="outline" data-testid="button-generate-codes" data-tour="inventory-generate-qr-button">
-            <QrCode className="h-4 w-4 mr-2" />
-            Generate Codes
-          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Active Batches</p>
-                <p className="text-2xl font-bold text-foreground">24</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
               </div>
-              <Package className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Generated Codes</p>
-                <p className="text-2xl font-bold text-foreground">156</p>
+                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-              <QrCode className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Scanned Today</p>
-                <p className="text-2xl font-bold text-foreground">42</p>
-              </div>
-              <Scan className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Expiring Soon</p>
-                <p className="text-2xl font-bold text-foreground">3</p>
-              </div>
-              <Search className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="batches" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="batches">Batch Management</TabsTrigger>
-          <TabsTrigger value="barcodes">Barcode Directory</TabsTrigger>
-          <TabsTrigger value="scanning">Scanning History</TabsTrigger>
+      <Tabs defaultValue="batches" className="w-full space-y-4">
+        <TabsList className="bg-slate-100/80 p-1 rounded-lg w-fit border border-slate-200">
+          <TabsTrigger value="batches" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <LayoutGrid className="h-4 w-4 mr-2 text-slate-400" />
+            Active Batches
+          </TabsTrigger>
+          <TabsTrigger value="barcodes" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <QrCode className="h-4 w-4 mr-2 text-slate-400" />
+            Code Directory
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <History className="h-4 w-4 mr-2 text-slate-400" />
+            Scan History
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="batches">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Package className="h-5 w-5" />
-                <span>Batch Tracking</span>
+        <TabsContent value="batches" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+                Batch Registry
               </CardTitle>
             </CardHeader>
-            <CardContent data-tour="inventory-batches-table">
+            <CardContent className="p-0">
               <DataTable
                 data={batches}
                 columns={batchColumns}
-                searchable={true}
-                searchKey="batchNumber"
-                onEdit={() => {}}
-                onView={() => {}}
+                searchPlaceholder="Filter batches..."
               />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="barcodes">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <QrCode className="h-5 w-5" />
-                <span>Barcode Directory</span>
+        <TabsContent value="barcodes" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-slate-400" />
+                Identifier Directory
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <DataTable
                 data={barcodes}
                 columns={barcodeColumns}
-                searchable={true}
-                searchKey="barcode"
-                onView={() => {}}
+                searchPlaceholder="Search identifiers..."
               />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="scanning">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Scanning Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-12">
-                <Scan className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No scanning activity recorded yet</p>
-                <p className="text-sm">Start scanning barcodes to see history here</p>
+        <TabsContent value="history" className="mt-0">
+          <Card className="border-none shadow-sm bg-white min-h-[400px] flex flex-col items-center justify-center">
+            <div className="text-center space-y-3 p-12">
+              <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto border border-slate-100">
+                <History className="h-8 w-8 text-slate-300" />
               </div>
-            </CardContent>
+              <div className="space-y-1">
+                <p className="text-slate-900 font-medium">No Scan Activity</p>
+                <p className="text-slate-500 text-sm max-w-[240px]">Real-time scan history will appear here once scanning begins.</p>
+              </div>
+              <Button variant="outline" className="mt-4 border-slate-200 text-slate-600 hover:bg-slate-50">
+                Refresh Log
+              </Button>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }

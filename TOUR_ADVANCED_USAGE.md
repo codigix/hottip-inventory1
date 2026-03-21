@@ -78,7 +78,7 @@ return (
   <div>
     {showPrompt && (
       <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-        <p className="text-blue-900 font-medium">Welcome to Dashboard!</p>
+        <p className="text-blue-900 ">Welcome to Dashboard!</p>
         <p className="text-sm text-blue-800 mt-1">Take a quick tour to learn the features.</p>
         <div className="flex gap-2 mt-3">
           <button
@@ -342,10 +342,10 @@ export const OnboardingManager = ({ children }) => {
       {completionPercentage < 100 && (
         <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold text-blue-900">
+            <h3 className=" text-blue-900">
               Complete Onboarding
             </h3>
-            <span className="text-sm font-medium text-blue-700">
+            <span className="text-sm  text-blue-700">
               {completionPercentage}% Complete
             </span>
           </div>

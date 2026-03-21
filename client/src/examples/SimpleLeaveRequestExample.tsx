@@ -88,7 +88,7 @@ export default function SimpleLeaveRequestExample() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Simple Leave Request Example</h1>
+      <h1 className="text-2xl  mb-4">Simple Leave Request Example</h1>
 
       <Button onClick={() => setIsFormOpen(true)}>
         Open Leave Request Form
@@ -166,7 +166,7 @@ export function InventoryLeaveRequestExample() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">
+      <h1 className="text-2xl  mb-4">
         Inventory Leave Request Example
       </h1>
 

@@ -82,18 +82,18 @@ const Approvals: React.FC = () => {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="admin-approvals-header">Approvals Console</h1>
-          <p className="text-muted-foreground">Manage and approve quotations, purchase orders, leave requests, and payments.</p>
+          <h1 className="text-xl  text-foreground " data-tour="admin-approvals-header">Approvals Console</h1>
+          <p className="text-gray-500">Manage and approve quotations, purchase orders, leave requests, and payments.</p>
         </div>
         <StartTourButton tourConfig={adminApprovalsTour} tourName="admin-approvals" />
       </div>
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-lg p-2 space-y-3">
         <div className="flex flex-wrap gap-4" data-tour="admin-approvals-filters">
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded p-2"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
           >
@@ -105,7 +105,7 @@ const Approvals: React.FC = () => {
             ))}
           </select>
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded p-2"
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
           >
@@ -117,7 +117,7 @@ const Approvals: React.FC = () => {
             ))}
           </select>
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded p-2"
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value)}
           >
@@ -130,17 +130,17 @@ const Approvals: React.FC = () => {
           </select>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">{filteredRequests.length} request(s) match the current filters.</p>
+          <p className="text-sm text-gray-500">{filteredRequests.length} request(s) match the current filters.</p>
           <div className="flex items-center gap-3" data-tour="admin-approvals-bulk-actions">
             <button
-              className="border px-3 py-2 rounded"
+              className="border p-2 rounded"
               onClick={() => setSelectedIds([])}
               disabled={!selectedIds.length}
             >
               Clear Selection
             </button>
             <button
-              className="bg-green-600 text-white px-4 py-2 rounded shadow-sm"
+              className="bg-green-600 text-white px-4 py-2 rounded "
               onClick={handleBulkApprove}
               disabled={!selectedIds.length || mutation.isPending}
             >
@@ -149,7 +149,7 @@ const Approvals: React.FC = () => {
           </div>
         </div>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load approvals."}</div>
         ) : (
@@ -182,7 +182,7 @@ const Approvals: React.FC = () => {
                       <td className="py-2 px-3">{req.status}</td>
                       <td className="py-2 px-3 flex flex-wrap gap-2">
                         <button
-                          className="bg-green-600 text-white px-3 py-1 rounded shadow-sm"
+                          className="bg-green-600 text-white px-3 py-1 rounded "
                           disabled={mutation.isPending}
                           onClick={() => mutation.mutate(req.id)}
                           data-tour="admin-approvals-approve-button"
@@ -190,7 +190,7 @@ const Approvals: React.FC = () => {
                           {mutation.isPending ? "Approving..." : "Approve"}
                         </button>
                         <button
-                          className="bg-red-600 text-white px-3 py-1 rounded shadow-sm"
+                          className="bg-red-600 text-white px-3 py-1 rounded "
                           disabled={rejectMutation.isPending}
                           onClick={() => rejectMutation.mutate(req.id)}
                           data-tour="admin-approvals-reject-button"
@@ -202,7 +202,7 @@ const Approvals: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted-foreground">No approval requests found.</td>
+                    <td colSpan={6} className="py-8 text-center text-gray-500">No approval requests found.</td>
                   </tr>
                 )}
               </tbody>

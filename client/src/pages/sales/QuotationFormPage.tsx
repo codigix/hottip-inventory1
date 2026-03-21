@@ -311,19 +311,19 @@ export default function QuotationFormPage() {
   };
 
   if (isEdit && isLoadingQuotation) {
-    return <div className="p-8 text-center text-muted-foreground">Loading quotation details...</div>;
+    return <div className="p-4 text-center text-gray-500">Loading quotation details...</div>;
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6 bg-slate-50 min-h-screen">
+    <div className="p-2  mx-auto space-y-3 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-sm z-10 py-4 -mt-4 border-b">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/sales/outbound-quotations")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{isEdit ? "Edit" : "New"} Quotation</h1>
-            <p className="text-xs text-muted-foreground">Professional Quotation Management</p>
+            <h1 className="text-xl  ">{isEdit ? "Edit" : "New"} Quotation</h1>
+            <p className="text-xs text-gray-500">Professional Quotation Management</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -340,27 +340,27 @@ export default function QuotationFormPage() {
       <Form {...form}>
         <form className="space-y-6">
           {/* 1. Basic Information */}
-          <Card className="border-none shadow-sm overflow-hidden">
+          <Card className="border-none  overflow-hidden">
             <CardHeader className="bg-white border-b py-4">
               <div className="flex items-center gap-2">
                 <div className="bg-primary/10 p-2 rounded-lg">
                   <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Quotation Details</CardTitle>
+                  <CardTitle className="text-sm">Quotation Details</CardTitle>
                   <CardDescription className="text-xs">Primary identification and status.</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <CardContent className="p-2 grid grid-cols-1 md:grid-cols-4 gap-2">
               <FormField
                 control={form.control}
                 name="quotationNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider">Quotation No</FormLabel>
+                    <FormLabel className="text-xs  ">Quotation No</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" />
+                      <Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -372,13 +372,13 @@ export default function QuotationFormPage() {
                 name="quotationDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider">Date</FormLabel>
+                    <FormLabel className="text-xs  ">Date</FormLabel>
                     <FormControl>
                       <Input
                         type="date"
                         value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
                         onChange={(e) => field.onChange(new Date(e.target.value))}
-                        className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10"
+                        className="bg-slate-50 border-slate-200 focus:bg-white transition-all  "
                       />
                     </FormControl>
                     <FormMessage />
@@ -391,7 +391,7 @@ export default function QuotationFormPage() {
                 name="customerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider">Customer / Client</FormLabel>
+                    <FormLabel className="text-xs  ">Customer / Client</FormLabel>
                     <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
@@ -414,7 +414,7 @@ export default function QuotationFormPage() {
                       value={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10">
+                        <SelectTrigger className="bg-slate-50 text-xs border-slate-200 focus:bg-white transition-all  ">
                           <SelectValue placeholder="" />
                         </SelectTrigger>
                       </FormControl>
@@ -436,10 +436,10 @@ export default function QuotationFormPage() {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider">Status</FormLabel>
+                    <FormLabel className="text-xs  ">Status</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10">
+                        <SelectTrigger className="bg-slate-50 border-slate-200 focus:bg-white transition-all  ">
                           <SelectValue placeholder="" />
                         </SelectTrigger>
                       </FormControl>
@@ -459,7 +459,7 @@ export default function QuotationFormPage() {
           </Card>
 
           {/* 2. Mold & Item Details */}
-          <Card className="border-none shadow-sm overflow-hidden">
+          <Card className="border-none  overflow-hidden">
             <CardHeader className="bg-white border-b py-4 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="bg-primary/10 p-2 rounded-lg">
@@ -471,17 +471,17 @@ export default function QuotationFormPage() {
                 </div>
               </div>
               {!isAddingMold && (
-                <Button type="button" size="sm" onClick={() => setIsAddingMold(true)} className="rounded-full shadow-sm">
+                <Button type="button" size="sm" onClick={() => setIsAddingMold(true)} className="rounded ">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add New Mold
                 </Button>
               )}
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-2 space-y-3">
               {isAddingMold && (
-                <div className="border-2 border-primary/20 rounded-xl p-6 bg-primary/5 space-y-4 mb-8 animate-in slide-in-from-top-4 duration-300">
+                <div className="border-2 border-primary/20 rounded-xl p-2 bg-primary/5 space-y-2 mb-2 animate-in slide-in-from-top-4 duration-300">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-primary flex items-center gap-2">
+                    <h3 className=" text-primary flex items-center gap-2">
                       <Plus className="h-5 w-5" />
                       Add Mold Specification
                     </h3>
@@ -491,40 +491,40 @@ export default function QuotationFormPage() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Part Name</FormLabel>
-                      <Input value={tempMold.partName} onChange={(e) => setTempMold({...tempMold, partName: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.partName} onChange={(e) => setTempMold({...tempMold, partName: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Mould No</FormLabel>
-                      <Input value={tempMold.mouldNo} onChange={(e) => setTempMold({...tempMold, mouldNo: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.mouldNo} onChange={(e) => setTempMold({...tempMold, mouldNo: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Plastic Material</FormLabel>
-                      <Input value={tempMold.plasticMaterial} onChange={(e) => setTempMold({...tempMold, plasticMaterial: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.plasticMaterial} onChange={(e) => setTempMold({...tempMold, plasticMaterial: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Color</FormLabel>
-                      <Input value={tempMold.colourChange} onChange={(e) => setTempMold({...tempMold, colourChange: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.colourChange} onChange={(e) => setTempMold({...tempMold, colourChange: e.target.value})} placeholder="" className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">No. of Cavity</FormLabel>
-                      <Input type="number" value={tempMold.noOfCavity} onChange={(e) => setTempMold({...tempMold, noOfCavity: parseInt(e.target.value)})} className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input type="number" value={tempMold.noOfCavity} onChange={(e) => setTempMold({...tempMold, noOfCavity: parseInt(e.target.value)})} className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Part Weight (Gms)</FormLabel>
-                      <Input type="number" value={tempMold.partWeight} onChange={(e) => setTempMold({...tempMold, partWeight: parseFloat(e.target.value)})} className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input type="number" value={tempMold.partWeight} onChange={(e) => setTempMold({...tempMold, partWeight: parseFloat(e.target.value)})} className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">MFI</FormLabel>
-                      <Input value={tempMold.mfi} onChange={(e) => setTempMold({...tempMold, mfi: e.target.value})} className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.mfi} onChange={(e) => setTempMold({...tempMold, mfi: e.target.value})} className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                     <div className="space-y-1.5">
                       <FormLabel className="text-xs">Wall Thickness</FormLabel>
-                      <Input value={tempMold.wallThickness} onChange={(e) => setTempMold({...tempMold, wallThickness: e.target.value})} className="bg-white border-slate-200 focus:border-primary transition-all h-10 shadow-sm" />
+                      <Input value={tempMold.wallThickness} onChange={(e) => setTempMold({...tempMold, wallThickness: e.target.value})} className="bg-white border-slate-200 focus:border-primary transition-all  " />
                     </div>
                   </div>
                   
                   <div className="flex justify-end pt-2">
-                    <Button type="button" onClick={addMoldDetail} className="px-6 h-9">
+                    <Button type="button" onClick={addMoldDetail} className="p-2 rounded">
                       <PlusCircle className="h-4 w-4 mr-2" />
                       Add Mold to List
                     </Button>
@@ -533,12 +533,12 @@ export default function QuotationFormPage() {
               )}
 
               {moldDetails.length === 0 && !isAddingMold && (
-                <div className="text-center py-16 border-2 border-dashed rounded-xl bg-slate-50/50">
-                  <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                    <Package className="h-8 w-8 text-muted-foreground/30" />
+                <div className="text-center p-2 border-2 border-dashed rounded-xl bg-slate-50/50">
+                  <div className="bg-white w-16 h-16 rounded flex items-center justify-center mx-auto mb-2 ">
+                    <Package className="h-8 w-8 text-gray-500/30" />
                   </div>
-                  <h3 className="text-lg font-medium text-slate-700">No Molds Configured</h3>
-                  <p className="text-muted-foreground max-w-xs mx-auto text-sm mt-1">Add mold specifications first, then define items for your quotation.</p>
+                  <h3 className="text-sm  text-slate-700">No Molds Configured</h3>
+                  <p className="text-gray-500 max-w-xs mx-auto text-xs mt-1">Add mold specifications first, then define items for your quotation.</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMold(true)} className="mt-6">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Your First Mold
@@ -548,18 +548,18 @@ export default function QuotationFormPage() {
 
               <div className="space-y-4">
                 {moldDetails.map((mold, mIndex) => (
-                  <div key={mold.id || mIndex} className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm transition-all">
+                  <div key={mold.id || mIndex} className="border border-slate-200 rounded-xl bg-white overflow-hidden  transition-all">
                     <div 
                       className={`p-4 border-b flex items-center justify-between cursor-pointer transition-colors ${editingMoldIndex === mIndex ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}
                       onClick={() => setEditingMoldIndex(editingMoldIndex === mIndex ? null : mIndex)}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="bg-slate-200 text-slate-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs">
+                        <div className="bg-slate-200 text-slate-600 w-8 h-8 rounded flex items-center justify-center  text-xs">
                           {mold.no}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-800">{mold.partName || "Untitled Mold"}</div>
-                          <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+                          <div className=" text-slate-800">{mold.partName || "Untitled Mold"}</div>
+                          <div className="text-[10px] text-gray-500 flex items-center gap-2">
                             <span>{mold.mouldNo || "No ID"}</span>
                             <Separator orientation="vertical" className="h-2" />
                             <span>{mold.plasticMaterial || "No Material"}</span>
@@ -579,7 +579,7 @@ export default function QuotationFormPage() {
                     </div>
 
                     {editingMoldIndex === mIndex && (
-                      <div className="p-6 space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="p-6 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                         {/* Mold Specifications */}
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-4">
                           {[
@@ -593,12 +593,12 @@ export default function QuotationFormPage() {
                             { label: "Weight (g)", value: mold.partWeight, field: "partWeight", type: "number" },
                           ].map((spec) => (
                             <div key={spec.field} className="space-y-1">
-                              <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{spec.label}</label>
+                              <label className="text-[10px]   text-slate-400 ">{spec.label}</label>
                               <Input 
                                 type={spec.type || "text"}
                                 value={spec.value} 
                                 onChange={(e) => updateMoldDetail(mIndex, spec.field, spec.type === "number" ? parseFloat(e.target.value) : e.target.value)} 
-                                className="h-8 text-sm border-slate-200 bg-slate-50 focus:bg-white focus:border-primary transition-all shadow-sm"
+                                className="h-8 text-sm border-slate-200 bg-slate-50 focus:bg-white focus:border-primary transition-all "
                               />
                             </div>
                           ))}
@@ -606,7 +606,7 @@ export default function QuotationFormPage() {
 
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-sm text-slate-700 flex items-center gap-2">
+                            <h4 className=" text-sm text-slate-700 flex items-center gap-2">
                               <Settings className="h-4 w-4 text-primary" />
                               Quotation Items for this Mold
                             </h4>
@@ -619,12 +619,12 @@ export default function QuotationFormPage() {
                             <table className="w-full text-xs">
                               <thead className="bg-slate-50 border-b border-slate-100">
                                 <tr>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 w-12 uppercase tracking-tighter">No</th>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-tighter">Description</th>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 w-24 uppercase tracking-tighter text-center">UOM</th>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 w-20 uppercase tracking-tighter text-center">Qty</th>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 w-32 uppercase tracking-tighter text-right">Unit Price</th>
-                                  <th className="px-4 py-3 text-left font-bold text-slate-500 w-32 uppercase tracking-tighter text-right">Amount</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500 w-12  er">No</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500  er">Description</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500 w-24  er text-center">UOM</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500 w-20  er text-center">Qty</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500 w-32  er text-right">Unit Price</th>
+                                  <th className="px-4 py-3 text-left  text-slate-500 w-32  er text-right">Amount</th>
                                   <th className="px-2 py-3 text-right w-10"></th>
                                 </tr>
                               </thead>
@@ -668,7 +668,7 @@ export default function QuotationFormPage() {
                                         className="w-24 text-right bg-transparent border-none focus:bg-white focus:ring-1 focus:ring-slate-200 px-1 rounded transition-all"
                                       />
                                     </td>
-                                    <td className="px-4 py-2 font-bold text-right text-slate-900">
+                                    <td className="px-4 py-2  text-right text-slate-900">
                                       ₹{(parseFloat(String(item.amount || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="px-2 py-2 text-right">
@@ -699,26 +699,26 @@ export default function QuotationFormPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 3. Company & Banking */}
-            <Card className="border-none shadow-sm overflow-hidden">
+            <Card className="border-none  overflow-hidden">
               <CardHeader className="bg-white border-b py-4">
                 <div className="flex items-center gap-2">
                   <div className="bg-primary/10 p-2 rounded-lg">
                     <Building2 className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Company & Banking</CardTitle>
+                    <CardTitle className="text-sm">Company & Banking</CardTitle>
                     <CardDescription className="text-xs">Your organization and payment details.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-2 space-y-2">
                 <FormField
                   control={form.control}
                   name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold uppercase">Company Name</FormLabel>
-                      <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                      <FormLabel className="text-xs  ">Company Name</FormLabel>
+                      <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -729,8 +729,8 @@ export default function QuotationFormPage() {
                     name="bankName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">Bank Name</FormLabel>
-                        <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">Bank Name</FormLabel>
+                        <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -740,8 +740,8 @@ export default function QuotationFormPage() {
                     name="bankAccountNo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">Account Number</FormLabel>
-                        <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">Account Number</FormLabel>
+                        <FormControl><Input {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -752,8 +752,8 @@ export default function QuotationFormPage() {
                   name="companyAddress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold uppercase">Company Address</FormLabel>
-                      <FormControl><Textarea {...field} className="bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm min-h-[80px] text-sm" /></FormControl>
+                      <FormLabel className="text-xs  ">Company Address</FormLabel>
+                      <FormControl><Textarea {...field} className="bg-slate-50/50 border-slate-200 focus:bg-white transition-all  min-h-[80px] text-sm" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -762,27 +762,27 @@ export default function QuotationFormPage() {
             </Card>
 
             {/* 4. Terms & Summary */}
-            <Card className="border-none shadow-sm overflow-hidden">
+            <Card className="border-none  overflow-hidden">
               <CardHeader className="bg-white border-b py-4">
                 <div className="flex items-center gap-2">
                   <div className="bg-primary/10 p-2 rounded-lg">
                     <CreditCard className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Financial Summary</CardTitle>
+                    <CardTitle className="text-xs">Financial Summary</CardTitle>
                     <CardDescription className="text-xs">Final terms and grand total calculation.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-2 space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="paymentTerms"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">Payment Terms</FormLabel>
-                        <FormControl><Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">Payment Terms</FormLabel>
+                        <FormControl><Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -792,8 +792,8 @@ export default function QuotationFormPage() {
                     name="deliveryTerms"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">Delivery Terms</FormLabel>
-                        <FormControl><Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">Delivery Terms</FormLabel>
+                        <FormControl><Input {...field} placeholder="" className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -803,8 +803,8 @@ export default function QuotationFormPage() {
                     name="gstPercentage"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">GST %</FormLabel>
-                        <FormControl><Input {...field} type="number" className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">GST %</FormLabel>
+                        <FormControl><Input {...field} type="number" className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -814,15 +814,15 @@ export default function QuotationFormPage() {
                     name="discountAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold uppercase">Discount (₹)</FormLabel>
-                        <FormControl><Input {...field} type="number" className="bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm h-10" /></FormControl>
+                        <FormLabel className="text-xs  ">Discount (₹)</FormLabel>
+                        <FormControl><Input {...field} type="number" className="bg-slate-50 border-slate-200 focus:bg-white transition-all  " /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
 
-                <div className="bg-slate-900 text-white p-5 rounded-xl space-y-3 shadow-inner">
+                <div className="bg-primary text-white p-2 rounded space-y-2 shadow-inner">
                   <div className="flex justify-between text-xs text-slate-400">
                     <span>Subtotal</span>
                     <span>₹{parseFloat(form.watch("subtotalAmount") || "0").toLocaleString()}</span>
@@ -836,9 +836,9 @@ export default function QuotationFormPage() {
                     <span>-₹{parseFloat(form.watch("discountAmount") || "0").toLocaleString()}</span>
                   </div>
                   <Separator className="bg-slate-700" />
-                  <div className="flex justify-between font-bold text-xl pt-1">
-                    <span className="text-slate-200">Total Amount</span>
-                    <span className="text-primary-foreground">₹{parseFloat(form.watch("totalAmount") || "0").toLocaleString()}</span>
+                  <div className="flex justify-between  text-xl pt-1">
+                    <span className="text-slate-200 text-sm">Total Amount</span>
+                    <span className="text-primary-foreground text-sm">₹{parseFloat(form.watch("totalAmount") || "0").toLocaleString()}</span>
                   </div>
                 </div>
               </CardContent>

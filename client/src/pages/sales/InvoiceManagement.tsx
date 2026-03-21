@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -169,18 +170,20 @@ export default function InvoiceManagement() {
     {
       key: "invoiceNumber",
       header: "Invoice #",
+      sortable: true,
       cell: (invoice: any) => (
-        <div className="font-light">{invoice.invoiceNumber}</div>
+        <div className=" text-slate-800">{invoice.invoiceNumber}</div>
       ),
     },
     {
-      key: "customer",
+      key: "customer.name",
       header: "Client",
+      sortable: true,
       cell: (invoice: any) => (
         <div>
-          <div className="font-light">{invoice.customer?.name || "N/A"}</div>
-          <div className="text-xs text-muted-foreground">
-            {invoice.customer?.gstNumber || ""}
+          <div className="font-medium text-slate-700">{invoice.customer?.name || "N/A"}</div>
+          <div className="text-[10px] text-slate-400   ">
+            {invoice.customer?.gstNumber || "GST NOT PROVIDED"}
           </div>
         </div>
       ),
@@ -188,40 +191,61 @@ export default function InvoiceManagement() {
     {
       key: "invoiceDate",
       header: "Date",
-      cell: (invoice: any) =>
-        new Date(invoice.invoiceDate).toLocaleDateString(),
+      sortable: true,
+      cell: (invoice: any) => (
+        <div className="text-xs text-slate-600">
+          {new Date(invoice.invoiceDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          })}
+        </div>
+      ),
     },
     {
       key: "totalAmount",
-      header: "Total Amount",
-      cell: (invoice: any) =>
-        `₹${parseFloat(invoice.totalAmount).toLocaleString("en-IN")}`,
+      header: "Total Value",
+      sortable: true,
+      cell: (invoice: any) => (
+        <span className="text-xs  text-slate-800">
+          ₹{parseFloat(invoice.totalAmount || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
       key: "balanceAmount",
       header: "Balance",
-      cell: (invoice: any) =>
-        `₹${parseFloat(invoice.balanceAmount).toLocaleString("en-IN")}`,
+      sortable: true,
+      cell: (invoice: any) => (
+        <span className={cn(
+          "text-xs ",
+          parseFloat(invoice.balanceAmount) > 0 ? "text-red-600" : "text-emerald-600"
+        )}>
+          ₹{parseFloat(invoice.balanceAmount || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
+      sortable: true,
       cell: (invoice: any) => {
-        const statusColors = {
-          draft: "bg-gray-100 text-gray-800",
-          sent: "bg-blue-100 text-blue-800",
-          paid: "bg-green-100 text-green-800",
-          overdue: "bg-red-100 text-red-800",
-          cancelled: "bg-gray-100 text-gray-800",
+        const statusColors: Record<string, string> = {
+          draft: "bg-slate-100 text-slate-600 border-slate-200",
+          sent: "bg-blue-50 text-blue-700 border-blue-100",
+          paid: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          overdue: "bg-red-50 text-red-700 border-red-100",
+          cancelled: "bg-slate-100 text-slate-600 border-slate-200 opacity-50",
         };
         return (
           <Badge
-            className={
-              statusColors[invoice.status as keyof typeof statusColors] ||
-              statusColors.draft
-            }
+            variant="outline"
+            className={cn(
+              "text-[10px]   py-0 h-5 shadow-none",
+              statusColors[invoice.status as keyof typeof statusColors] || statusColors.draft
+            )}
           >
-            {invoice.status?.toUpperCase() || "DRAFT"}
+            {invoice.status || "DRAFT"}
           </Badge>
         );
       },
@@ -229,34 +253,34 @@ export default function InvoiceManagement() {
     {
       key: "actions",
       header: "Actions",
-      cell: (invoice: any, index: number) => (
-        <div className="flex items-center space-x-2" data-tour={index === 0 ? "sales-invoice-actions" : undefined}>
+      cell: (invoice: any) => (
+        <div className="flex items-center space-x-1">
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleViewInvoice(invoice.id)}
             data-testid={`button-view-invoice-${invoice.id}`}
-            data-tour={index === 0 ? "sales-view-invoice" : undefined}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleDownloadInvoice(invoice.id)}
             data-testid={`button-download-invoice-${invoice.id}`}
-            data-tour={index === 0 ? "sales-download-invoice" : undefined}
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0 hover:text-blue-600"
             onClick={() => handleSendInvoice(invoice.id)}
             data-testid={`button-send-invoice-${invoice.id}`}
-            data-tour={index === 0 ? "sales-send-invoice" : undefined}
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4 text-blue-400" />
           </Button>
         </div>
       ),
@@ -264,42 +288,28 @@ export default function InvoiceManagement() {
   ];
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-2 space-y-3 bg-slate-50/50 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1
-            className="text-3xl font-bold tracking-tight"
-            data-testid="text-invoice-management-title"
-            data-tour="sales-invoice-header"
-          >
-            Invoice Management
-          </h1>
-          <p className="text-muted-foreground">
-            GST invoices with tax breakdowns and PDF downloads
-          </p>
+          <h1 className="text-2xl  text-slate-900 tracking-tight">Invoice Management</h1>
+          <p className="text-slate-500 text-sm">GST invoices with tax breakdowns and PDF downloads</p>
         </div>
         <Link href="/sales/invoices/new">
-          <Button data-testid="button-new-invoice">
+          <Button className="bg-primary hover:bg-primary text-white  transition-all duration-200">
             <Plus className="h-4 w-4 mr-2" />
             New Invoice
           </Button>
         </Link>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle data-tour="sales-invoice-list-title">Invoices</CardTitle>
-          <CardDescription data-tour="sales-invoice-list-description">
-            List of all generated GST invoices
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="border-slate-200  overflow-hidden">
+        <CardContent className="p-0">
           <DataTable
             columns={columns}
             data={invoices || []}
-            loading={isLoading}
+            isLoading={isLoading}
+            searchKey="invoiceNumber"
             searchPlaceholder="Search invoices..."
-            data-tour="sales-invoice-table"
           />
 
           {/* View Invoice Modal */}
@@ -328,39 +338,39 @@ export default function InvoiceManagement() {
               </DialogHeader>
 
               {selectedInvoice ? (
-                <div className="p-6 space-y-6" data-tour="sales-invoice-view-content">
-                  <div className="grid grid-cols-2 gap-8 border-b pb-6">
+                <div className="p-2 space-y-3" data-tour="sales-invoice-view-content">
+                  <div className="grid grid-cols-2 gap-4 border-b pb-6">
                     <div className="space-y-4">
                       <div data-tour="sales-view-billing-from">
-                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider">From</h4>
-                        <p className="font-bold text-lg text-primary">HOTTIP INDIA POLYMERS</p>
+                        <h4 className="text-xs   text-gray-400 ">From</h4>
+                        <p className=" text-lg text-primary">HOTTIP INDIA POLYMERS</p>
                         <p className="text-sm text-gray-500 whitespace-pre-line">
                           123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra
                         </p>
-                        <p className="text-sm font-medium mt-1">GSTIN: 27AABCH1234F1Z5</p>
+                        <p className="text-sm  mt-1">GSTIN: 27AABCH1234F1Z5</p>
                       </div>
                       <div data-tour="sales-view-billing-to">
-                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider">Bill To</h4>
-                        <p className="font-bold text-lg text-primary">{selectedInvoice.customer?.name}</p>
+                        <h4 className="text-xs   text-gray-400 ">Bill To</h4>
+                        <p className=" text-lg text-primary">{selectedInvoice.customer?.name}</p>
                         <p className="text-sm text-gray-500 whitespace-pre-line">
                           {selectedInvoice.billingAddress || selectedInvoice.customer?.address}
                         </p>
-                        <p className="text-sm font-medium mt-1">GSTIN: {selectedInvoice.billingGstNumber || selectedInvoice.customer?.gstNumber}</p>
+                        <p className="text-sm  mt-1">GSTIN: {selectedInvoice.billingGstNumber || selectedInvoice.customer?.gstNumber}</p>
                       </div>
                     </div>
                     <div className="space-y-4 text-right">
                       <div className="bg-gray-50 p-4 rounded-lg inline-block text-left min-w-[200px]" data-tour="sales-view-invoice-info">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                           <span className="text-xs text-gray-500">Invoice Date:</span>
-                          <span className="text-xs font-bold text-right">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</span>
+                          <span className="text-xs  text-right">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</span>
                           <span className="text-xs text-gray-500">Due Date:</span>
-                          <span className="text-xs font-bold text-right">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</span>
+                          <span className="text-xs  text-right">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</span>
                           <span className="text-xs text-gray-500">Place of Supply:</span>
-                          <span className="text-xs font-bold text-right">{selectedInvoice.placeOfSupply || "N/A"}</span>
+                          <span className="text-xs  text-right">{selectedInvoice.placeOfSupply || "N/A"}</span>
                         </div>
                       </div>
                       <div className="pt-2" data-tour="sales-view-shipping-info">
-                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider">Ship To</h4>
+                        <h4 className="text-xs   text-gray-400 ">Ship To</h4>
                         <p className="text-sm text-gray-500 whitespace-pre-line">
                           {selectedInvoice.shippingAddress || selectedInvoice.billingAddress || selectedInvoice.customer?.address}
                         </p>
@@ -372,18 +382,18 @@ export default function InvoiceManagement() {
                     <Table>
                       <TableHeader className="bg-gray-100">
                         <TableRow>
-                          <TableHead className="w-[40%] font-bold text-gray-700">Description</TableHead>
-                          <TableHead className="font-bold text-gray-700 text-center">HSN/SAC</TableHead>
-                          <TableHead className="font-bold text-gray-700 text-center">Qty</TableHead>
-                          <TableHead className="font-bold text-gray-700 text-right">Unit Price</TableHead>
-                          <TableHead className="font-bold text-gray-700 text-right">Tax (%)</TableHead>
-                          <TableHead className="font-bold text-gray-700 text-right">Amount</TableHead>
+                          <TableHead className="w-[40%]  text-gray-700">Description</TableHead>
+                          <TableHead className=" text-gray-700 text-center">HSN/SAC</TableHead>
+                          <TableHead className=" text-gray-700 text-center">Qty</TableHead>
+                          <TableHead className=" text-gray-700 text-right">Unit Price</TableHead>
+                          <TableHead className=" text-gray-700 text-right">Tax (%)</TableHead>
+                          <TableHead className=" text-gray-700 text-right">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedInvoice.items?.map((item: any) => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.description}</TableCell>
+                            <TableCell className="">{item.description}</TableCell>
                             <TableCell className="text-center text-gray-500">{item.hsnSac || "-"}</TableCell>
                             <TableCell className="text-center">{item.quantity} {item.unit}</TableCell>
                             <TableCell className="text-right">₹{Number(item.unitPrice).toLocaleString("en-IN")}</TableCell>
@@ -391,57 +401,57 @@ export default function InvoiceManagement() {
                               {item.igstRate > 0 ? `IGST ${item.igstRate}%` : 
                                (item.cgstRate + item.sgstRate) > 0 ? `CGST+SGST ${item.cgstRate+item.sgstRate}%` : "0%"}
                             </TableCell>
-                            <TableCell className="text-right font-semibold">₹{Number(item.amount).toLocaleString("en-IN")}</TableCell>
+                            <TableCell className="text-right ">₹{Number(item.amount).toLocaleString("en-IN")}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
 
-                  <div className="flex justify-end pt-6" data-tour="sales-view-financial-summary">
-                    <div className="w-[350px] space-y-3 bg-gray-50 p-6 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="flex justify-end " data-tour="sales-view-financial-summary">
+                    <div className="w-[350px] space-y-3 bg-gray-50 p-6 rounded-xl border border-gray-100 ">
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Subtotal:</span>
-                        <span className="font-medium">₹{Number(selectedInvoice.subtotalAmount).toLocaleString("en-IN")}</span>
+                        <span className="">₹{Number(selectedInvoice.subtotalAmount).toLocaleString("en-IN")}</span>
                       </div>
                       {Number(selectedInvoice.cgstAmount) > 0 && (
                         <div className="flex justify-between text-sm text-gray-600">
                           <span>CGST ({selectedInvoice.cgstRate}%):</span>
-                          <span className="font-medium">₹{Number(selectedInvoice.cgstAmount).toLocaleString("en-IN")}</span>
+                          <span className="">₹{Number(selectedInvoice.cgstAmount).toLocaleString("en-IN")}</span>
                         </div>
                       )}
                       {Number(selectedInvoice.sgstAmount) > 0 && (
                         <div className="flex justify-between text-sm text-gray-600">
                           <span>SGST ({selectedInvoice.sgstRate}%):</span>
-                          <span className="font-medium">₹{Number(selectedInvoice.sgstAmount).toLocaleString("en-IN")}</span>
+                          <span className="">₹{Number(selectedInvoice.sgstAmount).toLocaleString("en-IN")}</span>
                         </div>
                       )}
                       {Number(selectedInvoice.igstAmount) > 0 && (
                         <div className="flex justify-between text-sm text-gray-600">
                           <span>IGST ({selectedInvoice.igstRate}%):</span>
-                          <span className="font-medium">₹{Number(selectedInvoice.igstAmount).toLocaleString("en-IN")}</span>
+                          <span className="">₹{Number(selectedInvoice.igstAmount).toLocaleString("en-IN")}</span>
                         </div>
                       )}
                       {Number(selectedInvoice.discountAmount) > 0 && (
-                        <div className="flex justify-between text-sm text-red-600 font-medium italic">
+                        <div className="flex justify-between text-sm text-red-600  italic">
                           <span>Discount:</span>
                           <span>-₹{Number(selectedInvoice.discountAmount).toLocaleString("en-IN")}</span>
                         </div>
                       )}
-                      <div className="border-t-2 border-gray-200 pt-3 flex justify-between font-bold text-xl text-primary" data-tour="sales-total-amount-display">
+                      <div className="border-t-2 border-gray-200 pt-3 flex justify-between  text-xl text-primary" data-tour="sales-total-amount-display">
                         <span>Grand Total:</span>
                         <span>₹{Number(selectedInvoice.totalAmount).toLocaleString("en-IN")}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t pt-8 mt-8 grid grid-cols-2 gap-8 text-sm" data-tour="sales-view-footer">
+                  <div className="border-t pt-8 mt-8 grid grid-cols-2 gap-4 text-sm" data-tour="sales-view-footer">
                     <div>
-                      <h4 className="font-bold text-gray-700 uppercase text-xs mb-2">Payment Terms</h4>
+                      <h4 className=" text-gray-700  text-xs mb-2">Payment Terms</h4>
                       <p className="text-gray-500">{selectedInvoice.paymentTerms || "Standard Net 30 days"}</p>
                       {selectedInvoice.notes && (
                         <div className="mt-4">
-                          <h4 className="font-bold text-gray-700 uppercase text-xs mb-1">Notes</h4>
+                          <h4 className=" text-gray-700  text-xs mb-1">Notes</h4>
                           <p className="text-gray-500 italic">{selectedInvoice.notes}</p>
                         </div>
                       )}
@@ -452,13 +462,13 @@ export default function InvoiceManagement() {
                           Authorised Signatory
                         </div>
                       </div>
-                      <p className="font-bold text-primary uppercase text-xs">For HOTTIP INDIA POLYMERS</p>
+                      <p className=" text-primary  text-xs">For HOTTIP INDIA POLYMERS</p>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center p-20">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="animate-spin rounded h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               )}
             </DialogContent>

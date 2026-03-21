@@ -238,16 +238,16 @@ const updateVisitMutation = useMutation({
     toast({ title: "Error updating visit", description: error.message, variant: "destructive" });
   },
 });
-  if (visitsError) return <div className="p-8 text-red-600">Error loading visits</div>;
-  if (visitsLoading) return <div className="p-8">Loading visits...</div>;
+  if (visitsError) return <div className="p-4 text-red-600">Error loading visits</div>;
+  if (visitsLoading) return <div className="p-4">Loading visits...</div>;
 
   return (
-   <div className="p-4 md:p-8 space-y-6">
+   <div className="p-4 md:p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="page-title">Field Visits</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl  text-foreground" data-testid="page-title">Field Visits</h1>
+          <p className="text-gray-500">
             Schedule, track, and manage field visits with GPS verification
           </p>
         </div>
@@ -286,7 +286,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-today-visits">
+            <div className="text-2xl " data-testid="metric-today-visits">
               {metricsLoading ? '...' : displayMetrics.todayVisits}
             </div>
           </CardContent>
@@ -300,7 +300,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-scheduled-visits">
+            <div className="text-2xl " data-testid="metric-scheduled-visits">
               {statusCounts.scheduled}
             </div>
           </CardContent>
@@ -314,7 +314,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-in-progress-visits">
+            <div className="text-2xl " data-testid="metric-in-progress-visits">
               {statusCounts.in_progress}
             </div>
           </CardContent>
@@ -328,7 +328,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-completed-visits">
+            <div className="text-2xl " data-testid="metric-completed-visits">
               {statusCounts.completed}
             </div>
           </CardContent>
@@ -342,7 +342,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-cancelled-visits">
+            <div className="text-2xl " data-testid="metric-cancelled-visits">
               {statusCounts.cancelled}
             </div>
           </CardContent>
@@ -356,7 +356,7 @@ const updateVisitMutation = useMutation({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-completion-rate">
+            <div className="text-2xl " data-testid="metric-completion-rate">
               {metricsLoading ? '...' : `${displayMetrics.completionRate?.toFixed(1) || 0}%`}
             </div>
           </CardContent>

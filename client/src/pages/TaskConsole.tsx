@@ -45,14 +45,14 @@ const TaskConsole: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-3xl font-bold mb-4" data-tour="admin-tasks-header">Admin Task Console</h1>
-      <p className="mb-6 text-muted-foreground">Create, assign, and track cross-department tasks and productivity metrics.</p>
+    <div className=" mx-auto p-4">
+      <h1 className="text-3xl  mb-4" data-tour="admin-tasks-header">Admin Task Console</h1>
+      <p className="mb-6 text-gray-500">Create, assign, and track cross-department tasks and productivity metrics.</p>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="bg-white rounded shadow p-4 space-y-4 lg:col-span-2" data-tour="admin-tasks-active-list">
-          <h2 className="text-lg font-semibold">Active Tasks</h2>
+          <h2 className="text-lg ">Active Tasks</h2>
           {isLoading ? (
-            <div className="py-8 text-center text-muted-foreground">Loading...</div>
+            <div className="py-8 text-center text-gray-500">Loading...</div>
           ) : error ? (
             <div className="py-8 text-center text-red-600">{error.message || "Failed to load tasks."}</div>
           ) : activeTasks.length ? (
@@ -94,55 +94,55 @@ const TaskConsole: React.FC = () => {
               </tbody>
             </table>
           ) : (
-            <div className="py-8 text-center text-muted-foreground">No active tasks.</div>
+            <div className="py-8 text-center text-gray-500">No active tasks.</div>
           )}
         </section>
         <section className="bg-white rounded shadow p-4 space-y-4" data-tour="admin-tasks-scheduled-list">
-          <h2 className="text-lg font-semibold">Scheduled Tasks</h2>
+          <h2 className="text-lg ">Scheduled Tasks</h2>
           {scheduledTasks.length ? (
             <ul className="space-y-2 text-sm">
               {scheduledTasks.map((task: any) => (
-                <li key={task.id} className="border rounded px-3 py-2">
-                  <p className="font-medium">{task.title}</p>
-                  <p className="text-muted-foreground">{task.scheduledFor || task.dueDate || "Pending schedule"}</p>
+                <li key={task.id} className="border rounded p-2">
+                  <p className="">{task.title}</p>
+                  <p className="text-gray-500">{task.scheduledFor || task.dueDate || "Pending schedule"}</p>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">No scheduled tasks.</p>
+            <p className="text-sm text-gray-500">No scheduled tasks.</p>
           )}
           <section className="space-y-4" data-tour="admin-tasks-completed-list">
-            <h2 className="text-lg font-semibold">Recently Completed</h2>
+            <h2 className="text-lg ">Recently Completed</h2>
             {completedTasks.length ? (
               <ul className="space-y-2 text-sm">
                 {completedTasks.slice(0, 5).map((task: any) => (
-                  <li key={task.id} className="border rounded px-3 py-2">
-                    <p className="font-medium">{task.title}</p>
-                    <p className="text-muted-foreground">Closed on {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : "-"}</p>
+                  <li key={task.id} className="border rounded p-2">
+                    <p className="">{task.title}</p>
+                    <p className="text-gray-500">Closed on {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : "-"}</p>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No completed tasks yet.</p>
+              <p className="text-sm text-gray-500">No completed tasks yet.</p>
             )}
           </section>
         </section>
       </div>
       <div className="bg-white rounded shadow p-4 mt-6" data-tour="admin-tasks-logs">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Task Logs</h2>
-          <span className="text-sm text-muted-foreground">{logs.length} entries</span>
+          <h2 className="text-lg ">Task Logs</h2>
+          <span className="text-sm text-gray-500">{logs.length} entries</span>
         </div>
         <ul className="space-y-2 text-sm">
           {logs.length ? (
             logs.map((log: any) => (
               <li key={log.id} className="flex items-center justify-between">
                 <p>{log.message}</p>
-                <span className="text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</span>
+                <span className="text-gray-500">{new Date(log.timestamp).toLocaleString()}</span>
               </li>
             ))
           ) : (
-            <li className="text-muted-foreground">No log entries available.</li>
+            <li className="text-gray-500">No log entries available.</li>
           )}
         </ul>
       </div>

@@ -2,18 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Package,
   TrendingUp,
   Building2,
-  BarChart3,
   Download,
   AlertTriangle,
-  CheckCircle,
-  Clock,
+  LayoutGrid,
+  FileText,
+  BarChart3,
+  Calendar,
+  History,
+  TrendingDown
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function InventoryReports() {
   // Fetch reports data
@@ -25,597 +29,269 @@ export default function InventoryReports() {
     queryKey: ["/api/reports/vendor-history"],
   });
 
-  const { data: reorderForecast, isLoading: reorderForecastLoading } = useQuery(
-    {
-      queryKey: ["/api/reports/reorder-forecast"],
-    }
-  );
+  const { data: reorderForecast, isLoading: reorderForecastLoading } = useQuery({
+    queryKey: ["/api/reports/reorder-forecast"],
+  });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/reports/analytics"],
   });
 
-  // Export functions
-  const handleExportStockBalance = async () => {
-    try {
-      const response = await fetch("/api/reports/stock-balance/export", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "stock-balance-report.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  const handleExportVendorHistory = async () => {
-    try {
-      const response = await fetch("/api/reports/vendor-history/export", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "vendor-history-report.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  const handleExportReorderForecast = async () => {
-    try {
-      const response = await fetch("/api/reports/reorder-forecast/export", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "reorder-forecast-report.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  const handleExportAnalytics = async () => {
-    try {
-      const response = await fetch("/api/reports/analytics/export", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "analytics-report.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  const handleExportAll = async () => {
-    try {
-      const response = await fetch("/api/reports/export-all", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "all-reports.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  if (
-    stockBalanceLoading ||
-    vendorHistoryLoading ||
-    reorderForecastLoading ||
-    analyticsLoading
-  ) {
-    return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
-          <Skeleton className="h-96" />
+  const stockColumns = [
+    {
+      key: "name",
+      header: "Product Details",
+      cell: (row: any) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-900">{row.name}</span>
+          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{row.sku}</span>
         </div>
-      </main>
-    );
-  }
+      )
+    },
+    {
+      key: "currentStock",
+      header: "Inventory",
+      cell: (row: any) => <span className="font-semibold text-slate-700">{row.currentStock} Units</span>
+    },
+    {
+      key: "value",
+      header: "Valuation",
+      cell: (row: any) => <span className="text-slate-900">₹{row.value?.toLocaleString()}</span>
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (row: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal",
+            row.status === 'In Stock' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            row.status === 'Low Stock' && "bg-red-50 text-red-700 border-red-200",
+            row.status === 'Out of Stock' && "bg-slate-100 text-slate-600 border-slate-200"
+          )}
+        >
+          {row.status}
+        </Badge>
+      )
+    }
+  ];
+
+  const vendorColumns = [
+    {
+      key: "name",
+      header: "Vendor Name",
+      cell: (row: any) => <span className="font-medium text-slate-900">{row.name}</span>
+    },
+    {
+      key: "totalOrders",
+      header: "Orders",
+      cell: (row: any) => <span className="text-slate-700">{row.totalOrders} Units</span>
+    },
+    {
+      key: "totalValue",
+      header: "Total Spend",
+      cell: (row: any) => <span className="font-medium text-slate-900">₹{row.totalValue?.toLocaleString()}</span>
+    },
+    {
+      key: "onTimeDelivery",
+      header: "SLA / Performance",
+      cell: (row: any) => (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-slate-600">On-Time: {row.onTimeDelivery}%</span>
+          <div className="w-24 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-primary" style={{ width: `${row.onTimeDelivery}%` }} />
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  const forecastColumns = [
+    {
+      key: "name",
+      header: "Item Forecast",
+      cell: (row: any) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-900">{row.name}</span>
+          <span className="text-[10px] text-slate-400">{row.sku}</span>
+        </div>
+      )
+    },
+    {
+      key: "forecastedDemand",
+      header: "Demand (Est.)",
+      cell: (row: any) => <span className="text-slate-700 font-medium">{row.forecastedDemand} Units</span>
+    },
+    {
+      key: "recommendedReorder",
+      header: "Recommendation",
+      cell: (row: any) => (
+        <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100 font-normal">
+          Reorder {row.recommendedReorder} units
+        </Badge>
+      )
+    }
+  ];
+
+  const metrics = [
+    { label: "Total Inventory Value", value: `₹${stockBalance?.summary?.totalValue?.toLocaleString() || '0'}`, icon: TrendingUp, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Active SKUs", value: stockBalance?.summary?.totalProducts || "0", icon: Package, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Critical Low Stock", value: stockBalance?.summary?.lowStockItems || "0", icon: AlertTriangle, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Vendor Compliance", value: "94.2%", icon: Building2, color: "text-slate-600", bg: "bg-slate-50" },
+  ];
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-reports-header">
-            Inventory Reports
-          </h1>
-          <p className="text-muted-foreground">
-            Comprehensive inventory analytics and reporting
-          </p>
+          <h1 className="text-xl  text-slate-900 ">Inventory Insights & Reports</h1>
+          <p className="text-xs text-slate-500">Analytics dashboard for stock levels, vendor performance, and forecasting.</p>
         </div>
-        <Button
-          onClick={handleExportAll}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export All Reports
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button className="bg-primary hover:bg-primary text-white shadow-sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Comprehensive Report
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-blue-600" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Products</p>
-                <p className="text-2xl font-bold">
-                  {stockBalance?.summary?.totalProducts || 0}
-                </p>
+                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold">
-                  ₹{stockBalance?.summary?.totalValue?.toLocaleString() || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Low Stock Items</p>
-                <p className="text-2xl font-bold">
-                  {stockBalance?.summary?.lowStockItems || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Active Vendors</p>
-                <p className="text-2xl font-bold">
-                  {vendorHistory?.vendors?.length || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Reports Tabs */}
-      <Tabs defaultValue="stock-balance" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4" data-tour="inventory-reports-tabs">
-          <TabsTrigger value="stock-balance" data-tour="inventory-stock-balance-tab">Stock Balance</TabsTrigger>
-          <TabsTrigger value="vendor-analysis" data-tour="inventory-vendor-history-tab">Vendor Analysis</TabsTrigger>
-          <TabsTrigger value="reorder-forecast" data-tour="inventory-forecast-tab">Reorder Forecast</TabsTrigger>
-          <TabsTrigger value="analytics" data-tour="inventory-analytics-tab">Analytics</TabsTrigger>
+      <Tabs defaultValue="stock" className="w-full space-y-4">
+        <TabsList className="bg-slate-100/80 p-1 rounded-lg w-fit border border-slate-200">
+          <TabsTrigger value="stock" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <LayoutGrid className="h-4 w-4 mr-2 text-slate-400" />
+            Stock Ledger
+          </TabsTrigger>
+          <TabsTrigger value="vendors" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <History className="h-4 w-4 mr-2 text-slate-400" />
+            Vendor Analysis
+          </TabsTrigger>
+          <TabsTrigger value="forecast" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <TrendingUp className="h-4 w-4 mr-2 text-slate-400" />
+            Demand Forecast
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <BarChart3 className="h-4 w-4 mr-2 text-slate-400" />
+            Usage Analytics
+          </TabsTrigger>
         </TabsList>
 
-        {/* Stock Balance Report */}
-        <TabsContent value="stock-balance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Package className="h-5 w-5" />
-                  <span>Current Stock Balance</span>
+        <TabsContent value="stock" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-slate-400" />
+                  Inventory Stock Balance
                 </div>
-                <Button
-                  onClick={handleExportStockBalance}
-                  size="sm"
-                  variant="outline"
-                  data-tour="inventory-export-stock-button"
-                >
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
                   <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                  Export Ledger
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stockBalance?.data?.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
-                      <div>Product Name</div>
-                      <div className="text-center">SKU</div>
-                      <div className="text-center">Current Stock</div>
-                      <div className="text-center">Unit Price</div>
-                      <div className="text-center">Total Value</div>
-                      <div className="text-center">Status</div>
-                    </div>
-                    {stockBalance.data.map((product: any, index: number) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-light">{product.name}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">
-                            {product.sku}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{product.currentStock}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">₹{product.price}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">₹{product.value}</p>
-                        </div>
-                        <div className="text-center">
-                          <Badge
-                            variant={
-                              product.status === "In Stock"
-                                ? "default"
-                                : product.status === "Low Stock"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                          >
-                            {product.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No stock data available
-                  </div>
-                )}
-              </div>
+            <CardContent className="p-0">
+              <DataTable 
+                columns={stockColumns} 
+                data={stockBalance?.data || []} 
+                loading={stockBalanceLoading}
+                searchPlaceholder="Search product by name or SKU..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Vendor Analysis Report */}
-        <TabsContent value="vendor-analysis">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-5 w-5" />
-                  <span>Vendor Performance Analysis</span>
+        <TabsContent value="vendors" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  Supplier Performance Registry
                 </div>
-                <Button
-                  onClick={handleExportVendorHistory}
-                  size="sm"
-                  variant="outline"
-                  data-tour="inventory-export-vendor-button"
-                >
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
                   <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                  Export History
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {vendorHistory?.data?.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
-                      <div>Vendor Name</div>
-                      <div className="text-center">Total Orders</div>
-                      <div className="text-center">Total Value</div>
-                      <div className="text-center">On-Time Delivery</div>
-                      <div className="text-center">Quality Rating</div>
-                      <div className="text-center">Performance</div>
-                    </div>
-                    {vendorHistory.data.map((vendor: any, index: number) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-light">{vendor.name}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{vendor.totalOrders}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">₹{vendor.totalValue}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{vendor.onTimeDelivery}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{vendor.qualityRating}</p>
-                        </div>
-                        <div className="text-center">
-                          <Badge variant="default">Good</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No vendor data available
-                  </div>
-                )}
-              </div>
+            <CardContent className="p-0">
+              <DataTable 
+                columns={vendorColumns} 
+                data={vendorHistory?.data || []} 
+                loading={vendorHistoryLoading}
+                searchPlaceholder="Search vendor..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Reorder Forecast Report */}
-        <TabsContent value="reorder-forecast">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-5 w-5" />
-                  <span>Reorder Forecast & Recommendations</span>
+        <TabsContent value="forecast" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-slate-400" />
+                  Predictive Reorder Analysis
                 </div>
-                <Button
-                  onClick={handleExportReorderForecast}
-                  size="sm"
-                  variant="outline"
-                >
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
                   <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                  Export Forecast
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {reorderForecast?.data?.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
-                      <div>Product Name</div>
-                      <div className="text-center">Current Stock</div>
-                      <div className="text-center">Minimum Level</div>
-                      <div className="text-center">Suggested Order</div>
-                      <div className="text-center">Days Until Stockout</div>
-                      <div className="text-center">Priority</div>
-                    </div>
-                    {reorderForecast.data.map((item: any, index: number) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-6 gap-4 p-4 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-light">{item.name}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{item.currentStock}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">{item.lowStockThreshold}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">
-                            {item.recommendedReorder}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-light">
-                            {item.estimatedDaysToStockout}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <Badge
-                            variant={
-                              item.urgency === "High"
-                                ? "destructive"
-                                : item.urgency === "Medium"
-                                ? "secondary"
-                                : "default"
-                            }
-                          >
-                            {item.urgency}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No reorder recommendations available
-                  </div>
-                )}
-              </div>
+            <CardContent className="p-0">
+              <DataTable 
+                columns={forecastColumns} 
+                data={reorderForecast?.data || []} 
+                loading={reorderForecastLoading}
+                searchPlaceholder="Search items..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Analytics Report */}
-        <TabsContent value="analytics">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <BarChart3 className="h-5 w-5" />
-                  <span>Inventory Analytics</span>
+        <TabsContent value="analytics" className="mt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-none shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-base font-medium text-slate-800">Inventory Turn-over Velocity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-100 border-dashed">
+                  <span className="text-slate-400 text-sm">Consumption chart placeholder</span>
                 </div>
-                <Button
-                  onClick={handleExportAnalytics}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Category Breakdown */}
-                {analytics?.categoryBreakdown?.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-4">Category Breakdown</h3>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
-                        <div>Category</div>
-                        <div className="text-center">Products</div>
-                        <div className="text-center">Total Value</div>
-                        <div className="text-center">Percentage</div>
-                      </div>
-                      {analytics.categoryBreakdown.map(
-                        (category: any, index: number) => (
-                          <div
-                            key={index}
-                            className="grid grid-cols-4 gap-4 p-4 border rounded-lg"
-                          >
-                            <div>
-                              <p className="font-light">{category.category}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="font-light">{category.items}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="font-light">₹{category.value}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="font-light">
-                                {(
-                                  (parseFloat(category.value) /
-                                    analytics.totalInventoryValue) *
-                                  100
-                                ).toFixed(1)}
-                                %
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Top Selling Products */}
-                {analytics?.topSellingProducts?.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-4">Top Selling Products</h3>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm">
-                        <div>Product Name</div>
-                        <div className="text-center">Units Sold</div>
-                        <div className="text-center">Revenue</div>
-                        <div className="text-center">Growth</div>
-                      </div>
-                      {analytics.topSellingProducts.map(
-                        (product: any, index: number) => (
-                          <div
-                            key={index}
-                            className="grid grid-cols-4 gap-4 p-4 border rounded-lg"
-                          >
-                            <div>
-                              <p className="font-light">{product.name}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="font-light">
-                                {product.outboundQty}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="font-light">
-                                ₹{(product.outboundQty * 100).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <Badge variant="default">+5%</Badge>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-base font-medium text-slate-800">Category Valuation Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-100 border-dashed">
+                  <span className="text-slate-400 text-sm">Category chart placeholder</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }

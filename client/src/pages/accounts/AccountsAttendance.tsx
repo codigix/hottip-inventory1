@@ -526,16 +526,16 @@ export default function AccountsAttendance() {
   const tabRecords = getTabRecords(activeTab);
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-attendance-header">
         <div>
           <h1
-            className="text-3xl font-bold text-foreground"
+            className="text-3xl  text-foreground"
             data-testid="page-title"
           >
             Accounts Attendance
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Track and manage team attendance records
           </p>
         </div>
@@ -932,20 +932,20 @@ export default function AccountsAttendance() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Team Size</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl font-bold"
+                className="text-2xl "
                 data-testid="metric-team-size"
               >
                 {teamSize}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Active employees</p>
+            <p className="text-xs text-gray-500">Active employees</p>
           </CardContent>
         </Card>
 
@@ -959,13 +959,13 @@ export default function AccountsAttendance() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl font-bold text-green-600"
+                className="text-2xl  text-green-600"
                 data-testid="metric-present-today"
               >
                 {presentToday}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {teamSize > 0
                 ? `${Math.round(attendanceRate)}% attendance`
                 : "0% attendance"}
@@ -976,20 +976,20 @@ export default function AccountsAttendance() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Avg. Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl font-bold"
+                className="text-2xl "
                 data-testid="metric-avg-hours"
               >
                 {avgHours}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Hours per day</p>
+            <p className="text-xs text-gray-500">Hours per day</p>
           </CardContent>
         </Card>
 
@@ -1003,13 +1003,13 @@ export default function AccountsAttendance() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl font-bold text-orange-600"
+                className="text-2xl  text-orange-600"
                 data-testid="metric-late-arrivals"
               >
                 {lateArrivalsThisWeek}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">This week</p>
+            <p className="text-xs text-gray-500">This week</p>
           </CardContent>
         </Card>
       </div>
@@ -1018,7 +1018,7 @@ export default function AccountsAttendance() {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
             <Input
               placeholder="Search employees or locations..."
               className="pl-8"
@@ -1118,11 +1118,11 @@ export default function AccountsAttendance() {
                 </div>
               ) : tabRecords.length === 0 ? (
                 <div className="text-center py-12">
-                  <ClockIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
+                  <ClockIcon className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg  mb-2">
                     No Attendance Records
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-gray-500">
                     {activeTab === "all"
                       ? "No attendance records found for the selected criteria."
                       : `No ${activeTab} records found for the selected criteria.`}
@@ -1499,7 +1499,7 @@ export default function AccountsAttendance() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Employee
                   </Label>
                   <p className="font-light" data-testid="view-employee">
@@ -1508,7 +1508,7 @@ export default function AccountsAttendance() {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Date</Label>
+                  <Label className="text-sm text-gray-500">Date</Label>
                   <p className="font-light" data-testid="view-date">
                     {format(new Date(selectedAttendance.date), "MMM dd, yyyy")}
                   </p>
@@ -1517,7 +1517,7 @@ export default function AccountsAttendance() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Check In
                   </Label>
                   <p className="font-light" data-testid="view-check-in">
@@ -1527,7 +1527,7 @@ export default function AccountsAttendance() {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Check Out
                   </Label>
                   <p className="font-light" data-testid="view-check-out">
@@ -1540,7 +1540,7 @@ export default function AccountsAttendance() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Status
                   </Label>
                   <div className="mt-1">
@@ -1557,7 +1557,7 @@ export default function AccountsAttendance() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Location
                   </Label>
                   <p className="font-light" data-testid="view-location">
@@ -1568,7 +1568,7 @@ export default function AccountsAttendance() {
 
               {selectedAttendance.checkIn && selectedAttendance.checkOut && (
                 <div>
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-sm text-gray-500">
                     Total Hours
                   </Label>
                   <p
@@ -1588,7 +1588,7 @@ export default function AccountsAttendance() {
 
               {selectedAttendance.notes && (
                 <div>
-                  <Label className="text-sm text-muted-foreground">Notes</Label>
+                  <Label className="text-sm text-gray-500">Notes</Label>
                   <p className="mt-1" data-testid="view-notes">
                     {selectedAttendance.notes}
                   </p>

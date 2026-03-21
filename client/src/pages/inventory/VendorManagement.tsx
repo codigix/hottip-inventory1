@@ -2,22 +2,53 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger, 
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StartTourButton } from "@/components/StartTourButton";
-import { inventoryVendorManagementTour } from "@/components/tours/dashboardTour";
-import { Building2, Phone, Mail, MessageSquare, Calendar, Plus, Eye, Edit } from "lucide-react";
+import { 
+  Building2, 
+  Phone, 
+  Mail, 
+  MessageSquare, 
+  Calendar, 
+  Plus, 
+  Eye, 
+  Edit, 
+  Trash2,
+  Users,
+  Briefcase,
+  History,
+  BarChart3,
+  RefreshCw,
+  MoreHorizontal,
+  FileText,
+  MapPin,
+  ShieldCheck,
+  CreditCard,
+  LayoutGrid,
+  ClipboardList
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function VendorManagement() {
+  const { toast } = useToast();
+  
   // Communication form state
   const [commVendorId, setCommVendorId] = useState("");
   const [commType, setCommType] = useState("");
@@ -27,52 +58,10 @@ export default function VendorManagement() {
   const [commFollowUp, setCommFollowUp] = useState(false);
   const [isSavingComm, setIsSavingComm] = useState(false);
 
-  // Save communication handler
-  const handleSaveCommunication = async () => {
-    // Validate required fields
-    if (!commVendorId) {
-      toast({ title: "Error", description: "Vendor is required", variant: "destructive" });
-      return;
-    }
-    if (!commType) {
-      toast({ title: "Error", description: "Communication type is required", variant: "destructive" });
-      return;
-    }
-    if (!commSubject.trim()) {
-      toast({ title: "Error", description: "Subject is required", variant: "destructive" });
-      return;
-    }
-    if (!commNotes.trim()) {
-      toast({ title: "Error", description: "Notes are required", variant: "destructive" });
-      return;
-    }
-    if (!commDate) {
-      toast({ title: "Error", description: "Date is required", variant: "destructive" });
-      return;
-    }
-    setIsSavingComm(true);
-    try {
-      await apiRequest("POST", "/vendor-communications", {
-        vendorId: commVendorId,
-        message: `${commType}: ${commSubject}\n${commNotes}`,
-        communicationDate: commDate,
-        followUpRequired: commFollowUp,
-      });
-      setIsCommunicationDialogOpen(false);
-      setCommVendorId(""); setCommType(""); setCommSubject(""); setCommNotes(""); setCommDate(""); setCommFollowUp(false);
-      toast({ title: "Success", description: "Communication saved" });
-      queryClient.invalidateQueries({ queryKey: ["/vendor-communications"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to save communication", variant: "destructive" });
-    } finally {
-      setIsSavingComm(false);
-    }
-  };
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [editingVendor, setEditingVendor] = useState<any>(null);
-  const { toast } = useToast();
 
   // Vendor form state
   const [vendorName, setVendorName] = useState('');
@@ -88,46 +77,38 @@ export default function VendorManagement() {
   const [vendorIsActive, setVendorIsActive] = useState(true);
 
   const resetVendorForm = () => {
-    setVendorName('');
-    setVendorContactPerson('');
-    setVendorEmail('');
-    setVendorPhone('');
-    setVendorGstNumber('');
-    setVendorPanNumber('');
-    setVendorAddress('');
-    setVendorPaymentTerms('30');
-    setVendorCreditLimit('');
-    setVendorNotes('');
-    setVendorIsActive(true);
-    setEditingVendor(null);
+    setVendorName(''); setVendorContactPerson(''); setVendorEmail(''); setVendorPhone('');
+    setVendorGstNumber(''); setVendorPanNumber(''); setVendorAddress('');
+    setVendorPaymentTerms('30'); setVendorCreditLimit(''); setVendorNotes('');
+    setVendorIsActive(true); setEditingVendor(null);
   };
 
-  // Vendor mutations (CRUD)
+  // Vendor mutations
   const createVendorMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('POST', '/suppliers', data),
+    mutationFn: async (data: any) => apiRequest('POST', '/api/suppliers', data),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Vendor created' });
-      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
-      setIsVendorDialogOpen(false);
-      resetVendorForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      setIsVendorDialogOpen(false); resetVendorForm();
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to create vendor', variant: 'destructive' })
   });
+
   const updateVendorMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('PUT', `/suppliers/${data.id}`, data.patch),
+    mutationFn: async (data: any) => apiRequest('PUT', `/api/suppliers/${data.id}`, data.patch),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Vendor updated' });
-      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
-      setIsVendorDialogOpen(false);
-      resetVendorForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      setIsVendorDialogOpen(false); resetVendorForm();
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to update vendor', variant: 'destructive' })
   });
+
   const deleteVendorMutation = useMutation({
-    mutationFn: async (id: any) => apiRequest('DELETE', `/suppliers/${id}`),
+    mutationFn: async (id: any) => apiRequest('DELETE', `/api/suppliers/${id}`),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Vendor deleted' });
-      queryClient.invalidateQueries({ queryKey: ['/suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message || 'Failed to delete vendor', variant: 'destructive' })
   });
@@ -139,8 +120,16 @@ export default function VendorManagement() {
     }
     const payload = {
       name: vendorName.trim(),
+      contactPerson: vendorContactPerson.trim(),
       contactEmail: vendorEmail.trim() || null,
       contactPhone: vendorPhone.trim() || null,
+      gstNumber: vendorGstNumber.trim(),
+      panNumber: vendorPanNumber.trim(),
+      address: vendorAddress.trim(),
+      paymentTerms: parseInt(vendorPaymentTerms),
+      creditLimit: vendorCreditLimit ? parseFloat(vendorCreditLimit) : 0,
+      notes: vendorNotes,
+      isActive: vendorIsActive
     };
     if (editingVendor) {
       updateVendorMutation.mutate({ id: editingVendor.id, patch: payload });
@@ -149,444 +138,241 @@ export default function VendorManagement() {
     }
   };
 
-  // Fetch vendors
-  const { data: vendors, isLoading: vendorsLoading } = useQuery({
-    queryKey: ["/suppliers"],
+  const { data: vendorsResponse, isLoading: vendorsLoading } = useQuery({
+    queryKey: ["/api/suppliers"],
+    queryFn: async () => apiRequest("GET", "/api/suppliers"),
   });
 
-  // Fetch vendor communications
-  const { data: communications, isLoading: communicationsLoading } = useQuery({
-    queryKey: ["/vendor-communications"],
+  const { data: communicationsResponse, isLoading: communicationsLoading } = useQuery({
+    queryKey: ["/api/vendor-communications"],
+    queryFn: async () => apiRequest("GET", "/api/vendor-communications"),
   });
 
-  // Vendor columns
+  const vendors = Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : (Array.isArray(vendorsResponse) ? vendorsResponse : []);
+  const communications = Array.isArray(communicationsResponse?.data) ? communicationsResponse.data : (Array.isArray(communicationsResponse) ? communicationsResponse : []);
+
+  const metrics = [
+    { label: "Active Vendors", value: vendors.filter((v: any) => v.isActive !== false).length, icon: Building2, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Pending Tasks", value: communications.filter((c: any) => c.followUpRequired).length, icon: MessageSquare, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Recent Comms", value: communications.length, icon: History, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Active Terms", value: vendors.filter((v: any) => v.paymentTerms).length, icon: CreditCard, color: "text-slate-600", bg: "bg-slate-50" },
+  ];
+
   const vendorColumns = [
     {
       key: "name",
-      header: "Vendor Name",
+      header: "Vendor Profile",
       cell: (vendor: any) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-            <Building2 className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+            <Building2 className="h-4 w-4 text-slate-400" />
           </div>
-          <div>
-            <p className="font-light">{vendor.name}</p>
-            <p className="text-sm text-muted-foreground">{vendor.contactPerson}</p>
+          <div className="flex flex-col">
+            <span className="font-medium text-slate-900">{vendor.name}</span>
+            <span className="text-xs text-slate-500 uppercase tracking-tight">{vendor.contactPerson || 'No Contact Person'}</span>
           </div>
         </div>
       ),
     },
     {
-      key: "email",
-      header: "Contact",
-      cell: (vendor: any) => {
-        const email = vendor.email || vendor.contactEmail;
-        const phone = vendor.phone || vendor.contactPhone;
-        return (
-          <div>
-            {email && (
-              <div className="flex items-center space-x-1 text-sm">
-                <Mail className="h-3 w-3" />
-                <span>{email}</span>
-              </div>
-            )}
-            {phone && (
-              <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                <Phone className="h-3 w-3" />
-                <span>{phone}</span>
-              </div>
-            )}
+      key: "contact",
+      header: "Channels",
+      cell: (vendor: any) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <Mail className="h-3 w-3 text-slate-400" />
+            <span>{vendor.contactEmail || vendor.email || 'N/A'}</span>
           </div>
-        );
-      },
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Phone className="h-3 w-3 text-slate-400" />
+            <span>{vendor.contactPhone || vendor.phone || 'N/A'}</span>
+          </div>
+        </div>
+      ),
     },
     {
-      key: "gstNumber",
-      header: "GST Number",
+      key: "compliance",
+      header: "Tax ID",
+      cell: (vendor: any) => (
+        <div className="flex flex-col">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">GSTIN</span>
+          <span className="font-mono text-[11px] text-slate-600">{vendor.gstNumber || 'N/A'}</span>
+        </div>
+      ),
     },
     {
       key: "paymentTerms",
-      header: "Payment Terms",
-      cell: (vendor: any) => (vendor.paymentTerms != null ? `${vendor.paymentTerms} days` : '-'),
+      header: "Terms",
+      cell: (vendor: any) => (
+        <Badge variant="outline" className="font-medium text-[10px] bg-slate-50 text-slate-600 border-slate-200">
+          {vendor.paymentTerms ?? '30'} DAYS
+        </Badge>
+      ),
     },
     {
       key: "isActive",
       header: "Status",
-      cell: (vendor: any) => {
-        const isActive = vendor.isActive !== false; // default to active when undefined
-        return (
-          <Badge variant={isActive ? "default" : "secondary"}>
-            {isActive ? "Active" : "Inactive"}
-          </Badge>
-        );
-      },
-    }
-  ];
-
-  // Communication columns
-  const communicationColumns = [
-    {
-      key: "type",
-      header: "Type",
-      cell: (comm: any) => (
-        <Badge variant="outline" className="capitalize">
-          {comm.type.replace('_', ' ')}
+      cell: (vendor: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal px-2.5 py-0.5",
+            vendor.isActive !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+          )}
+        >
+          {vendor.isActive !== false ? "Active" : "Archived"}
         </Badge>
       ),
     },
     {
-      key: "subject",
-      header: "Subject",
-    },
-    {
-      key: "supplier.name",
-      header: "Vendor",
-    },
-    {
-      key: "status",
-      header: "Status",
-      cell: (comm: any) => (
-        <Badge variant={comm.status === 'completed' ? 'default' : 'outline'}>
-          {comm.status.charAt(0).toUpperCase() + comm.status.slice(1)}
-        </Badge>
-      ),
-    },
-    {
-      key: "scheduledDate",
-      header: "Date",
-      cell: (comm: any) => comm.scheduledDate ? new Date(comm.scheduledDate).toLocaleDateString() : '-',
-    },
-    {
-      key: "followUpRequired",
-      header: "Follow-up",
-      cell: (comm: any) => comm.followUpRequired ? (
-        <Badge variant="outline" className="text-orange-600">
-          Required
-        </Badge>
-      ) : null,
-    }
-  ];
-
-  if (vendorsLoading) {
-    return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
-          <Skeleton className="h-96" />
+      key: "actions",
+      header: "Actions",
+      cell: (vendor: any) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+            onClick={() => {
+              setEditingVendor(vendor);
+              setVendorName(vendor.name || ''); setVendorEmail(vendor.contactEmail || vendor.email || '');
+              setVendorPhone(vendor.contactPhone || vendor.phone || ''); setVendorContactPerson(vendor.contactPerson || '');
+              setVendorGstNumber(vendor.gstNumber || ''); setVendorPanNumber(vendor.panNumber || '');
+              setVendorAddress(vendor.address || ''); setVendorPaymentTerms(String(vendor.paymentTerms ?? '30'));
+              setVendorCreditLimit(String(vendor.creditLimit ?? '')); setVendorNotes(vendor.notes || '');
+              setVendorIsActive(vendor.isActive !== false); setIsVendorDialogOpen(true);
+            }}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+            onClick={() => {
+              if (window.confirm('Delete this vendor profile?')) deleteVendorMutation.mutate(vendor.id);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
-      </main>
-    );
-  }
-
-  const vendorsArray = Array.isArray(vendors) ? vendors : (vendors?.suppliers || []);
-  const activeVendors = (vendorsArray || []).filter((v: any) => v.isActive !== false).length;
-  const totalCommunications = (communications || []).length;
-  const pendingFollowUps = (communications || []).filter((c: any) => c.followUpRequired).length;
+      ),
+    },
+  ];
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8" data-tour="inventory-vendor-header">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Vendor Management</h1>
-          <p className="text-muted-foreground">Manage vendor relationships and communication history</p>
+          <h1 className="text-xl  text-slate-900 ">Vendor Management</h1>
+          <p className="text-xs text-slate-500">Maintain long-term relationships and compliance records for your supplier network.</p>
         </div>
-        <div className="flex items-center space-x-4">
-          <StartTourButton tourConfig={inventoryVendorManagementTour} tourName="inventory-vendor-management" />
-          <Dialog open={isVendorDialogOpen} onOpenChange={setIsVendorDialogOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-vendor" data-tour="inventory-add-vendor-button">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Vendor
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New Vendor</DialogTitle>
-                <DialogDescription>
-                  Enter the details of the new vendor to add to the system.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Vendor Name *</Label>
-                  <Input id="name" placeholder="Company name..." data-testid="input-vendor-name" value={vendorName} onChange={(e) => setVendorName(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="contactPerson">Contact Person</Label>
-                  <Input id="contactPerson" placeholder="Contact person..." value={vendorContactPerson} onChange={(e) => setVendorContactPerson(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="contact@vendor.com" value={vendorEmail} onChange={(e) => setVendorEmail(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="+91 98765 43210" value={vendorPhone} onChange={(e) => setVendorPhone(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="gstNumber">GST Number</Label>
-                  <Input id="gstNumber" placeholder="GST registration number" value={vendorGstNumber} onChange={(e) => setVendorGstNumber(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="panNumber">PAN Number</Label>
-                  <Input id="panNumber" placeholder="PAN number" value={vendorPanNumber} onChange={(e) => setVendorPanNumber(e.target.value)} />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea id="address" placeholder="Full address..." value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="paymentTerms">Payment Terms (Days)</Label>
-                  <Input id="paymentTerms" type="number" value={vendorPaymentTerms} onChange={(e) => setVendorPaymentTerms(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="creditLimit">Credit Limit</Label>
-                  <Input id="creditLimit" type="number" placeholder="0" value={vendorCreditLimit} onChange={(e) => setVendorCreditLimit(e.target.value)} />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" placeholder="Additional notes..." value={vendorNotes} onChange={(e) => setVendorNotes(e.target.value)} />
-                </div>
-                <div className="col-span-2 flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsVendorDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button data-testid="button-save-vendor" onClick={handleSaveVendor} disabled={createVendorMutation.isPending || updateVendorMutation.isPending}>
-                    {editingVendor ? (updateVendorMutation.isPending ? 'Saving...' : 'Save Changes') : (createVendorMutation.isPending ? 'Adding...' : 'Add Vendor')}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isCommunicationDialogOpen} onOpenChange={setIsCommunicationDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-add-communication" data-tour="inventory-log-communication-button">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Log Communication
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Log Communication</DialogTitle>
-                <DialogDescription>
-                  Record a new communication entry for a vendor.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="vendor">Vendor</Label>
-                  <Select value={commVendorId} onValueChange={setCommVendorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vendor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Array.isArray(vendors) ? vendors : vendors?.suppliers || []).map((vendor: any) => (
-                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                          {vendor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="communicationType">Communication Type</Label>
-                  <Select value={commType} onValueChange={setCommType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="phone">Phone Call</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="quote_request">Quote Request</SelectItem>
-                      <SelectItem value="order">Order</SelectItem>
-                      <SelectItem value="complaint">Complaint</SelectItem>
-                      <SelectItem value="follow_up">Follow-up</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="Communication subject..." value={commSubject} onChange={e => setCommSubject(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="commNotes">Notes</Label>
-                  <Textarea id="commNotes" placeholder="Communication details..." value={commNotes} onChange={e => setCommNotes(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="scheduledDate">Date</Label>
-                  <Input id="scheduledDate" type="datetime-local" value={commDate} onChange={e => setCommDate(e.target.value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="followUpRequired" checked={commFollowUp} onChange={e => setCommFollowUp(e.target.checked)} />
-                  <Label htmlFor="followUpRequired">Follow-up required</Label>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsCommunicationDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button data-testid="button-save-communication" onClick={handleSaveCommunication} disabled={isSavingComm || !commVendorId || !commType || !commSubject || !commNotes || !commDate}>
-                    {isSavingComm ? "Saving..." : "Save Communication"}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 h-10 px-4" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] })}>
+            <RefreshCw className="h-4 w-4 mr-2 text-slate-400" />
+            Sync Registry
+          </Button>
+          <Button className="bg-primary hover:bg-primary text-white shadow-sm h-10 px-4" onClick={() => { resetVendorForm(); setIsVendorDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Vendor
+          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
+              </div>
               <div>
-                <p className="text-sm font-light text-muted-foreground">Active Vendors</p>
-                <p className="text-2xl font-bold text-foreground">{activeVendors}</p>
+                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Communications</p>
-                <p className="text-2xl font-bold text-foreground">{totalCommunications}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Pending Follow-ups</p>
-                <p className="text-2xl font-bold text-foreground">{pendingFollowUps}</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="vendors" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="vendors">Vendor Directory</TabsTrigger>
-          <TabsTrigger value="communications">Communication History</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="vendors" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Building2 className="h-5 w-5" />
-                <span>Vendor Directory</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                data={vendorsArray}
-                columns={vendorColumns}
-                searchable={true}
-                searchKey="name"
-                onEdit={(vendor) => {
-                  setEditingVendor(vendor);
-                  setVendorName(vendor.name || '');
-                  setVendorEmail(vendor.contactEmail || vendor.email || '');
-                  setVendorPhone(vendor.contactPhone || vendor.phone || '');
-                  setVendorContactPerson(vendor.contactPerson || '');
-                  setVendorGstNumber(vendor.gstNumber || '');
-                  setVendorPanNumber(vendor.panNumber || '');
-                  setVendorAddress(vendor.address || '');
-                  setVendorPaymentTerms(String(vendor.paymentTerms ?? '30'));
-                  setVendorCreditLimit(String(vendor.creditLimit ?? ''));
-                  setVendorNotes(vendor.notes || '');
-                  setVendorIsActive(vendor.isActive !== false);
-                  setIsVendorDialogOpen(true);
-                }}
-                onView={(vendor) => {
-                  setSelectedVendor(vendor);
-                }}
-                onDelete={(vendor) => {
-                  if (!vendor?.id) return;
-                  deleteVendorMutation.mutate(vendor.id);
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="communications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5" />
-                <span>Communication History</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {communicationsLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
-                  ))}
-                </div>
-              ) : (
-                <DataTable
-                  data={communications || []}
-                  columns={communicationColumns}
-                  searchable={true}
-                  searchKey="subject"
-                  onView={() => { }}
-                  onEdit={() => { }}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Vendor performance metrics and ratings will be displayed here.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Communication Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Communication frequency and response time analytics.</p>
-              </CardContent>
-            </Card>
+      <div className="">
+        <div className="">
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-medium text-slate-800 flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-slate-400" />
+              Vendor Registry
+            </div>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-medium px-2 py-0.5 border-none">
+              {vendors.length} Total Vendors
+            </Badge>
           </div>
-        </TabsContent>
-      </Tabs>
-    </main>
+        </div>
+        <div className="p-0 mt-4">
+          <DataTable
+            data={vendors}
+            columns={vendorColumns}
+            loading={vendorsLoading}
+            searchPlaceholder="Search vendor name or contact..."
+          />
+        </div>
+      </div>
+
+      <Dialog open={isVendorDialogOpen} onOpenChange={setIsVendorDialogOpen}>
+        <DialogContent className="max-w-2xl border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-slate-900">{editingVendor ? 'Edit Vendor Profile' : 'New Vendor Registration'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-slate-700">Company Name *</Label>
+              <Input value={vendorName} onChange={e => setVendorName(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Primary Contact</Label>
+              <Input value={vendorContactPerson} onChange={e => setVendorContactPerson(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Business Email</Label>
+              <Input value={vendorEmail} onChange={e => setVendorEmail(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Contact Number</Label>
+              <Input value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">GSTIN</Label>
+              <Input value={vendorGstNumber} onChange={e => setVendorGstNumber(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">PAN Number</Label>
+              <Input value={vendorPanNumber} onChange={e => setVendorPanNumber(e.target.value)} className="border-slate-200" />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label className="text-slate-700">Registered Address</Label>
+              <Textarea value={vendorAddress} onChange={e => setVendorAddress(e.target.value)} className="border-slate-200 min-h-[80px]" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Payment Terms (Days)</Label>
+              <Select value={vendorPaymentTerms} onValueChange={setVendorPaymentTerms}>
+                <SelectTrigger className="border-slate-200"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Immediate / Cash</SelectItem>
+                  <SelectItem value="15">Net 15</SelectItem>
+                  <SelectItem value="30">Net 30</SelectItem>
+                  <SelectItem value="45">Net 45</SelectItem>
+                  <SelectItem value="60">Net 60</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 mt-4">
+            <Button variant="ghost" onClick={() => setIsVendorDialogOpen(false)} className="text-slate-600">Cancel</Button>
+            <Button onClick={handleSaveVendor} className="bg-primary hover:bg-primary text-white px-8">
+              {editingVendor ? 'Update Profile' : 'Save Vendor'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

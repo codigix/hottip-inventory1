@@ -45,10 +45,10 @@ const ChatRoomWithTour = () => {
   };
 
   return (
-    <div className="space-y-6 h-screen flex flex-col">
+    <div className="space-y-3 h-screen flex flex-col">
       {/* Header with Tour Button */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">ChatRoom</h1>
+        <h1 className="text-3xl ">ChatRoom</h1>
         <StartTourButton
           tourConfig={chatroomTourConfig}
           tourName="chatroomTourDone"
@@ -60,7 +60,7 @@ const ChatRoomWithTour = () => {
         
         {/* Channels Sidebar */}
         <div data-tour="chatroom-channels" className="md:col-span-1 border-r border-gray-200 p-4 overflow-y-auto bg-gray-50">
-          <h3 className="font-bold mb-4">Channels</h3>
+          <h3 className=" mb-4">Channels</h3>
           <div className="space-y-2">
             {channels.map((channel) => (
               <button
@@ -72,7 +72,7 @@ const ChatRoomWithTour = () => {
                     : 'bg-white text-gray-800 hover:bg-gray-100'
                 }`}
               >
-                <div className="font-medium"># {channel.name}</div>
+                <div className=""># {channel.name}</div>
                 <div className={`text-xs ${selectedChannel === channel.id ? 'text-blue-100' : 'text-gray-500'}`}>
                   {channel.members} members
                 </div>
@@ -85,7 +85,7 @@ const ChatRoomWithTour = () => {
         <div className="md:col-span-2 flex flex-col">
           {/* Messages Header */}
           <div className="border-b border-gray-200 p-4">
-            <h2 className="font-bold text-lg">
+            <h2 className=" text-lg">
               # {channels.find(c => c.id === selectedChannel)?.name}
             </h2>
           </div>
@@ -97,7 +97,7 @@ const ChatRoomWithTour = () => {
                 <div className="text-3xl">{msg.avatar}</div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="font-semibold">{msg.user}</span>
+                    <span className="">{msg.user}</span>
                     <span className="text-xs text-gray-500">{msg.timestamp}</span>
                   </div>
                   <p className="text-gray-700 mt-1">{msg.message}</p>
@@ -119,7 +119,7 @@ const ChatRoomWithTour = () => {
               />
               <button
                 onClick={handleSendMessage}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition "
               >
                 Send
               </button>
@@ -129,11 +129,11 @@ const ChatRoomWithTour = () => {
 
         {/* Members Sidebar */}
         <div data-tour="chatroom-members" className="hidden md:block md:col-span-1 border-l border-gray-200 p-4 bg-gray-50 overflow-y-auto">
-          <h3 className="font-bold mb-4">Active Members</h3>
+          <h3 className=" mb-4">Active Members</h3>
           <div className="space-y-2">
             {activeMembers.map((member) => (
               <div key={member.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer transition">
-                <div className={`w-3 h-3 rounded-full ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <div className={`w-3 h-3 rounded ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                 <span className="text-sm">{member.name}</span>
               </div>
             ))}

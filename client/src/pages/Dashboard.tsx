@@ -35,7 +35,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex items-center justify-center h-screen">
-      <div className="text-muted-foreground animate-pulse">Redirecting to your dashboard...</div>
+      <div className="text-gray-500 animate-pulse">Redirecting to your dashboard...</div>
     </div>
   );
 }

@@ -244,9 +244,9 @@ export default function VisitTable({
     return (
       <Card>
         <CardContent className="text-center py-8">
-          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Field Visits Found</h3>
-          <p className="text-muted-foreground">
+          <MapPin className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg  mb-2">No Field Visits Found</h3>
+          <p className="text-gray-500">
             No visits match your current filters. Try adjusting your search
             criteria.
           </p>
@@ -291,7 +291,7 @@ export default function VisitTable({
                         >
                           {visit.visitNumber}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-gray-500">
                           {getPurposeText(visit.purpose)}
                         </div>
                         {duration && (
@@ -309,7 +309,7 @@ export default function VisitTable({
                           {visit.lead?.firstName} {visit.lead?.lastName}
                         </div>
                         {visit.lead?.companyName && (
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-gray-500">
                             {visit.lead.companyName}
                           </div>
                         )}
@@ -318,7 +318,7 @@ export default function VisitTable({
 
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
                           {visit.assignedToUser?.firstName}{" "}
                           {visit.assignedToUser?.lastName}
@@ -329,7 +329,7 @@ export default function VisitTable({
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <Calendar className="h-4 w-4 text-gray-500" />
                           <span className="text-sm">
                             {format(
                               new Date(visit.plannedDate),
@@ -339,7 +339,7 @@ export default function VisitTable({
                         </div>
                         {visit.plannedStartTime && (
                           <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <Clock className="h-4 w-4 text-gray-500" />
                             <span className="text-sm">
                               {format(
                                 new Date(visit.plannedStartTime),
@@ -362,7 +362,7 @@ export default function VisitTable({
                     </TableCell>
 
                     <TableCell>
-                      <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                      <div className="text-sm text-gray-500 max-w-[200px] truncate">
                         {visit.visitAddress}
                         {visit.visitCity && `, ${visit.visitCity}`}
                       </div>
@@ -467,7 +467,7 @@ export default function VisitTable({
                 <div className="flex items-start justify-between mb-3">
                   <div className="space-y-1">
                     <div
-                      className="font-semibold"
+                      className=""
                       data-testid={`visit-number-${visit.visitNumber}`}
                     >
                       {visit.visitNumber}
@@ -548,25 +548,25 @@ export default function VisitTable({
 
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
+                    <User className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                     </span>
                     {visit.lead?.companyName && (
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-gray-500">
                         - {visit.lead.companyName}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm">
                       {format(new Date(visit.plannedDate), "MMM dd, yyyy")}
                     </span>
                     {visit.plannedStartTime && (
                       <>
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Clock className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
                           {format(new Date(visit.plannedStartTime), "hh:mm a")}
                         </span>
@@ -575,14 +575,14 @@ export default function VisitTable({
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-500">
                       {visit.visitAddress}
                       {visit.visitCity && `, ${visit.visitCity}`}
                     </span>
                   </div>
 
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-gray-500">
                     Purpose: {getPurposeText(visit.purpose)}
                   </div>
 
@@ -593,7 +593,7 @@ export default function VisitTable({
                     </div>
                   )}
 
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-gray-500">
                     Assigned to: {visit.assignedToUser?.firstName}{" "}
                     {visit.assignedToUser?.lastName}
                   </div>
@@ -690,11 +690,11 @@ export default function VisitTable({
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+            <DialogTitle className="flex items-center gap-2  text-slate-800 dark:text-slate-100">
               <FileText className="h-5 w-5 text-blue-500" />
               Field Visit Report - {selectedVisit?.visitNumber}
             </DialogTitle>
-            <DialogDescription className="text-slate-500 font-medium italic">
+            <DialogDescription className="text-slate-500  italic">
               Detailed information about the visit and activities
             </DialogDescription>
           </DialogHeader>
@@ -702,26 +702,26 @@ export default function VisitTable({
           {selectedVisit && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Date & Time</p>
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
+                  <p className="text-[10px] text-slate-500   ">Date & Time</p>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium">
+                    <span className="text-sm ">
                       {format(new Date(selectedVisit.plannedDate), "MMMM dd, yyyy")}
                     </span>
                   </div>
                   {selectedVisit.plannedStartTime && (
                     <div className="flex items-center gap-2 mt-1">
                       <Clock className="h-4 w-4 text-orange-500" />
-                      <span className="text-sm font-medium">
+                      <span className="text-sm ">
                         {format(new Date(selectedVisit.plannedStartTime), "hh:mm a")}
                       </span>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Status & Performance</p>
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
+                  <p className="text-[10px] text-slate-500   ">Status & Performance</p>
                   <div className="mt-1">
                     <Badge
                       variant={getStatusInfo(selectedVisit.status).variant}
@@ -733,14 +733,14 @@ export default function VisitTable({
                   {getVisitDuration(selectedVisit) && (
                     <div className="flex items-center gap-2 mt-1">
                       <Timer className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium">Duration: {getVisitDuration(selectedVisit)}</span>
+                      <span className="text-sm ">Duration: {getVisitDuration(selectedVisit)}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Customer / Lead</p>
-                  <p className="text-sm font-bold">
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
+                  <p className="text-[10px] text-slate-500   ">Customer / Lead</p>
+                  <p className="text-sm ">
                     {selectedVisit.lead?.firstName} {selectedVisit.lead?.lastName}
                   </p>
                   {selectedVisit.lead?.companyName && (
@@ -748,19 +748,19 @@ export default function VisitTable({
                   )}
                 </div>
 
-                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Assigned To</p>
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
+                  <p className="text-[10px] text-slate-500   ">Assigned To</p>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-emerald-500" />
-                    <span className="text-sm font-medium">
+                    <span className="text-sm ">
                       {selectedVisit.assignedToUser?.firstName} {selectedVisit.assignedToUser?.lastName}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Location & Address</p>
+              <div className="space-y-2 p-3 bg-slate-50 dark:bg-primary rounded-lg">
+                <p className="text-[10px] text-slate-500   ">Location & Address</p>
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
                   <span className="text-sm">
@@ -769,14 +769,14 @@ export default function VisitTable({
                   </span>
                 </div>
                 {selectedVisit.latitude && selectedVisit.longitude && (
-                  <p className="text-[10px] text-green-600 font-medium pl-6">
+                  <p className="text-[10px] text-green-600  pl-6">
                     GPS Coordinates: {selectedVisit.latitude}, {selectedVisit.longitude}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
-                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">VISIT PURPOSE & SUMMARY</p>
+              <div className="space-y-3 p-4 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">
+                <p className="text-[10px] text-slate-500    mb-2">VISIT PURPOSE & SUMMARY</p>
                 <div className="space-y-3">
                   {purposeLogs && purposeLogs.length > 0 ? (
                     purposeLogs
@@ -784,7 +784,7 @@ export default function VisitTable({
                       .map((log) => (
                         <div key={log.id} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-800 last:border-0">
                           <div className="space-y-1">
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            <p className="text-sm  text-slate-800 dark:text-slate-200">
                               {getPurposeText(log.purpose)}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -792,7 +792,7 @@ export default function VisitTable({
                               <span>{format(new Date(log.visitDate), "dd MMM yyyy")}</span>
                             </div>
                           </div>
-                          <div className="text-xs font-bold text-green-600 uppercase">
+                          <div className="text-xs  text-green-600 ">
                             {log.status}
                           </div>
                         </div>
@@ -800,14 +800,14 @@ export default function VisitTable({
                   ) : (
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-slate-400" />
-                      <p className="text-sm text-slate-500 italic">No visit purposes logged yet</p>
+                      <p className="text-xs text-slate-500 italic">No visit purposes logged yet</p>
                     </div>
                   )}
                 </div>
 
                 {selectedVisit.notes && (
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Current Visit Notes</p>
+                    <p className="text-[10px] text-slate-500    mb-1">Current Visit Notes</p>
                     <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                       {selectedVisit.notes}
                     </div>
@@ -818,7 +818,7 @@ export default function VisitTable({
               <div className="flex justify-end pt-4 border-t">
                 <Button 
                   onClick={() => setReportOpen(false)}
-                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6"
+                  className="bg-primary hover:bg-primary text-white  px-6"
                 >
                   Close Report
                 </Button>

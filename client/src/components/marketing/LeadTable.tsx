@@ -153,7 +153,7 @@ export default function LeadTable({
       <div className="space-y-4">
         {[...Array(5)].map((_, i) => (
           <Card key={i}>
-            <CardContent className="pt-6">
+            <CardContent className="">
               <div className="animate-pulse space-y-3">
                 <div className="h-4 bg-muted rounded w-3/4"></div>
                 <div className="h-3 bg-muted rounded w-1/2"></div>
@@ -170,13 +170,13 @@ export default function LeadTable({
   if (leads.length === 0) {
     return (
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="">
           <div className="text-center py-8">
-            <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <User className="h-12 w-12 text-gray-500 mx-auto mb-4" />
             <h3 className="text-lg font-light text-foreground mb-2">
               No leads found
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Get started by adding your first lead to the system.
             </p>
           </div>
@@ -212,11 +212,11 @@ export default function LeadTable({
                       {lead.firstName} {lead.lastName}
                     </div>
                     {lead.companyName && (
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-gray-500">
                         {lead.companyName}
                       </div>
                     )}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-gray-500">
                       Created{" "}
                       {lead.createdAt
                         ? format(new Date(lead.createdAt), "MM dd, yyyy")
@@ -230,18 +230,18 @@ export default function LeadTable({
                   <div className="space-y-1">
                     {lead.email && (
                       <div className="flex items-center text-sm">
-                        <Mail className="h-3 w-3 mr-1 text-muted-foreground" />
+                        <Mail className="h-3 w-3 mr-1 text-gray-500" />
                         {lead.email}
                       </div>
                     )}
                     {lead.phone && (
                       <div className="flex items-center text-sm">
-                        <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
+                        <Phone className="h-3 w-3 mr-1 text-gray-500" />
                         {lead.phone}
                       </div>
                     )}
                     {lead.city && (
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-gray-500">
                         <MapPin className="h-3 w-3 mr-1" />
                         {lead.city}
                       </div>
@@ -300,7 +300,7 @@ export default function LeadTable({
                       </span>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground italic">
+                    <span className="text-sm text-gray-500 italic">
                       {lead.assignedTo ? `User (${lead.assignedTo.slice(0, 8)})` : "Unassigned"}
                     </span>
                   )}
@@ -310,11 +310,11 @@ export default function LeadTable({
                 <TableCell>
                   {lead.lastContactedDate ? (
                     <div className="flex items-center text-sm">
-                      <Calendar className="h-3 w-3 mr-1 text-muted-foreground" />
+                      <Calendar className="h-3 w-3 mr-1 text-gray-500" />
                       {format(new Date(lead.lastContactedDate), "MMM dd")}
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">Never</span>
+                    <span className="text-sm text-gray-500">Never</span>
                   )}
                 </TableCell>
 

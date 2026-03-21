@@ -218,7 +218,7 @@ export default function AttendanceCalendar({
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <CardTitle
-                  className="text-lg font-semibold"
+                  className="text-lg "
                   data-testid="current-month"
                 >
                   {format(currentMonth, "MMMM yyyy")}
@@ -302,7 +302,7 @@ export default function AttendanceCalendar({
                   {getUserInitials(selectedUser)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-gray-500">
                 Viewing attendance for {selectedUser.firstName}{" "}
                 {selectedUser.lastName}
               </span>
@@ -318,7 +318,7 @@ export default function AttendanceCalendar({
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                 <div
                   key={day}
-                  className="text-center text-sm font-light text-muted-foreground py-2"
+                  className="text-center text-sm font-light text-gray-500 py-2"
                 >
                   {day}
                 </div>
@@ -359,9 +359,9 @@ export default function AttendanceCalendar({
                               className={`text-xs font-light ${
                                 isCurrentMonth
                                   ? isCurrentDay
-                                    ? "text-primary font-bold"
+                                    ? "text-primary "
                                     : "text-foreground"
-                                  : "text-muted-foreground"
+                                  : "text-gray-500"
                               }`}
                             >
                               {format(day, "d")}
@@ -370,7 +370,7 @@ export default function AttendanceCalendar({
                             {/* Status Indicator */}
                             {dayData.attendance.length > 0 && (
                               <div
-                                className={`text-xs rounded-full w-4 h-4 flex items-center justify-center ${
+                                className={`text-xs rounded w-4 h-4 flex items-center justify-center ${
                                   statusColors[
                                     primaryStatus as keyof typeof statusColors
                                   ] || "bg-gray-100 text-gray-800"
@@ -523,7 +523,7 @@ export default function AttendanceCalendar({
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-gray-500">
                               No attendance records
                             </p>
                           )}
@@ -547,7 +547,7 @@ export default function AttendanceCalendar({
           <div className="flex flex-wrap gap-4 text-xs">
             {Object.entries(statusColors).map(([status, colorClass]) => (
               <div key={status} className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full border ${colorClass}`}>
+                <div className={`w-3 h-3 rounded border ${colorClass}`}>
                   {statusIcons[status as keyof typeof statusIcons]}
                 </div>
                 <span className="capitalize">{status.replace("_", " ")}</span>

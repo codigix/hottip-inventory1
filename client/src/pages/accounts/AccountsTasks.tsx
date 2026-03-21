@@ -458,16 +458,16 @@ export default function AccountsTasks() {
   };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-tasks-header">
         <div>
           <h1
-            className="text-3xl font-bold text-foreground"
+            className="text-3xl  text-foreground"
             data-testid="page-title"
           >
             Accounts Tasks
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Assign and manage tasks for accounts staff
           </p>
         </div>
@@ -727,16 +727,16 @@ export default function AccountsTasks() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Total Tasks</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            <ClipboardList className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold"
+              className="text-2xl "
               data-testid="metric-total-tasks"
             >
               {totalTasks}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {tasksThisMonth} created this month
             </p>
           </CardContent>
@@ -749,12 +749,12 @@ export default function AccountsTasks() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-blue-600"
+              className="text-2xl  text-blue-600"
               data-testid="metric-in-progress"
             >
               {inProgressTasks}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {openTasks} open tasks pending
             </p>
           </CardContent>
@@ -767,12 +767,12 @@ export default function AccountsTasks() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-green-600"
+              className="text-2xl  text-green-600"
               data-testid="metric-completed"
             >
               {completedTasks}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {completionRate.toFixed(1)}% completion rate
             </p>
           </CardContent>
@@ -785,12 +785,12 @@ export default function AccountsTasks() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-red-600"
+              className="text-2xl  text-red-600"
               data-testid="metric-overdue"
             >
               {overdueTasks}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Require immediate attention
             </p>
           </CardContent>
@@ -804,7 +804,7 @@ export default function AccountsTasks() {
             <CardTitle>Task Management</CardTitle>
             <div className="flex items-center space-x-2">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search tasks or assignees..."
                   value={searchTerm}
@@ -923,7 +923,7 @@ export default function AccountsTasks() {
                     {filteredTasks.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
-                          <div className="text-muted-foreground">
+                          <div className="text-gray-500">
                             {searchTerm ||
                             statusFilter !== "all" ||
                             priorityFilter !== "all" ||
@@ -952,7 +952,7 @@ export default function AccountsTasks() {
                                 <span
                                   className={
                                     isOverdue
-                                      ? "text-red-600 font-semibold"
+                                      ? "text-red-600 "
                                       : ""
                                   }
                                 >
@@ -962,7 +962,7 @@ export default function AccountsTasks() {
                                   )}
                                 </span>
                                 {task.description && (
-                                  <span className="text-xs text-muted-foreground truncate max-w-xs">
+                                  <span className="text-xs text-gray-500 truncate max-w-xs">
                                     {task.description}
                                   </span>
                                 )}
@@ -983,7 +983,7 @@ export default function AccountsTasks() {
                             </TableCell>
                             <TableCell data-testid={`text-assignee-${task.id}`}>
                               <div className="flex items-center space-x-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
+                                <User className="h-4 w-4 text-gray-500" />
                                 <span>{assigneeName}</span>
                               </div>
                             </TableCell>
@@ -1003,11 +1003,11 @@ export default function AccountsTasks() {
                             <TableCell data-testid={`text-due-date-${task.id}`}>
                               {task.dueDate ? (
                                 <div className="flex items-center space-x-2">
-                                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                                  <CalendarDays className="h-4 w-4 text-gray-500" />
                                   <span
                                     className={
                                       isOverdue
-                                        ? "text-red-600 font-semibold"
+                                        ? "text-red-600 "
                                         : ""
                                     }
                                   >
@@ -1017,7 +1017,7 @@ export default function AccountsTasks() {
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">
+                                <span className="text-gray-500">
                                   No due date
                                 </span>
                               )}

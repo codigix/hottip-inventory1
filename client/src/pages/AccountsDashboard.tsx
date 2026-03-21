@@ -215,10 +215,10 @@ export default function AccountsDashboard() {
 
   if (invoicesLoading) {
     return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className=" mx-auto p-4">
         <div className="space-y-6">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -230,12 +230,12 @@ export default function AccountsDashboard() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8" data-tour="accounts-dashboard">
+    <main className=" mx-auto p-4" data-tour="accounts-dashboard">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="accounts-header">Accounts Dashboard</h1>
-          <p className="text-muted-foreground">Manage invoices, payments, and financial reports</p>
+          <h1 className="text-xl  text-foreground " data-tour="accounts-header">Accounts Dashboard</h1>
+          <p className="text-gray-500">Manage invoices, payments, and financial reports</p>
         </div>
         <div className="flex items-center space-x-2">
           <StartTourButton tourConfig={accountsFlowTour} tourName="accounts-flow-tour" />
@@ -450,13 +450,13 @@ export default function AccountsDashboard() {
       </div>
 
       {/* Financial Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-foreground">₹{totalRevenue.toLocaleString('en-IN')}</p>
+                <p className="text-sm font-light text-gray-500">Total Revenue</p>
+                <p className="text-xl  text-foreground">₹{totalRevenue.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-green-600 flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1" />
                   +12.5% from last month
@@ -473,8 +473,8 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Pending Payments</p>
-                <p className="text-2xl font-bold text-foreground">₹{pendingPayments.toLocaleString('en-IN')}</p>
+                <p className="text-sm font-light text-gray-500">Pending Payments</p>
+                <p className="text-xl  text-foreground">₹{pendingPayments.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <Clock className="h-3 w-3 mr-1" />
                   Requires follow-up
@@ -491,8 +491,8 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Invoices</p>
-                <p className="text-2xl font-bold text-foreground">{totalInvoices}</p>
+                <p className="text-sm font-light text-gray-500">Total Invoices</p>
+                <p className="text-xl  text-foreground">{totalInvoices}</p>
                 <p className="text-xs text-blue-600 flex items-center mt-1">
                   <FileText className="h-3 w-3 mr-1" />
                   This month
@@ -509,8 +509,8 @@ export default function AccountsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Overdue Invoices</p>
-                <p className="text-2xl font-bold text-foreground">{overdueInvoices}</p>
+                <p className="text-sm font-light text-gray-500">Overdue Invoices</p>
+                <p className="text-xl  text-foreground">{overdueInvoices}</p>
                 <p className="text-xs text-red-600 flex items-center mt-1">
                   <AlertCircle className="h-3 w-3 mr-1" />
                   Needs attention
@@ -524,7 +524,7 @@ export default function AccountsDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Invoices Table */}
         <div className="lg:col-span-3">
           <Card>
@@ -615,7 +615,7 @@ export default function AccountsDashboard() {
                 <p className="text-sm font-light text-foreground">
                   {invoices?.filter(i => i.status === 'paid').length || 0}
                 </p>
-                <p className="text-xs text-muted-foreground">invoices</p>
+                <p className="text-xs text-gray-500">invoices</p>
               </div>
             </div>
 
@@ -630,7 +630,7 @@ export default function AccountsDashboard() {
                 <p className="text-sm font-light text-foreground">
                   {invoices?.filter(i => i.status === 'sent' || i.status === 'draft').length || 0}
                 </p>
-                <p className="text-xs text-muted-foreground">invoices</p>
+                <p className="text-xs text-gray-500">invoices</p>
               </div>
             </div>
 
@@ -643,7 +643,7 @@ export default function AccountsDashboard() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-light text-foreground">{overdueInvoices}</p>
-                <p className="text-xs text-muted-foreground">invoices</p>
+                <p className="text-xs text-gray-500">invoices</p>
               </div>
             </div>
           </CardContent>
@@ -660,17 +660,17 @@ export default function AccountsDashboard() {
                 <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
                   <div>
                     <p className="text-sm font-light">{payment.customer?.name || 'Unknown Customer'}</p>
-                    <p className="text-xs text-muted-foreground">{payment.invoiceNumber}</p>
+                    <p className="text-xs text-gray-500">{payment.invoiceNumber}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-light">₹{parseFloat(payment.totalAmount).toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-500">
                       {new Date(payment.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
               )) || (
-                  <p className="text-muted-foreground text-center py-4">No recent payments</p>
+                  <p className="text-gray-500 text-center py-4">No recent payments</p>
                 )}
             </div>
           </CardContent>

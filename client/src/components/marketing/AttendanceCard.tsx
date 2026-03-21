@@ -163,7 +163,7 @@ export default function AttendanceCard({
                 {user ? (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user as any).name || "Unknown User") : "Unknown User"}
               </CardTitle>
               <p
-                className="text-xs text-muted-foreground"
+                className="text-xs text-gray-500"
                 data-testid={`attendance-role-${user?.id}`}
               >
                 {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) ||
@@ -204,7 +204,7 @@ export default function AttendanceCard({
         {/* Time Information */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="space-y-1">
-            <div className="flex items-center space-x-1 text-muted-foreground">
+            <div className="flex items-center space-x-1 text-gray-500">
               <Clock className="h-3 w-3" />
               <span>Check-in</span>
             </div>
@@ -216,7 +216,7 @@ export default function AttendanceCard({
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center space-x-1 text-muted-foreground">
+            <div className="flex items-center space-x-1 text-gray-500">
               <Clock className="h-3 w-3" />
               <span>Check-out</span>
             </div>
@@ -231,13 +231,13 @@ export default function AttendanceCard({
         {/* Work Duration and Status */}
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="text-center p-2 bg-muted/50 rounded">
-            <p className="text-muted-foreground">Duration</p>
+            <p className="text-gray-500">Duration</p>
             <p className="font-light" data-testid={`work-duration-${user?.id}`}>
               {getWorkDuration()}
             </p>
           </div>
           <div className="text-center p-2 bg-muted/50 rounded">
-            <p className="text-muted-foreground">Break</p>
+            <p className="text-gray-500">Break</p>
             <p
               className="font-light"
               data-testid={`break-duration-${user?.id}`}
@@ -246,7 +246,7 @@ export default function AttendanceCard({
             </p>
           </div>
           <div className="text-center p-2 bg-muted/50 rounded">
-            <p className="text-muted-foreground">Total Hours</p>
+            <p className="text-gray-500">Total Hours</p>
             <p className="font-light" data-testid={`total-hours-${user?.id}`}>
               {attendance.totalHours ? `${attendance.totalHours}h` : "0h"}
             </p>
@@ -323,7 +323,7 @@ export default function AttendanceCard({
             <div className="mt-3 space-y-3 text-xs">
               {/* Location Details */}
               <div className="space-y-2">
-                <h4 className="font-light text-muted-foreground">
+                <h4 className="font-light text-gray-500">
                   Location Information
                 </h4>
                 <div className="grid grid-cols-1 gap-2">
@@ -333,7 +333,7 @@ export default function AttendanceCard({
                       <div>
                         <p className="font-light">Check-in Location</p>
                         <p
-                          className="text-muted-foreground"
+                          className="text-gray-500"
                           data-testid={`checkin-location-${user?.id}`}
                         >
                           {getLocationText(
@@ -352,7 +352,7 @@ export default function AttendanceCard({
                       <div>
                         <p className="font-light">Check-out Location</p>
                         <p
-                          className="text-muted-foreground"
+                          className="text-gray-500"
                           data-testid={`checkout-location-${user?.id}`}
                         >
                           {getLocationText(
@@ -370,11 +370,11 @@ export default function AttendanceCard({
               {/* Work Description */}
               {attendance.workDescription && (
                 <div>
-                  <h4 className="font-light text-muted-foreground mb-1">
+                  <h4 className="font-light text-gray-500 mb-1">
                     Work Description
                   </h4>
                   <p
-                    className="text-muted-foreground"
+                    className="text-gray-500"
                     data-testid={`work-description-${user?.id}`}
                   >
                     {attendance.workDescription}
@@ -385,7 +385,7 @@ export default function AttendanceCard({
               {/* Statistics */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                 <div>
-                  <p className="text-muted-foreground">Visits</p>
+                  <p className="text-gray-500">Visits</p>
                   <p
                     className="font-light"
                     data-testid={`visit-count-${user?.id}`}
@@ -394,7 +394,7 @@ export default function AttendanceCard({
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Tasks</p>
+                  <p className="text-gray-500">Tasks</p>
                   <p
                     className="font-light"
                     data-testid={`tasks-completed-${user?.id}`}

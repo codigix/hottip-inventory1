@@ -61,25 +61,25 @@ const MasterSettings: React.FC = () => {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="admin-settings-header">Master Settings</h1>
-          <p className="text-muted-foreground">Manage global system settings and configuration for all departments.</p>
+          <h1 className="text-xl  text-foreground " data-tour="admin-settings-header">Master Settings</h1>
+          <p className="text-gray-500">Manage global system settings and configuration for all departments.</p>
         </div>
         <StartTourButton tourConfig={adminSettingsTour} tourName="admin-settings" />
       </div>
       <div className="bg-white rounded-xl shadow-lg p-6">
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load settings."}</div>
         ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block font-medium mb-1">GST Number</label>
+              <label className="block  mb-1">GST Number</label>
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="border rounded p-2 w-full"
                 placeholder="Enter GST number"
                 name="gstNumber"
                 value={form.gstNumber}
@@ -88,9 +88,9 @@ const MasterSettings: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-medium mb-1">Tax Rate (%)</label>
+              <label className="block  mb-1">Tax Rate (%)</label>
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="border rounded p-2 w-full"
                 type="number"
                 placeholder="18"
                 name="taxRate"
@@ -100,9 +100,9 @@ const MasterSettings: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-medium mb-1">Bank Account</label>
+              <label className="block  mb-1">Bank Account</label>
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="border rounded p-2 w-full"
                 placeholder="Bank name, IFSC, Account #"
                 name="bankAccount"
                 value={form.bankAccount}
@@ -111,9 +111,9 @@ const MasterSettings: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-medium mb-1">Default Payment Terms</label>
+              <label className="block  mb-1">Default Payment Terms</label>
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="border rounded p-2 w-full"
                 placeholder="30 days"
                 name="paymentTerms"
                 value={form.paymentTerms}

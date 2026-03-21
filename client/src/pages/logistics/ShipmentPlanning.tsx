@@ -305,7 +305,7 @@ export default function ShipmentPlanning() {
 
   if (isLoadingShipments) {
     return (
-      <div className="p-8 space-y-8">
+      <div className="p-4 space-y-3">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-4 gap-4">
           <Skeleton className="h-32" />
@@ -319,11 +319,11 @@ export default function ShipmentPlanning() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 space-y-3 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Shipment Planning</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl text-black mb-2">Shipment Planning</h1>
+          <p className="text-gray-500">
             Optimize routes and schedule future shipments
           </p>
         </div>
@@ -342,52 +342,52 @@ export default function ShipmentPlanning() {
 
         <TabsContent value="list" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 rounded-lg bg-blue-50">
                     <CalendarIcon className="h-5 w-5 text-blue-600" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                  <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-1">Upcoming Visits</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-xs text-gray-500 mb-1">Upcoming Visits</p>
+                <p className="text-2xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 rounded-lg bg-orange-50">
                     <Route className="h-5 w-5 text-orange-600" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                  <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-1">Optimized Routes</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-xs text-gray-500 mb-1">Optimized Routes</p>
+                <p className="text-2xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 rounded-lg bg-indigo-50">
                     <MapPin className="h-5 w-5 text-indigo-600" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                  <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-1">Active Clusters</p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-xs text-gray-500 mb-1">Active Clusters</p>
+                <p className="text-2xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 rounded-lg bg-green-50">
                     <Clock className="h-5 w-5 text-green-600" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-500">+0%</span>
+                  <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-1">Resource Utilization</p>
-                <p className="text-2xl font-bold">0%</p>
+                <p className="text-xs text-gray-500 mb-1">Resource Utilization</p>
+                <p className="text-2xl ">0%</p>
               </CardContent>
             </Card>
           </div>
@@ -395,7 +395,7 @@ export default function ShipmentPlanning() {
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input 
                   placeholder="Search by plan name or region..." 
                   value={searchTerm}
@@ -413,31 +413,31 @@ export default function ShipmentPlanning() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow className="hover:bg-transparent border-slate-200">
-                    <TableHead className="w-[180px] py-4 font-semibold text-slate-700">Consignment #</TableHead>
-                    <TableHead className="py-4 font-semibold text-slate-700">PO Number</TableHead>
-                    <TableHead className="py-4 font-semibold text-slate-700">Vendor</TableHead>
-                    <TableHead className="py-4 font-semibold text-slate-700">Route</TableHead>
-                    <TableHead className="py-4 font-semibold text-slate-700">Status</TableHead>
-                    <TableHead className="text-right py-4 font-semibold text-slate-700">Actions</TableHead>
+                    <TableHead className="w-[180px] py-4  text-slate-700">Consignment #</TableHead>
+                    <TableHead className="py-4  text-slate-700">PO Number</TableHead>
+                    <TableHead className="py-4  text-slate-700">Vendor</TableHead>
+                    <TableHead className="py-4  text-slate-700">Route</TableHead>
+                    <TableHead className="py-4  text-slate-700">Status</TableHead>
+                    <TableHead className="text-right py-4  text-slate-700">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredShipments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground italic">
+                      <TableCell colSpan={6} className="text-center py-12 text-gray-500 italic">
                         No approved shipments found for planning.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredShipments.map((shipment) => (
                       <TableRow key={shipment.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                        <TableCell className="font-bold text-primary py-4">{shipment.consignmentNumber}</TableCell>
-                        <TableCell className="py-4 font-medium">{shipment.poNumber || "N/A"}</TableCell>
-                        <TableCell className="py-4 font-medium">
+                        <TableCell className=" text-primary py-4">{shipment.consignmentNumber}</TableCell>
+                        <TableCell className="py-4 ">{shipment.poNumber || "N/A"}</TableCell>
+                        <TableCell className="py-4 ">
                           {getVendorName(shipment)}
                         </TableCell>
                         <TableCell className="py-4 text-xs">
@@ -507,7 +507,7 @@ export default function ShipmentPlanning() {
 
         <TabsContent value="analysis" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardHeader>
                 <CardTitle>Shipment Planning Performance</CardTitle>
                 <CardDescription>Weekly overview of planned vs completed shipments</CardDescription>
@@ -527,7 +527,7 @@ export default function ShipmentPlanning() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border-none  bg-card/50">
               <CardHeader>
                 <CardTitle>Shipment Mode Distribution</CardTitle>
                 <CardDescription>Breakdown of shipments by transport mode</CardDescription>
@@ -555,7 +555,7 @@ export default function ShipmentPlanning() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 border-none shadow-sm bg-card/50">
+            <Card className="md:col-span-2 border-none  bg-card/50">
               <CardHeader>
                 <CardTitle>Planning Activity Trend</CardTitle>
                 <CardDescription>Daily activity tracking for shipment planning</CardDescription>
@@ -601,7 +601,7 @@ export default function ShipmentPlanning() {
           <div className="bg-primary px-6 py-8 text-white sticky top-0 z-10">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-3xl font-bold mb-1 flex items-center">
+                <h2 className="text-3xl  mb-1 flex items-center">
                   <Package className="mr-3 h-8 w-8" />
                   {isReadOnly ? "View Shipment Plan" : "Shipment Planning"}
                 </h2>
@@ -609,39 +609,39 @@ export default function ShipmentPlanning() {
               </div>
               <div className="text-right">
                 <div className="bg-white/20 px-4 py-2 rounded-lg backdrop-blur-md">
-                  <p className="text-xs uppercase font-bold opacity-70">Plan Status</p>
-                  <p className="text-xl font-bold">{shipmentPlan.status || "Planned"}</p>
+                  <p className="text-xs   opacity-70">Plan Status</p>
+                  <p className="text-xl ">{shipmentPlan.status || "Planned"}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-8 bg-slate-50/50">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="p-4 bg-slate-50/50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Left Column: Basic Info & Timeline */}
-              <div className="md:col-span-1 space-y-8">
-                <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center">
+              <div className="md:col-span-1 space-y-3">
+                <section className="bg-white p-6 rounded-2xl border border-slate-100 ">
+                  <h3 className="text-sm  text-slate-400  mb-4 flex items-center">
                     <FileText className="mr-2 h-4 w-4 text-primary" /> Basic Information
                   </h3>
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Plan ID</Label>
+                      <Label className="text-xs  text-slate-500">Plan ID</Label>
                       <Input 
                         value={shipmentPlan.planId || ""} 
                         onChange={(e) => setShipmentPlan({...shipmentPlan, planId: e.target.value})}
-                        className="bg-slate-50 border-slate-100 font-bold"
+                        className="bg-slate-50 border-slate-100 "
                         disabled={isReadOnly}
                       />
                     </div>
                     <div className="space-y-1.5 pt-2 border-t border-slate-50">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-tighter mb-1">Vendor Details</p>
+                      <p className="text-xs  text-slate-500  tracking-tighter mb-1">Vendor Details</p>
                       <div className="flex flex-col space-y-0.5">
-                        <p className="font-bold text-slate-800 text-lg leading-tight">
+                        <p className=" text-slate-800 text-lg leading-tight">
                           {getVendorName(selectedShipment)}
                         </p>
                         {(selectedShipment?.supplier?.city || selectedShipment?.supplier?.address) && (
-                          <p className="text-xs text-muted-foreground flex items-center">
+                          <p className="text-xs text-gray-500 flex items-center">
                             <MapPin className="h-2 w-2 mr-1" />
                             {selectedShipment.supplier.city || selectedShipment.supplier.address}
                             {selectedShipment.supplier.country && `, ${selectedShipment.supplier.country}`}
@@ -655,7 +655,7 @@ export default function ShipmentPlanning() {
                     
                     <div className="grid grid-cols-2 gap-4 pt-2">
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Type</Label>
+                        <Label className="text-xs  text-slate-500">Type</Label>
                         <Select 
                           value={shipmentPlan.shipmentType} 
                           onValueChange={(v: any) => setShipmentPlan({...shipmentPlan, shipmentType: v})}
@@ -672,7 +672,7 @@ export default function ShipmentPlanning() {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Mode</Label>
+                        <Label className="text-xs  text-slate-500">Mode</Label>
                         <Select 
                           value={shipmentPlan.shipmentMode} 
                           onValueChange={(v: any) => setShipmentPlan({...shipmentPlan, shipmentMode: v})}
@@ -690,7 +690,7 @@ export default function ShipmentPlanning() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Incoterms</Label>
+                        <Label className="text-xs  text-slate-500">Incoterms</Label>
                         <Select 
                           value={shipmentPlan.incoterms} 
                           onValueChange={(v: any) => setShipmentPlan({...shipmentPlan, incoterms: v})}
@@ -706,7 +706,7 @@ export default function ShipmentPlanning() {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Forwarder</Label>
+                        <Label className="text-xs  text-slate-500">Forwarder</Label>
                         <Input 
                           value={shipmentPlan.forwarderAgent || ""} 
                           onChange={(e) => setShipmentPlan({...shipmentPlan, forwarderAgent: e.target.value})}
@@ -718,9 +718,9 @@ export default function ShipmentPlanning() {
                   </div>
                 </section>
 
-                <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm overflow-hidden relative">
-                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center">
+                <section className="bg-white p-6 rounded-2xl border border-slate-100  overflow-hidden relative">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded -mr-16 -mt-16 pointer-events-none"></div>
+                   <h3 className="text-sm  text-slate-400  mb-6 flex items-center">
                     <TrendingUp className="mr-2 h-4 w-4 text-primary" /> Shipment Timeline
                   </h3>
                   <div className="space-y-0 relative pl-4">
@@ -738,13 +738,13 @@ export default function ShipmentPlanning() {
                       { label: "Delivered", status: "pending", icon: CheckCircle2 }
                     ].map((step, idx) => (
                       <div key={idx} className="flex items-center space-x-4 mb-6 relative">
-                        <div className={`z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        <div className={`z-10 w-5 h-5 rounded border-2 flex items-center justify-center ${
                           step.status === "completed" ? "bg-primary border-primary text-white scale-125" : "bg-white border-slate-200"
                         }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${step.status === "completed" ? "bg-white" : "bg-slate-200"}`}></div>
+                          <div className={`w-1.5 h-1.5 rounded ${step.status === "completed" ? "bg-white" : "bg-slate-200"}`}></div>
                         </div>
                         <div className="flex-1">
-                          <p className={`text-sm font-bold ${step.status === "completed" ? "text-slate-800" : "text-slate-400"}`}>{step.label}</p>
+                          <p className={`text-sm  ${step.status === "completed" ? "text-slate-800" : "text-slate-400"}`}>{step.label}</p>
                         </div>
                       </div>
                     ))}
@@ -753,9 +753,9 @@ export default function ShipmentPlanning() {
               </div>
 
               {/* Middle & Right Column: Freight Details */}
-              <div className="md:col-span-2 space-y-8">
+              <div className="md:col-span-2 space-y-3">
                 {/* Specific Freight Details based on Type */}
-                <section className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative">
+                <section className="bg-white p-4 rounded-2xl border border-slate-100  relative">
                   {shipmentPlan.shipmentType === "Sea" && (
                     <div className="animate-in slide-in-from-right-4 duration-500">
                       <div className="flex items-center mb-6 border-b border-slate-50 pb-4">
@@ -763,18 +763,18 @@ export default function ShipmentPlanning() {
                           <Ship className="h-6 w-6 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-800">Sea Freight Details</h3>
-                          <p className="text-sm text-slate-500 italic">Container shipping and port information</p>
+                          <h3 className="text-xl  text-slate-800">Sea Freight Details</h3>
+                          <p className="text-xs text-slate-500 italic">Container shipping and port information</p>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Vessel Info</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Vessel Info</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Shipping Line</Label>
+                                <Label className="text-slate-600 ">Shipping Line</Label>
                                 <Input 
                                   value={shipmentPlan.shippingLine || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, shippingLine: e.target.value})}
@@ -782,7 +782,7 @@ export default function ShipmentPlanning() {
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Vessel Name</Label>
+                                <Label className="text-slate-600 ">Vessel Name</Label>
                                 <Input 
                                   value={shipmentPlan.vesselName || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, vesselName: e.target.value})}
@@ -790,7 +790,7 @@ export default function ShipmentPlanning() {
                               </div>
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-slate-600 font-medium">Voyage Number</Label>
+                              <Label className="text-slate-600 ">Voyage Number</Label>
                               <Input 
                                 value={shipmentPlan.voyageNumber || ""} 
                                 onChange={(e) => setShipmentPlan({...shipmentPlan, voyageNumber: e.target.value})}
@@ -800,18 +800,18 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Container details</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Container details</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Container #</Label>
+                                <Label className="text-slate-600 ">Container #</Label>
                                 <Input 
                                   value={shipmentPlan.containerNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, containerNumber: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Type</Label>
+                                <Label className="text-slate-600 ">Type</Label>
                                 <Select 
                                   value={shipmentPlan.containerType} 
                                   onValueChange={(v: any) => setShipmentPlan({...shipmentPlan, containerType: v})}
@@ -828,14 +828,14 @@ export default function ShipmentPlanning() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Seal Number</Label>
+                                <Label className="text-slate-600 ">Seal Number</Label>
                                 <Input 
                                   value={shipmentPlan.sealNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, sealNumber: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">BL Number</Label>
+                                <Label className="text-slate-600 ">BL Number</Label>
                                 <Input 
                                   value={shipmentPlan.blNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, blNumber: e.target.value})}
@@ -845,12 +845,12 @@ export default function ShipmentPlanning() {
                           </div>
                         </div>
 
-                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-50">
+                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4  border-t border-slate-50">
                           <div className="space-y-4">
-                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Port Information</h4>
+                             <h4 className="text-xs  text-slate-400  tracking-widest">Port Information</h4>
                              <div className="space-y-3">
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium flex items-center">
+                                  <Label className="text-slate-600  flex items-center">
                                     <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Port of Loading
                                   </Label>
                                   <Input 
@@ -859,7 +859,7 @@ export default function ShipmentPlanning() {
                                   />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium flex items-center">
+                                  <Label className="text-slate-600  flex items-center">
                                     <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Port of Destination
                                   </Label>
                                   <Input 
@@ -870,10 +870,10 @@ export default function ShipmentPlanning() {
                              </div>
                           </div>
                           <div className="space-y-4">
-                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Transit Details</h4>
+                             <h4 className="text-xs  text-slate-400  tracking-widest">Transit Details</h4>
                              <div className="space-y-3">
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium flex items-center">
+                                  <Label className="text-slate-600  flex items-center">
                                     <CalendarIcon className="h-3 w-3 mr-1 text-slate-400" /> Departure Date
                                   </Label>
                                   <Input 
@@ -883,7 +883,7 @@ export default function ShipmentPlanning() {
                                   />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium flex items-center">
+                                  <Label className="text-slate-600  flex items-center">
                                     <Clock className="h-3 w-3 mr-1 text-slate-400" /> ETA (Arrival)
                                   </Label>
                                   <Input 
@@ -906,17 +906,17 @@ export default function ShipmentPlanning() {
                           <Plane className="h-6 w-6 text-orange-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-800">Air Freight Details</h3>
-                          <p className="text-sm text-slate-500 italic">Flight details and cargo measurements</p>
+                          <h3 className="text-xl  text-slate-800">Air Freight Details</h3>
+                          <p className="text-xs text-slate-500 italic">Flight details and cargo measurements</p>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Flight Info</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Flight Info</h4>
                           <div className="space-y-3">
                             <div className="space-y-1.5">
-                              <Label className="text-slate-600 font-medium">Airline Name</Label>
+                              <Label className="text-slate-600 ">Airline Name</Label>
                               <Input 
                                 value={shipmentPlan.airlineName || ""} 
                                 onChange={(e) => setShipmentPlan({...shipmentPlan, airlineName: e.target.value})}
@@ -924,14 +924,14 @@ export default function ShipmentPlanning() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Flight Number</Label>
+                                <Label className="text-slate-600 ">Flight Number</Label>
                                 <Input 
                                   value={shipmentPlan.flightNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, flightNumber: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">AWB Number</Label>
+                                <Label className="text-slate-600 ">AWB Number</Label>
                                 <Input 
                                   value={shipmentPlan.awbNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, awbNumber: e.target.value})}
@@ -942,10 +942,10 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Airport details</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Airport details</h4>
                           <div className="space-y-3">
                             <div className="space-y-1.5">
-                              <Label className="text-slate-600 font-medium flex items-center">
+                              <Label className="text-slate-600  flex items-center">
                                 <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Departure Airport
                               </Label>
                               <Input 
@@ -954,7 +954,7 @@ export default function ShipmentPlanning() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-slate-600 font-medium flex items-center">
+                              <Label className="text-slate-600  flex items-center">
                                 <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Arrival Airport
                               </Label>
                               <Input 
@@ -965,12 +965,12 @@ export default function ShipmentPlanning() {
                           </div>
                         </div>
 
-                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-50">
+                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4  border-t border-slate-50">
                            <div className="space-y-4">
-                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Transit Details</h4>
+                             <h4 className="text-xs  text-slate-400  tracking-widest">Transit Details</h4>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium">Flight Departure</Label>
+                                  <Label className="text-slate-600 ">Flight Departure</Label>
                                   <Input 
                                     type="date"
                                     value={shipmentPlan.flightDeparture ? format(new Date(shipmentPlan.flightDeparture), "yyyy-MM-dd") : ""} 
@@ -978,7 +978,7 @@ export default function ShipmentPlanning() {
                                   />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium">ETA Arrival</Label>
+                                  <Label className="text-slate-600 ">ETA Arrival</Label>
                                   <Input 
                                     type="date"
                                     value={shipmentPlan.etaArrivalAir ? format(new Date(shipmentPlan.etaArrivalAir), "yyyy-MM-dd") : ""} 
@@ -988,10 +988,10 @@ export default function ShipmentPlanning() {
                              </div>
                            </div>
                            <div className="space-y-4">
-                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Measurements</h4>
+                             <h4 className="text-xs  text-slate-400  tracking-widest">Measurements</h4>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium">Weight (KG)</Label>
+                                  <Label className="text-slate-600 ">Weight (KG)</Label>
                                   <Input 
                                     type="number"
                                     value={shipmentPlan.cargoWeight || ""} 
@@ -999,7 +999,7 @@ export default function ShipmentPlanning() {
                                   />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-slate-600 font-medium">Volume (CBM)</Label>
+                                  <Label className="text-slate-600 ">Volume (CBM)</Label>
                                   <Input 
                                     type="number"
                                     value={shipmentPlan.cargoVolume || ""} 
@@ -1020,25 +1020,25 @@ export default function ShipmentPlanning() {
                           <Truck className="h-6 w-6 text-emerald-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-800">Road Transport Details</h3>
-                          <p className="text-sm text-slate-500 italic">Trucking and delivery coordination</p>
+                          <h3 className="text-xl  text-slate-800">Road Transport Details</h3>
+                          <p className="text-xs text-slate-500 italic">Trucking and delivery coordination</p>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Vehicle & Driver</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Vehicle & Driver</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Transport Co.</Label>
+                                <Label className="text-slate-600 ">Transport Co.</Label>
                                 <Input 
                                   value={shipmentPlan.transportCompany || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, transportCompany: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Truck Number</Label>
+                                <Label className="text-slate-600 ">Truck Number</Label>
                                 <Input 
                                   value={shipmentPlan.truckNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, truckNumber: e.target.value})}
@@ -1047,14 +1047,14 @@ export default function ShipmentPlanning() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Driver Name</Label>
+                                <Label className="text-slate-600 ">Driver Name</Label>
                                 <Input 
                                   value={shipmentPlan.driverName || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, driverName: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Driver Phone</Label>
+                                <Label className="text-slate-600 ">Driver Phone</Label>
                                 <Input 
                                   value={shipmentPlan.driverPhone || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, driverPhone: e.target.value})}
@@ -1065,11 +1065,11 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">Route & Schedule</h4>
+                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Route & Schedule</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium flex items-center">
+                                <Label className="text-slate-600  flex items-center">
                                   <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Pickup
                                 </Label>
                                 <Input 
@@ -1078,7 +1078,7 @@ export default function ShipmentPlanning() {
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium flex items-center">
+                                <Label className="text-slate-600  flex items-center">
                                   <MapPin className="h-3 w-3 mr-1 text-slate-400" /> Delivery
                                 </Label>
                                 <Input 
@@ -1089,7 +1089,7 @@ export default function ShipmentPlanning() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Dispatch Date</Label>
+                                <Label className="text-slate-600 ">Dispatch Date</Label>
                                 <Input 
                                   type="date"
                                   value={shipmentPlan.dispatchDateRoad ? format(new Date(shipmentPlan.dispatchDateRoad), "yyyy-MM-dd") : ""} 
@@ -1097,7 +1097,7 @@ export default function ShipmentPlanning() {
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 font-medium">Delivery Date</Label>
+                                <Label className="text-slate-600 ">Delivery Date</Label>
                                 <Input 
                                   type="date"
                                   value={shipmentPlan.deliveryDateRoad ? format(new Date(shipmentPlan.deliveryDateRoad), "yyyy-MM-dd") : ""} 
@@ -1112,35 +1112,35 @@ export default function ShipmentPlanning() {
                   )}
                 </section>
 
-                <section className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                <section className="bg-white p-4 rounded-2xl border border-slate-100  relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded -mr-16 -mt-16 pointer-events-none"></div>
                   <div className="flex items-center mb-6 border-b border-slate-50 pb-4 relative">
                     <div className="bg-indigo-50 p-3 rounded-xl mr-4">
                       <ShieldCheck className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-slate-800">Custom Clearance</h3>
-                      <p className="text-sm text-slate-500 italic">Legal and import-export documentation</p>
+                      <h3 className="text-xl  text-slate-800">Custom Clearance</h3>
+                      <p className="text-xs text-slate-500 italic">Legal and import-export documentation</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">Clearing Agent</Label>
+                      <Label className="text-slate-600 ">Clearing Agent</Label>
                       <Input 
                         value={shipmentPlan.clearingAgent || ""} 
                         onChange={(e) => setShipmentPlan({...shipmentPlan, clearingAgent: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">Bill of Entry</Label>
+                      <Label className="text-slate-600 ">Bill of Entry</Label>
                       <Input 
                         value={shipmentPlan.billOfEntry || ""} 
                         onChange={(e) => setShipmentPlan({...shipmentPlan, billOfEntry: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">Custom Status</Label>
+                      <Label className="text-slate-600 ">Custom Status</Label>
                       <Select 
                         value={shipmentPlan.customStatus} 
                         onValueChange={(v: any) => setShipmentPlan({...shipmentPlan, customStatus: v})}
@@ -1155,7 +1155,7 @@ export default function ShipmentPlanning() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">Import Duty (₹)</Label>
+                      <Label className="text-slate-600 ">Import Duty (₹)</Label>
                       <Input 
                         type="number"
                         value={shipmentPlan.importDuty || ""} 
@@ -1163,7 +1163,7 @@ export default function ShipmentPlanning() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">GST Paid (₹)</Label>
+                      <Label className="text-slate-600 ">GST Paid (₹)</Label>
                       <Input 
                         type="number"
                         value={shipmentPlan.gstPaid || ""} 
@@ -1171,7 +1171,7 @@ export default function ShipmentPlanning() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-600 font-medium">Clearance Date</Label>
+                      <Label className="text-slate-600 ">Clearance Date</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.clearanceDate ? format(new Date(shipmentPlan.clearanceDate), "yyyy-MM-dd") : ""} 
@@ -1193,7 +1193,7 @@ export default function ShipmentPlanning() {
                 {isReadOnly ? "Close" : "Cancel"}
               </Button>
               {!isReadOnly && (
-                <Button onClick={handleSavePlan} className="px-10 bg-primary hover:bg-primary/90 text-white font-bold" disabled={createPlanMutation.isPending || updatePlanMutation.isPending}>
+                <Button onClick={handleSavePlan} className="px-10 bg-primary hover:bg-primary/90 text-white " disabled={createPlanMutation.isPending || updatePlanMutation.isPending}>
                   {(createPlanMutation.isPending || updatePlanMutation.isPending) ? "Saving..." : "Save Shipment Plan"}
                 </Button>
               )}

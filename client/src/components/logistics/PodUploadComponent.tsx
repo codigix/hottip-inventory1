@@ -179,8 +179,8 @@ export default function PodUploadComponent({
         {!selectedFile ? (
           <div className="border-2 border-dashed border-border rounded-lg p-6">
             <div className="text-center">
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <div className="text-sm text-muted-foreground mb-2">
+              <Upload className="h-8 w-8 mx-auto text-gray-500 mb-2" />
+              <div className="text-sm text-gray-500 mb-2">
                 Choose POD image or PDF file
               </div>
               <Input
@@ -200,7 +200,7 @@ export default function PodUploadComponent({
                 {uploadStatus === 'error' && <AlertCircle className="h-5 w-5 text-red-500" />}
                 <div>
                   <div className="text-sm font-light">{selectedFile.name}</div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-gray-500">
                     {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
                   </div>
                 </div>
@@ -217,9 +217,9 @@ export default function PodUploadComponent({
             
             {uploadStatus === 'uploading' && (
               <div className="mt-3">
-                <div className="text-xs text-muted-foreground">Uploading...</div>
-                <div className="w-full bg-muted rounded-full h-2 mt-1">
-                  <div className="bg-primary h-2 rounded-full w-1/2 animate-pulse"></div>
+                <div className="text-xs text-gray-500">Uploading...</div>
+                <div className="w-full bg-muted rounded h-2 mt-1">
+                  <div className="bg-primary h-2 rounded w-1/2 animate-pulse"></div>
                 </div>
               </div>
             )}

@@ -46,7 +46,7 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center" data-testid="title-login">
+          <CardTitle className="text-2xl  text-center" data-testid="title-login">
             Business Operations System
           </CardTitle>
           <CardDescription className="text-center" data-testid="text-login-description">
@@ -114,7 +114,7 @@ export function LoginForm() {
           </Form>
           
           <div className="mt-4 p-3 bg-muted rounded-sm">
-            <p className="text-xs text-muted-foreground text-center" data-testid="text-demo-credentials">
+            <p className="text-xs text-gray-500 text-center" data-testid="text-demo-credentials">
               Demo credentials: admin_user / admin123
             </p>
           </div>

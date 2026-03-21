@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-
 import {
   Dialog,
   DialogContent,
@@ -33,22 +32,26 @@ import {
   CheckCircle,
   AlertTriangle,
   Calendar,
-  Wrench,
-  Package,
-  ShieldCheck,
+  LayoutGrid,
+  History,
+  FileText,
+  AlertCircle,
   Hammer,
+  ShieldCheck,
+  Package,
+  Wrench
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function InventoryTasks() {
+  const { toast } = useToast();
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isUpdateTaskDialogOpen, setIsUpdateTaskDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskStatus, setTaskStatus] = useState("");
   const [taskNotes, setTaskNotes] = useState("");
   const [timeSpent, setTimeSpent] = useState("");
-  const { toast } = useToast();
 
-  // Create Task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState("");
@@ -56,17 +59,21 @@ export default function InventoryTasks() {
   const [newTaskCategory, setNewTaskCategory] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
 
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
+  const { data: tasksResponse, isLoading: tasksLoading } = useQuery({
     queryKey: ["/api/inventory-tasks"],
+    queryFn: async () => apiRequest("GET", "/api/inventory-tasks"),
   });
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ["/users"],
+  const { data: employeesResponse = [] } = useQuery({
+    queryKey: ["/api/users"],
+    queryFn: async () => apiRequest("GET", "/api/users"),
   });
+
+  const tasks = Array.isArray(tasksResponse?.data) ? tasksResponse.data : [];
+  const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : employeesResponse;
 
   const createTaskMutation = useMutation({
-    mutationFn: async (data: any) =>
-      apiRequest("POST", "/inventory-tasks", data),
+    mutationFn: async (data: any) => apiRequest("POST", "/api/inventory-tasks", data),
     onSuccess: () => {
       toast({ title: "Success", description: "Task created successfully" });
       setIsTaskDialogOpen(false);
@@ -74,17 +81,12 @@ export default function InventoryTasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory-tasks"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create task",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to create task", variant: "destructive" });
     },
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: async (data: any) =>
-      apiRequest("PUT", `/inventory-tasks/${data.id}`, data),
+    mutationFn: async (data: any) => apiRequest("PUT", `/api/inventory-tasks/${data.id}`, data),
     onSuccess: () => {
       toast({ title: "Success", description: "Task updated successfully" });
       setIsUpdateTaskDialogOpen(false);
@@ -92,255 +94,195 @@ export default function InventoryTasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory-tasks"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update task",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to update task", variant: "destructive" });
     },
   });
 
   const resetCreateForm = () => {
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskAssignedTo("");
-    setNewTaskPriority("");
-    setNewTaskCategory("");
-    setNewTaskDueDate("");
+    setNewTaskTitle(""); setNewTaskDescription(""); setNewTaskAssignedTo("");
+    setNewTaskPriority(""); setNewTaskCategory(""); setNewTaskDueDate("");
+  };
+
+  const resetUpdateForm = () => {
+    setSelectedTask(null); setTaskStatus(""); setTaskNotes(""); setTimeSpent("");
   };
 
   const handleCreateTask = () => {
     if (!newTaskTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Task title is required",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Task title is required", variant: "destructive" });
       return;
     }
-
-    const payload = {
+    createTaskMutation.mutate({
       title: newTaskTitle.trim(),
       description: newTaskDescription.trim(),
       assignedTo: newTaskAssignedTo,
       priority: newTaskPriority || "medium",
       category: newTaskCategory || "stock_count",
       dueDate: newTaskDueDate || new Date().toISOString(),
-    };
-
-    createTaskMutation.mutate(payload);
-  };
-
-  const resetUpdateForm = () => {
-    setSelectedTask(null);
-    setTaskStatus("");
-    setTaskNotes("");
-    setTimeSpent("");
+    });
   };
 
   const handleUpdateTask = () => {
     if (!selectedTask || !taskStatus) {
-      toast({
-        title: "Error",
-        description: "Please select status",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please select status", variant: "destructive" });
       return;
     }
-
-    const updateData = {
+    updateTaskMutation.mutate({
       id: selectedTask.id,
       status: taskStatus,
       notes: taskNotes,
       timeSpent: timeSpent ? parseInt(timeSpent) : null,
       completedAt: taskStatus === "completed" ? new Date().toISOString() : null,
-    };
-
-    updateTaskMutation.mutate(updateData);
+    });
   };
 
   const openUpdateDialog = (task: any) => {
-    setSelectedTask(task);
-    setTaskStatus(task.status || "");
-    setTaskNotes(task.notes || "");
-    setTimeSpent(task.timeSpent?.toString() || "");
+    setSelectedTask(task); setTaskStatus(task.status || "");
+    setTaskNotes(task.notes || ""); setTimeSpent(task.timeSpent?.toString() || "");
     setIsUpdateTaskDialogOpen(true);
   };
 
-  const inventoryTasks = Array.isArray(tasks) ? tasks : [];
-
-  const categoryIcons: Record<string, JSX.Element> = {
-    stock_count: <ClipboardList className="h-4 w-4 text-blue-500" />,
-    vendor_follow_up: <Package className="h-4 w-4 text-purple-500" />,
-    fabrication_check: <Wrench className="h-4 w-4 text-orange-500" />,
-    quality_control: <ShieldCheck className="h-4 w-4 text-green-500" />,
-    maintenance: <Hammer className="h-4 w-4 text-gray-500" />,
+  const categoryIcons: Record<string, any> = {
+    stock_count: ClipboardList,
+    vendor_follow_up: Package,
+    fabrication_check: Wrench,
+    quality_control: ShieldCheck,
+    maintenance: Hammer,
   };
 
   const taskColumns = [
     {
       key: "title",
-      header: "Task",
-      cell: (task: any) => (
-        <div>
-          <p className="font-light">{task.title || "Untitled"}</p>
-          <p className="text-sm text-muted-foreground">
-            {task.description || "-"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "assignedTo",
-      header: "Assigned To",
-      cell: (task: any) => (
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-            <User className="h-4 w-4" />
+      header: "Task Information",
+      cell: (task: any) => {
+        const Icon = categoryIcons[task.category] || ClipboardList;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+              <Icon className="h-4 w-4 text-slate-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-medium text-slate-900">{task.title || "Untitled Task"}</span>
+              <span className="text-xs text-slate-500 truncate max-w-[200px]">{task.description || "No description provided"}</span>
+            </div>
           </div>
-          <span>{task.assignedTo || "Unassigned"}</span>
-        </div>
-      ),
+        );
+      }
     },
     {
       key: "status",
-      header: "Status",
-      cell: (task: any) => {
-        const statusConfig: Record<string, { color: string; icon: any }> = {
-          new: { color: "outline", icon: AlertTriangle },
-          in_progress: { color: "default", icon: Clock },
-          completed: { color: "default", icon: CheckCircle },
-          cancelled: { color: "destructive", icon: AlertTriangle },
-        };
-
-        const config = statusConfig[task.status] || {
-          color: "secondary",
-          icon: AlertTriangle,
-        };
-        const Icon = config.icon;
-
-        return (
-          <Badge
-            variant={config.color as any}
-            className="flex items-center space-x-1 w-fit"
-          >
-            <Icon className="h-3 w-3" />
-            <span className="capitalize">
-              {task.status ? task.status.replace("_", " ") : "Unknown"}
-            </span>
-          </Badge>
-        );
-      },
+      header: "Execution Status",
+      cell: (task: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal",
+            task.status === 'completed' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            task.status === 'in_progress' && "bg-blue-50 text-blue-700 border-blue-200",
+            task.status === 'new' && "bg-slate-100 text-slate-600 border-slate-200",
+            task.status === 'cancelled' && "bg-red-50 text-red-700 border-red-200"
+          )}
+        >
+          {task.status?.replace('_', ' ') || 'New'}
+        </Badge>
+      )
     },
     {
       key: "priority",
       header: "Priority",
-      cell: (task: any) => {
-        const priorityColors = {
-          low: "bg-gray-100 text-gray-800",
-          medium: "bg-blue-100 text-blue-800",
-          high: "bg-orange-100 text-orange-800",
-          urgent: "bg-red-100 text-red-800",
-        };
-        const priority = task.priority || "medium";
-        return (
-          <Badge className={priorityColors[priority]}>
-            {priority.toUpperCase()}
-          </Badge>
-        );
-      },
+      cell: (task: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-medium text-[10px] tracking-wider border-none px-2 py-0.5",
+            task.priority === 'urgent' && "bg-red-100 text-red-700",
+            task.priority === 'high' && "bg-amber-100 text-amber-700",
+            task.priority === 'medium' && "bg-blue-100 text-blue-700",
+            task.priority === 'low' && "bg-slate-100 text-slate-700"
+          )}
+        >
+          {task.priority || 'Medium'}
+        </Badge>
+      )
+    },
+    {
+      key: "assignedTo",
+      header: "Assignee",
+      cell: (task: any) => (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+            {task.assignedTo ? task.assignedTo.charAt(0) : '?'}
+          </div>
+          <span className="text-sm text-slate-600">{task.assignedTo || 'Unassigned'}</span>
+        </div>
+      )
     },
     {
       key: "dueDate",
-      header: "Due Date",
-      cell: (task: any) =>
-        task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "-",
-    },
-    {
-      key: "category",
-      header: "Category",
+      header: "Timeline",
       cell: (task: any) => (
-        <div className="flex items-center gap-2">
-          {categoryIcons[task.category] || null}
-          <Badge variant="outline" className="capitalize">
-            {task.category ? task.category.replace("_", " ") : "Uncategorized"}
-          </Badge>
+        <div className="flex flex-col text-xs">
+          <span className="text-slate-700 font-medium">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+          <span className="text-slate-400">Created: {new Date(task.createdAt || Date.now()).toLocaleDateString()}</span>
         </div>
-      ),
-    },
+      )
+    }
+  ];
+
+  const metrics = [
+    { label: "Active Tasks", value: tasks.filter((t: any) => t.status !== 'completed').length, icon: ClipboardList, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "In Progress", value: tasks.filter((t: any) => t.status === 'in_progress').length, icon: Clock, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "High Priority", value: tasks.filter((t: any) => t.priority === 'urgent' || t.priority === 'high').length, icon: AlertCircle, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Completed", value: tasks.filter((t: any) => t.status === 'completed').length, icon: CheckCircle, color: "text-slate-600", bg: "bg-slate-50" },
   ];
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-tasks-header">
-            Inventory Tasks
-          </h1>
-          <p className="text-muted-foreground">
-            Assign and track inventory tasks to employees
-          </p>
+          <h1 className="text-xl  text-slate-900 ">Inventory Operations Tasks</h1>
+          <p className="text-xs text-slate-500">Coordinate and track internal logistics and warehouse maintenance activities.</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-task" data-tour="inventory-create-task-button">
+              <Button className="bg-primary hover:bg-primary text-white shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Create New Inventory Task</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-slate-900">Create New Inventory Task</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="taskTitle">Task Title *</Label>
-                  <Input
-                    id="taskTitle"
-                    placeholder="Stock Count - Warehouse A"
-                    data-testid="input-task-title"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                  />
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Task Title *</Label>
+                  <Input placeholder="e.g., Quarterly Stock Reconciliation" className="border-slate-200" value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} />
                 </div>
-                <div>
-                  <Label htmlFor="taskDescription">Description</Label>
-                  <Textarea
-                    id="taskDescription"
-                    placeholder="Detailed task description..."
-                    value={newTaskDescription}
-                    onChange={(e) => setNewTaskDescription(e.target.value)}
-                  />
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Detailed Description</Label>
+                  <Textarea placeholder="Explain what needs to be done..." className="border-slate-200 min-h-[100px]" value={newTaskDescription} onChange={e => setNewTaskDescription(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="assignedTo">Assign To</Label>
-                    <Select
-                      value={newTaskAssignedTo}
-                      onValueChange={setNewTaskAssignedTo}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select employee..." />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Assign To</Label>
+                    <Select value={newTaskAssignedTo} onValueChange={setNewTaskAssignedTo}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue placeholder="Select staff" />
                       </SelectTrigger>
                       <SelectContent>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.firstName} {emp.lastName}
-                          </SelectItem>
+                        {employees.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.username}>{emp.firstName} {emp.lastName}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="priority">Priority</Label>
-                    <Select
-                      value={newTaskPriority}
-                      onValueChange={setNewTaskPriority}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select priority..." />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Priority Level</Label>
+                    <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">Low</SelectItem>
@@ -352,321 +294,159 @@ export default function InventoryTasks() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="category">Category</Label>
-                    <Select
-                      value={newTaskCategory}
-                      onValueChange={setNewTaskCategory}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category..." />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Category</Label>
+                    <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="stock_count">Stock Count</SelectItem>
-                        <SelectItem value="vendor_follow_up">
-                          Vendor Follow-up
-                        </SelectItem>
-                        <SelectItem value="fabrication_check">
-                          Fabrication Check
-                        </SelectItem>
-                        <SelectItem value="quality_control">
-                          Quality Control
-                        </SelectItem>
+                        <SelectItem value="vendor_follow_up">Vendor Follow-up</SelectItem>
+                        <SelectItem value="fabrication_check">Fabrication Check</SelectItem>
+                        <SelectItem value="quality_control">Quality Control</SelectItem>
                         <SelectItem value="maintenance">Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="dueDate">Due Date</Label>
-                    <Input
-                      id="dueDate"
-                      type="datetime-local"
-                      value={newTaskDueDate}
-                      onChange={(e) => setNewTaskDueDate(e.target.value)}
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Due Date</Label>
+                    <Input type="datetime-local" className="border-slate-200" value={newTaskDueDate} onChange={e => setNewTaskDueDate(e.target.value)} />
                   </div>
                 </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsTaskDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    data-testid="button-save-task"
-                    onClick={handleCreateTask}
-                    disabled={createTaskMutation.isPending}
-                  >
-                    {createTaskMutation.isPending
-                      ? "Creating..."
-                      : "Create Task"}
-                  </Button>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="ghost" onClick={() => setIsTaskDialogOpen(false)} className="text-slate-600">Cancel</Button>
+                  <Button onClick={handleCreateTask} className="bg-primary hover:bg-primary text-white px-8">Confirm Task</Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-          <Dialog
-            open={isUpdateTaskDialogOpen}
-            onOpenChange={setIsUpdateTaskDialogOpen}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Update Task Status</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {selectedTask && (
-                  <div className="bg-muted/30 p-3 rounded-lg">
-                    <p className="font-light">{selectedTask.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedTask.description}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="status">Status *</Label>
-                  <Select value={taskStatus} onValueChange={setTaskStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="timeSpent">Time Spent (hours)</Label>
-                  <Input
-                    id="timeSpent"
-                    type="number"
-                    placeholder="Hours worked on this task"
-                    value={timeSpent}
-                    onChange={(e) => setTimeSpent(e.target.value)}
-                    data-testid="input-time-spent"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="taskNotes">Progress Notes</Label>
-                  <Textarea
-                    id="taskNotes"
-                    placeholder="Add notes about progress, issues, or completion details..."
-                    value={taskNotes}
-                    onChange={(e) => setTaskNotes(e.target.value)}
-                    data-testid="textarea-task-notes"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsUpdateTaskDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleUpdateTask}
-                    disabled={updateTaskMutation.isPending}
-                    data-testid="button-update-task"
-                  >
-                    {updateTaskMutation.isPending
-                      ? "Updating..."
-                      : "Update Task"}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Button variant="outline" data-testid="button-task-reports">
-            <Calendar className="h-4 w-4 mr-2" />
-            Task Reports
-          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Total Tasks
-                </p>
-                <p className="text-2xl font-bold text-foreground">18</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
               </div>
-              <ClipboardList className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  In Progress
-                </p>
-                <p className="text-2xl font-bold text-foreground">7</p>
+                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-              <Clock className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Completed
-                </p>
-                <p className="text-2xl font-bold text-foreground">8</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Overdue
-                </p>
-                <p className="text-2xl font-bold text-foreground">3</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="all-tasks" className="space-y-6">
-        <TabsList data-tour="inventory-task-filters">
-          <TabsTrigger value="all-tasks">All Tasks</TabsTrigger>
-          <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
-          <TabsTrigger value="urgent">Urgent</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue</TabsTrigger>
+      <Tabs defaultValue="all" className="w-full space-y-4">
+        <TabsList className="bg-slate-100/80 p-1 rounded-lg w-fit border border-slate-200">
+          <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <LayoutGrid className="h-4 w-4 mr-2 text-slate-400" />
+            Task Registry
+          </TabsTrigger>
+          <TabsTrigger value="active" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <History className="h-4 w-4 mr-2 text-slate-400" />
+            Active Queue
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <CheckCircle className="h-4 w-4 mr-2 text-slate-400" />
+            Completed
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all-tasks">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ClipboardList className="h-5 w-5" />
-                <span>All Inventory Tasks</span>
+        <TabsContent value="all" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+                All Operational Tasks
               </CardTitle>
             </CardHeader>
-            <CardContent data-tour="inventory-tasks-table">
+            <CardContent className="p-0">
               <DataTable
-                data={inventoryTasks}
+                data={tasks}
                 columns={taskColumns}
-                searchable={true}
-                searchKey="title"
-                onEdit={(task) => openUpdateDialog(task)}
-                onView={() => {}}
-                data-tour="inventory-task-actions"
+                loading={tasksLoading}
+                searchPlaceholder="Filter tasks..."
+                onEdit={openUpdateDialog}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="my-tasks">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Assigned Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {inventoryTasks
-                  .filter((task) => task.assignedTo === "John Smith")
-                  .map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <ClipboardList className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-light">{task.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Due: {new Date(task.dueDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge>{task.priority.toUpperCase()}</Badge>
-                        <Button
-                          size="sm"
-                          onClick={() => openUpdateDialog(task)}
-                        >
-                          Update Status
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+        <TabsContent value="active" className="mt-0">
+          <Card className="">
+            <CardContent className="p-0">
+              <DataTable
+                data={tasks.filter((t: any) => t.status !== 'completed')}
+                columns={taskColumns}
+                loading={tasksLoading}
+                searchPlaceholder="Filter active tasks..."
+                onEdit={openUpdateDialog}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="urgent">
-          <Card>
-            <CardHeader>
-              <CardTitle>Urgent Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {inventoryTasks
-                  .filter((task) => task.priority === "urgent")
-                  .map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-center justify-between p-4 border border-red-200 bg-red-50 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                          <AlertTriangle className="h-5 w-5 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-light text-red-900">
-                            {task.title}
-                          </p>
-                          <p className="text-sm text-red-600">
-                            Assigned to: {task.assignedTo}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="destructive">URGENT</Badge>
-                    </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="overdue">
-          <Card>
-            <CardHeader>
-              <CardTitle>Overdue Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-12">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No overdue tasks at the moment</p>
-                <p className="text-sm">Great job keeping up with deadlines!</p>
-              </div>
+        <TabsContent value="completed" className="mt-0">
+          <Card className="">
+            <CardContent className="p-0">
+              <DataTable
+                data={tasks.filter((t: any) => t.status === 'completed')}
+                columns={taskColumns}
+                loading={tasksLoading}
+                searchPlaceholder="Search history..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </main>
+
+      <Dialog open={isUpdateTaskDialogOpen} onOpenChange={setIsUpdateTaskDialogOpen}>
+        <DialogContent className="border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-slate-900">Task Status Update</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            {selectedTask && (
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <p className="font-medium text-slate-900">{selectedTask.title}</p>
+                <p className="text-xs text-slate-500 mt-1">{selectedTask.description}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-slate-700">Current Progress</Label>
+              <Select value={taskStatus} onValueChange={setTaskStatus}>
+                <SelectTrigger className="border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New / Assigned</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-slate-700">Time Invested (Hrs)</Label>
+                <Input type="number" className="border-slate-200" value={timeSpent} onChange={e => setTimeSpent(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Completion Notes</Label>
+              <Textarea placeholder="Any findings or issues encountered..." className="border-slate-200 min-h-[80px]" value={taskNotes} onChange={e => setTaskNotes(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setIsUpdateTaskDialogOpen(false)} className="text-slate-600">Cancel</Button>
+              <Button onClick={handleUpdateTask} className="bg-primary hover:bg-primary text-white px-8">Save Progress</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

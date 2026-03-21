@@ -74,18 +74,18 @@ const AuditLog: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className=" mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-4" data-tour="admin-audit-log-header">Audit Log</h1>
-          <p className="text-muted-foreground">View all system activity, changes, and user actions for compliance and traceability.</p>
+          <h1 className="text-3xl  mb-4" data-tour="admin-audit-log-header">Audit Log</h1>
+          <p className="text-gray-500">View all system activity, changes, and user actions for compliance and traceability.</p>
         </div>
         <StartTourButton tourConfig={adminAuditLogTour} tourName="admin-audit-log" />
       </div>
       <div className="bg-white rounded shadow p-4 space-y-4">
         <div className="flex flex-wrap gap-4">
           <input
-            className="flex-1 min-w-[220px] border rounded px-3 py-2"
+            className="flex-1 min-w-[220px] border rounded p-2"
             placeholder="Search user, action, or details"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -93,7 +93,7 @@ const AuditLog: React.FC = () => {
           />
           <div className="flex flex-wrap gap-3" data-tour="admin-audit-log-filters">
             <select
-              className="border rounded px-3 py-2"
+              className="border rounded p-2"
               value={userFilter}
               onChange={(event) => setUserFilter(event.target.value)}
             >
@@ -105,7 +105,7 @@ const AuditLog: React.FC = () => {
               ))}
             </select>
             <select
-              className="border rounded px-3 py-2"
+              className="border rounded p-2"
               value={actionFilter}
               onChange={(event) => setActionFilter(event.target.value)}
             >
@@ -117,7 +117,7 @@ const AuditLog: React.FC = () => {
               ))}
             </select>
             <select
-              className="border rounded px-3 py-2"
+              className="border rounded p-2"
               value={dateFilter}
               onChange={(event) => setDateFilter(event.target.value)}
             >
@@ -128,7 +128,7 @@ const AuditLog: React.FC = () => {
             </select>
           </div>
           <button
-            className="bg-indigo-600 text-white px-4 py-2 rounded shadow-sm"
+            className="bg-indigo-600 text-white px-4 py-2 rounded "
             onClick={handleExport}
             disabled={!filteredLogs.length}
             data-tour="admin-audit-log-export"
@@ -137,7 +137,7 @@ const AuditLog: React.FC = () => {
           </button>
         </div>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load audit log."}</div>
         ) : (
@@ -163,7 +163,7 @@ const AuditLog: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-muted-foreground">No audit log entries found.</td>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">No audit log entries found.</td>
                   </tr>
                 )}
               </tbody>

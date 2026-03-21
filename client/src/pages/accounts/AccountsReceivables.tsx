@@ -445,16 +445,16 @@ export default function AccountsReceivables() {
       : 0;
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-receivables-header">
         <div>
           <h1
-            className="text-3xl font-bold text-foreground"
+            className="text-3xl  text-foreground"
             data-testid="page-title"
           >
             Accounts Receivables
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Manage client payments linked to invoices
           </p>
         </div>
@@ -614,16 +614,16 @@ export default function AccountsReceivables() {
             <CardTitle className="text-sm font-light">
               Total Receivables
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold"
+              className="text-2xl "
               data-testid="metric-total-receivables"
             >
               ₹{totalAmount.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {receivables.length} active receivables
             </p>
           </CardContent>
@@ -636,12 +636,12 @@ export default function AccountsReceivables() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-orange-600"
+              className="text-2xl  text-orange-600"
               data-testid="metric-overdue-amount"
             >
               ₹{overdueAmount.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {overdueReceivables.length} overdue receivables
             </p>
           </CardContent>
@@ -652,13 +652,13 @@ export default function AccountsReceivables() {
             <CardTitle className="text-sm font-light">
               Avg. Payment Days
             </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-avg-days">
+            <div className="text-2xl " data-testid="metric-avg-days">
               {avgPaymentDays}
             </div>
-            <p className="text-xs text-muted-foreground">Target: 30 days</p>
+            <p className="text-xs text-gray-500">Target: 30 days</p>
           </CardContent>
         </Card>
 
@@ -671,12 +671,12 @@ export default function AccountsReceivables() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-green-600"
+              className="text-2xl  text-green-600"
               data-testid="metric-collection-rate"
             >
               {collectionRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Payment completion rate
             </p>
           </CardContent>
@@ -690,7 +690,7 @@ export default function AccountsReceivables() {
             <CardTitle>Receivables Management</CardTitle>
             <div className="flex items-center space-x-2">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search customers or invoices..."
                   value={searchTerm}
@@ -747,7 +747,7 @@ export default function AccountsReceivables() {
                 {filteredReceivables.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      <div className="text-muted-foreground">
+                      <div className="text-gray-500">
                         {searchTerm || statusFilter !== "all"
                           ? "No receivables match your filters"
                           : "No receivables found. Create your first one!"}
@@ -1010,12 +1010,12 @@ export default function AccountsReceivables() {
                   <h2 className="text-2xl font-black tracking-tight leading-none mb-1">
                     Record Payment
                   </h2>
-                  <p className="opacity-70 text-xs font-medium uppercase tracking-widest">Inbound Customer Receipt</p>
+                  <p className="opacity-70 text-xs   tracking-widest">Inbound Customer Receipt</p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="bg-white/10 px-6 py-2 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner inline-block">
-                  <p className="text-[10px] uppercase font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
+                  <p className="text-[10px]  font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
                   <p className="text-2xl font-black tabular-nums">
                     ₹{selectedReceivable ? (
                       parseFloat(selectedReceivable.amountDue) -
@@ -1027,52 +1027,52 @@ export default function AccountsReceivables() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
             <Form {...paymentForm}>
               <form
                 id="receivable-payment-form"
                 onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
-                className="space-y-8"
+                className="space-y-3"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Left Column: Customer & Summary */}
-                  <div className="md:col-span-1 space-y-8">
-                    <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-500" />
-                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center">
+                  <div className="md:col-span-1 space-y-3">
+                    <section className="bg-white p-6 rounded-2xl border border-slate-100  relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-500" />
+                      <h3 className="text-sm  text-slate-400  mb-6 flex items-center">
                         <CreditCard className="mr-2 h-4 w-4 text-primary" /> Payment Summary
                       </h3>
                       
                       {selectedReceivable && (
-                        <div className="space-y-6 relative z-10">
+                        <div className="space-y-3 relative z-10">
                           <div className="space-y-1">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Customer</Label>
-                            <p className="font-bold text-slate-800 text-lg leading-tight">
+                            <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Customer</Label>
+                            <p className=" text-slate-800 text-lg leading-tight">
                               {selectedReceivable.customer?.name || "Unknown Customer"}
                             </p>
                           </div>
 
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
                             <div className="space-y-1">
-                              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Due</Label>
-                              <p className="font-bold text-slate-700">₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}</p>
+                              <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Total Due</Label>
+                              <p className=" text-slate-700">₹{parseFloat(selectedReceivable.amountDue).toLocaleString()}</p>
                             </div>
                             <div className="space-y-1 text-right">
-                              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Already Paid</Label>
-                              <p className="font-bold text-emerald-600">₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}</p>
+                              <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Already Paid</Label>
+                              <p className=" text-emerald-600">₹{parseFloat(selectedReceivable.amountPaid).toLocaleString()}</p>
                             </div>
                           </div>
 
                           <div className="pt-4 border-t border-slate-50">
                             <div className="bg-slate-50 p-4 rounded-xl space-y-2">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-slate-500">Invoice ID</span>
+                                <span className="text-xs  text-slate-500">Invoice ID</span>
                                 <Badge variant="secondary" className="bg-white text-slate-700 border-slate-100">
                                   {selectedReceivable.invoiceId || "Manual Entry"}
                                 </Badge>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-slate-500">Due Date</span>
+                                <span className="text-xs  text-slate-500">Due Date</span>
                                 <span className="text-xs font-black text-slate-700">
                                   {new Date(selectedReceivable.dueDate).toLocaleDateString()}
                                 </span>
@@ -1083,8 +1083,8 @@ export default function AccountsReceivables() {
                       )}
                     </section>
 
-                    <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                       <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center">
+                    <section className="bg-white p-6 rounded-2xl border border-slate-100 ">
+                       <h3 className="text-sm  text-slate-400  mb-6 flex items-center">
                         <TrendingUp className="mr-2 h-4 w-4 text-primary" /> Payment Method
                       </h3>
                       <FormField
@@ -1094,20 +1094,20 @@ export default function AccountsReceivables() {
                           <FormItem className="space-y-4">
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger className="bg-slate-50 border-slate-100 h-12 rounded-xl font-bold">
+                                <SelectTrigger className="bg-slate-50 border-slate-100 h-12 rounded-xl ">
                                   <SelectValue placeholder="Select Method" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                <SelectItem value="bank_transfer" className="font-bold">Bank Transfer</SelectItem>
-                                <SelectItem value="upi" className="font-bold">UPI / QR</SelectItem>
-                                <SelectItem value="cheque" className="font-bold">Cheque</SelectItem>
-                                <SelectItem value="cash" className="font-bold">Cash</SelectItem>
-                                <SelectItem value="credit_card" className="font-bold">Credit Card</SelectItem>
-                                <SelectItem value="debit_card" className="font-bold">Debit Card</SelectItem>
+                                <SelectItem value="bank_transfer" className="">Bank Transfer</SelectItem>
+                                <SelectItem value="upi" className="">UPI / QR</SelectItem>
+                                <SelectItem value="cheque" className="">Cheque</SelectItem>
+                                <SelectItem value="cash" className="">Cash</SelectItem>
+                                <SelectItem value="credit_card" className="">Credit Card</SelectItem>
+                                <SelectItem value="debit_card" className="">Debit Card</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormMessage className="text-[10px] font-bold" />
+                            <FormMessage className="text-[10px] " />
                           </FormItem>
                         )}
                       />
@@ -1115,9 +1115,9 @@ export default function AccountsReceivables() {
                   </div>
 
                   {/* Middle & Right Column: Payment Form */}
-                  <div className="md:col-span-2 space-y-8">
-                    <section className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 pointer-events-none" />
+                  <div className="md:col-span-2 space-y-3">
+                    <section className="bg-white p-4 rounded-2xl border border-slate-100  relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded -mr-32 -mt-32 pointer-events-none" />
                        
                        <div className="flex items-center mb-8 border-b border-slate-50 pb-6 relative z-10">
                         <div className="bg-primary/5 p-4 rounded-2xl mr-5 shadow-inner">
@@ -1125,17 +1125,17 @@ export default function AccountsReceivables() {
                         </div>
                         <div>
                           <h3 className="text-2xl font-black text-slate-800 tracking-tight">Payment Details</h3>
-                          <p className="text-sm text-slate-400 font-medium">Enter amount and transaction metadata</p>
+                          <p className="text-sm text-slate-400 ">Enter amount and transaction metadata</p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-8 relative z-10">
+                      <div className="grid grid-cols-2 gap-4 relative z-10">
                         <FormField
                           control={paymentForm.control}
                           name="amount"
                           render={({ field }) => (
                             <FormItem className="space-y-2">
-                              <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Payment Amount</FormLabel>
+                              <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Payment Amount</FormLabel>
                               <FormControl>
                                 <div className="relative group">
                                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black group-focus-within:scale-110 transition-transform">₹</span>
@@ -1147,7 +1147,7 @@ export default function AccountsReceivables() {
                                   />
                                 </div>
                               </FormControl>
-                              <FormMessage className="text-[10px] font-bold" />
+                              <FormMessage className="text-[10px] " />
                             </FormItem>
                           )}
                         />
@@ -1156,22 +1156,22 @@ export default function AccountsReceivables() {
                           name="date"
                           render={({ field }) => (
                             <FormItem className="space-y-2">
-                              <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Receipt Date</FormLabel>
+                              <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Receipt Date</FormLabel>
                               <FormControl>
                                 <Input 
                                   {...field} 
                                   type="date" 
-                                  className="h-14 bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-bold text-lg rounded-2xl"
+                                  className="h-14 bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all  text-lg rounded-2xl"
                                 />
                               </FormControl>
-                              <FormMessage className="text-[10px] font-bold" />
+                              <FormMessage className="text-[10px] " />
                             </FormItem>
                           )}
                         />
                       </div>
 
                       <div className="mt-8 pt-8 border-t border-slate-50 relative z-10">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Transaction Metadata</h4>
+                        <h4 className="text-xs font-black text-slate-400  tracking-[0.2em] mb-6">Transaction Metadata</h4>
                         
                         <div className="space-y-6">
                           {paymentForm.watch("paymentMode") === "bank_transfer" && (
@@ -1181,8 +1181,8 @@ export default function AccountsReceivables() {
                                 name="bankName"
                                 render={({ field }) => (
                                   <FormItem className="md:col-span-2">
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Receiving Bank</FormLabel>
-                                    <FormControl><Input {...field} placeholder="e.g. HDFC Bank Main" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Receiving Bank</FormLabel>
+                                    <FormControl><Input {...field} placeholder="e.g. HDFC Bank Main" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1192,8 +1192,8 @@ export default function AccountsReceivables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">TXN ID</FormLabel>
-                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">TXN ID</FormLabel>
+                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1203,8 +1203,8 @@ export default function AccountsReceivables() {
                                 name="referenceNumber"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">REF #</FormLabel>
-                                    <FormControl><Input {...field} placeholder="REF123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">REF #</FormLabel>
+                                    <FormControl><Input {...field} placeholder="REF123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1219,8 +1219,8 @@ export default function AccountsReceivables() {
                                 name="upiId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Customer UPI ID</FormLabel>
-                                    <FormControl><Input {...field} placeholder="username@upi" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Customer UPI ID</FormLabel>
+                                    <FormControl><Input {...field} placeholder="username@upi" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1230,8 +1230,8 @@ export default function AccountsReceivables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
-                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
+                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1246,8 +1246,8 @@ export default function AccountsReceivables() {
                                 name="chequeNumber"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Cheque Number</FormLabel>
-                                    <FormControl><Input {...field} placeholder="000123" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Cheque Number</FormLabel>
+                                    <FormControl><Input {...field} placeholder="000123" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1257,8 +1257,8 @@ export default function AccountsReceivables() {
                                 name="chequeDate"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Cheque Date</FormLabel>
-                                    <FormControl><Input {...field} type="date" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Cheque Date</FormLabel>
+                                    <FormControl><Input {...field} type="date" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1268,8 +1268,8 @@ export default function AccountsReceivables() {
                                 name="bankName"
                                 render={({ field }) => (
                                   <FormItem className="md:col-span-2">
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Issuing Bank</FormLabel>
-                                    <FormControl><Input {...field} placeholder="e.g. ICICI Bank" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Issuing Bank</FormLabel>
+                                    <FormControl><Input {...field} placeholder="e.g. ICICI Bank" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1284,8 +1284,8 @@ export default function AccountsReceivables() {
                                 name="receivedBy"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Received By</FormLabel>
-                                    <FormControl><Input {...field} placeholder="Employee name" className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Received By</FormLabel>
+                                    <FormControl><Input {...field} placeholder="Employee name" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1300,8 +1300,8 @@ export default function AccountsReceivables() {
                                 name="cardLast4"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Card Last 4 Digits</FormLabel>
-                                    <FormControl><Input {...field} placeholder="4242" maxLength={4} className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Card Last 4 Digits</FormLabel>
+                                    <FormControl><Input {...field} placeholder="4242" maxLength={4} className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1311,8 +1311,8 @@ export default function AccountsReceivables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
-                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold" /></FormControl>
+                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
+                                    <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -1325,12 +1325,12 @@ export default function AccountsReceivables() {
                             name="notes"
                             render={({ field }) => (
                               <FormItem className="pt-4 border-t border-slate-50">
-                                <FormLabel className="text-xs font-black uppercase text-slate-500 tracking-widest ml-1">Internal Notes</FormLabel>
+                                <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Internal Notes</FormLabel>
                                 <FormControl>
                                   <Textarea 
                                     {...field} 
                                     placeholder="Add any additional details about this payment..." 
-                                    className="min-h-[100px] bg-slate-50 border-slate-100 rounded-2xl p-4 font-medium focus:bg-white transition-all shadow-inner"
+                                    className="min-h-[100px] bg-slate-50 border-slate-100 rounded-2xl p-4  focus:bg-white transition-all shadow-inner"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1347,7 +1347,7 @@ export default function AccountsReceivables() {
           </div>
 
           <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.05)] mt-auto">
-            <div className="flex items-center text-slate-400 text-xs font-bold italic">
+            <div className="flex items-center text-slate-400 text-xs  italic">
               <Clock className="mr-2 h-4 w-4" />
               Last updated: {new Date().toLocaleDateString()}
             </div>
@@ -1355,7 +1355,7 @@ export default function AccountsReceivables() {
               <Button
                 variant="ghost"
                 onClick={() => setIsPaymentOpen(false)}
-                className="px-8 h-12 rounded-xl font-bold text-slate-500 hover:bg-slate-50"
+                className="px-8 h-12 rounded-xl  text-slate-500 hover:bg-slate-50"
               >
                 DISCARD
               </Button>

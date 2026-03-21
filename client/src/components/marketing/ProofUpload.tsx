@@ -269,14 +269,14 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Customer:</span>
+                    <span className="text-gray-500">Customer:</span>
                     <p className="font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                       {visit.lead?.companyName && ` - ${visit.lead.companyName}`}
                     </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Status:</span>
+                    <span className="text-gray-500">Status:</span>
                     <Badge className="ml-2 capitalize">{visit.status.replace('_', ' ')}</Badge>
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
             </CardHeader>
             <CardContent>
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                   dragActive 
                     ? 'border-primary bg-primary/5' 
                     : 'border-muted-foreground/25 hover:border-primary/50'
@@ -301,9 +301,9 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Upload className="h-12 w-12 text-gray-500 mx-auto mb-4" />
                 <p className="text-lg font-light mb-2">Drop files here or click to upload</p>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-gray-500 mb-4">
                   Supports: JPG, PNG, PDF, DOC, DOCX (Max 10MB per file)
                 </p>
                 
@@ -381,7 +381,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-light text-sm">{file.file.name}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-gray-500">
                                 {formatFileSize(file.file.size)} • {file.file.type}
                               </p>
                             </div>
@@ -471,7 +471,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                   {existingAttachments.map((path, index) => (
                     <div key={index} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <FileText className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">{path.split('/').pop()}</span>
                       </div>
                       <div className="flex space-x-1">

@@ -178,10 +178,10 @@ export default function SalesDashboard() {
 
   if (ordersLoading) {
     return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className=" mx-auto p-4">
         <div className="space-y-6">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -193,12 +193,12 @@ export default function SalesDashboard() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="sales-header">Sales Dashboard</h1>
-          <p className="text-muted-foreground">Manage orders, customers, and sales performance</p>
+          <h1 className="text-xl  text-foreground " data-tour="sales-header">Sales Dashboard</h1>
+          <p className="text-gray-500">Manage orders, customers, and sales performance</p>
         </div>
         <Dialog open={isAddDialogOpen || !!editingOrder} onOpenChange={(open) => {
           if (!open) {
@@ -331,13 +331,13 @@ export default function SalesDashboard() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" data-tour="sales-dashboard">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-8" data-tour="sales-dashboard">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-foreground">${totalRevenue.toLocaleString()}</p>
+                <p className="text-sm font-light text-gray-500">Total Revenue</p>
+                <p className="text-xl  text-foreground">${totalRevenue.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -350,8 +350,8 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold text-foreground">{totalOrders}</p>
+                <p className="text-sm font-light text-gray-500">Total Orders</p>
+                <p className="text-xl  text-foreground">{totalOrders}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <ShoppingCart className="h-6 w-6 text-blue-600" />
@@ -364,8 +364,8 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Pending Orders</p>
-                <p className="text-2xl font-bold text-foreground">{pendingOrders}</p>
+                <p className="text-sm font-light text-gray-500">Pending Orders</p>
+                <p className="text-xl  text-foreground">{pendingOrders}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                 <FileText className="h-6 w-6 text-yellow-600" />
@@ -378,8 +378,8 @@ export default function SalesDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Active Customers</p>
-                <p className="text-2xl font-bold text-foreground">{uniqueCustomers}</p>
+                <p className="text-sm font-light text-gray-500">Active Customers</p>
+                <p className="text-xl  text-foreground">{uniqueCustomers}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Users className="h-6 w-6 text-purple-600" />

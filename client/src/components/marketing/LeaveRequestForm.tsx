@@ -261,36 +261,36 @@ export default function LeaveRequestForm({
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <p className="text-muted-foreground">Total Leave</p>
+                    <p className="text-gray-500">Total Leave</p>
                     <p
-                      className="font-bold text-green-600"
+                      className=" text-green-600"
                       data-testid="total-leave-balance"
                     >
                       {leaveBalance.totalLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-muted-foreground">Used</p>
+                    <p className="text-gray-500">Used</p>
                     <p
-                      className="font-bold text-blue-600"
+                      className=" text-blue-600"
                       data-testid="used-leave-balance"
                     >
                       {leaveBalance.usedLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <p className="text-muted-foreground">Remaining</p>
+                    <p className="text-gray-500">Remaining</p>
                     <p
-                      className="font-bold text-orange-600"
+                      className=" text-orange-600"
                       data-testid="remaining-leave-balance"
                     >
                       {leaveBalance.remainingLeave} days
                     </p>
                   </div>
                   <div className="text-center p-3 bg-purple-50 rounded-lg">
-                    <p className="text-muted-foreground">This Request</p>
+                    <p className="text-gray-500">This Request</p>
                     <p
-                      className="font-bold text-purple-600"
+                      className=" text-purple-600"
                       data-testid="request-days"
                     >
                       {getTotalDays()} days
@@ -341,12 +341,12 @@ export default function LeaveRequestForm({
                       {selectedLeaveType.label}
                     </Badge>
                     {leaveBalance && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-gray-500">
                         Available: {getLeaveTypeBalance(leaveType)} days
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-500">
                     {selectedLeaveType.description}
                   </p>
                 </div>
@@ -444,7 +444,7 @@ export default function LeaveRequestForm({
                       {getTotalDays()} {getTotalDays() === 1 ? "day" : "days"}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     From {format(startDate, "MMM dd")} to{" "}
                     {format(endDate, "MMM dd, yyyy")}
                   </p>
@@ -479,7 +479,7 @@ export default function LeaveRequestForm({
                     {errors.reason}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {reason.length}/500 characters
                 </p>
               </div>
@@ -507,17 +507,17 @@ export default function LeaveRequestForm({
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Leave Type:</span>
+                  <span className="text-gray-500">Leave Type:</span>
                   <Badge className={selectedLeaveType?.color}>
                     {selectedLeaveType?.label}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Duration:</span>
+                  <span className="text-gray-500">Duration:</span>
                   <span className="font-light">{getTotalDays()} days</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dates:</span>
+                  <span className="text-gray-500">Dates:</span>
                   <span className="font-light">
                     {format(startDate, "MMM dd")} -{" "}
                     {format(endDate, "MMM dd, yyyy")}
@@ -525,7 +525,7 @@ export default function LeaveRequestForm({
                 </div>
                 {leaveBalance && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
+                    <span className="text-gray-500">
                       Remaining Balance:
                     </span>
                     <span
@@ -563,7 +563,7 @@ export default function LeaveRequestForm({
             >
               {isLoading ? (
                 <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-white"></div>
                   <span>Submitting...</span>
                 </div>
               ) : (

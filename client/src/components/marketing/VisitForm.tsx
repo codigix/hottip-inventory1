@@ -280,7 +280,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                           <Button
                             variant="outline"
                             className={`w-full pl-3 text-left font-normal ${
-                              !field.value && "text-muted-foreground"
+                              !field.value && "text-gray-500"
                             }`}
                             data-testid="button-select-date"
                           >
@@ -385,15 +385,15 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
             />
 
             {visit && purposeLogs && purposeLogs.length > 0 && (
-              <div className="mt-4 space-y-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
-                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Visit Purpose History</p>
+              <div className="mt-4 space-y-3 p-4 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">
+                <p className="text-[10px] text-slate-500    mb-2">Visit Purpose History</p>
                 <div className="space-y-3">
                   {purposeLogs
                     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                     .map((log) => (
                       <div key={log.id} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-800 last:border-0">
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                          <p className="text-sm  text-slate-800 dark:text-slate-200">
                             {getPurposeText(log.purpose)}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -401,7 +401,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                             <span>{format(new Date(log.visitDate), "dd MMM yyyy")}</span>
                           </div>
                         </div>
-                        <div className="text-xs font-bold text-green-600 uppercase">
+                        <div className="text-xs  text-green-600 ">
                           {log.status}
                         </div>
                       </div>
@@ -419,33 +419,33 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 <CardContent className="space-y-2">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Name:</span>
+                      <span className="text-gray-500">Name:</span>
                       <p className="font-light">
                         {selectedLead.firstName} {selectedLead.lastName}
                       </p>
                     </div>
                     {selectedLead.companyName && (
                       <div>
-                        <span className="text-muted-foreground">Company:</span>
+                        <span className="text-gray-500">Company:</span>
                         <p className="font-light">{selectedLead.companyName}</p>
                       </div>
                     )}
                     {selectedLead.phone && (
                       <div>
-                        <span className="text-muted-foreground">Phone:</span>
+                        <span className="text-gray-500">Phone:</span>
                         <p className="font-light">{selectedLead.phone}</p>
                       </div>
                     )}
                     {selectedLead.email && (
                       <div>
-                        <span className="text-muted-foreground">Email:</span>
+                        <span className="text-gray-500">Email:</span>
                         <p className="font-light">{selectedLead.email}</p>
                       </div>
                     )}
                   </div>
                   {selectedLead.requirementDescription && (
                     <div>
-                      <span className="text-muted-foreground">Requirements:</span>
+                      <span className="text-gray-500">Requirements:</span>
                       <p className="text-sm mt-1">{selectedLead.requirementDescription}</p>
                     </div>
                   )}
@@ -567,11 +567,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
               <CardContent className="space-y-2">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Visit Number:</span>
+                    <span className="text-gray-500">Visit Number:</span>
                     <p className="font-light">{visit?.visitNumber || generateVisitNumber()}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Status:</span>
+                    <span className="text-gray-500">Status:</span>
                     <p className="font-light">Scheduled</p>
                   </div>
                 </div>

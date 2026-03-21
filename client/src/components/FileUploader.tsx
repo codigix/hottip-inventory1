@@ -181,7 +181,7 @@ export function FileUploader({
             className="hidden"
             data-testid="input-file"
           />
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-gray-500">
             Max {Math.round(maxFileSize / (1024 * 1024))}MB
           </span>
         </div>
@@ -195,7 +195,7 @@ export function FileUploader({
             <span className="text-sm font-light" data-testid="text-filename">
               {selectedFile.name}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-gray-500">
               ({Math.round(selectedFile.size / 1024)} KB)
             </span>
           </div>

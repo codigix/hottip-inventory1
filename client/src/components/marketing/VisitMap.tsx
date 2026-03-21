@@ -156,8 +156,8 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
       return (
         <div className="h-96 bg-muted rounded-lg flex items-center justify-center">
           <div className="text-center">
-            <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">No visits with GPS coordinates</p>
+            <MapPin className="h-12 w-12 text-gray-500 mx-auto mb-2" />
+            <p className="text-gray-500">No visits with GPS coordinates</p>
           </div>
         </div>
       );
@@ -188,7 +188,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
         {/* Current Location */}
         {currentLocation && (
           <div
-            className="absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg z-10"
+            className="absolute w-4 h-4 bg-blue-500 rounded border-2 border-white shadow-lg z-10"
             style={{
               left: `${((currentLocation.longitude - minLng) / (maxLng - minLng)) * 100}%`,
               top: `${(1 - (currentLocation.latitude - minLat) / (maxLat - minLat)) * 100}%`,
@@ -196,7 +196,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
             }}
             title="Your Location"
           >
-            <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping" />
+            <div className="absolute inset-0 bg-blue-500 rounded animate-ping" />
           </div>
         )}
 
@@ -208,7 +208,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
           return (
             <div
               key={marker.id}
-              className={`absolute w-8 h-8 rounded-full border-2 border-white shadow-lg cursor-pointer transition-all z-20 ${
+              className={`absolute w-8 h-8 rounded border-2 border-white shadow-lg cursor-pointer transition-all z-20 ${
                 isSelected ? 'scale-125 ring-2 ring-primary' : 'hover:scale-110'
               }`}
               style={{
@@ -228,7 +228,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
 
         {/* Map Legend */}
         <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg p-3 shadow-lg">
-          <h4 className="text-xs font-semibold mb-2">Visit Status</h4>
+          <h4 className="text-xs  mb-2">Visit Status</h4>
           <div className="space-y-1">
             {[
               { status: 'scheduled', label: 'Scheduled', color: '#3b82f6' },
@@ -238,7 +238,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
             ].map(({ status, label, color }) => (
               <div key={status} className="flex items-center space-x-2">
                 <div 
-                  className="w-3 h-3 rounded-full border border-white"
+                  className="w-3 h-3 rounded border border-white"
                   style={{ backgroundColor: color }}
                 />
                 <span className="text-xs">{label}</span>
@@ -251,7 +251,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
         {currentLocation && (
           <div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg">
             <div className="flex items-center space-x-2 text-xs">
-              <div className="w-3 h-3 bg-blue-500 rounded-full" />
+              <div className="w-3 h-3 bg-blue-500 rounded" />
               <span>Your Location</span>
             </div>
           </div>
@@ -338,18 +338,18 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                   {selectedVisit.visitNumber} - {selectedVisit.lead?.firstName} {selectedVisit.lead?.lastName}
                 </h4>
                 {selectedVisit.lead?.companyName && (
-                  <p className="text-sm text-muted-foreground">{selectedVisit.lead.companyName}</p>
+                  <p className="text-sm text-gray-500">{selectedVisit.lead.companyName}</p>
                 )}
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   Purpose: {selectedVisit.purpose.replace('_', ' ')}
                 </p>
               </div>
               
               <div>
-                <p className="text-sm text-muted-foreground">Address:</p>
+                <p className="text-sm text-gray-500">Address:</p>
                 <p className="text-sm font-light">{selectedVisit.visitAddress}</p>
                 {selectedVisit.visitCity && (
-                  <p className="text-sm text-muted-foreground">{selectedVisit.visitCity}</p>
+                  <p className="text-sm text-gray-500">{selectedVisit.visitCity}</p>
                 )}
               </div>
             </div>
@@ -414,7 +414,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                           <p className="text-sm font-light">
                             {visit.lead?.firstName} {visit.lead?.lastName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-gray-500">
                             {distance.toFixed(1)}km away
                           </p>
                         </div>
@@ -449,7 +449,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h4 className="font-light text-sm">{visit.visitNumber}</h4>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-500">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                     </p>
                   </div>
@@ -463,12 +463,12 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                   </Badge>
                 </div>
                 
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="text-xs text-gray-500 mb-2">
                   {visit.visitAddress}
                   {visit.visitCity && `, ${visit.visitCity}`}
                 </p>
                 
-                <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                <div className="flex items-center space-x-4 text-xs text-gray-500">
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
                     <span>GPS</span>

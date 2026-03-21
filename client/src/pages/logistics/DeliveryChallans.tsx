@@ -97,7 +97,7 @@ export default function DeliveryChallans() {
 
   if (isLoading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -105,11 +105,11 @@ export default function DeliveryChallans() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 space-y-3 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Delivery Challans</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl text-black mb-2">Delivery Challans</h1>
+          <p className="text-gray-500">
             View and download generated delivery challans for completed shipments
           </p>
         </div>
@@ -118,7 +118,7 @@ export default function DeliveryChallans() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input 
               placeholder="Search by consignment #, PO #, or client..." 
               value={searchTerm}
@@ -128,34 +128,34 @@ export default function DeliveryChallans() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow className="hover:bg-transparent border-slate-200">
-                <TableHead className="py-4 font-semibold text-slate-700">Challan #</TableHead>
-                <TableHead className="py-4 font-semibold text-slate-700">Consignment #</TableHead>
-                <TableHead className="py-4 font-semibold text-slate-700">PO #</TableHead>
-                <TableHead className="py-4 font-semibold text-slate-700">Client / Vendor</TableHead>
-                <TableHead className="py-4 font-semibold text-slate-700">Route</TableHead>
-                <TableHead className="py-4 font-semibold text-slate-700 text-right">Delivery Date</TableHead>
-                <TableHead className="w-[120px] text-right py-4 font-semibold text-slate-700">Actions</TableHead>
+                <TableHead className="py-4  text-slate-700">Challan #</TableHead>
+                <TableHead className="py-4  text-slate-700">Consignment #</TableHead>
+                <TableHead className="py-4  text-slate-700">PO #</TableHead>
+                <TableHead className="py-4  text-slate-700">Client / Vendor</TableHead>
+                <TableHead className="py-4  text-slate-700">Route</TableHead>
+                <TableHead className="py-4  text-slate-700 text-right">Delivery Date</TableHead>
+                <TableHead className="w-[120px] text-right py-4  text-slate-700">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground italic">
+                  <TableCell colSpan={6} className="text-center py-12 text-gray-500 italic">
                     No delivery challans found.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredData.map((item) => (
                   <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                    <TableCell className="font-bold text-primary py-4">DC-{item.consignmentNumber.split('-').pop()}</TableCell>
-                    <TableCell className="py-4 font-medium">{item.consignmentNumber}</TableCell>
-                    <TableCell className="py-4 font-medium">{item.poNumber || "N/A"}</TableCell>
+                    <TableCell className=" text-primary py-4">DC-{item.consignmentNumber.split('-').pop()}</TableCell>
+                    <TableCell className="py-4 ">{item.consignmentNumber}</TableCell>
+                    <TableCell className="py-4 ">{item.poNumber || "N/A"}</TableCell>
                     <TableCell className="py-4">
-                      <div className="font-medium text-slate-900">{item.clientName || item.vendorName || "N/A"}</div>
+                      <div className=" text-slate-900">{item.clientName || item.vendorName || "N/A"}</div>
                     </TableCell>
                     <TableCell className="py-4 text-xs text-slate-500">
                       <div className="flex items-center">
@@ -165,10 +165,10 @@ export default function DeliveryChallans() {
                     </TableCell>
                     <TableCell className="py-4 text-right">
                       <div className="flex flex-col items-end">
-                        <span className="font-medium text-slate-700">
+                        <span className=" text-slate-700">
                           {item.deliveredAt ? format(new Date(item.deliveredAt), "dd MMM yyyy") : "N/A"}
                         </span>
-                        <span className="text-[10px] text-muted-foreground flex items-center">
+                        <span className="text-[10px] text-gray-500 flex items-center">
                           <Calendar className="h-2 w-2 mr-1" /> Delivered
                         </span>
                       </div>

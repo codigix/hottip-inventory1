@@ -237,7 +237,7 @@ export default function TaskTable({
     const isDueToday = isToday(date);
     const isDueTomorrow = isTomorrow(date);
 
-    let color = "text-muted-foreground";
+    let color = "text-gray-500";
     let text = format(date, "MMM d");
     let icon = null;
 
@@ -402,11 +402,11 @@ export default function TaskTable({
                       >
                         {task.title}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-gray-500">
                         {taskTypeLabels[task.type]}
                       </div>
                       {task.estimatedHours && (
-                        <div className="flex items-center text-xs text-muted-foreground">
+                        <div className="flex items-center text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />
                           {task.estimatedHours}h
                         </div>
@@ -456,7 +456,7 @@ export default function TaskTable({
                             <UserIcon className="h-3 w-3" />
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-muted-foreground italic">
+                        <span className="text-sm text-gray-500 italic">
                           {task.assignedTo ? `User (${task.assignedTo.slice(0, 8)})` : "Unassigned"}
                         </span>
                       </div>
@@ -473,7 +473,7 @@ export default function TaskTable({
                         {dueDateInfo.icon}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">No due date</span>
+                      <span className="text-sm text-gray-500">No due date</span>
                     )}
                   </TableCell>
                   
@@ -572,8 +572,8 @@ export default function TaskTable({
         
         {tasks.length === 0 && (
           <div className="text-center py-8">
-            <div className="text-muted-foreground">No tasks found</div>
-            <div className="text-sm text-muted-foreground mt-1">
+            <div className="text-gray-500">No tasks found</div>
+            <div className="text-sm text-gray-500 mt-1">
               Try adjusting your filters or create a new task
             </div>
           </div>

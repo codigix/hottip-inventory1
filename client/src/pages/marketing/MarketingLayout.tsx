@@ -104,16 +104,16 @@ export default function MarketingLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-80 bg-card border-r border-border p-6">
-        <div className="mb-8">
+      <div className="w-64 bg-card border-r border-border p-2">
+        {/* <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <h1 className="text-2xl font-bold text-foreground" data-tour="marketing-header">Marketing Dashboard</h1>
+            <h1 className="text-xl  text-foreground" data-tour="marketing-header">Marketing Dashboard</h1>
             <StartTourButton tourConfig={tourConfigWithNavigation} tourName="marketing-flow-tour" navigationHandler={navigationHandler} />
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-500">
             Comprehensive marketing management system
           </p>
-        </div>
+        </div> */}
 
         <div className="space-y-2">
           {sidebarItems.map((item) => {
@@ -127,7 +127,7 @@ export default function MarketingLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
+                  className={`p-2 rounded transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-muted/50'
@@ -137,9 +137,9 @@ export default function MarketingLayout() {
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />
                     <div>
-                      <div className="text-[0.875rem]">{item.label}</div>
+                      <div className="text-xs">{item.label}</div>
                       <div className={`text-xs ${
-                        isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                        isActive ? 'text-primary-foreground/80' : 'text-gray-500'
                       }`}>
                         {/* {item.description} */}
                       </div>
@@ -162,28 +162,28 @@ export default function MarketingLayout() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Active Leads</span>
+                <span className="text-xs text-gray-500">Active Leads</span>
                 <div className="flex items-center space-x-1">
                   <Users className="h-3 w-3 text-blue-500" />
                   <span className="text-xs font-light">127</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Field Visits Today</span>
+                <span className="text-xs text-gray-500">Field Visits Today</span>
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-3 w-3 text-green-500" />
                   <span className="text-xs font-light">8</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Conversion Rate</span>
+                <span className="text-xs text-gray-500">Conversion Rate</span>
                 <div className="flex items-center space-x-1">
                   <TrendingUp className="h-3 w-3 text-emerald-500" />
                   <span className="text-xs font-light">24%</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Pending Tasks</span>
+                <span className="text-xs text-gray-500">Pending Tasks</span>
                 <span className="text-xs font-light">12</span>
               </div>
             </CardContent>
@@ -213,11 +213,11 @@ export default function MarketingLayout() {
             <MarketingAttendance />
           </Route>
           <Route>
-            <div className="p-8">
+            <div className="p-4">
               <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-2">Page Not Found</h2>
-                  <p className="text-muted-foreground">
+                <CardContent className="">
+                  <h2 className="text-lg  mb-2">Page Not Found</h2>
+                  <p className="text-gray-500">
                     The requested marketing page could not be found.
                   </p>
                 </CardContent>

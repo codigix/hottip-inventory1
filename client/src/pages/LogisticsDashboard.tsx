@@ -284,10 +284,10 @@ export default function LogisticsDashboard() {
 
   if (shipmentsLoading || customersLoading || suppliersLoading || usersLoading) {
     return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className=" mx-auto p-4">
         <div className="space-y-6">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -299,12 +299,12 @@ export default function LogisticsDashboard() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8" data-tour="logistics-dashboard">
+    <main className=" mx-auto p-4" data-tour="logistics-dashboard">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="logistics-header">Logistics Dashboard</h1>
-          <p className="text-muted-foreground">Manage shipments, tracking, and delivery operations</p>
+          <h1 className="text-xl  text-foreground " data-tour="logistics-header">Logistics Dashboard</h1>
+          <p className="text-gray-500">Manage shipments, tracking, and delivery operations</p>
         </div>
         <Dialog open={isShipmentDialogOpen || !!editingShipment} onOpenChange={(open) => {
           if (!open) {
@@ -628,13 +628,13 @@ export default function LogisticsDashboard() {
       </div>
 
       {/* Logistics Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Shipments</p>
-                <p className="text-2xl font-bold text-foreground">{totalShipments}</p>
+                <p className="text-sm font-light text-gray-500">Total Shipments</p>
+                <p className="text-xl  text-foreground">{totalShipments}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Package className="h-6 w-6 text-blue-600" />
@@ -647,8 +647,8 @@ export default function LogisticsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">In Transit</p>
-                <p className="text-2xl font-bold text-foreground">{inTransitShipments}</p>
+                <p className="text-sm font-light text-gray-500">In Transit</p>
+                <p className="text-xl  text-foreground">{inTransitShipments}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Truck className="h-6 w-6 text-purple-600" />
@@ -661,8 +661,8 @@ export default function LogisticsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Delivered</p>
-                <p className="text-2xl font-bold text-foreground">{deliveredShipments}</p>
+                <p className="text-sm font-light text-gray-500">Delivered</p>
+                <p className="text-xl  text-foreground">{deliveredShipments}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-green-600" />
@@ -675,8 +675,8 @@ export default function LogisticsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-foreground">{pendingShipments}</p>
+                <p className="text-sm font-light text-gray-500">Pending</p>
+                <p className="text-xl  text-foreground">{pendingShipments}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -686,7 +686,7 @@ export default function LogisticsDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Shipments Table */}
         <div className="lg:col-span-2">
           <Card>
@@ -773,7 +773,7 @@ export default function LogisticsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-light text-foreground">{pendingShipments}</p>
-                  <p className="text-xs text-muted-foreground">shipments</p>
+                  <p className="text-xs text-gray-500">shipments</p>
                 </div>
               </div>
 
@@ -786,7 +786,7 @@ export default function LogisticsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-light text-foreground">{inTransitShipments}</p>
-                  <p className="text-xs text-muted-foreground">shipments</p>
+                  <p className="text-xs text-gray-500">shipments</p>
                 </div>
               </div>
 
@@ -799,7 +799,7 @@ export default function LogisticsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-light text-foreground">{deliveredShipments}</p>
-                  <p className="text-xs text-muted-foreground">shipments</p>
+                  <p className="text-xs text-gray-500">shipments</p>
                 </div>
               </div>
             </CardContent>
@@ -816,13 +816,13 @@ export default function LogisticsDashboard() {
                   <div key={shipment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
                     <div>
                       <p className="text-sm font-light">{shipment.consignmentNumber}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-500">
                         {shipment.source} → {shipment.destination}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-light">{shipment.priority}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-500">
                         {new Date(shipment.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -830,7 +830,7 @@ export default function LogisticsDashboard() {
                 ))}
 
                 {shipmentsArray.filter((s: any) => s.currentStatus === 'delivered').length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">No recent deliveries</p>
+                  <p className="text-gray-500 text-center py-4">No recent deliveries</p>
                 )}
               </div>
             </CardContent>

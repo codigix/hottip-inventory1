@@ -86,7 +86,7 @@ export default function TaskMetrics() {
   ];
 
   return (
-    <div className="space-y-6 mb-6">
+    <div className="space-y-3 mb-6">
       {/* Main Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metricCards.map((metric) => {
@@ -94,18 +94,18 @@ export default function TaskMetrics() {
           return (
             <Card key={metric.title} className="transition-all hover:shadow-md">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-light text-muted-foreground">
+                <CardTitle className="text-sm font-light text-gray-500">
                   {metric.title}
                 </CardTitle>
-                <div className={`p-2 rounded-full ${metric.bgColor}`}>
+                <div className={`p-2 rounded ${metric.bgColor}`}>
                   <Icon className={`h-4 w-4 ${metric.color}`} />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid={`metric-${metric.title.toLowerCase().replace(' ', '-')}`}>
+                <div className="text-2xl " data-testid={`metric-${metric.title.toLowerCase().replace(' ', '-')}`}>
                   {metric.value}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {metric.change}
                 </p>
               </CardContent>
@@ -127,7 +127,7 @@ export default function TaskMetrics() {
           <CardContent className="space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
-                <Badge variant="destructive" className="w-2 h-2 p-0 rounded-full"></Badge>
+                <Badge variant="destructive" className="w-2 h-2 p-0 rounded"></Badge>
                 <span className="text-sm">High Priority</span>
               </div>
               <span className="text-sm font-light" data-testid="metric-high-priority">
@@ -145,7 +145,7 @@ export default function TaskMetrics() {
 
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
-                <Badge variant="default" className="w-2 h-2 p-0 rounded-full bg-yellow-500"></Badge>
+                <Badge variant="default" className="w-2 h-2 p-0 rounded bg-yellow-500"></Badge>
                 <span className="text-sm">Medium Priority</span>
               </div>
               <span className="text-sm font-light" data-testid="metric-medium-priority">
@@ -163,7 +163,7 @@ export default function TaskMetrics() {
 
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
-                <Badge variant="secondary" className="w-2 h-2 p-0 rounded-full"></Badge>
+                <Badge variant="secondary" className="w-2 h-2 p-0 rounded"></Badge>
                 <span className="text-sm">Low Priority</span>
               </div>
               <span className="text-sm font-light" data-testid="metric-low-priority">
@@ -194,7 +194,7 @@ export default function TaskMetrics() {
               <div key={performer.user.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${index === 0 ? "bg-yellow-500 text-white" :
+                    className={`w-6 h-6 rounded flex items-center justify-center text-xs  ${index === 0 ? "bg-yellow-500 text-white" :
                         index === 1 ? "bg-gray-400 text-white" :
                           "bg-orange-600 text-white"
                       }`}
@@ -233,14 +233,14 @@ export default function TaskMetrics() {
             </div>
 
             <div className="flex justify-between items-center py-1 border-t">
-              <span className="text-sm text-muted-foreground">Avg. Completion</span>
+              <span className="text-sm text-gray-500">Avg. Completion</span>
               <span className="text-sm font-light" data-testid="avg-completion-time">
                {metrics?.averageCompletionTime != null ? metrics.averageCompletionTime.toFixed(1) : 0}h
               </span>
             </div>
 
             <div className="flex justify-between items-center py-1">
-              <span className="text-sm text-muted-foreground">Due Today</span>
+              <span className="text-sm text-gray-500">Due Today</span>
               <Badge
                 variant={metrics.todaysDue > 0 ? "default" : "secondary"}
                 data-testid="tasks-due-today"
@@ -250,7 +250,7 @@ export default function TaskMetrics() {
             </div>
 
             <div className="flex justify-between items-center py-1">
-              <span className="text-sm text-muted-foreground">Overdue</span>
+              <span className="text-sm text-gray-500">Overdue</span>
               <Badge
                 variant={metrics.overdueTasks > 0 ? "destructive" : "secondary"}
                 data-testid="overdue-tasks"

@@ -16,7 +16,11 @@ import {
   MoreVertical,
   ChevronDown,
   ExternalLink,
-  CheckCircle
+  CheckCircle,
+  LayoutGrid,
+  ClipboardList,
+  History,
+  Boxes
 } from "lucide-react";
 import { 
   Card, 
@@ -46,6 +50,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 export default function MaterialRequestDetail() {
   const [, params] = useRoute("/inventory/material-requests/:id");
@@ -55,46 +60,40 @@ export default function MaterialRequestDetail() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState("Main Warehouse");
 
-  const { data: request, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: [`/material-requests/${id}`],
+  const { data: requestResponse, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: [`/api/material-requests/${id}`],
+    queryFn: async () => apiRequest("GET", `/api/material-requests/${id}`),
     enabled: !!id,
   });
 
+  const request = requestResponse?.data || requestResponse;
+
   const { data: purchaseOrders } = useQuery({
-    queryKey: ["/purchase-orders"],
+    queryKey: ["/api/purchase-orders"],
+    queryFn: async () => apiRequest("GET", "/api/purchase-orders"),
   });
 
   const linkPOMutation = useMutation({
     mutationFn: async (purchaseOrderId: string) => {
-      return apiRequest("PUT", `/material-requests/${id}`, { purchaseOrderId });
+      return apiRequest("PUT", `/api/material-requests/${id}`, { purchaseOrderId });
     },
     onSuccess: () => {
-      toast({
-        title: "PO Linked",
-        description: "Purchase Order has been linked to this material request.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
+      toast({ title: "PO Linked", description: "Purchase Order has been linked to this material request." });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
     },
   });
 
   const generateRFQMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/material-requests/${id}/generate-rfq`);
+      return apiRequest("POST", `/api/material-requests/${id}/generate-rfq`);
     },
     onSuccess: () => {
-      toast({
-        title: "RFQ Generated",
-        description: "Request for Quotation has been created successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
+      toast({ title: "RFQ Generated", description: "Request for Quotation has been created successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
       setLocation("/inventory/vendor-quotations");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -106,54 +105,25 @@ export default function MaterialRequestDetail() {
         quantity: item.quantity,
         location: selectedLocation
       }));
-      return apiRequest("POST", `/material-requests/${id}/release`, {
-        items: itemsToRelease
-      });
+      return apiRequest("POST", `/api/material-requests/${id}/release`, { items: itemsToRelease });
     },
     onSuccess: () => {
-      toast({
-        title: "Materials Released",
-        description: "Material release processed and inventory updated.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
-      queryClient.invalidateQueries({ queryKey: ["/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/stock-transactions"] });
+      toast({ title: "Materials Released", description: "Material release processed and inventory updated." });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stock-transactions"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const retryLinkingMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", `/material-requests/${id}/retry-linking`);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Items re-linked with inventory successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/material-requests/${id}`] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
   if (isLoading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
+      <div className="p-6 flex items-center justify-center min-h-screen bg-slate-50/30">
         <div className="flex flex-col items-center space-y-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading request details...</p>
+          <RefreshCw className="h-10 w-10 animate-spin text-slate-300" />
+          <p className="text-slate-500 font-medium">Retrieving request data...</p>
         </div>
       </div>
     );
@@ -161,10 +131,16 @@ export default function MaterialRequestDetail() {
 
   if (!request) {
     return (
-      <div className="p-8 text-center min-h-screen">
-        <h2 className="text-2xl font-bold mb-4">Request Not Found</h2>
+      <div className="p-6 text-center min-h-screen bg-slate-50/30 flex flex-col items-center justify-center space-y-4">
+        <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+          <AlertTriangle className="h-12 w-12 text-slate-300" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Request Not Found</h2>
+          <p className="text-slate-500 mt-1">The material request you're looking for doesn't exist or has been archived.</p>
+        </div>
         <Link href="/inventory/material-requests">
-          <Button>Back to Material Requests</Button>
+          <Button className="bg-primary hover:bg-primary text-white mt-4">Return to Registry</Button>
         </Link>
       </div>
     );
@@ -175,172 +151,121 @@ export default function MaterialRequestDetail() {
     const stockValue = item.productId ? item.productStock : (item.sparePartId ? item.sparePartStock : 0);
     return (item.productId || item.sparePartId) && (Number(stockValue || 0) >= Number(item.quantity));
   });
-  const anyUnlinked = lineItems.some((item: any) => !item.productId && !item.sparePartId);
 
+  const metrics = [
+    { label: "Status", value: request.status, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Purpose", value: request.purpose, icon: Info, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Department", value: request.department, icon: Building2, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Date Issued", value: format(new Date(request.createdAt || Date.now()), "dd MMM yyyy"), icon: Calendar, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Linked PO", value: request.poNumber || "Unlinked", icon: ExternalLink, color: request.purchaseOrderId ? "text-emerald-600" : "text-slate-400", bg: request.purchaseOrderId ? "bg-emerald-50" : "bg-slate-50" },
+  ];
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-500 bg-slate-50/30 min-h-screen">
-      <div className="flex items-center space-x-4 mb-6">
-        <Link href="/inventory/material-requests">
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-            <ArrowLeft className="h-5 w-5" />
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/inventory/material-requests">
+            <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 text-slate-600 bg-white hover:bg-slate-50 shadow-sm">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl  text-slate-900 ">{request.requestNumber}</h1>
+              <Badge variant="outline" className={cn(
+                "font-normal px-2 py-0.5",
+                request.status === 'APPROVED' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+              )}>
+                {request.status}
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500">Material requisition audit and fulfillment record.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
+            <Printer className="h-4 w-4 mr-2 text-slate-400" />
+            Print Request
           </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{request.requestNumber}</h1>
-          <p className="text-sm text-muted-foreground">Material Request Details</p>
+          <Button 
+            className="bg-primary hover:bg-primary text-white shadow-sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", isRefetching && "animate-spin")} />
+            Update Stock
+          </Button>
         </div>
       </div>
 
-      {/* Top Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="shadow-none border-none bg-orange-50/50">
-          <CardContent className="p-4 flex items-center space-x-4">
-            <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Status</p>
-              <p className="text-sm font-bold text-orange-600">{request.status}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-none bg-blue-50/50">
-          <CardContent className="p-4 flex items-center space-x-4">
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-              <RefreshCw className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Purpose</p>
-              <p className="text-sm font-bold">{request.purpose}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-none bg-purple-50/50">
-          <CardContent className="p-4 flex items-center space-x-4">
-            <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Department</p>
-              <p className="text-sm font-bold">{request.department}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-none bg-emerald-50/50">
-          <CardContent className="p-4 flex items-center space-x-4">
-            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Requested By</p>
-              <p className="text-sm font-bold">System User</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-none bg-slate-100/50">
-          <CardContent className="p-4 flex items-center space-x-4">
-            <div className="p-2 bg-slate-200 rounded-lg text-slate-600">
-              <ExternalLink className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-muted-foreground uppercase tracking-wider font-medium mb-1">Linked PO</p>
-              {request.purchaseOrderId ? (
-                <Link href={`/inventory/vendor-po/${request.purchaseOrderId}`}>
-                  <p className="text-sm font-bold text-blue-600 hover:underline cursor-pointer">
-                    #{request.poNumber || "View PO"}
-                  </p>
-                </Link>
-              ) : (
-                <p className="text-sm font-bold text-slate-400">#N/A</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className={cn("p-2 rounded-lg", metric.bg)}>
+                <metric.icon className={cn("h-4 w-4", metric.color)} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">{metric.label}</p>
+                <p className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">{metric.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content: Line Items */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-sm border-slate-200/60">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-slate-900 text-white rounded-lg">
-                  <Package className="h-5 w-5" />
-                </div>
-                <CardTitle className="text-lg">Line Items</CardTitle>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 text-blue-600 border-blue-100 bg-blue-50/50"
-                onClick={() => refetch()}
-                disabled={isRefetching}
-              >
-                <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} /> 
-                {isRefetching ? "Refreshing..." : "Refresh Stock"}
-              </Button>
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <Boxes className="h-4 w-4 text-slate-400" />
+                Line Item Registry
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 mt-4">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent bg-slate-50/50">
-                    <TableHead className="py-4 px-6 text-[0.8rem] font-medium text-muted-foreground">Item Details</TableHead>
-                    <TableHead className="py-4 px-6 text-center text-[0.8rem] font-medium text-muted-foreground">Design Qty</TableHead>
-                    <TableHead className="py-4 px-6 text-center text-[0.8rem] font-medium text-muted-foreground">Stock Level</TableHead>
-                    <TableHead className="py-4 px-6 text-right text-[0.8rem] font-medium text-muted-foreground">Status</TableHead>
+                  <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b border-slate-100">
+                    <TableHead className="py-4 px-6 text-slate-500 font-medium">Description</TableHead>
+                    <TableHead className="py-4 px-6 text-center text-slate-500 font-medium">Required Qty</TableHead>
+                    <TableHead className="py-4 px-6 text-center text-slate-500 font-medium">Available Stock</TableHead>
+                    <TableHead className="py-4 px-6 text-right text-slate-500 font-medium">Line Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lineItems.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No items in this request.</TableCell>
-                    </TableRow>
-                  ) : lineItems.map((item: any) => {
+                  {lineItems.map((item: any) => {
                     const stockValue = item.productId ? item.productStock : (item.sparePartId ? item.sparePartStock : null);
                     const isLinked = item.productId || item.sparePartId;
                     const isOutOfStock = isLinked ? (Number(stockValue || 0) < Number(item.quantity)) : true;
                     
                     return (
-                      <TableRow key={item.id} className="group">
-                        <TableCell className="py-5 px-6">
-                          <div className="space-y-1">
-                            <p className="text-[0.7rem] font-medium text-slate-400 uppercase tracking-wider">
-                              {item.productSku || item.sparePartNumber || "UNLINKED"}
-                            </p>
-                            <p className="text-sm font-semibold text-slate-700">
-                              {item.productName || item.sparePartName || item.notes || "Unknown Item"}
-                            </p>
+                      <TableRow key={item.id} className="border-b border-slate-50 hover:bg-slate-50/30">
+                        <TableCell className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-900">{item.productName || item.sparePartName || item.notes}</span>
+                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{item.productSku || item.sparePartNumber || "MANUAL ENTRY"}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-5 px-6 text-center font-medium">
-                          {item.quantity} {item.unit}
+                        <TableCell className="py-4 px-6 text-center">
+                          <span className="text-sm font-medium text-slate-700">{item.quantity} {item.unit || 'pcs'}</span>
                         </TableCell>
-                        <TableCell className="py-5 px-6 text-center">
-                          <div className="space-y-1">
-                            <p className={`text-sm font-bold ${isOutOfStock ? 'text-red-600' : 'text-slate-700'}`}>
-                              {isLinked ? `${stockValue ?? 0} ${item.unit}` : "Check Stock"}
-                            </p>
-                            <p className="text-[0.7rem] text-blue-500 font-medium">Main Warehouse</p>
+                        <TableCell className="py-4 px-6 text-center">
+                          <div className="flex flex-col items-center">
+                            <span className={cn("text-sm font-bold", isOutOfStock ? "text-red-600" : "text-emerald-600")}>
+                              {isLinked ? `${stockValue ?? 0} ${item.unit || 'pcs'}` : "--"}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium uppercase">Warehouse A</span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-5 px-6 text-right">
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline" 
-                              className={`text-[0.65rem] font-medium px-1.5 py-0 ${
-                                item.status === 'FULFILLED'
-                                  ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                  : isLinked && !isOutOfStock 
-                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                    : "bg-red-50 text-red-600 border-red-100"
-                              }`}
-                            >
-                              {item.status === 'FULFILLED' ? "FULFILLED" : isLinked ? (!isOutOfStock ? "Available" : "Out of Stock") : "Not Linked"}
-                            </Badge>
-                            <Badge variant="outline" className="text-[0.65rem] font-medium bg-slate-100/50 border-slate-200 px-1.5 py-0">
-                              {item.status === 'FULFILLED' || request.status === 'FULFILLED' ? "FULFILLED" : (item.status || "PENDING")}
-                            </Badge>
-                          </div>
+                        <TableCell className="py-4 px-6 text-right">
+                          <Badge variant="outline" className={cn(
+                            "font-normal",
+                            item.status === 'FULFILLED' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
+                            (isLinked && !isOutOfStock ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200")
+                          )}>
+                            {item.status === 'FULFILLED' ? "Fulfilled" : (isLinked ? (!isOutOfStock ? "Available" : "Stock Shortage") : "Unlinked")}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     );
@@ -351,210 +276,93 @@ export default function MaterialRequestDetail() {
           </Card>
         </div>
 
-        {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* RFQ Card */}
-          <Card className="bg-indigo-600 text-white shadow-md border-none overflow-hidden">
-            <CardContent className="p-0">
-              <div className="p-4 flex items-center justify-between border-b border-white/10">
-                <div className="flex items-center space-x-2">
-                  <div className="p-1.5 bg-white/10 rounded">
-                    <Send className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-bold tracking-wider uppercase">Sent Requests (RFQ)</span>
-                </div>
-                <Badge variant="outline" className="text-[0.65rem] border-white/30 text-white/80">0 REQUESTS</Badge>
-              </div>
-              <div className="p-10 flex flex-col items-center justify-center text-center space-y-3 bg-white/5">
-                <p className="text-xs text-white/60">No RFQs generated yet</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fulfillment Card */}
-          <Card className="bg-orange-500 text-white shadow-md border-none overflow-hidden">
-            <CardContent className="p-0">
-              <div className="p-4 flex items-center justify-between border-b border-white/10">
-                <div className="flex items-center space-x-2">
-                  <div className="p-1.5 bg-white/10 rounded">
-                    <Building2 className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-bold tracking-wider uppercase">Fulfillment Source</span>
-                </div>
-                <Badge className="bg-white text-orange-600 text-[0.6rem] font-bold hover:bg-white/90">ACTION REQUIRED</Badge>
-              </div>
-              <div className="p-5 space-y-4 bg-white text-slate-800">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-slate-400 font-medium uppercase tracking-wider">Select Warehouse</label>
-                    <div className={`flex items-center space-x-1 ${allAvailable ? 'text-emerald-500' : 'text-orange-500'}`}>
-                      {allAvailable ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                      <span className="text-[0.7rem] font-bold">{allAvailable ? 'Full Stock' : 'Stock Issue'}</span>
-                    </div>
-                  </div>
+          <Card className="border-none shadow-sm bg-primary text-white overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Send className="h-4 w-4 text-slate-400" />
+                Fulfillment Operations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-2 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Storage Source</Label>
                   <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                    <SelectTrigger className="w-full justify-between text-slate-800 border-slate-200 font-medium text-sm h-11 bg-white">
-                      <SelectValue placeholder="Select Warehouse..." />
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white focus:ring-0">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Main Warehouse">Main Warehouse</SelectItem>
-                      <SelectItem value="Secondary Warehouse">Secondary Warehouse</SelectItem>
-                      <SelectItem value="Production Floor">Production Floor</SelectItem>
+                      <SelectItem value="Main Warehouse">Main Hub (Warehouse A)</SelectItem>
+                      <SelectItem value="Site Yard B">Site Fabrication Yard B</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className={`p-3 border rounded-lg flex space-x-3 ${allAvailable ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'}`}>
-                  {allAvailable ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" /> : <Info className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />}
-                  <p className={`text-[0.75rem] leading-relaxed font-medium ${allAvailable ? 'text-emerald-800' : 'text-orange-800'}`}>
-                    {allAvailable 
-                      ? "All items are available in stock. You can proceed with material release."
-                      : anyUnlinked 
-                        ? "Some items are not linked to inventory. Try 'Retry Linking' or check product names."
-                        : "Stock is insufficient for some items. A Purchase Order or production plan may be required."}
-                  </p>
-                </div>
-                {anyUnlinked && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-xs font-bold border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
-                    onClick={() => retryLinkingMutation.mutate()}
-                    disabled={retryLinkingMutation.isPending}
-                  >
-                    {retryLinkingMutation.isPending ? <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-2" />}
-                    Retry Linking Items
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Summary Card */}
-          <Card className="shadow-sm border-slate-200/60 overflow-hidden">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
-              <div className="flex items-center space-x-2 text-slate-500">
-                <FileText className="h-4 w-4" />
-                <CardTitle className="text-xs font-bold uppercase tracking-wider">Request Summary</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-5 space-y-6">
-              <div className="p-4 bg-blue-50/30 border border-blue-100/50 rounded-lg space-y-4">
-                <div className="flex items-center space-x-2">
-                  <div className="p-1.5 bg-blue-100 rounded text-blue-600">
-                    <Package className="h-4 w-4" />
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-white/60">Inventory Compliance</span>
+                    <span className={cn("font-bold", allAvailable ? "text-emerald-400" : "text-amber-400")}>
+                      {allAvailable ? "100% Ready" : "Stock Missing"}
+                    </span>
                   </div>
-                  <span className="text-[0.7rem] font-bold text-slate-500">Linked Purchase Order:</span>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className={cn("h-full transition-all duration-1000", allAvailable ? "bg-emerald-500" : "bg-amber-500")}
+                      style={{ width: allAvailable ? "100%" : "65%" }}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  {request.purchaseOrderId ? (
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-blue-600">#{request.poNumber || "Linked PO"}</p>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[0.7rem] text-slate-400">Status:</span>
-                        <Badge variant="outline" className="text-[0.6rem] bg-emerald-50 text-emerald-600 border-emerald-100">
-                          Linked
-                        </Badge>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm font-bold text-slate-400 italic">No PO Linked</p>
-                      <Select 
-                        onValueChange={(value) => linkPOMutation.mutate(value)}
-                        disabled={linkPOMutation.isPending}
-                      >
-                        <SelectTrigger className="w-full h-9 text-[0.7rem]">
-                          <SelectValue placeholder="Link existing PO..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {purchaseOrders?.filter((po: any) => po.status !== 'cancelled').map((po: any) => (
-                            <SelectItem key={po.id} value={po.id} className="text-[0.7rem]">
-                              #{po.poNumber}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+
+                <div className="space-y-3 pt-2">
+                  <Button 
+                    className="w-full bg-white text-slate-900 hover:bg-white/90 font-semibold"
+                    disabled={!allAvailable || releaseMaterialMutation.isPending || request.status === 'FULFILLED'}
+                    onClick={() => releaseMaterialMutation.mutate()}
+                  >
+                    {releaseMaterialMutation.isPending ? "Processing..." : "Release Materials"}
+                  </Button>
+                  
+                  {!allAvailable && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-white/20 text-white bg-white/5 hover:bg-white/10 hover:text-white"
+                      onClick={() => generateRFQMutation.mutate()}
+                      disabled={generateRFQMutation.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Generate Supplier RFQ
+                    </Button>
                   )}
                 </div>
-
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">Required By</span>
-                  <Button variant="outline" size="sm" className="h-8 text-[0.75rem] font-medium text-slate-700 bg-slate-50 border-slate-200">
-                    <Calendar className="mr-2 h-3.5 w-3.5 text-slate-400" /> {request.requiredBy ? format(new Date(request.requiredBy), "dd-MM-yyyy") : "N/A"}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                  <span className="text-xs text-slate-400 font-medium">Created On</span>
-                  <span className="text-xs font-bold text-slate-700 uppercase">{format(new Date(request.createdAt), "dd-MM-yyyy")}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">Items Total</span>
-                  <span className="text-xs font-bold text-blue-600">{lineItems.length} Unique Items</span>
-                </div>
               </div>
-            </div>
-
-            <Button variant="outline" className="w-full text-slate-600 border-slate-200 font-medium text-xs h-10 bg-slate-50/50">
-                <Printer className="mr-2 h-4 w-4" /> Print Document
-              </Button>
             </CardContent>
           </Card>
 
-          {/* Notes Card */}
-          {request.notes && (
-            <Card className="shadow-sm border-slate-200/60 overflow-hidden">
-              <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
-                <div className="flex items-center space-x-2 text-slate-500">
-                  <Info className="h-4 w-4" />
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider">Request Notes & Details</CardTitle>
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <History className="h-4 w-4 text-slate-400" />
+                Audit Trail
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-slate-100">
+                <div className="relative">
+                  <div className="absolute -left-6 top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white shadow-sm" />
+                  <p className="text-xs font-semibold text-slate-900">Request Created</p>
+                  <p className="text-[10px] text-slate-400">{format(new Date(request.createdAt || Date.now()), "dd MMM, HH:mm")}</p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-5">
-                <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed">
-                  {request.notes}
-                </pre>
-              </CardContent>
-            </Card>
-          )}
+                <div className="relative">
+                  <div className="absolute -left-6 top-1.5 w-4 h-4 rounded-full bg-amber-500 border-4 border-white shadow-sm" />
+                  <p className="text-xs font-semibold text-slate-900">Awaiting Manager Approval</p>
+                  <p className="text-[10px] text-slate-400">System generated status</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      {/* Footer Actions */}
-      <div className="fixed bottom-0 right-0 left-[320px] bg-white border-t border-slate-100 p-4 flex justify-end items-center space-x-3 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-10">
-        <Button variant="ghost" className="text-slate-500 font-medium px-8 h-11">Cancel</Button>
-        
-        {request.status !== "FULFILLED" && request.status !== "CANCELLED" && (
-          <>
-            <Button 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11 rounded-lg"
-              onClick={() => releaseMaterialMutation.mutate()}
-              disabled={
-                releaseMaterialMutation.isPending || 
-                lineItems.length === 0 ||
-                lineItems.some((item: any) => {
-                  if (!item.productId && !item.sparePartId) return true;
-                  const stock = item.productId ? item.productStock : item.sparePartStock;
-                  return Number(stock || 0) < Number(item.quantity);
-                })
-              }
-            >
-              {releaseMaterialMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-              Release Material
-            </Button>
-
-            <Button 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-11 rounded-lg"
-              onClick={() => generateRFQMutation.mutate()}
-              disabled={generateRFQMutation.isPending}
-            >
-              {generateRFQMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}
-              Request Quote (RFQ)
-            </Button>
-          </>
-        )}
-      </div>
-      <div className="h-20"></div> {/* Spacer for fixed footer */}
     </div>
   );
 }

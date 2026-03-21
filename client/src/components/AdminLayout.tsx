@@ -82,11 +82,11 @@ export default function AdminLayout({
     <div className="min-h-screen flex flex-col bg-gray-50">
       <div className="flex flex-1">
         {/* Sidebar - Clean White Design with Purple Accents */}
-        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm">
-          <div className="p-6 border-b border-gray-200">
+        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col ">
+          <div className="p-2 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="font-bold text-xl text-gray-900" data-tour="admin-header">Admin Dashboard</h1>
+                <h1 className=" text-xl text-gray-900" data-tour="admin-header">Admin Dashboard</h1>
                 <p className="text-xs text-gray-500 mt-1">
                   Comprehensive management system
                 </p>
@@ -95,12 +95,12 @@ export default function AdminLayout({
             </div>
           </div>
           <div className="flex-1" data-tour="admin-navigation-menu">
-            <nav className="p-4 space-y-1" data-tour="navigation-menu">
+            <nav className="p-2 space-y-1" data-tour="navigation-menu">
               {adminPages.map((item) => (
                 <Link
                   key={item.path}
                   href={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
+                  className={`flex items-center gap-3 p-2 rounded transition-all duration-200  ${
                     location === item.path
                       ? "bg-indigo-600 text-white shadow-md"
                       : "text-gray-700 hover:bg-gray-100"
@@ -109,12 +109,12 @@ export default function AdminLayout({
                 >
                   {item.icon && (
                     <item.icon
-                      className={`w-5 h-5 ${
+                      className={`w-3 h-3 ${
                         location === item.path ? "text-white" : "text-gray-600"
                       }`}
                     />
                   )}
-                  <span className="text-sm">{item.label}</span>
+                  <span className="text-xs">{item.label}</span>
                 </Link>
               ))}
             </nav>
@@ -126,7 +126,7 @@ export default function AdminLayout({
           </div>
         </aside>
         {/* Main content */}
-        <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
+        <main className="flex-1 p-4 overflow-y-auto bg-gray-50">
           {children}
         </main>
       </div>

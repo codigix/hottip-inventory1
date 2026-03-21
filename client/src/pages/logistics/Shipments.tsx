@@ -279,7 +279,7 @@ export default function Shipments() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-3 p-6">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -292,12 +292,12 @@ export default function Shipments() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-3 p-6">
       {/* Header */}
       <div className="flex items-center justify-between" data-tour="logistics-shipments-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Shipments Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl  text-foreground">Shipments Management</h1>
+          <p className="text-gray-500">
             Manage shipments through the logistics workflow with status tracking and timeline history
           </p>
         </div>
@@ -313,11 +313,11 @@ export default function Shipments() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-light">Total Shipments</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-shipments">{metrics.totalShipments}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl " data-testid="text-total-shipments">{metrics.totalShipments}</div>
+              <p className="text-xs text-gray-500">
                 All shipments in system
               </p>
             </CardContent>
@@ -326,11 +326,11 @@ export default function Shipments() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-light">Active Shipments</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-active-shipments">{metrics.activeShipments}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl " data-testid="text-active-shipments">{metrics.activeShipments}</div>
+              <p className="text-xs text-gray-500">
                 In transit or pending
               </p>
             </CardContent>
@@ -339,11 +339,11 @@ export default function Shipments() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-light">Delivered</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <CheckCircle className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-delivered-shipments">{metrics.deliveredShipments}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl " data-testid="text-delivered-shipments">{metrics.deliveredShipments}</div>
+              <p className="text-xs text-gray-500">
                 Successfully delivered
               </p>
             </CardContent>
@@ -352,11 +352,11 @@ export default function Shipments() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-light">On-Time Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-ontime-rate">{metrics.onTimeDeliveryRate}%</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl " data-testid="text-ontime-rate">{metrics.onTimeDeliveryRate}%</div>
+              <p className="text-xs text-gray-500">
                 Delivery performance
               </p>
             </CardContent>
@@ -376,7 +376,7 @@ export default function Shipments() {
           <div className="flex flex-col sm:flex-row gap-4" data-tour="logistics-shipments-filters">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search shipments by consignment number, source, destination..."
                   value={searchQuery}
@@ -439,8 +439,8 @@ export default function Shipments() {
                   data-testid={`card-status-${status}`}
                 >
                   <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold">{count}</div>
-                    <p className="text-xs text-muted-foreground capitalize">
+                    <div className="text-2xl ">{count}</div>
+                    <p className="text-xs text-gray-500 capitalize">
                       {status.replace('_', ' ')}
                     </p>
                   </CardContent>

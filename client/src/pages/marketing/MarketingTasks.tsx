@@ -299,14 +299,14 @@ export default function MarketingTasks() {
 
   if (tasksError) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <Card className="border-red-200">
-          <CardContent className="pt-6 text-center">
+          <CardContent className=" text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2 text-red-700">
+            <h2 className="text-lg  mb-2 text-red-700">
               Failed to Load Tasks
             </h2>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-gray-500 mb-4">
               There was an error loading the marketing tasks. Please check your
               authentication and try again.
             </p>
@@ -328,12 +328,12 @@ export default function MarketingTasks() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-8">
+    <div className="flex-1 space-y-3 p-4">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Marketing Tasks</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl text-black">Marketing Tasks</h1>
+          <p className="text-gray-500">
             Manage and track marketing team tasks and assignments
           </p>
         </div>
@@ -373,8 +373,8 @@ export default function MarketingTasks() {
           }
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-muted-foreground">Total Tasks</div>
+            <div className="text-2xl ">{stats.total}</div>
+            <div className="text-sm text-gray-500">Total Tasks</div>
           </CardContent>
         </Card>
         <Card
@@ -382,10 +382,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "pending" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-2xl  text-orange-600">
               {stats.pending}
             </div>
-            <div className="text-sm text-muted-foreground">Pending</div>
+            <div className="text-sm text-gray-500">Pending</div>
           </CardContent>
         </Card>
         <Card
@@ -393,10 +393,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "in_progress" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl  text-blue-600">
               {stats.inProgress}
             </div>
-            <div className="text-sm text-muted-foreground">In Progress</div>
+            <div className="text-sm text-gray-500">In Progress</div>
           </CardContent>
         </Card>
         <Card
@@ -404,10 +404,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "completed" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl  text-green-600">
               {stats.completed}
             </div>
-            <div className="text-sm text-muted-foreground">Completed</div>
+            <div className="text-sm text-gray-500">Completed</div>
           </CardContent>
         </Card>
         <Card
@@ -415,10 +415,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, dateFilter: "overdue" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl  text-red-600">
               {stats.overdue}
             </div>
-            <div className="text-sm text-muted-foreground">Overdue</div>
+            <div className="text-sm text-gray-500">Overdue</div>
           </CardContent>
         </Card>
         <Card
@@ -426,10 +426,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, dateFilter: "today" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-2xl  text-yellow-600">
               {stats.dueToday}
             </div>
-            <div className="text-sm text-muted-foreground">Due Today</div>
+            <div className="text-sm text-gray-500">Due Today</div>
           </CardContent>
         </Card>
       </div>
@@ -440,7 +440,7 @@ export default function MarketingTasks() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4 flex-1">
               <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search tasks..."
                   value={filters.search}

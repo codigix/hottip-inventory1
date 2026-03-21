@@ -165,18 +165,18 @@ export default function SalesLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-80 bg-card border-r border-border p-6">
-        <div className="mb-8">
+      <div className="w-64 bg-card border-r border-border p-2">
+        {/* <div className="mb-8">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <h1 className="text-2xl font-bold text-foreground" data-tour="sales-header">Sales Dashboard</h1>
+            <h1 className="text-xl  text-slate-800" data-tour="sales-header">Sales Dashboard</h1>
             <StartTourButton tourConfig={tourConfigWithNavigation} tourName="sales-flow-tour" navigationHandler={navigationHandler} />
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-slate-500">
             Lead received, quotation and invoice management
           </p>
-        </div>
+        </div> */}
 
-        <div className="space-y-2">
+        <div className="space-y-2 grid gap-1.5">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = getActiveSidebarItem() === item.id;
@@ -188,23 +188,16 @@ export default function SalesLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-4 rounded-[0.3rem] transition-colors cursor-pointer ${
+                  className={`p-2 rounded transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted/50'
+                      ? 'bg-primary text-white '
+                      : 'text-slate-600 hover:bg-slate-100'
                   }`}
                   data-tour={`sales-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
-                    <Icon className="h-5 w-5" />
-                    <div>
-                      <div className="text-[0.875rem]">{item.label}</div>
-                      <div className={`text-xs ${
-                        isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
-                      }`}>
-                        {/* {item.description} */}
-                      </div>
-                    </div>
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                    <div className="text-xs ">{item.label}</div>
                   </div>
                 </div>
               </Link>
@@ -212,30 +205,30 @@ export default function SalesLayout() {
           })}
         </div>
 
-        <Separator className="my-6" />
+        <Separator className="my-6 bg-slate-200" />
 
         {/* Quick Actions */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <div className="space-y-2 p-2">
+          <h3 className="text-xs mb-2 text-slate-400 ">
             Quick Actions
           </h3>
           <Link href="/sales/outbound-quotations/new">
-            <Button size="sm" className="w-full justify-start" data-testid="button-new-quotation">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="sm" className="w-full justify-start bg-primary hover:bg-primary text-white border-none" data-testid="button-new-quotation">
+              <Plus className="h-4 w-4 mr-2 " />
               New Quotation
             </Button>
           </Link>
           <Link href="/sales/invoices/new">
-            <Button size="sm" className="w-full justify-start" data-testid="button-new-invoice-quick">
+            <Button size="sm" className="w-full mt-2 justify-start bg-primary hover:bg-primary text-white border-none" data-testid="button-new-invoice-quick">
               <Plus className="h-4 w-4 mr-2" />
               New Invoice
             </Button>
           </Link>
-          <Button size="sm" variant="outline" className="w-full justify-start" data-testid="button-search-all">
+          <Button size="sm" variant="ghost" className="w-full justify-start text-slate-600 hover:bg-slate-100" data-testid="button-search-all">
             <Search className="h-4 w-4 mr-2" />
             Search All
           </Button>
-          <Button size="sm" variant="outline" className="w-full justify-start" data-testid="button-filter-pending">
+          <Button size="sm" variant="ghost" className="w-full justify-start text-slate-600 hover:bg-slate-100" data-testid="button-filter-pending">
             <Filter className="h-4 w-4 mr-2" />
             Pending Items
           </Button>
@@ -260,11 +253,11 @@ export default function SalesLayout() {
           <Route path="/sales/vendors" component={VendorManagement} />
           <Route path="/sales/reports" component={SalesReports} />
           <Route>
-            <div className="p-8">
+            <div className="p-4">
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-2">Page Not Found</h2>
-                  <p className="text-muted-foreground">
+                  <h2 className="text-lg  mb-2">Page Not Found</h2>
+                  <p className="text-gray-500">
                     The requested sales page could not be found.
                   </p>
                 </CardContent>

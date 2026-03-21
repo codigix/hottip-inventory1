@@ -75,11 +75,11 @@ export default function PaymentHistory() {
   };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 space-y-3 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Payment History</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl text-black mb-2">Payment History</h1>
+          <p className="text-gray-500">
             Complete record of all receivables and payables transactions
           </p>
         </div>
@@ -92,60 +92,60 @@ export default function PaymentHistory() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-none shadow-sm bg-card/50">
+        <Card className="border-none  bg-card/50">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium uppercase">Total Transactions</p>
-              <p className="text-2xl font-bold">{history.length}</p>
+              <p className="text-xs text-gray-500  ">Total Transactions</p>
+              <p className="text-2xl ">{history.length}</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center text-primary">
               <History className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
         
-        <Card className="border-none shadow-sm bg-card/50">
+        <Card className="border-none  bg-card/50">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium uppercase">Recent Inflow</p>
-              <p className="text-2xl font-bold text-emerald-600">
+              <p className="text-xs text-gray-500  ">Recent Inflow</p>
+              <p className="text-2xl  text-emerald-600">
                 ₹{history
                   .filter(i => i.type === 'Receivable')
                   .reduce((acc, curr) => acc + parseFloat(curr.amountPaid || "0"), 0)
                   .toLocaleString()}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="h-10 w-10 rounded bg-emerald-100 flex items-center justify-center text-emerald-600">
               <ArrowDownLeft className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm bg-card/50">
+        <Card className="border-none  bg-card/50">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium uppercase">Recent Outflow</p>
-              <p className="text-2xl font-bold text-rose-600">
+              <p className="text-xs text-gray-500  ">Recent Outflow</p>
+              <p className="text-2xl  text-rose-600">
                 ₹{history
                   .filter(i => i.type === 'Payable')
                   .reduce((acc, curr) => acc + parseFloat(curr.amountPaid || "0"), 0)
                   .toLocaleString()}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+            <div className="h-10 w-10 rounded bg-rose-100 flex items-center justify-center text-rose-600">
               <ArrowUpRight className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-none shadow-sm bg-card/50">
+      <Card className="border-none  bg-card/50">
         <CardHeader className="pb-0">
           <div className="flex items-center justify-between mb-4">
-            <CardTitle className="text-xl font-bold">Transaction Ledger</CardTitle>
+            <CardTitle className="text-xl ">Transaction Ledger</CardTitle>
             <div className="flex items-center gap-2">
               <div className="relative w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search party, reference..."
                   className="pl-8 bg-background border-none shadow-none"
@@ -160,7 +160,7 @@ export default function PaymentHistory() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border/50">
+          <div className="rounded border border-border/50">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
@@ -188,16 +188,16 @@ export default function PaymentHistory() {
                   ))
                 ) : filteredHistory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic">
+                    <TableCell colSpan={7} className="h-24 text-center text-gray-500 italic">
                       No payment history found matching your search.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredHistory.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
-                      <TableCell className="font-medium">
+                      <TableCell className="">
                         <div className="flex items-center space-x-2">
-                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <Calendar className="h-3 w-3 text-gray-500" />
                           <span>{format(new Date(item.paymentDate || item.createdAt), "dd MMM yyyy")}</span>
                         </div>
                       </TableCell>
@@ -208,35 +208,35 @@ export default function PaymentHistory() {
                           ) : (
                             <ArrowUpRight className="h-3 w-3 text-rose-500" />
                           )}
-                          <span className={item.type === 'Receivable' ? 'text-emerald-600 font-medium' : 'text-rose-600 font-medium'}>
+                          <span className={item.type === 'Receivable' ? 'text-emerald-600 ' : 'text-rose-600 '}>
                             {item.type}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-slate-700">{item.partyName || "Unknown"}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.partyType}</div>
+                          <div className=" text-slate-700">{item.partyName || "Unknown"}</div>
+                          <div className="text-[10px] text-gray-500 ">{item.partyType}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="text-xs font-semibold text-primary">{item.refNumber || "N/A"}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase">{item.refType}</div>
+                          <div className="text-xs  text-primary">{item.refNumber || "N/A"}</div>
+                          <div className="text-[10px] text-gray-500 ">{item.refType}</div>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="font-bold">
+                        <div className="">
                           ₹{parseFloat(item.amountPaid || "0").toLocaleString()}
                         </div>
                         {item.status !== 'paid' && (
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-[10px] text-gray-500">
                             Due: ₹{parseFloat(item.amountDue || "0").toLocaleString()}
                           </div>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-xs font-medium text-slate-600">
+                        <div className="text-xs  text-slate-600">
                           {getModeLabel(item.paymentMode)}
                         </div>
                       </TableCell>

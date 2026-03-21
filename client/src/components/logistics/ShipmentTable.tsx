@@ -63,9 +63,9 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
           {shipment.clientId ? (
             <div className="font-light text-foreground">Client Shipment</div>
           ) : shipment.vendorId ? (
-            <div className="text-muted-foreground">Vendor Shipment</div>
+            <div className="text-gray-500">Vendor Shipment</div>
           ) : (
-            <span className="text-muted-foreground">Direct</span>
+            <span className="text-gray-500">Direct</span>
           )}
         </div>
       ),
@@ -77,7 +77,7 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
         <div className="flex items-center space-x-2 text-sm">
           <div className="flex flex-col">
             <div className="font-light">{shipment.source}</div>
-            <div className="flex items-center text-muted-foreground">
+            <div className="flex items-center text-gray-500">
               <MapPin className="h-3 w-3 mr-1" />
               {shipment.destination}
             </div>
@@ -97,12 +97,12 @@ export default function ShipmentTable({ shipments, onEdit, onViewTimeline, onDel
         <div className="text-sm">
           {shipment.dispatchDate && (
             <div className="flex items-center">
-              <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
+              <Clock className="h-3 w-3 mr-1 text-gray-500" />
               Dispatch: {new Date(shipment.dispatchDate).toLocaleDateString()}
             </div>
           )}
           {shipment.expectedDeliveryDate && (
-            <div className="text-muted-foreground">
+            <div className="text-gray-500">
               Expected: {new Date(shipment.expectedDeliveryDate).toLocaleDateString()}
             </div>
           )}

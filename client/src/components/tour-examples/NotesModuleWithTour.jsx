@@ -18,7 +18,7 @@ const NotesModuleWithTour = () => {
     <div className="space-y-6">
       {/* Header with Tour Button */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Notes</h1>
+        <h1 className="text-3xl ">Notes</h1>
         <StartTourButton
           tourConfig={notesTourConfig}
           tourName="notesTourDone"
@@ -43,7 +43,7 @@ const NotesModuleWithTour = () => {
           <div className="mb-6">
             <button
               data-tour="notes-create-btn"
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition "
             >
               + Create New Note
             </button>
@@ -53,7 +53,7 @@ const NotesModuleWithTour = () => {
           <div data-tour="notes-list" className="space-y-4">
             {notes.map((note) => (
               <div key={note.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                <h3 className="font-semibold text-lg">{note.title}</h3>
+                <h3 className=" text-lg">{note.title}</h3>
                 <p className="text-sm text-gray-500 mt-2">
                   Created: {note.createdAt} | Updated: {note.updatedAt}
                 </p>

@@ -23,7 +23,7 @@ const DashboardWithTour = () => {
     <div className="space-y-6">
       {/* Tour Button - Can be placed in header or wherever convenient */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl ">Dashboard</h1>
         <StartTourButton
           tourConfig={dashboardTourConfig}
           tourName="dashboardTourDone"
@@ -33,7 +33,7 @@ const DashboardWithTour = () => {
 
       {/* Main Dashboard Content */}
       <div data-tour="dashboard-main" className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Welcome to Your Dashboard</h2>
+        <h2 className="text-xl  mb-4">Welcome to Your Dashboard</h2>
         <p className="text-gray-600">
           This is your central hub for managing all campus operations.
         </p>
@@ -53,26 +53,26 @@ const DashboardWithTour = () => {
       {/* Statistics Section */}
       <div data-tour="dashboard-stats" className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-500">Total Orders</h3>
-          <p className="text-3xl font-bold mt-2">1,234</p>
+          <h3 className="text-sm  text-gray-500">Total Orders</h3>
+          <p className="text-3xl  mt-2">1,234</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-500">Total Revenue</h3>
-          <p className="text-3xl font-bold mt-2">$45,678</p>
+          <h3 className="text-sm  text-gray-500">Total Revenue</h3>
+          <p className="text-3xl  mt-2">$45,678</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-500">Active Users</h3>
-          <p className="text-3xl font-bold mt-2">234</p>
+          <h3 className="text-sm  text-gray-500">Active Users</h3>
+          <p className="text-3xl  mt-2">234</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-500">Pending Tasks</h3>
-          <p className="text-3xl font-bold mt-2">56</p>
+          <h3 className="text-sm  text-gray-500">Pending Tasks</h3>
+          <p className="text-3xl  mt-2">56</p>
         </div>
       </div>
 
       {/* Charts Section */}
       <div data-tour="dashboard-charts" className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Sales Trend</h2>
+        <h2 className="text-xl  mb-4">Sales Trend</h2>
         <div className="h-64 bg-gray-100 rounded flex items-center justify-center">
           <p className="text-gray-500">[Chart Placeholder]</p>
         </div>

@@ -207,7 +207,7 @@ export default function CheckInModal({
             <CardContent className="space-y-3">
               {isLoadingLocation ? (
                 <div className="flex items-center space-x-2" data-testid="location-loading">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-primary"></div>
                   <span className="text-sm">Getting your location...</span>
                 </div>
               ) : locationError ? (
@@ -225,14 +225,14 @@ export default function CheckInModal({
                     {getAccuracyBadge()}
                   </div>
                   
-                  <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="text-xs text-gray-500 space-y-1">
                     <div>Lat: {currentLocation.latitude.toFixed(6)}</div>
                     <div>Lng: {currentLocation.longitude.toFixed(6)}</div>
                     <div>Accuracy: ±{currentLocation.accuracy.toFixed(0)}m</div>
                   </div>
                   
                   {address && (
-                    <div className="text-sm text-muted-foreground" data-testid="location-address">
+                    <div className="text-sm text-gray-500" data-testid="location-address">
                       📍 {address}
                     </div>
                   )}
@@ -288,7 +288,7 @@ export default function CheckInModal({
                   {uploadedPhoto ? 'Change Photo' : 'Take Photo'}
                 </Button>
                 {uploadedPhoto && (
-                  <span className="text-sm text-muted-foreground" data-testid="photo-filename">
+                  <span className="text-sm text-gray-500" data-testid="photo-filename">
                     {uploadedPhoto.name}
                   </span>
                 )}
@@ -326,7 +326,7 @@ export default function CheckInModal({
             >
               {isLoading || uploadStatus === 'uploading' ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-white mr-2"></div>
                   {uploadStatus === 'uploading' ? 'Uploading Photo...' : 'Checking In...'}
                 </>
               ) : (

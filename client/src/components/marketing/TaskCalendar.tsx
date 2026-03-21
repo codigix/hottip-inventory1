@@ -125,7 +125,7 @@ export default function TaskCalendar({
   const goToToday = () => setCurrentMonth(new Date());
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Small Calendar (Left - 7 columns) */}
       <div className="lg:col-span-7 space-y-4">
         <Card className="border shadow-xl overflow-hidden bg-background">
@@ -135,7 +135,7 @@ export default function TaskCalendar({
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={goToPreviousMonth}>
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <CardTitle className="text-xl font-bold tracking-tight min-w-[150px] text-center">
+                <CardTitle className="text-xl  tracking-tight min-w-[150px] text-center">
                   {format(currentMonth, "MMMM yyyy")}
                 </CardTitle>
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={goToNextMonth}>
@@ -144,7 +144,7 @@ export default function TaskCalendar({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="ml-2 h-8 px-4 font-semibold text-xs border-primary/20 hover:bg-primary/5 hover:text-primary transition-all rounded-full"
+                  className="ml-2 h-8 px-4  text-xs border-primary/20 hover:bg-primary/5 hover:text-primary transition-all rounded"
                   onClick={goToToday}
                 >
                   Go to Today
@@ -153,9 +153,9 @@ export default function TaskCalendar({
               
               <div className="hidden sm:flex items-center gap-3">
                 {Object.entries(priorityConfig).map(([key, config]) => (
-                  <div key={key} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted/30">
-                    <div className={`w-2 h-2 rounded-full ${config.color}`} />
-                    <span className="text-[9px] font-bold uppercase text-muted-foreground">{key}</span>
+                  <div key={key} className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/30">
+                    <div className={`w-2 h-2 rounded ${config.color}`} />
+                    <span className="text-[9px]   text-gray-500">{key}</span>
                   </div>
                 ))}
               </div>
@@ -164,7 +164,7 @@ export default function TaskCalendar({
           <CardContent className="p-0">
             <div className="grid grid-cols-7 border-b bg-muted/50">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="py-2.5 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                <div key={day} className="py-2.5 text-center text-[10px] font-black  tracking-widest text-gray-500/80">
                   {day}
                 </div>
               ))}
@@ -187,8 +187,8 @@ export default function TaskCalendar({
                     } ${isCurrentDay ? "ring-inset ring-2 ring-primary/20 bg-primary/5" : ""}`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`text-xs font-black h-7 w-7 flex items-center justify-center rounded-xl transition-all shadow-sm ${
-                        isCurrentDay ? "bg-primary text-primary-foreground scale-110" : isCurrentMonth ? "text-foreground group-hover:bg-muted" : "text-muted-foreground"
+                      <span className={`text-xs font-black h-7 w-7 flex items-center justify-center rounded-xl transition-all  ${
+                        isCurrentDay ? "bg-primary text-primary-foreground scale-110" : isCurrentMonth ? "text-foreground group-hover:bg-muted" : "text-gray-500"
                       }`}>
                         {format(day, "d")}
                       </span>
@@ -201,26 +201,26 @@ export default function TaskCalendar({
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div 
-                                  className={`text-[9px] p-1.5 rounded-lg border shadow-sm truncate cursor-pointer font-bold transition-all hover:translate-x-0.5 ${
+                                  className={`text-[9px] p-1.5 rounded-lg border  truncate cursor-pointer  transition-all hover:translate-x-0.5 ${
                                     priorityConfig[task.priority as keyof typeof priorityConfig]?.light || "bg-muted"
                                   } ${priorityConfig[task.priority as keyof typeof priorityConfig]?.border || ""}`}
                                   onClick={() => onViewDetails?.(task)}
                                 >
                                   <div className="flex items-center gap-1.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color}`} />
+                                    <div className={`w-1.5 h-1.5 rounded shrink-0 ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color}`} />
                                     <span className="truncate tracking-tight">{task.title}</span>
                                   </div>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent className="p-2 w-48 shadow-2xl">
-                                <p className="font-bold text-xs">{task.title}</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">{task.description}</p>
+                                <p className=" text-xs">{task.title}</p>
+                                <p className="text-[10px] text-gray-500 mt-1">{task.description}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         ))}
                         {dayTasks.length > 2 && (
-                          <p className="text-[9px] text-center font-black text-primary/60 uppercase">+ {dayTasks.length - 2} more</p>
+                          <p className="text-[9px] text-center font-black text-primary/60 ">+ {dayTasks.length - 2} more</p>
                         )}
                       </div>
                     </ScrollArea>
@@ -233,10 +233,10 @@ export default function TaskCalendar({
       </div>
 
       {/* Big Sidebar Cards (Right - 5 columns) */}
-      <div className="lg:col-span-5 space-y-8">
+      <div className="lg:col-span-5 space-y-3">
         {/* Today's Tasks */}
         <Card className="border shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded blur-3xl -mr-16 -mt-16 transition-all group-hover:scale-110" />
           <CardHeader className="pb-4 border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -244,8 +244,8 @@ export default function TaskCalendar({
                   <CalendarCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-black tracking-tight uppercase">Today's Agenda</CardTitle>
-                  <CardDescription className="text-xs font-bold text-primary/60">{format(new Date(), "MMMM dd, yyyy")}</CardDescription>
+                  <CardTitle className="text-lg font-black tracking-tight ">Today's Agenda</CardTitle>
+                  <CardDescription className="text-xs  text-primary/60">{format(new Date(), "MMMM dd, yyyy")}</CardDescription>
                 </div>
               </div>
               <Badge className="h-7 px-3 text-[11px] font-black rounded-xl bg-primary shadow-lg shadow-primary/30">
@@ -253,7 +253,7 @@ export default function TaskCalendar({
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-6 px-4">
+          <CardContent className=" px-4">
             <ScrollArea className="h-[320px] pr-3">
               <div className="space-y-4">
                 {todayTasks.length > 0 ? (
@@ -263,21 +263,21 @@ export default function TaskCalendar({
                       className="group relative flex items-center p-3.5 rounded-2xl border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer"
                       onClick={() => onViewDetails?.(task)}
                     >
-                      <div className={`mr-4 h-1 w-8 rounded-full ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color} group-hover:w-10 transition-all`} />
+                      <div className={`mr-4 h-1 w-8 rounded ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color} group-hover:w-10 transition-all`} />
                       <div className="flex-1 space-y-1.5 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-black truncate text-foreground group-hover:text-primary transition-colors">{task.title}</p>
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 ${priorityConfig[task.priority as keyof typeof priorityConfig]?.text} ${priorityConfig[task.priority as keyof typeof priorityConfig]?.light}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black  px-2 ${priorityConfig[task.priority as keyof typeof priorityConfig]?.text} ${priorityConfig[task.priority as keyof typeof priorityConfig]?.light}`}>
                             {task.priority}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/80">
+                          <div className="flex items-center gap-1.5 text-[10px]  text-gray-500/80">
                             {statusIcons[task.status as keyof typeof statusIcons]}
-                            <span className="uppercase tracking-wider">{task.status.replace('_', ' ')}</span>
+                            <span className="">{task.status.replace('_', ' ')}</span>
                           </div>
                           {task.estimatedHours && (
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/80">
+                            <div className="flex items-center gap-1.5 text-[10px]  text-gray-500/80">
                               <Target className="h-3 w-3" />
                               <span>{task.estimatedHours}h</span>
                             </div>
@@ -291,12 +291,12 @@ export default function TaskCalendar({
                   ))
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-                    <div className="p-4 bg-muted rounded-full animate-pulse">
-                      <CheckCircle2 className="h-10 w-10 text-muted-foreground/30" />
+                    <div className="p-4 bg-muted rounded animate-pulse">
+                      <CheckCircle2 className="h-10 w-10 text-gray-500/30" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">No Active Tasks</p>
-                      <p className="text-xs text-muted-foreground/60 font-bold">You're all set for today!</p>
+                      <p className="text-sm font-black text-gray-500  tracking-widest">No Active Tasks</p>
+                      <p className="text-xs text-gray-500/60 ">You're all set for today!</p>
                     </div>
                   </div>
                 )}
@@ -310,12 +310,12 @@ export default function TaskCalendar({
           <CardHeader className="pb-4 border-b border-muted">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-muted rounded-2xl text-muted-foreground shadow-inner">
+                <div className="p-2.5 bg-muted rounded-2xl text-gray-500 shadow-inner">
                   <CalendarDays className="h-6 w-6" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-black tracking-tight uppercase">Upcoming Schedule</CardTitle>
-                  <CardDescription className="text-xs font-bold text-muted-foreground/60">Next 7 days</CardDescription>
+                  <CardTitle className="text-lg font-black tracking-tight ">Upcoming Schedule</CardTitle>
+                  <CardDescription className="text-xs  text-gray-500/60">Next 7 days</CardDescription>
                 </div>
               </div>
               <Badge variant="secondary" className="h-7 px-3 text-[11px] font-black rounded-xl">
@@ -323,7 +323,7 @@ export default function TaskCalendar({
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-6 px-4">
+          <CardContent className=" px-4">
             <ScrollArea className="h-[320px] pr-3">
               <div className="space-y-2">
                 {upcomingTasks.length > 0 ? (
@@ -336,7 +336,7 @@ export default function TaskCalendar({
                       <div key={task.id} className="space-y-2">
                         {showDateHeader && (
                           <div className="flex items-center gap-3 py-3 sticky top-0 bg-transparent backdrop-blur-md z-10">
-                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                            <span className="text-[10px] font-black text-primary  tracking-[0.2em] bg-primary/5 px-3 py-1 rounded border border-primary/10">
                               {isTomorrow(taskDate) ? 'Tomorrow' : format(taskDate, "EEEE, MMM dd")}
                             </span>
                             <div className="flex-1 h-px bg-primary/10" />
@@ -347,10 +347,10 @@ export default function TaskCalendar({
                           onClick={() => onViewDetails?.(task)}
                         >
                           <div className="flex items-center gap-4 min-w-0">
-                            <div className={`w-3 h-3 rounded-md shrink-0 ring-4 ring-offset-2 ring-offset-background ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color}`} />
+                            <div className={`w-3 h-3 rounded shrink-0 ring-4 ring-offset-2 ring-offset-background ${priorityConfig[task.priority as keyof typeof priorityConfig]?.color}`} />
                             <div className="min-w-0">
                               <p className="text-[13px] font-black leading-tight truncate group-hover:text-primary transition-colors">{task.title}</p>
-                              <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 tracking-wider">{task.type.replace('_', ' ')}</p>
+                              <p className="text-[9px]  text-gray-500  mt-0.5 ">{task.type.replace('_', ' ')}</p>
                             </div>
                           </div>
                           <Badge variant="secondary" className="text-[10px] font-black px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1.5">
@@ -363,9 +363,9 @@ export default function TaskCalendar({
                   })
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
-                    <CalendarIcon className="h-10 w-10 mb-3 text-muted-foreground" />
-                    <p className="text-xs font-black uppercase tracking-widest">Clear Calendar</p>
-                    <p className="text-xs font-bold">No upcoming tasks found.</p>
+                    <CalendarIcon className="h-10 w-10 mb-3 text-gray-500" />
+                    <p className="text-xs font-black  tracking-widest">Clear Calendar</p>
+                    <p className="text-xs ">No upcoming tasks found.</p>
                   </div>
                 )}
               </div>

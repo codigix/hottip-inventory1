@@ -217,7 +217,7 @@ export default function ReportTable({
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             {/* Search */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search all columns..."
                 value={searchTerm}
@@ -298,7 +298,7 @@ export default function ReportTable({
                   <TableRow>
                     <TableCell 
                       colSpan={visibleColumnConfigs.length} 
-                      className="h-24 text-center text-muted-foreground"
+                      className="h-24 text-center text-gray-500"
                       data-testid="table-empty-message"
                     >
                       {searchTerm ? `No results found for "${searchTerm}"` : emptyMessage}
@@ -333,7 +333,7 @@ export default function ReportTable({
 
           {/* Footer */}
           {filteredData.length > 0 && (
-            <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between pt-4 text-sm text-gray-500">
               <span>
                 Showing {filteredData.length} of {data.length} records
                 {searchTerm && ` (filtered by "${searchTerm}")`}

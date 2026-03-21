@@ -59,18 +59,18 @@ const Reports: React.FC = () => {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="admin-reports-header">Reports</h1>
-          <p className="text-muted-foreground">View and export company-wide reports, KPIs, and analytics.</p>
+          <h1 className="text-xl  text-foreground " data-tour="admin-reports-header">Reports</h1>
+          <p className="text-gray-500">View and export company-wide reports, KPIs, and analytics.</p>
         </div>
         <StartTourButton tourConfig={adminReportsTour} tourName="admin-reports" />
       </div>
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-8">
+      <div className="bg-white rounded-xl shadow-lg p-6 space-y-3">
         <div className="flex flex-wrap gap-4">
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded p-2"
             value={reportType}
             onChange={(event) => setReportType(event.target.value)}
             data-tour="admin-reports-selector"
@@ -80,7 +80,7 @@ const Reports: React.FC = () => {
             <option value="module-usage">Module Usage</option>
           </select>
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded p-2"
             value={dateRange}
             onChange={(event) => setDateRange(event.target.value)}
             data-tour="admin-reports-date-range"
@@ -92,15 +92,15 @@ const Reports: React.FC = () => {
           </select>
         </div>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load reports."}</div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8" data-tour="admin-reports-dashboard">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-tour="admin-reports-dashboard">
               {summaryCards.map((card) => (
-                <div key={card.title} className="bg-gray-50 rounded-lg p-6 shadow-sm">
-                  <h2 className="font-semibold mb-2 text-lg">{card.title}</h2>
+                <div key={card.title} className="bg-gray-50 rounded-lg p-6 ">
+                  <h2 className=" mb-2 text-lg">{card.title}</h2>
                   {card.metrics.map((metric) => (
                     <p key={metric} className="mb-1">
                       {metric}
@@ -111,17 +111,17 @@ const Reports: React.FC = () => {
             </div>
             <div className="bg-gray-50 rounded-lg p-4" data-tour="admin-reports-user-activity">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">Recent User Activity</h3>
-                <span className="text-sm text-muted-foreground">{userActivity.length} events</span>
+                <h3 className="">Recent User Activity</h3>
+                <span className="text-sm text-gray-500">{userActivity.length} events</span>
               </div>
               <ul className="space-y-2">
                 {userActivity.map((activity: any) => (
                   <li key={activity.id} className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="font-medium">{activity.action}</p>
-                      <p className="text-sm text-muted-foreground">{activity.actor}</p>
+                      <p className="">{activity.action}</p>
+                      <p className="text-sm text-gray-500">{activity.actor}</p>
                     </div>
-                    <span className="text-sm text-muted-foreground">{new Date(activity.timestamp).toLocaleString()}</span>
+                    <span className="text-sm text-gray-500">{new Date(activity.timestamp).toLocaleString()}</span>
                   </li>
                 ))}
               </ul>
@@ -129,9 +129,9 @@ const Reports: React.FC = () => {
           </>
         )}
         <div className="pt-4 border-t">
-          <h2 className="font-semibold mb-2 text-lg">Export</h2>
+          <h2 className=" mb-2 text-lg">Export</h2>
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg  hover:bg-blue-700"
             data-tour="admin-reports-export-button"
             onClick={handleExport}
           >

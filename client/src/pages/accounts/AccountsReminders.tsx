@@ -300,13 +300,13 @@ export default function AccountsReminders() {
   const filteredReminders = getFilteredReminders();
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-reminders-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1 className="text-3xl  text-foreground" data-testid="page-title">
             Payment Reminders
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Automated due/overdue payment alerts and reminder management
           </p>
         </div>
@@ -500,11 +500,11 @@ export default function AccountsReminders() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Active Reminders</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <Bell className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-active-reminders">{activeReminders}</div>
-            <p className="text-xs text-muted-foreground">Across all accounts</p>
+            <div className="text-2xl " data-testid="metric-active-reminders">{activeReminders}</div>
+            <p className="text-xs text-gray-500">Across all accounts</p>
           </CardContent>
         </Card>
 
@@ -514,8 +514,8 @@ export default function AccountsReminders() {
             <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600" data-testid="metric-due-today">{dueToday}</div>
-            <p className="text-xs text-muted-foreground">Need immediate attention</p>
+            <div className="text-2xl  text-orange-600" data-testid="metric-due-today">{dueToday}</div>
+            <p className="text-xs text-gray-500">Need immediate attention</p>
           </CardContent>
         </Card>
 
@@ -525,8 +525,8 @@ export default function AccountsReminders() {
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600" data-testid="metric-overdue">{overdue}</div>
-            <p className="text-xs text-muted-foreground">Urgent follow-up</p>
+            <div className="text-2xl  text-red-600" data-testid="metric-overdue">{overdue}</div>
+            <p className="text-xs text-gray-500">Urgent follow-up</p>
           </CardContent>
         </Card>
 
@@ -536,8 +536,8 @@ export default function AccountsReminders() {
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="metric-completed">{completedThisMonth}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl  text-green-600" data-testid="metric-completed">{completedThisMonth}</div>
+            <p className="text-xs text-gray-500">This month</p>
           </CardContent>
         </Card>
       </div>
@@ -546,7 +546,7 @@ export default function AccountsReminders() {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
             <Input
               placeholder="Search reminders..."
               value={searchTerm}
@@ -622,9 +622,9 @@ export default function AccountsReminders() {
                 </div>
               ) : filteredReminders.length === 0 ? (
                 <div className="text-center py-12">
-                  <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Reminders Found</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <Bell className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg  mb-2">No Reminders Found</h3>
+                  <p className="text-gray-500 mb-4">
                     {searchTerm || statusFilter !== "all" || targetTypeFilter !== "all" || channelFilter !== "all"
                       ? "No reminders match your current filters."
                       : "Create your first payment reminder to get started."}

@@ -237,18 +237,18 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
           return (
             <div key={status.key} className="flex items-center">
               <div className="flex flex-col items-center space-y-2 min-w-[120px]">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${status.color}`}>
+                <div className={`w-12 h-12 rounded flex items-center justify-center ${status.color}`}>
                   <Icon className="h-6 w-6" />
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-light">{status.label}</div>
-                  <div className="text-2xl font-bold">{count}</div>
-                  <div className="text-xs text-muted-foreground">{status.description}</div>
+                  <div className="text-2xl ">{count}</div>
+                  <div className="text-xs text-gray-500">{status.description}</div>
                 </div>
               </div>
               
               {index < statusWorkflow.length - 1 && (
-                <ArrowRight className="h-4 w-4 text-muted-foreground mx-4" />
+                <ArrowRight className="h-4 w-4 text-gray-500 mx-4" />
               )}
             </div>
           );
@@ -272,7 +272,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
               </CardHeader>
               <CardContent className="space-y-3 max-h-96 overflow-y-auto">
                 {statusShipments.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-4">
+                  <div className="text-center text-gray-500 py-4">
                     No shipments in this status
                   </div>
                 ) : (
@@ -286,7 +286,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
                           <div className="font-light text-sm" data-testid={`workflow-shipment-${shipment.id}`}>
                             {shipment.consignmentNumber}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-gray-500">
                             {shipment.clientId ? 'Client Shipment' : shipment.vendorId ? 'Vendor Shipment' : 'Direct Shipment'}
                           </div>
                           <div className="text-xs">

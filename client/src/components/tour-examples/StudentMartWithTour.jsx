@@ -22,7 +22,7 @@ const StudentMartWithTour = () => {
     <div className="space-y-6">
       {/* Header with Tour Button */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Student Mart</h1>
+        <h1 className="text-3xl ">Student Mart</h1>
         <StartTourButton
           tourConfig={studentMartTourConfig}
           tourName="studentmartTourDone"
@@ -31,7 +31,7 @@ const StudentMartWithTour = () => {
 
       {/* Main Mart Container */}
       <div data-tour="studentmart-main" className="bg-white rounded-lg shadow">
-        <div className="p-6 space-y-6">
+        <div className="p-2 space-y-3">
           {/* Search Bar */}
           <div data-tour="studentmart-search" className="flex gap-4">
             <input
@@ -46,7 +46,7 @@ const StudentMartWithTour = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Categories Sidebar */}
             <div data-tour="studentmart-categories" className="lg:col-span-1">
-              <h3 className="font-semibold mb-4">Categories</h3>
+              <h3 className=" mb-4">Categories</h3>
               <div className="space-y-2">
                 {['all', 'clothing', 'stationery', 'accessories'].map((cat) => (
                   <button
@@ -66,16 +66,16 @@ const StudentMartWithTour = () => {
 
             {/* Products Grid */}
             <div data-tour="studentmart-products" className="lg:col-span-2">
-              <h3 className="font-semibold mb-4">Available Products</h3>
+              <h3 className=" mb-4">Available Products</h3>
               <div className="grid grid-cols-2 gap-4">
                 {products.map((product) => (
                   <div key={product.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
                     <div className="text-4xl mb-2">{product.image}</div>
-                    <h4 className="font-semibold">{product.name}</h4>
-                    <p className="text-lg font-bold text-blue-600 mt-2">{product.price}</p>
+                    <h4 className="">{product.name}</h4>
+                    <p className="text-lg  text-blue-600 mt-2">{product.price}</p>
                     <button
                       onClick={() => setCart([...cart, product])}
-                      className="w-full mt-3 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
+                      className="w-full mt-3 p-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
                     >
                       Add to Cart
                     </button>
@@ -86,7 +86,7 @@ const StudentMartWithTour = () => {
 
             {/* Shopping Cart */}
             <div data-tour="studentmart-cart" className="lg:col-span-1">
-              <h3 className="font-semibold mb-4">Shopping Cart</h3>
+              <h3 className=" mb-4">Shopping Cart</h3>
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 {cart.length === 0 ? (
                   <p className="text-gray-500 text-sm">Your cart is empty</p>
@@ -96,12 +96,12 @@ const StudentMartWithTour = () => {
                       {cart.map((item, idx) => (
                         <div key={idx} className="flex justify-between text-sm">
                           <span>{item.name}</span>
-                          <span className="font-medium">{item.price}</span>
+                          <span className="">{item.price}</span>
                         </div>
                       ))}
                     </div>
                     <div className="border-t pt-2 mb-4">
-                      <div className="flex justify-between font-bold">
+                      <div className="flex justify-between ">
                         <span>Total:</span>
                         <span>${(cart.length * 10).toFixed(2)}</span>
                       </div>

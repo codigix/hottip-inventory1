@@ -343,14 +343,14 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
   const hasDateRange = dateRange.from && dateRange.to;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-2 space-y-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="reports-title">
+          <h1 className="text-xl text-black" data-testid="reports-title">
             Marketing Reports & Analytics
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-500">
             Comprehensive business intelligence for marketing operations
           </p>
         </div>
@@ -414,10 +414,10 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-light text-muted-foreground">
+                          <p className="text-sm font-light text-gray-500">
                             {metric.label}
                           </p>
-                          <p className="text-2xl font-bold" data-testid={`kpi-value-${index}`}>
+                          <p className="text-2xl " data-testid={`kpi-value-${index}`}>
                             {metric.value}
                           </p>
                           {metric.change && (

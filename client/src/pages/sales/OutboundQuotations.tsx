@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useLocation, Link } from "wouter";
@@ -46,6 +47,7 @@ import {
   Receipt,
   Trash2,
   Package,
+  FileUp,
 } from "lucide-react";
 import MaterialRequestDialog from "@/components/inventory/MaterialRequestDialog";
 import {
@@ -403,17 +405,19 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     {
       key: "quotationNumber",
       header: "Quotation #",
+      sortable: true,
       cell: (quotation: any) => (
-        <div className="font-light">{quotation.quotationNumber}</div>
+        <div className=" text-slate-800">{quotation.quotationNumber}</div>
       ),
     },
     {
-      key: "customer",
+      key: "customer.name",
       header: "Client",
+      sortable: true,
       cell: (quotation: any) => (
         <div>
-          <div className="font-light">{quotation.customer?.name || "N/A"}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="font-medium text-slate-700">{quotation.customer?.name || "N/A"}</div>
+          <div className="text-[10px] text-slate-400">
             {quotation.customer?.email || "No email"}
           </div>
         </div>
@@ -422,28 +426,48 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     {
       key: "quotationDate",
       header: "Date",
-      cell: (quotation: any) =>
-        new Date(quotation.quotationDate).toLocaleDateString(),
+      sortable: true,
+      cell: (quotation: any) => (
+        <div className="text-xs text-slate-600">
+          {new Date(quotation.quotationDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          })}
+        </div>
+      ),
+    },
+    {
+      key: "totalAmount",
+      header: "Amount",
+      sortable: true,
+      cell: (quotation: any) => (
+        <span className="text-xs  text-slate-800">
+          ₹{parseFloat(quotation.totalAmount || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
+      sortable: true,
       cell: (quotation: any) => {
         const statusColors = {
-          draft: "bg-gray-100 text-gray-800",
-          sent: "bg-blue-100 text-blue-800",
-          pending: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800",
-          rejected: "bg-red-100 text-red-800",
+          draft: "bg-slate-100 text-slate-600 border-slate-200",
+          sent: "bg-blue-50 text-blue-700 border-blue-100",
+          pending: "bg-amber-50 text-amber-700 border-amber-100",
+          approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          rejected: "bg-red-50 text-red-700 border-red-100",
         };
         return (
           <Badge
-            className={
-              statusColors[quotation.status as keyof typeof statusColors] ||
-              statusColors.draft
-            }
+            variant="outline"
+            className={cn(
+              "text-[10px]   py-0 h-5 shadow-none",
+              statusColors[quotation.status as keyof typeof statusColors] || statusColors.draft
+            )}
           >
-            {quotation.status?.toUpperCase() || "DRAFT"}
+            {quotation.status || "DRAFT"}
           </Badge>
         );
       },
@@ -456,60 +480,67 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleViewQuotation(quotation)}
             title="View Details"
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleEditQuotation(quotation)}
             title="Edit"
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleSendQuotation(quotation)}
             disabled={quotation.status === "sent"}
             title="Mark as Sent"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleCreateMaterialRequest(quotation)}
             title="Create Material Request"
           >
-            <Package className="h-4 w-4 text-blue-600" />
+            <Package className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleDownloadPDF(quotation)}
             title="Download PDF"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleConvertToInvoice(quotation)}
             disabled={quotation.status !== "approved"}
             title="Convert to Invoice"
           >
-            <Receipt className="h-4 w-4" />
+            <Receipt className="h-4 w-4 text-slate-400" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0 hover:bg-red-50"
             onClick={() => handleDeleteQuotation(quotation)}
             title="Delete"
           >
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-red-400" />
           </Button>
         </div>
       ),
@@ -577,19 +608,19 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
   ];
 
   return (
-    <div className={isEmbedded ? "" : "p-8"}>
+    <div className={cn("space-y-3", !isEmbedded && "p-8 bg-slate-50 min-h-screen")}>
       {!isEmbedded && (
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-xl  text-slate-800">
               Outbound Quotations
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-xs text-slate-500 ">
               Manage quotations sent to clients with full PDF field support
             </p>
           </div>
           <Link href="/sales/outbound-quotations/new">
-            <Button>
+            <Button className="bg-primary hover:bg-primary text-white border-none ">
               <Plus className="h-4 w-4 mr-2" />
               New Quotation
             </Button>
@@ -597,98 +628,98 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+            <CardTitle className="text-[10px]    text-slate-400">
               Total Quotations
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quotations.length}</div>
+            <div className="text-xl  text-slate-800">{quotations.length}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+            <CardTitle className="text-[10px]    text-slate-400">
               Approved
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl  text-emerald-600">
               {quotations.filter((q) => q.status === "approved").length}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+            <CardTitle className="text-[10px]    text-slate-400">
               Pending
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-2xl  text-amber-600">
               {quotations.filter((q) => q.status === "pending" || q.status === "sent").length}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+            <CardTitle className="text-[10px]    text-slate-400">
               Rejected
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl  text-red-600">
               {quotations.filter((q) => q.status === "rejected").length}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="mb-8 shadow-sm">
-        <CardHeader className="pb-3 border-b bg-slate-50/50">
-          <CardTitle className="text-lg font-semibold flex items-center">
-            <Filter className="h-4 w-4 mr-2 text-primary" />
+      <Card className="border-none  bg-white overflow-hidden">
+        <CardHeader className="pb-4 border-b border-slate-100 bg-slate-50/50">
+          <CardTitle className="text-sm  flex items-center text-slate-700  ">
+            <Filter className="h-4 w-4 mr-2 text-slate-400" />
             Filter Quotations
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Customer</label>
+        <CardContent className="">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div className="space-y-2">
+              <label className="text-[10px]    text-slate-500">Customer</label>
               <Select
                 value={mainFilters.customerId}
                 onValueChange={(v) =>
                   setMainFilters((prev) => ({ ...prev, customerId: v }))
                 }
               >
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="bg-slate-50/50 border-slate-200 h-9 text-xs">
                   <SelectValue placeholder="All Customers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Customers</SelectItem>
+                  <SelectItem value="_all">All Customers</SelectItem>
                   {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={c.id.toString()}>
                       {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Status</label>
+            <div className="space-y-2">
+              <label className="text-[10px]    text-slate-500">Status</label>
               <Select
                 value={mainFilters.status}
                 onValueChange={(v) =>
                   setMainFilters((prev) => ({ ...prev, status: v }))
                 }
               >
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="bg-slate-50/50 border-slate-200 h-9 text-xs">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="_all">All Statuses</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="sent">Sent</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -697,41 +728,41 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">From Date</label>
+            <div className="space-y-2">
+              <label className="text-[10px]    text-slate-500">From Date</label>
               <Input
                 type="date"
                 value={mainFilters.startDate}
                 onChange={(e) =>
                   setMainFilters((prev) => ({ ...prev, startDate: e.target.value }))
                 }
-                className="bg-white"
+                className="bg-slate-50/50 border-slate-200 h-9 text-xs"
               />
             </div>
             <div className="flex items-end space-x-2">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1.5 block">To Date</label>
+              <div className="flex-1 space-y-2">
+                <label className="text-[10px]    text-slate-500">To Date</label>
                 <Input
                   type="date"
                   value={mainFilters.endDate}
                   onChange={(e) =>
                     setMainFilters((prev) => ({ ...prev, endDate: e.target.value }))
                   }
-                  className="bg-white"
+                  className="bg-slate-50/50 border-slate-200 h-9 text-xs"
                 />
               </div>
               <Button 
                 variant="outline" 
                 size="icon" 
                 onClick={clearMainFilters}
-                className="h-10 w-10 shrink-0"
+                className="h-9 w-9 border-slate-200 text-slate-400 hover:text-slate-600"
                 title="Clear Filters"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
               <Button 
                 onClick={applyMainFilters}
-                className="h-10 px-4 shrink-0"
+                className=" bg-primary hover:bg-primary text-white border-none"
               >
                 Apply
               </Button>
@@ -740,28 +771,31 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b bg-slate-50/50">
-          <div className="space-y-1">
-            <CardTitle className="text-xl">Quotation List</CardTitle>
-            <CardDescription>
-              Browse and manage your outbound quotations
-            </CardDescription>
+      <div className="">
+        <div className=" border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FileUp className="h-5 w-5 text-slate-400" />
+            <h2 className="text-sm  text-slate-700">Sent Quotations</h2>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+              {displayedQuotations.length}
+            </Badge>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportAll} className="bg-white">
-            <Download className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleExportAll} className="h-8 text-[10px]    border-slate-200 text-slate-600 hover:bg-slate-50">
+            <Download className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
             Export All
           </Button>
-        </CardHeader>
-        <CardContent className="pt-6">
+        </div>
+        <div className="p-4">
           <DataTable
             data={displayedQuotations}
             columns={columns}
+            isLoading={isLoadingSent}
             searchable={true}
             searchKey="quotationNumber"
+            searchPlaceholder="Search by number..."
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -776,37 +810,37 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase">
+                  <h4 className="text-sm  text-gray-500 ">
                     Quotation Information
                   </h4>
                   <div className="mt-2 space-y-1">
                     <p className="text-sm">
-                      <span className="font-medium">Number:</span>{" "}
+                      <span className="">Number:</span>{" "}
                       {selectedQuotation.quotationNumber}
                     </p>
                     <p className="text-sm">
-                      <span className="font-medium">Date:</span>{" "}
+                      <span className="">Date:</span>{" "}
                       {new Date(
                         selectedQuotation.quotationDate
                       ).toLocaleDateString()}
                     </p>
                     <p className="text-sm">
-                      <span className="font-medium">Status:</span>{" "}
+                      <span className="">Status:</span>{" "}
                       {selectedQuotation.status?.toUpperCase()}
                     </p>
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase">
+                  <h4 className="text-sm  text-gray-500 ">
                     Client Information
                   </h4>
                   <div className="mt-2 space-y-1">
                     <p className="text-sm">
-                      <span className="font-medium">Name:</span>{" "}
+                      <span className="">Name:</span>{" "}
                       {selectedQuotation.customer?.name}
                     </p>
                     <p className="text-sm">
-                      <span className="font-medium">Email:</span>{" "}
+                      <span className="">Email:</span>{" "}
                       {selectedQuotation.customer?.email}
                     </p>
                   </div>
@@ -814,25 +848,25 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-4">
+                <h4 className="text-sm  text-gray-500  mb-4">
                   Mold Configurations
                 </h4>
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded border overflow-hidden">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-muted/50 border-b">
-                        <th className="p-2 text-left font-medium">Part Name</th>
-                        <th className="p-2 text-left font-medium">Mold No.</th>
-                        <th className="p-2 text-left font-medium">Material</th>
-                        <th className="p-2 text-left font-medium">Cavity</th>
-                        <th className="p-2 text-left font-medium">Drops</th>
+                        <th className="p-2 text-left ">Part Name</th>
+                        <th className="p-2 text-left ">Mold No.</th>
+                        <th className="p-2 text-left ">Material</th>
+                        <th className="p-2 text-left ">Cavity</th>
+                        <th className="p-2 text-left ">Drops</th>
                       </tr>
                     </thead>
                     <tbody>
                       {((selectedQuotation as any).moldDetails || []).map(
                         (mold: any, i: number) => (
                           <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="p-2 font-medium">{mold.partName}</td>
+                            <td className="p-2 ">{mold.partName}</td>
                             <td className="p-2">{mold.mouldNo}</td>
                             <td className="p-2">{mold.plasticMaterial}</td>
                             <td className="p-2">{mold.noOfCavity}</td>
@@ -842,7 +876,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                       )}
                       {(!(selectedQuotation as any).moldDetails || (selectedQuotation as any).moldDetails.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-muted-foreground italic">
+                          <td colSpan={5} className="p-4 text-center text-gray-500 italic">
                             No mold configurations defined
                           </td>
                         </tr>
@@ -853,18 +887,18 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-4">
+                <h4 className="text-sm  text-gray-500  mb-4">
                   Quotation Items
                 </h4>
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b">
-                        <th className="p-2 text-left font-medium">Item Name</th>
-                        <th className="p-2 text-left font-medium">Qty</th>
-                        <th className="p-2 text-left font-medium">UOM</th>
-                        <th className="p-2 text-left font-medium">Rate</th>
-                        <th className="p-2 text-left font-medium">Amount</th>
+                        <th className="p-2 text-left ">Item Name</th>
+                        <th className="p-2 text-left ">Qty</th>
+                        <th className="p-2 text-left ">UOM</th>
+                        <th className="p-2 text-left ">Rate</th>
+                        <th className="p-2 text-left ">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -873,9 +907,9 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                           <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
                             <td className="p-2">
                               <div>
-                                <div className="font-medium">{item.partName || item.itemName || item.partDescription || "Item"}</div>
+                                <div className="">{item.partName || item.itemName || item.partDescription || "Item"}</div>
                                 {(item.partName || item.itemName) && item.partDescription && (
-                                  <div className="text-xs text-muted-foreground">{item.partDescription}</div>
+                                  <div className="text-xs text-gray-500">{item.partDescription}</div>
                                 )}
                               </div>
                             </td>
@@ -892,7 +926,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                       )}
                       {(!(selectedQuotation as any).quotationItems || (selectedQuotation as any).quotationItems.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-muted-foreground italic">
+                          <td colSpan={5} className="p-4 text-center text-gray-500 italic">
                             No items defined
                           </td>
                         </tr>
@@ -912,7 +946,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                     <span>Tax:</span>
                     <span>₹{parseFloat(String(selectedQuotation.taxAmount)).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between ">
                     <span>Total:</span>
                     <span>₹{parseFloat(String(selectedQuotation.totalAmount)).toLocaleString()}</span>
                   </div>
@@ -1033,11 +1067,11 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           </Form>
 
           {filteredQuotations.length > 0 && (
-            <div className="mt-6 border-t pt-6">
-              <h3 className="text-lg font-semibold mb-4">
+            <div className="mt-6 border-t ">
+              <h3 className="text-lg  mb-4">
                 Preview ({filteredQuotations.length} records)
               </h3>
-              <div className="max-h-60 overflow-y-auto rounded-md border">
+              <div className="max-h-60 overflow-y-auto rounded border">
                 <DataTable
                   data={filteredQuotations}
                   columns={exportPreviewColumns}

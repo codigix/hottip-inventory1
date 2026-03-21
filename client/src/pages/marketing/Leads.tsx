@@ -124,14 +124,14 @@ export default function Leads() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-3 p-6">
       {/* Header */}
       <div className="flex items-center justify-between" data-tour="marketing-leads-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl  text-foreground">
             Leads Management
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-500">
             Manage leads through the sales pipeline with status workflow and
             auto-handover
           </p>
@@ -148,11 +148,11 @@ export default function Leads() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-light">Total Leads</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Users className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl ">{metrics.totalLeads}</div>
+              <p className="text-xs text-gray-500">
                 Active leads in pipeline
               </p>
             </CardContent>
@@ -164,8 +164,8 @@ export default function Leads() {
               <Target className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.newLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl ">{metrics.newLeads}</div>
+              <p className="text-xs text-gray-500">
                 Awaiting first contact
               </p>
             </CardContent>
@@ -177,10 +177,10 @@ export default function Leads() {
               <TrendingUp className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl ">
                 {metrics.inProgressLeads}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-500">
                 Active opportunities
               </p>
             </CardContent>
@@ -194,10 +194,10 @@ export default function Leads() {
               <UserCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl ">
                 {(metrics?.conversionRate ?? 0).toFixed(1)}%
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-500">
                 Leads to customers
               </p>
             </CardContent>
@@ -207,11 +207,11 @@ export default function Leads() {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="pt-6" data-tour="marketing-leads-filters">
+        <CardContent className="" data-tour="marketing-leads-filters">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   placeholder="Search leads by name, company, email, phone..."
                   value={searchQuery}
@@ -228,7 +228,7 @@ export default function Leads() {
 
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Filter className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-light">Filters:</span>
               </div>
 

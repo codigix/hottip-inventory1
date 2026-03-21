@@ -242,13 +242,13 @@ export default function TaxGst() {
   });
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-tax-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1 className="text-3xl  text-foreground" data-testid="page-title">
             Tax & GST Management
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Tax tracking and GST reconciliation
           </p>
         </div>
@@ -432,10 +432,10 @@ export default function TaxGst() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-gst-collected">
+            <div className="text-2xl  text-green-600" data-testid="text-gst-collected">
               ₹{(totalOutputTax / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">Output tax total</p>
+            <p className="text-xs text-gray-500">Output tax total</p>
           </CardContent>
         </Card>
 
@@ -445,10 +445,10 @@ export default function TaxGst() {
             <TrendingDown className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600" data-testid="text-gst-paid">
+            <div className="text-2xl  text-blue-600" data-testid="text-gst-paid">
               ₹{(totalInputTax / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">Input tax credit</p>
+            <p className="text-xs text-gray-500">Input tax credit</p>
           </CardContent>
         </Card>
 
@@ -462,10 +462,10 @@ export default function TaxGst() {
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${isAllCurrent ? 'text-green-600' : 'text-orange-600'}`} data-testid="text-filing-status">
+            <div className={`text-2xl  ${isAllCurrent ? 'text-green-600' : 'text-orange-600'}`} data-testid="text-filing-status">
               {isAllCurrent ? 'Current' : 'Pending'}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {filledReturns.length} of {gstReturnsArray.length} filed
             </p>
           </CardContent>
@@ -481,10 +481,10 @@ export default function TaxGst() {
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${netLiability > 0 ? 'text-orange-600' : 'text-green-600'}`} data-testid="text-net-liability">
+            <div className={`text-2xl  ${netLiability > 0 ? 'text-orange-600' : 'text-green-600'}`} data-testid="text-net-liability">
               ₹{Math.abs(netLiability / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {netLiability > 0 ? 'Amount due' : 'Excess credit'}
             </p>
           </CardContent>
@@ -499,7 +499,7 @@ export default function TaxGst() {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search returns by period or notes..."
                 value={searchTerm}
@@ -566,8 +566,8 @@ export default function TaxGst() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8">
                         <div className="flex flex-col items-center space-y-2">
-                          <Calculator className="h-8 w-8 text-muted-foreground" />
-                          <p className="text-muted-foreground">No GST returns found</p>
+                          <Calculator className="h-8 w-8 text-gray-500" />
+                          <p className="text-gray-500">No GST returns found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -576,7 +576,7 @@ export default function TaxGst() {
                       <TableRow key={gstReturn.id} data-testid={`row-gst-return-${gstReturn.id}`}>
                         <TableCell className="font-light">
                           <div>
-                            <div className="font-semibold">
+                            <div className="">
                               {new Date(gstReturn.periodStart).toLocaleDateString()} - {new Date(gstReturn.periodEnd).toLocaleDateString()}
                             </div>
                           </div>
@@ -915,7 +915,7 @@ export default function TaxGst() {
               {selectedReturn.notes && (
                 <div>
                   <Label>Notes</Label>
-                  <p className="text-sm text-muted-foreground" data-testid="view-notes">
+                  <p className="text-sm text-gray-500" data-testid="view-notes">
                     {selectedReturn.notes}
                   </p>
                 </div>

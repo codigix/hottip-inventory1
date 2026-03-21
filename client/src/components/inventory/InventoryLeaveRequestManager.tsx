@@ -225,8 +225,8 @@ export default function InventoryLeaveRequestManager() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Inventory Leave Requests</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl ">Inventory Leave Requests</h1>
+          <p className="text-gray-500">
             Manage inventory team leave requests and view leave balance
           </p>
         </div>
@@ -248,26 +248,26 @@ export default function InventoryLeaveRequestManager() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Leave</p>
-                <p className="text-xl font-bold text-green-600">
+                <p className="text-sm text-gray-500">Total Leave</p>
+                <p className="text-xl  text-green-600">
                   {leaveBalance.totalLeave} days
                 </p>
               </div>
               <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Used</p>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-sm text-gray-500">Used</p>
+                <p className="text-xl  text-blue-600">
                   {leaveBalance.usedLeave} days
                 </p>
               </div>
               <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Remaining</p>
-                <p className="text-xl font-bold text-orange-600">
+                <p className="text-sm text-gray-500">Remaining</p>
+                <p className="text-xl  text-orange-600">
                   {leaveBalance.remainingLeave} days
                 </p>
               </div>
               <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Sick Leave</p>
-                <p className="text-xl font-bold text-purple-600">
+                <p className="text-sm text-gray-500">Sick Leave</p>
+                <p className="text-xl  text-purple-600">
                   {leaveBalance.sickLeave} days
                 </p>
               </div>
@@ -288,9 +288,9 @@ export default function InventoryLeaveRequestManager() {
             </div>
           ) : leaveRequests.length === 0 ? (
             <div className="text-center py-8">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No leave requests found</p>
-              <p className="text-sm text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+              <p className="text-gray-500">No leave requests found</p>
+              <p className="text-sm text-gray-500">
                 Click "New Leave Request" to submit your first request
               </p>
             </div>
@@ -316,12 +316,12 @@ export default function InventoryLeaveRequestManager() {
                           {request.status || "pending"}
                         </Badge>
                         {request.employeeName && (
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-gray-500">
                             by {request.employeeName}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <span className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4" />
                           <span>

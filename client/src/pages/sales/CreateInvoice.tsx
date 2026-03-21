@@ -247,21 +247,21 @@ export default function CreateInvoice() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 max-w-7xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/sales/invoices")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New Invoice</h1>
-          <p className="text-muted-foreground text-sm">Fill in the details for your new invoice</p>
+          <h1 className="text-xl text-black">Create New Invoice</h1>
+          <p className="text-gray-500 text-sm">Fill in the details for your new invoice</p>
         </div>
       </div>
 
       <Card>
         <CardContent className="p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
                   <FormLabel>Reference PO (Optional)</FormLabel>
@@ -475,7 +475,7 @@ export default function CreateInvoice() {
                             className="w-24"
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="">
                           ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
@@ -501,7 +501,7 @@ export default function CreateInvoice() {
               </div>
 
               {/* Totals Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4  border-t">
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -520,34 +520,34 @@ export default function CreateInvoice() {
 
                 <div className="bg-muted/30 p-6 rounded-lg space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">₹{form.watch("subtotalAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="">₹{form.watch("subtotalAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                   </div>
                   
                   {form.watch("cgstAmount") > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">CGST ({form.watch("cgstRate")}%)</span>
+                      <span className="text-gray-500">CGST ({form.watch("cgstRate")}%)</span>
                       <span>₹{form.watch("cgstAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
                   
                   {form.watch("sgstAmount") > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">SGST ({form.watch("sgstRate")}%)</span>
+                      <span className="text-gray-500">SGST ({form.watch("sgstRate")}%)</span>
                       <span>₹{form.watch("sgstAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
                   
                   {form.watch("igstAmount") > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">IGST ({form.watch("igstRate")}%)</span>
+                      <span className="text-gray-500">IGST ({form.watch("igstRate")}%)</span>
                       <span>₹{form.watch("igstAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between items-center pt-3 border-t-2 border-border mt-3">
-                    <span className="text-lg font-bold">Total Amount</span>
-                    <span className="text-2xl font-bold text-primary">₹{form.watch("totalAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    <span className="text-lg ">Total Amount</span>
+                    <span className="text-2xl  text-primary">₹{form.watch("totalAmount").toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>

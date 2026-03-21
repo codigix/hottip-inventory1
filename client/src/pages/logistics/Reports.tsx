@@ -188,10 +188,10 @@ export default function LogisticsReports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="heading-reports">
+          <h1 className="text-xl text-black" data-testid="heading-reports">
             Logistics Reports & Analytics
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-500">
             Comprehensive delivery analytics and performance metrics
           </p>
         </div>
@@ -204,7 +204,7 @@ export default function LogisticsReports() {
                 variant="outline"
                 className={cn(
                   "w-[280px] justify-start text-left font-normal",
-                  !dateRange && "text-muted-foreground"
+                  !dateRange && "text-gray-500"
                 )}
                 data-testid="button-date-range"
               >
@@ -271,8 +271,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Total Shipments</p>
-                  <p className="text-2xl font-bold">{normalizedMetrics.totalShipments.toLocaleString()}</p>
+                  <p className="text-sm font-light text-gray-500">Total Shipments</p>
+                  <p className="text-2xl ">{normalizedMetrics.totalShipments.toLocaleString()}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-600" />
               </div>
@@ -283,8 +283,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Delivered</p>
-                  <p className="text-2xl font-bold text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
+                  <p className="text-sm font-light text-gray-500">Delivered</p>
+                  <p className="text-2xl  text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -295,8 +295,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
+                  <p className="text-sm font-light text-gray-500">Pending</p>
+                  <p className="text-2xl  text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
                 </div>
                 <Clock className="h-8 w-8 text-yellow-600" />
               </div>
@@ -307,8 +307,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Overdue</p>
-                  <p className="text-2xl font-bold text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
+                  <p className="text-sm font-light text-gray-500">Overdue</p>
+                  <p className="text-2xl  text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
                 </div>
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
@@ -319,8 +319,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Avg. Delivery Time</p>
-                  <p className="text-2xl font-bold">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
+                  <p className="text-sm font-light text-gray-500">Avg. Delivery Time</p>
+                  <p className="text-2xl ">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
                 </div>
                 <Activity className="h-8 w-8 text-purple-600" />
               </div>
@@ -331,8 +331,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">On-Time Rate</p>
-                  <p className="text-2xl font-bold">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
+                  <p className="text-sm font-light text-gray-500">On-Time Rate</p>
+                  <p className="text-2xl ">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
                   <Progress value={normalizedMetrics.onTimeDeliveryRate * 100} className="mt-2" />
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
@@ -344,8 +344,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">₹{(normalizedMetrics.totalRevenue ?? 0).toLocaleString()}</p>
+                  <p className="text-sm font-light text-gray-500">Total Revenue</p>
+                  <p className="text-2xl ">₹{(normalizedMetrics.totalRevenue ?? 0).toLocaleString()}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-emerald-600" />
               </div>
@@ -356,8 +356,8 @@ export default function LogisticsReports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-muted-foreground">Active Vendors</p>
-                  <p className="text-2xl font-bold">{normalizedMetrics.activeVendors}</p>
+                  <p className="text-sm font-light text-gray-500">Active Vendors</p>
+                  <p className="text-2xl ">{normalizedMetrics.activeVendors}</p>
                 </div>
                 <Users className="h-8 w-8 text-indigo-600" />
               </div>
@@ -409,7 +409,7 @@ export default function LogisticsReports() {
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-80 flex items-center justify-center text-muted-foreground">
+                  <div className="h-80 flex items-center justify-center text-gray-500">
                     No data available for selected period
                   </div>
                 )}
@@ -445,7 +445,7 @@ export default function LogisticsReports() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-80 flex items-center justify-center text-muted-foreground">
+                  <div className="h-80 flex items-center justify-center text-gray-500">
                     No status data available
                   </div>
                 )}
@@ -485,7 +485,7 @@ export default function LogisticsReports() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-80 flex items-center justify-center text-muted-foreground">
+                <div className="h-80 flex items-center justify-center text-gray-500">
                   No volume data available
                 </div>
               )}
@@ -527,12 +527,12 @@ export default function LogisticsReports() {
                   {normalizedVendorPerformance.map((vendor, index) => (
                     <div key={index} className="border rounded-lg p-4" data-testid={`vendor-${index}`}>
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold">{vendor.vendorName}</h4>
+                        <h4 className="">{vendor.vendorName}</h4>
                         <Badge variant={vendor.onTimeRate >= 0.9 ? "default" : vendor.onTimeRate >= 0.7 ? "secondary" : "destructive"}>
                           {(vendor.onTimeRate * 100).toFixed(1)}% On-Time
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                      <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
                         <div>
                           <span className="font-light">Total Shipments:</span> {vendor.totalShipments}
                         </div>
@@ -548,7 +548,7 @@ export default function LogisticsReports() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-gray-500">
                   No vendor performance data available for selected period
                 </div>
               )}
@@ -588,8 +588,8 @@ export default function LogisticsReports() {
                   {normalizedPerformanceMetrics.map((metric, index) => (
                     <div key={index} className="flex justify-between items-center p-4 border rounded-lg" data-testid={`performance-${index}`}>
                       <div>
-                        <h4 className="font-semibold">{metric.metric}</h4>
-                        <p className="text-2xl font-bold">{(metric.current ?? 0).toLocaleString()}</p>
+                        <h4 className="">{metric.metric}</h4>
+                        <p className="text-2xl ">{(metric.current ?? 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <div className={cn(
@@ -601,13 +601,13 @@ export default function LogisticsReports() {
                               <span className="h-4 w-4">→</span>}
                           <span className="font-light">{(metric.change ?? 0).toFixed(1) > 0 ? '+' : ''}{(metric.change ?? 0).toFixed(1)}%</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">vs previous period</p>
+                        <p className="text-sm text-gray-500">vs previous period</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-gray-500">
                   No performance data available for selected period
                 </div>
               )}

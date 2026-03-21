@@ -15,30 +15,30 @@ const AllDepartmentsConclud: React.FC = () => {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-3xl font-bold mb-4">All Departments Summary</h1>
+    <div className=" mx-auto p-4">
+      <h1 className="text-xl  mb-4">All Departments Summary</h1>
       {isLoading ? (
-        <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        <div className="py-8 text-center text-gray-500">Loading...</div>
       ) : error ? (
         <div className="py-8 text-center text-red-600">{error.message || "Failed to load summary."}</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded shadow p-4">
-              <h2 className="font-semibold mb-2">Total Employees</h2>
-              <p className="text-2xl font-bold">{data?.totalEmployees ?? "-"}</p>
+              <h2 className=" mb-2">Total Employees</h2>
+              <p className="text-xl ">{data?.totalEmployees ?? "-"}</p>
             </div>
             <div className="bg-white rounded shadow p-4">
-              <h2 className="font-semibold mb-2">Total Revenue</h2>
-              <p className="text-2xl font-bold">₹{data?.totalRevenue?.toLocaleString("en-IN") ?? "-"}</p>
+              <h2 className=" mb-2">Total Revenue</h2>
+              <p className="text-xl ">₹{data?.totalRevenue?.toLocaleString("en-IN") ?? "-"}</p>
             </div>
             <div className="bg-white rounded shadow p-4">
-              <h2 className="font-semibold mb-2">Open Tasks</h2>
-              <p className="text-2xl font-bold">{data?.openTasks ?? "-"}</p>
+              <h2 className=" mb-2">Open Tasks</h2>
+              <p className="text-xl ">{data?.openTasks ?? "-"}</p>
             </div>
           </div>
           <div className="bg-white rounded shadow p-4">
-            <h2 className="font-semibold mb-4">Department Performance</h2>
+            <h2 className=" mb-4">Department Performance</h2>
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b">
@@ -62,7 +62,7 @@ const AllDepartmentsConclud: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">No department data found.</td>
+                    <td colSpan={5} className="py-8 text-center text-gray-500">No department data found.</td>
                   </tr>
                 )}
               </tbody>

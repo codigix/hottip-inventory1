@@ -659,7 +659,7 @@ export default function MarketingAttendance() {
 
   if (attendanceError) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -671,14 +671,14 @@ export default function MarketingAttendance() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-2 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="page-title">
+          <h1 className="text-3xl " data-testid="page-title">
             Marketing Attendance
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-500">
             Track team attendance with live location and leave management
           </p>
         </div>
@@ -746,12 +746,12 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl font-bold text-green-600"
+                  className="text-2xl  text-green-600"
                   data-testid="metric-present"
                 >
                   {displayMetrics.presentToday}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {displayMetrics.totalEmployees > 0
                     ? `${(
                         (displayMetrics.presentToday /
@@ -773,12 +773,12 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl font-bold text-red-600"
+                  className="text-2xl  text-red-600"
                   data-testid="metric-absent"
                 >
                   {displayMetrics.absentToday}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {displayMetrics.totalEmployees > 0
                     ? `${(
                         (displayMetrics.absentToday /
@@ -800,12 +800,12 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl font-bold text-orange-600"
+                  className="text-2xl  text-orange-600"
                   data-testid="metric-late"
                 >
                   {displayMetrics.lateToday}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {displayMetrics.totalEmployees > 0
                     ? `${(
                         (displayMetrics.lateToday /
@@ -825,12 +825,12 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl font-bold text-blue-600"
+                  className="text-2xl  text-blue-600"
                   data-testid="metric-leave"
                 >
                   {displayMetrics.onLeaveToday}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {displayMetrics.totalEmployees > 0
                     ? `${(
                         (displayMetrics.onLeaveToday /
@@ -928,7 +928,7 @@ export default function MarketingAttendance() {
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
                           {record.user?.firstName?.[0]}
                           {record.user?.lastName?.[0]}
                         </div>
@@ -936,7 +936,7 @@ export default function MarketingAttendance() {
                           <p className="font-light">
                             {record.user?.firstName} {record.user?.lastName}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-gray-500">
                             {record.label}
                           </p>
                         </div>
@@ -964,7 +964,7 @@ export default function MarketingAttendance() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-gray-500 py-8">
                   No attendance records for today
                 </p>
               )}
@@ -1032,11 +1032,11 @@ export default function MarketingAttendance() {
             <Card>
               <CardContent className="py-8">
                 <div className="text-center">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
+                  <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg  mb-2">
                     No team members found
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-gray-500">
                     Try adjusting your search or filter criteria.
                   </p>
                 </div>
@@ -1093,7 +1093,7 @@ export default function MarketingAttendance() {
                   <Separator />
                   <div className="flex justify-between">
                     <span className="font-light">Attendance Rate</span>
-                    <span className="font-bold text-green-600">
+                    <span className=" text-green-600">
                       {(
                         ((displayMetrics?.monthlyStats?.presentDays ?? 0) /
                           (displayMetrics?.monthlyStats?.totalDays ?? 1)) *

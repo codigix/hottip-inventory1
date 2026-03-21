@@ -195,7 +195,7 @@ export default function VendorManagement() {
       cell: (supplier: any) => (
         <div data-tour="sales-vendor-name-column">
           <div className="font-light">{supplier.name}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-gray-500">
             {supplier.companyType || "Company"}
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function VendorManagement() {
       cell: (supplier: any) => (
         <div data-tour="sales-vendor-contact-column">
           <div className="text-sm">{supplier.contactPerson}</div>
-          <div className="text-xs text-muted-foreground">{supplier.email}</div>
+          <div className="text-xs text-gray-500">{supplier.email}</div>
         </div>
       ),
     },
@@ -286,30 +286,30 @@ export default function VendorManagement() {
   ];
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 bg-slate-50 min-h-full space-y-3">
+      <div className="flex justify-between items-center">
         <div data-tour="sales-vendor-header">
           <h1
-            className="text-3xl font-bold tracking-tight"
+            className="text-xl  text-slate-800"
             data-testid="text-vendor-management-title"
           >
             Vendor Database
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-xs text-slate-500 ">
             Supplier management with full history tracking
           </p>
         </div>
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-new-vendor" data-tour="sales-add-vendor-button" onClick={handleNewVendor}>
+            <Button className="bg-primary hover:bg-primary text-white border-none " data-testid="button-new-vendor" data-tour="sales-add-vendor-button" onClick={handleNewVendor}>
               <Plus className="h-4 w-4 mr-2" />
               New Vendor
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl bg-white max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Vendor</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl  text-slate-800">Create New Vendor</DialogTitle>
+              <DialogDescription className="text-slate-500">
                 Add a new vendor/supplier to your database with complete
                 details.
               </DialogDescription>
@@ -652,25 +652,29 @@ export default function VendorManagement() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Building2 className="h-5 w-5" />
-            <span>All Vendors</span>
-          </CardTitle>
-          <CardDescription>
-            Complete vendor database with GST details and transaction history
-          </CardDescription>
-        </CardHeader>
-        <CardContent data-tour="sales-vendor-list">
+      <div className="">
+        <div className=" border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-5 w-5 text-slate-400" />
+            <h2 className="text-sm  text-slate-700">Vendor List</h2>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+              {suppliers?.length || 0}
+            </Badge>
+          </div>
+        </div>
+        <div className="mt-2" data-tour="sales-vendor-list">
           <DataTable
             data={suppliers || []}
             columns={columns}
+            isLoading={isLoading}
+            onEdit={handleEdit}
+            onView={handleView}
             searchable={true}
             searchKey="name"
+            searchPlaceholder="Search vendors by name..."
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* View Vendor Dialog */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
@@ -685,13 +689,13 @@ export default function VendorManagement() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Vendor Name
                   </label>
                   <p className="text-base mt-1">{selectedVendor.name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Contact Person
                   </label>
                   <p className="text-base mt-1">
@@ -701,7 +705,7 @@ export default function VendorManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Email
                   </label>
                   <p className="text-base mt-1">
@@ -709,7 +713,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Phone
                   </label>
                   <p className="text-base mt-1">
@@ -719,7 +723,7 @@ export default function VendorManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     GST Number
                   </label>
                   <p className="text-base mt-1 font-mono">
@@ -727,7 +731,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     PAN Number
                   </label>
                   <p className="text-base mt-1 font-mono">
@@ -736,7 +740,7 @@ export default function VendorManagement() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-sm  text-gray-500">
                   Address
                 </label>
                 <p className="text-base mt-1">
@@ -745,7 +749,7 @@ export default function VendorManagement() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     City
                   </label>
                   <p className="text-base mt-1">
@@ -753,7 +757,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     State
                   </label>
                   <p className="text-base mt-1">
@@ -761,7 +765,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     ZIP Code
                   </label>
                   <p className="text-base mt-1">
@@ -771,7 +775,7 @@ export default function VendorManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Company Type
                   </label>
                   <p className="text-base mt-1 capitalize">
@@ -779,7 +783,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Payment Terms
                   </label>
                   <p className="text-base mt-1">
@@ -789,7 +793,7 @@ export default function VendorManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Website
                   </label>
                   <p className="text-base mt-1">
@@ -808,7 +812,7 @@ export default function VendorManagement() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Credit Limit
                   </label>
                   <p className="text-base mt-1">
@@ -817,7 +821,7 @@ export default function VendorManagement() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-sm  text-gray-500">
                   Status
                 </label>
                 <p className="text-base mt-1">
@@ -834,7 +838,7 @@ export default function VendorManagement() {
               </div>
               {selectedVendor.notes && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm  text-gray-500">
                     Notes
                   </label>
                   <p className="text-base mt-1">{selectedVendor.notes}</p>
@@ -1198,7 +1202,7 @@ export default function VendorManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Vendor history tracking will be displayed here. This can include:
             </p>
             <ul className="list-disc list-inside space-y-2 text-sm">
@@ -1208,7 +1212,7 @@ export default function VendorManagement() {
               <li>Delivery records</li>
               <li>Quote requests</li>
             </ul>
-            <p className="text-sm text-muted-foreground italic mt-4">
+            <p className="text-sm text-gray-500 italic mt-4">
               Feature coming soon...
             </p>
           </div>

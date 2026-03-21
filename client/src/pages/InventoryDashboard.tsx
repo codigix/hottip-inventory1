@@ -24,7 +24,14 @@ import {
   TrendingUp,
   Search,
   Boxes,
+  LayoutGrid,
+  ClipboardList,
+  History,
+  ShieldCheck,
+  Building2,
+  Truck
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -45,13 +52,12 @@ export default function InventoryDashboard() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const { toast } = useToast();
 
-  const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ["/products"],
+  const { data: productsResponse, isLoading: productsLoading } = useQuery({
+    queryKey: ["/api/products"],
+    queryFn: async () => apiRequest("GET", "/api/products"),
   });
 
-  const { data: lowStockProducts, isLoading: lowStockLoading } = useQuery({
-    queryKey: ["/products/low-stock"],
-  });
+  const products = Array.isArray(productsResponse?.data) ? productsResponse.data : (Array.isArray(productsResponse) ? productsResponse : []);
 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productFormSchema),
@@ -68,136 +74,58 @@ export default function InventoryDashboard() {
     },
   });
 
-  const createProductMutation = useMutation({
-    mutationFn: async (data: ProductForm) => {
-      const productData = {
-        ...data,
-        price: data.price,
-        costPrice: data.costPrice,
-      };
-      return await apiRequest("POST", "/products", productData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
-      setIsAddDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Product created successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create product",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateProductMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<ProductForm> }) => {
-      return await apiRequest("PUT", `/products/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
-      setEditingProduct(null);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Product updated successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update product",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteProductMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/products/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/products/low-stock"] });
-      toast({
-        title: "Success",
-        description: "Product deleted successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete product",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: ProductForm) => {
-    if (editingProduct) {
-      updateProductMutation.mutate({ id: editingProduct.id, data });
-    } else {
-      createProductMutation.mutate(data);
-    }
-  };
-
-  const handleEdit = (product: any) => {
-    setEditingProduct(product);
-    form.reset({
-      name: product.name,
-      description: product.description || "",
-      sku: product.sku,
-      category: product.category,
-      price: product.price.toString(),
-      costPrice: product.costPrice.toString(),
-      stock: parseInt(product.stock),
-      lowStockThreshold: parseInt(product.lowStockThreshold),
-      unit: product.unit,
-    });
-  };
-
-  const handleDelete = (product: any) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      deleteProductMutation.mutate(product.id);
-    }
-  };
-
   const productColumns = [
     {
       key: "name",
-      header: "Product Name",
-    },
-    {
-      key: "sku",
-      header: "SKU",
-    },
-    {
-      key: "category",
-      header: "Category",
-    },
-    {
-      key: "stock",
-      header: "Stock",
+      header: "Product Information",
       cell: (product: any) => (
-        <div className="flex items-center space-x-2">
-          <span>{product.stock} {product.unit}</span>
-          {product.stock <= product.lowStockThreshold && (
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          )}
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+            <Package className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className=" text-slate-900">{product.name}</span>
+            <span className="text-xs text-slate-500 uppercase tracking-tight">{product.sku}</span>
+          </div>
         </div>
       ),
     },
     {
+      key: "category",
+      header: "Category",
+      cell: (product: any) => (
+        <Badge variant="outline" className="font-normal bg-slate-50 text-slate-600 border-slate-200">
+          {product.category}
+        </Badge>
+      ),
+    },
+    {
+      key: "stock",
+      header: "Inventory",
+      cell: (product: any) => {
+        const isLow = product.stock <= product.lowStockThreshold;
+        return (
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className={cn("text-sm font-semibold", isLow ? "text-red-600" : "text-slate-900")}>
+                {product.stock} {product.unit}
+              </span>
+              {isLow && <AlertTriangle className="h-3 w-3 text-red-500" />}
+            </div>
+            <span className="text-[10px] text-slate-400  uppercase">Threshold: {product.lowStockThreshold}</span>
+          </div>
+        );
+      },
+    },
+    {
       key: "price",
-      header: "Price",
-      cell: (product: any) => `$${parseFloat(product.price).toFixed(2)}`,
+      header: "Pricing",
+      cell: (product: any) => (
+        <div className="flex flex-col">
+          <span className="text-sm  text-slate-900">₹{parseFloat(product.price).toLocaleString()}</span>
+          <span className="text-[10px] text-slate-400 uppercase">Cost: ₹{parseFloat(product.costPrice).toLocaleString()}</span>
+        </div>
+      ),
     },
     {
       key: "status",
@@ -205,308 +133,130 @@ export default function InventoryDashboard() {
       cell: (product: any) => {
         const isLowStock = product.stock <= product.lowStockThreshold;
         return (
-          <Badge variant={isLowStock ? "destructive" : "secondary"}>
-            {isLowStock ? "Low Stock" : "In Stock"}
+          <Badge 
+            variant="outline" 
+            className={cn(
+              "capitalize font-normal px-2.5 py-0.5",
+              isLowStock ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            )}
+          >
+            {isLowStock ? "Critical Level" : "Optimal Stock"}
           </Badge>
         );
       },
     },
   ];
 
-  const totalProducts = (products || []).length;
-  const totalValue = (products || []).reduce((sum: number, p: any) => sum + (parseFloat(p.price) * parseInt(p.stock)), 0);
-  const lowStockCount = (lowStockProducts || []).length;
+  const totalValue = products.reduce((sum: number, p: any) => sum + (parseFloat(p.price) * parseInt(p.stock)), 0);
+  const lowStockCount = products.filter((p: any) => p.stock <= p.lowStockThreshold).length;
 
-  if (productsLoading) {
-    return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
-          <Skeleton className="h-96" />
-        </div>
-      </main>
-    );
-  }
+  const metrics = [
+    { label: "Total Inventory", value: products.length, icon: Boxes, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Critical Stock", value: lowStockCount, icon: AlertTriangle, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Valuation", value: `₹${totalValue.toLocaleString()}`, icon: TrendingUp, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Monthly Growth", value: "+12.5%", icon: TrendingUp, color: "text-slate-600", bg: "bg-slate-50" },
+  ];
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-header">Inventory Management</h1>
-          <p className="text-muted-foreground">Manage your products and stock levels</p>
+          <h1 className="text-xl  text-slate-900 ">Inventory Overview</h1>
+          <p className="text-xs text-slate-500">Real-time monitoring of stock levels, procurement cycles, and logistics health.</p>
         </div>
-        <Dialog open={isAddDialogOpen || !!editingProduct} onOpenChange={(open) => {
-          if (!open) {
-            setIsAddDialogOpen(false);
-            setEditingProduct(null);
-            form.reset();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-product">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-              {/* <DialogDescription>
-                {editingProduct ? "Update product details" : "Enter the details for the new product"}
-              </DialogDescription> */}
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Product Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-product-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="sku"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SKU</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-sku" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-category" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Price ($)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" step="0.01" data-testid="input-price" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="costPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cost Price ($)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" step="0.01" data-testid="input-cost-price" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Stock</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-stock" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="lowStockThreshold"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Low Stock Alert</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-low-stock" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="unit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-unit">
-                              <SelectValue placeholder="Select unit" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pcs">Pieces</SelectItem>
-                            <SelectItem value="kg">Kilograms</SelectItem>
-                            <SelectItem value="lbs">Pounds</SelectItem>
-                            <SelectItem value="liters">Liters</SelectItem>
-                            <SelectItem value="meters">Meters</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsAddDialogOpen(false);
-                      setEditingProduct(null);
-                      form.reset();
-                    }}
-                    data-testid="button-cancel"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createProductMutation.isPending || updateProductMutation.isPending}
-                    data-testid="button-save-product"
-                  >
-                    {editingProduct ? "Update" : "Create"} Product
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 h-10 px-4">
+            <History className="h-4 w-4 mr-2 text-slate-400" />
+            Stock Ledger
+          </Button>
+          <Button className="bg-primary hover:bg-primary text-white shadow-sm h-10 px-4" onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Product
+          </Button>
+        </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" data-tour="inventory-dashboard">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
+              </div>
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Products</p>
-                <p className="text-2xl font-bold text-foreground">{totalProducts}</p>
+                <p className="text-xs  text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold text-foreground">${totalValue.toLocaleString()}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">Low Stock Alert</p>
-                <p className="text-2xl font-bold text-foreground">{lowStockCount}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Low Stock Alert */}
-      {lowStockCount > 0 && (
-        <Card className="mb-6 border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-red-800 flex items-center">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              Low Stock Alert
-            </CardTitle>
-            <CardDescription className="text-red-700">
-              {lowStockCount} products are running low on stock and need restocking.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+        <div className="lg:col-span-2">
+          <div className="p-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm text-slate-800 flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-slate-400" />
+                Product Registry
+              </CardTitle>
+              <Badge variant="secondary" className="bg-slate-100 text-slate-600  px-2 py-0.5 border-none">
+                {products.length} Items Listed
+              </Badge>
+            </div>
+          </div>
+          <div className="p-0 mt-4">
+            <DataTable
+              data={products}
+              columns={productColumns}
+              loading={productsLoading}
+              searchPlaceholder="Search product name, SKU or category..."
+            />
+          </div>
+        </div>
 
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Products</CardTitle>
-          <CardDescription>
-            Manage your product inventory and stock levels
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            data={(products || [])}
-            columns={productColumns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            searchable={true}
-            searchKey="name"
-          />
-        </CardContent>
-      </Card>
-    </main>
+        <div className="space-y-6">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm  text-slate-800 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                Quality Compliance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 space-y-2">
+              <div className="flex items-center justify-between text-xs border-b border-slate-50 pb-2">
+                <span className="text-slate-500">Last QC Audit</span>
+                <span className=" text-slate-900">21 Mar 2026</span>
+              </div>
+              <div className="flex items-center justify-between text-xs border-b border-slate-50 pb-2">
+                <span className="text-slate-500">Batch Compliance</span>
+                <span className=" text-emerald-600">98.2%</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Pending Inspections</span>
+                <span className=" text-amber-600">3 Batches</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm bg-primary text-white overflow-hidden">
+            <CardContent className="p-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-white/10 rounded-lg">
+                  <Truck className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-sm">Logistics Hub</h3>
+              </div>
+              <p className="text-xs text-white/60 mb-6 leading-relaxed">
+                Connect your warehouse with site locations and manage active shipments efficiently.
+              </p>
+              <Button variant="outline" className="w-full bg-white/10 border-white/20 hover:bg-white/20 text-white hover:text-white border-none">
+                View Shipment Orders
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -10,11 +10,11 @@ export default function QuotationsPage() {
   const [activeTab, setActiveTab] = useState("sent");
 
   return (
-    <div className="p-8 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-4 space-y-2 bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Quotations Hub</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl  text-slate-800">Quotations Hub</h1>
+          <p className="text-xs text-slate-500 ">
             Centralized management for all your outbound and inbound quotations
           </p>
         </div>
@@ -22,15 +22,13 @@ export default function QuotationsPage() {
         <div className="flex items-center gap-3">
           {activeTab === "sent" ? (
             <Link href="/sales/outbound-quotations/new">
-              <Button className="shadow-sm">
+              <Button className="bg-primary hover:bg-primary text-white border-none ">
                 <Plus className="h-4 w-4 mr-2" />
                 New Outbound Quotation
               </Button>
             </Link>
           ) : (
-            <Button className="shadow-sm" onClick={() => {
-              // Trigger the dialog in InboundQuotations if possible, 
-              // or just rely on the button inside the component
+            <Button className="bg-primary hover:bg-primary text-white border-none " onClick={() => {
               const uploadBtn = document.querySelector('[data-testid="button-upload-inbound-quotation"]') as HTMLButtonElement;
               if (uploadBtn) uploadBtn.click();
             }}>
@@ -42,17 +40,17 @@ export default function QuotationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <TabsList className="bg-white border p-1 h-12 shadow-sm inline-flex w-auto">
+        <TabsList className="bg-white border border-slate-200 p-1 h-11  inline-flex w-auto">
           <TabsTrigger 
             value="sent" 
-            className="px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            className="p-2 rounded data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none transition-all text-slate-600 text-xs   "
           >
             <FileUp className="h-4 w-4 mr-2" />
             Sent to Clients
           </TabsTrigger>
           <TabsTrigger 
             value="received" 
-            className="px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            className="p-2 rounded data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none transition-all text-slate-600 text-xs   "
           >
             <FileDown className="h-4 w-4 mr-2" />
             Received from Clients

@@ -178,7 +178,7 @@ export default function TaskCard({
     if (isOverdue) return "text-red-600 dark:text-red-400";
     if (isDueToday) return "text-orange-600 dark:text-orange-400";
     if (isDueTomorrow) return "text-yellow-600 dark:text-yellow-400";
-    return "text-muted-foreground";
+    return "text-gray-500";
   };
 
   const getDueDateText = () => {
@@ -208,7 +208,7 @@ export default function TaskCard({
             </div>
             <div className="flex-1 min-w-0">
               <h3 
-                className="font-semibold text-sm leading-tight truncate cursor-pointer hover:text-primary"
+                className=" text-sm leading-tight truncate cursor-pointer hover:text-primary"
                 onClick={() => setIsExpanded(!isExpanded)}
                 data-testid={`task-title-${task.id}`}
               >
@@ -216,7 +216,7 @@ export default function TaskCard({
               </h3>
               {!compact && task.description && (
                 <p 
-                  className={`text-xs text-muted-foreground mt-1 ${
+                  className={`text-xs text-gray-500 mt-1 ${
                     isExpanded ? '' : 'line-clamp-2'
                   }`}
                   data-testid={`task-description-${task.id}`}
@@ -322,7 +322,7 @@ export default function TaskCard({
               >
                 {task.status.replace('_', ' ').toUpperCase()}
               </Badge>
-              <span className="text-muted-foreground">
+              <span className="text-gray-500">
                 {getProgressPercentage()}%
               </span>
             </div>
@@ -341,7 +341,7 @@ export default function TaskCard({
                     </AvatarFallback>
                   </Avatar>
                   <span 
-                    className="text-muted-foreground truncate max-w-[80px]"
+                    className="text-gray-500 truncate max-w-[80px]"
                     data-testid={`task-assignee-${task.id}`}
                   >
                     {task.assignedToUser.firstName} {task.assignedToUser.lastName}
@@ -362,7 +362,7 @@ export default function TaskCard({
 
             {/* Estimated Hours */}
             {task.estimatedHours && (
-              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
                 <Timer className="h-3 w-3" />
                 <span data-testid={`task-estimated-hours-${task.id}`}>
                   {task.estimatedHours}h estimated

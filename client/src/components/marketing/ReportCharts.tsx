@@ -192,7 +192,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
   if (!dateRangeParam) {
     return (
       <div className="text-center py-8">
-        <div className="text-muted-foreground">
+        <div className="text-gray-500">
           Please select a date range to view charts and analytics
         </div>
       </div>

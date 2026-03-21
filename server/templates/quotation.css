@@ -82,7 +82,7 @@ body {
   font-size: 22pt;
   font-weight: bold;
   margin-bottom: 5px;
-  text-transform: uppercase;
+  text-transform: ;
   letter-spacing: 1px;
 }
 
@@ -442,8 +442,8 @@ table tbody tr:hover {
   font-style: italic;
 }
 
-.text-uppercase {
-  text-transform: uppercase;
+.text- {
+  text-transform: ;
 }
 
 .mt-10 {

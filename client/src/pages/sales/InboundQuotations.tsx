@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -394,18 +395,20 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     {
       key: "quotationNumber",
       header: "Quotation #",
+      sortable: true,
       cell: (quotation: any) => (
-        <div className="font-light">{quotation.quotationNumber}</div>
+        <div className=" text-slate-800">{quotation.quotationNumber}</div>
       ),
     },
     {
-      key: "sender",
-      header: "Customer",
+      key: "sender.name",
+      header: "Sender",
+      sortable: true,
       cell: (quotation: any) => (
         <div>
-          <div className="font-light">{quotation.sender?.name || "N/A"}</div>
-          <div className="text-xs text-muted-foreground">
-            {quotation.senderType?.toUpperCase() || "CLIENT"}
+          <div className="font-medium text-slate-700">{quotation.sender?.name || "N/A"}</div>
+          <div className="text-[10px] text-slate-400  ">
+            {quotation.senderType || "CLIENT"}
           </div>
         </div>
       ),
@@ -413,33 +416,47 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     {
       key: "quotationDate",
       header: "Date",
-      cell: (quotation: any) =>
-        new Date(quotation.quotationDate).toLocaleDateString(),
+      sortable: true,
+      cell: (quotation: any) => (
+        <div className="text-xs text-slate-600">
+          {new Date(quotation.quotationDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          })}
+        </div>
+      ),
     },
     {
       key: "totalAmount",
-      header: "Total Amount",
-      cell: (quotation: any) =>
-        `₹${parseFloat(quotation.totalAmount).toLocaleString("en-IN")}`,
+      header: "Amount",
+      sortable: true,
+      cell: (quotation: any) => (
+        <span className="text-xs  text-slate-800">
+          ₹{parseFloat(quotation.totalAmount || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
+      sortable: true,
       cell: (quotation: any) => {
         const statusColors = {
-          received: "bg-blue-100 text-blue-800",
-          under_review: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800",
-          rejected: "bg-red-100 text-red-800",
+          received: "bg-slate-100 text-slate-600 border-slate-200",
+          under_review: "bg-blue-50 text-blue-700 border-blue-100",
+          approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          rejected: "bg-red-50 text-red-700 border-red-100",
         };
         return (
           <Badge
-            className={
-              statusColors[quotation.status as keyof typeof statusColors] ||
-              statusColors.received
-            }
+            variant="outline"
+            className={cn(
+              "text-[10px]   py-0 h-5 shadow-none",
+              statusColors[quotation.status as keyof typeof statusColors] || statusColors.received
+            )}
           >
-            {quotation.status?.replace("_", " ").toUpperCase() || "RECEIVED"}
+            {quotation.status?.replace("_", " ") || "RECEIVED"}
           </Badge>
         );
       },
@@ -453,58 +470,62 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
         const isProcessing = actionInProgressId === quotation.id;
 
         return (
-          <div className="flex items-center space-x-2" data-tour="sales-quotation-actions">
+          <div className="flex items-center space-x-1">
             <Button
               size="sm"
               variant="ghost"
-              className="hover:bg-muted"
+              className="h-8 w-8 p-0"
               onClick={() => handleViewDetails(quotation)}
               data-testid={`button-view-details-${quotation.id}`}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 text-slate-400" />
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              className="hover:bg-muted text-blue-600"
+              className="h-8 w-8 p-0"
               onClick={() => handleDownloadAttachment(quotation)}
               data-testid={`button-download-inbound-${quotation.id}`}
               title="Download Attachment"
             >
-              <FileDown className="h-4 w-4" />
+              <FileDown className="h-4 w-4 text-slate-400" />
             </Button>
+            {!isApproved && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 hover:text-emerald-600"
+                disabled={isProcessing}
+                onClick={() => handleUpdateStatus(quotation, "approved")}
+                data-testid={`button-approve-${quotation.id}`}
+                title="Approve"
+              >
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+              </Button>
+            )}
+            {!isRejected && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 hover:text-red-600"
+                disabled={isProcessing}
+                onClick={() => handleUpdateStatus(quotation, "rejected")}
+                data-testid={`button-reject-${quotation.id}`}
+                title="Reject"
+              >
+                <XCircle className="h-4 w-4 text-red-400" />
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
-              className="hover:bg-muted text-green-600"
-              disabled={isProcessing || isApproved}
-              onClick={() => handleUpdateStatus(quotation, "approved")}
-              data-testid={`button-approve-${quotation.id}`}
-              title="Approve"
-            >
-              <CheckCircle className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="hover:bg-muted text-red-600"
-              disabled={isProcessing || isRejected}
-              onClick={() => handleUpdateStatus(quotation, "rejected")}
-              data-testid={`button-reject-${quotation.id}`}
-              title="Reject"
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="hover:bg-muted text-destructive"
+              className="h-8 w-8 p-0 hover:bg-red-50"
               disabled={isProcessing}
               onClick={() => handleDeleteQuotation(quotation.id)}
               data-testid={`button-delete-inbound-${quotation.id}`}
               title="Delete"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 text-red-400" />
             </Button>
           </div>
         );
@@ -513,17 +534,17 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
   ];
 
   return (
-    <div className={isEmbedded ? "" : "p-8"}>
+    <div className={isEmbedded ? "" : "p-4"}>
       {!isEmbedded && (
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1
-              className="text-3xl font-bold tracking-tight"
+              className="text-xl text-black"
               data-testid="text-inbound-quotations-title"
             >
               Inbound Quotations
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-gray-500">
               Manage quotations received from clients and vendors
             </p>
           </div>
@@ -619,7 +640,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                   {selectedOutboundQuotation && (
                     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                        <h4 className="text-sm font-bold text-blue-900 flex items-center">
+                        <h4 className="text-sm  text-blue-900 flex items-center">
                           <Eye className="h-4 w-4 mr-2" />
                           Reference Details: {selectedOutboundQuotation.quotationNumber}
                         </h4>
@@ -630,54 +651,54 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
                       <div className="grid grid-cols-2 gap-4">
                         {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Part Number</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.partNumber}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Part Number</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Job Card #</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Job Card #</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Project Incharge</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Project Incharge</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quotation Items Implementation</h5>
-                        <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <h5 className="text-[11px]  text-slate-500 ">Quotation Items Implementation</h5>
+                        <div className="rounded border border-slate-200 bg-white overflow-hidden ">
                           <table className="w-full text-xs">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="p-2.5 text-left font-semibold text-slate-700">Item Description</th>
-                                <th className="p-2.5 text-center font-semibold text-slate-700">Qty</th>
-                                <th className="p-2.5 text-right font-semibold text-slate-700">Rate</th>
-                                <th className="p-2.5 text-right font-semibold text-slate-700">Amount</th>
+                                <th className="p-2.5 text-left  text-slate-700">Item Description</th>
+                                <th className="p-2.5 text-center  text-slate-700">Qty</th>
+                                <th className="p-2.5 text-right  text-slate-700">Rate</th>
+                                <th className="p-2.5 text-right  text-slate-700">Amount</th>
                               </tr>
                             </thead>
                             <tbody>
                               {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
                                 selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
                                   <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-2.5 font-medium text-slate-800">{item.itemName}</td>
+                                    <td className="p-2.5  text-slate-800">{item.itemName}</td>
                                     <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
                                     <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
-                                    <td className="p-2.5 text-right font-bold text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
+                                    <td className="p-2.5 text-right  text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
                                   </tr>
                                 ))
                               ) : (
                                 <tr>
-                                  <td colSpan={4} className="p-4 text-center text-muted-foreground italic">No items found in reference</td>
+                                  <td colSpan={4} className="p-4 text-center text-gray-500 italic">No items found in reference</td>
                                 </tr>
                               )}
                             </tbody>
-                            <tfoot className="bg-blue-50/30 font-bold border-t border-slate-200">
+                            <tfoot className="bg-blue-50/30  border-t border-slate-200">
                               <tr>
                                 <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
                                 <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
@@ -689,13 +710,13 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       
                       {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
                         <div className="space-y-2">
-                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mold & Technical Specifications</h5>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                          <h5 className="text-[11px]  text-slate-500 ">Mold & Technical Specifications</h5>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 ">
                             {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
                               value && (
                                 <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
-                                  <span className="text-muted-foreground font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                  <span className="font-semibold text-slate-800">{String(value)}</span>
+                                  <span className="text-gray-500  capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className=" text-slate-800">{String(value)}</span>
                                 </div>
                               )
                             ))}
@@ -754,7 +775,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                   {selectedOutboundQuotation && (
                     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                        <h4 className="text-sm font-bold text-blue-900 flex items-center">
+                        <h4 className="text-sm  text-blue-900 flex items-center">
                           <Eye className="h-4 w-4 mr-2" />
                           Reference Details: {selectedOutboundQuotation.quotationNumber}
                         </h4>
@@ -765,54 +786,54 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
                       <div className="grid grid-cols-2 gap-4">
                         {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Part Number</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.partNumber}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Part Number</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Job Card #</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Job Card #</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 shadow-sm">
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Project Incharge</p>
-                            <p className="text-sm font-semibold text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
+                          <div className="bg-white p-2 rounded border border-blue-50 ">
+                            <p className="text-[10px] text-gray-500  ">Project Incharge</p>
+                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quotation Items Implementation</h5>
-                        <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <h5 className="text-[11px]  text-slate-500 ">Quotation Items Implementation</h5>
+                        <div className="rounded border border-slate-200 bg-white overflow-hidden ">
                           <table className="w-full text-xs">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="p-2.5 text-left font-semibold text-slate-700">Item Description</th>
-                                <th className="p-2.5 text-center font-semibold text-slate-700">Qty</th>
-                                <th className="p-2.5 text-right font-semibold text-slate-700">Rate</th>
-                                <th className="p-2.5 text-right font-semibold text-slate-700">Amount</th>
+                                <th className="p-2.5 text-left  text-slate-700">Item Description</th>
+                                <th className="p-2.5 text-center  text-slate-700">Qty</th>
+                                <th className="p-2.5 text-right  text-slate-700">Rate</th>
+                                <th className="p-2.5 text-right  text-slate-700">Amount</th>
                               </tr>
                             </thead>
                             <tbody>
                               {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
                                 selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
                                   <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-2.5 font-medium text-slate-800">{item.itemName}</td>
+                                    <td className="p-2.5  text-slate-800">{item.itemName}</td>
                                     <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
                                     <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
-                                    <td className="p-2.5 text-right font-bold text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
+                                    <td className="p-2.5 text-right  text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
                                   </tr>
                                 ))
                               ) : (
                                 <tr>
-                                  <td colSpan={4} className="p-4 text-center text-muted-foreground italic">No items found in reference</td>
+                                  <td colSpan={4} className="p-4 text-center text-gray-500 italic">No items found in reference</td>
                                 </tr>
                               )}
                             </tbody>
-                            <tfoot className="bg-blue-50/30 font-bold border-t border-slate-200">
+                            <tfoot className="bg-blue-50/30  border-t border-slate-200">
                               <tr>
                                 <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
                                 <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
@@ -824,13 +845,13 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       
                       {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
                         <div className="space-y-2">
-                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mold & Technical Specifications</h5>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                          <h5 className="text-[11px]  text-slate-500 ">Mold & Technical Specifications</h5>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 ">
                             {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
                               value && (
                                 <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
-                                  <span className="text-muted-foreground font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                  <span className="font-semibold text-slate-800">{String(value)}</span>
+                                  <span className="text-gray-500  capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className=" text-slate-800">{String(value)}</span>
                                 </div>
                               )
                             ))}
@@ -1169,20 +1190,20 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
                 {/* Live Preview of Selected Quotation Details */}
                 {selectedOutboundQuotation && (
-                  <div className="border border-slate-200 bg-slate-50/50 rounded-xl p-5 space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 shadow-sm">
+                  <div className="border border-slate-200 bg-slate-50/50 rounded-xl p-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500 ">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                       <div className="flex items-center gap-3">
                         <div className="bg-primary/10 p-2 rounded-lg">
                           <LayoutGrid className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-slate-900">
+                          <h4 className="text-sm  text-slate-900">
                             Linked Quotation: {selectedOutboundQuotation.quotationNumber}
                           </h4>
-                          <p className="text-[10px] text-muted-foreground">Previewing items and technical specifications</p>
+                          <p className="text-[10px] text-gray-500">Previewing items and technical specifications</p>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700 shadow-sm font-semibold px-3">
+                      <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700   px-3">
                         {selectedOutboundQuotation.status?.toUpperCase()}
                       </Badge>
                     </div>
@@ -1190,26 +1211,26 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                     {selectedOutboundQuotation.moldDetails && selectedOutboundQuotation.moldDetails.length > 0 && (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Mold Specifications</h5>
+                          <h5 className="text-[11px]   text-slate-500">Mold Specifications</h5>
                           <div className="h-px flex-1 bg-slate-200"></div>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
                           <table className="w-full text-[11px]">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="p-2.5 text-left font-bold text-slate-600 uppercase tracking-tighter">Part Name</th>
-                                <th className="p-2.5 text-left font-bold text-slate-600 uppercase tracking-tighter">Mold No</th>
-                                <th className="p-2.5 text-left font-bold text-slate-600 uppercase tracking-tighter">Material</th>
-                                <th className="p-2.5 text-right font-bold text-slate-600 uppercase tracking-tighter">Cavity</th>
+                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Part Name</th>
+                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Mold No</th>
+                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Material</th>
+                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter">Cavity</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                               {selectedOutboundQuotation.moldDetails.map((mold: any, idx: number) => (
                                 <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-2.5 font-bold text-slate-800">{mold.partName}</td>
+                                  <td className="p-2.5  text-slate-800">{mold.partName}</td>
                                   <td className="p-2.5 text-slate-600 font-mono">{mold.mouldNo}</td>
                                   <td className="p-2.5 text-slate-600">{mold.plasticMaterial}</td>
-                                  <td className="p-2.5 text-right font-bold text-slate-900">{mold.noOfCavity}</td>
+                                  <td className="p-2.5 text-right  text-slate-900">{mold.noOfCavity}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1222,37 +1243,37 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 flex-1">
-                            <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Itemized Table (Define Rates)</h5>
+                            <h5 className="text-[11px]   text-slate-500">Itemized Table (Define Rates)</h5>
                             <div className="h-px flex-1 bg-slate-200"></div>
                           </div>
-                          <span className="text-[9px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full border border-blue-100">
+                          <span className="text-[9px] bg-blue-50 text-blue-600  px-2 py-0.5 rounded border border-blue-100">
                             Auto-Syncs Grand Total
                           </span>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
                           <table className="w-full text-[11px]">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="p-2.5 text-left font-bold text-slate-600 uppercase tracking-tighter">Description</th>
-                                <th className="p-2.5 text-center font-bold text-slate-600 uppercase tracking-tighter w-16">Qty</th>
-                                <th className="p-2.5 text-right font-bold text-slate-600 uppercase tracking-tighter w-28">Received Rate</th>
-                                <th className="p-2.5 text-right font-bold text-slate-600 uppercase tracking-tighter w-28">Amount</th>
+                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Description</th>
+                                <th className="p-2.5 text-center  text-slate-600  tracking-tighter w-16">Qty</th>
+                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Received Rate</th>
+                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Amount</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                               {editableItems.map((item: any, idx: number) => (
                                 <tr key={item.id || idx} className="hover:bg-slate-50/50 transition-colors">
                                   <td className="p-2.5">
-                                    <div className="font-bold text-slate-800 leading-tight">{item.displayDescription}</div>
-                                    <div className="text-[9px] text-muted-foreground italic mt-0.5 flex items-center gap-1">
-                                      <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    <div className=" text-slate-800 leading-tight">{item.displayDescription}</div>
+                                    <div className="text-[9px] text-gray-500 italic mt-0.5 flex items-center gap-1">
+                                      <span className="w-1 h-1 bg-slate-300 rounded"></span>
                                       Mold: {item.mouldNo || item.partName || "N/A"}
                                     </div>
                                   </td>
-                                  <td className="p-2.5 text-center text-slate-600 font-mono bg-slate-50/30 font-bold">{item.displayQty}</td>
+                                  <td className="p-2.5 text-center text-slate-600 font-mono bg-slate-50/30 ">{item.displayQty}</td>
                                   <td className="p-2.5 text-right">
                                     <div className="flex items-center justify-end group">
-                                      <span className="text-slate-400 font-bold mr-1 group-focus-within:text-primary transition-colors">₹</span>
+                                      <span className="text-slate-400  mr-1 group-focus-within:text-primary transition-colors">₹</span>
                                       <input 
                                         type="number" 
                                         value={item.displayRate}
@@ -1262,17 +1283,17 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                                             e.preventDefault();
                                           }
                                         }}
-                                        className="w-20 p-1 border border-slate-200 rounded-md focus:border-primary focus:ring-2 focus:ring-primary/10 focus:outline-none text-right font-bold text-primary bg-slate-50/50 focus:bg-white transition-all shadow-inner"
+                                        className="w-20 p-1 border border-slate-200 rounded focus:border-primary focus:ring-2 focus:ring-primary/10 focus:outline-none text-right  text-primary bg-slate-50/50 focus:bg-white transition-all shadow-inner"
                                       />
                                     </div>
                                   </td>
-                                  <td className="p-2.5 text-right font-bold text-slate-900 bg-slate-50/30">
+                                  <td className="p-2.5 text-right  text-slate-900 bg-slate-50/30">
                                     ₹{parseFloat(String(item.displayAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
-                            <tfoot className="bg-slate-900 text-white divide-y divide-slate-800">
+                            <tfoot className="bg-primary text-white divide-y divide-slate-800">
                               {(() => {
                                 const subtotal = editableItems.reduce((sum, item) => sum + (parseFloat(String(item.displayAmount)) || 0), 0);
                                 const gstRate = 0.18;
@@ -1283,25 +1304,25 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                                 return (
                                   <>
                                     <tr className="border-t border-slate-700">
-                                      <td colSpan={3} className="p-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">Subtotal</td>
-                                      <td className="p-2 text-right font-medium text-xs">
+                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">Subtotal</td>
+                                      <td className="p-2 text-right  text-xs">
                                         ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
                                     </tr>
                                     <tr>
-                                      <td colSpan={3} className="p-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">GST (18%)</td>
-                                      <td className="p-2 text-right font-medium text-xs">
+                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">GST (18%)</td>
+                                      <td className="p-2 text-right  text-xs">
                                         ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
                                     </tr>
                                     <tr>
-                                      <td colSpan={3} className="p-2 text-right text-[10px] font-bold uppercase tracking-widest text-red-400 opacity-90">Discount</td>
-                                      <td className="p-2 text-right font-medium text-xs text-red-400">
+                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest text-red-400 opacity-90">Discount</td>
+                                      <td className="p-2 text-right  text-xs text-red-400">
                                         -₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
                                     </tr>
                                     <tr className="bg-slate-950">
-                                      <td colSpan={3} className="p-3 text-right text-xs font-black uppercase tracking-widest">Total Amount</td>
+                                      <td colSpan={3} className="p-3 text-right text-xs font-black  tracking-widest">Total Amount</td>
                                       <td className="p-3 text-right font-black text-sm">
                                         ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
@@ -1363,7 +1384,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
         </Dialog>
       )}
 
-      <Card className="shadow-sm">
+      <Card className="">
         {!isEmbedded && (
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -1375,12 +1396,14 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
             </CardDescription>
           </CardHeader>
         )}
-        <CardContent className={isEmbedded ? "pt-6" : ""}>
+        <CardContent className={isEmbedded ? "" : ""}>
           <DataTable
-            data={quotations}
+            data={quotations || []}
             columns={columns}
             searchable={true}
             searchKey="quotationNumber"
+            searchPlaceholder="Search inbound quotations..."
+            isLoading={isLoading}
           />
         </CardContent>
       </Card>
@@ -1390,7 +1413,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Quotation Details: {selectedQuotationDetails?.quotationNumber}</span>
-              <Badge variant="outline" className="ml-2 uppercase">
+              <Badge variant="outline" className="ml-2 ">
                 {selectedQuotationDetails?.status}
               </Badge>
             </DialogTitle>
@@ -1403,36 +1426,36 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Date</p>
-                  <p className="text-sm font-semibold">{new Date(selectedQuotationDetails.quotationDate).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-gray-500  ">Date</p>
+                  <p className="text-sm ">{new Date(selectedQuotationDetails.quotationDate).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Valid Until</p>
-                  <p className="text-sm font-semibold">{selectedQuotationDetails.validUntil ? new Date(selectedQuotationDetails.validUntil).toLocaleDateString() : "N/A"}</p>
+                  <p className="text-[10px] text-gray-500  ">Valid Until</p>
+                  <p className="text-sm ">{selectedQuotationDetails.validUntil ? new Date(selectedQuotationDetails.validUntil).toLocaleDateString() : "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Amount</p>
-                  <p className="text-sm font-bold text-primary">₹{parseFloat(selectedQuotationDetails.totalAmount).toLocaleString("en-IN")}</p>
+                  <p className="text-[10px] text-gray-500  ">Total Amount</p>
+                  <p className="text-sm  text-primary">₹{parseFloat(selectedQuotationDetails.totalAmount).toLocaleString("en-IN")}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Sender</p>
-                  <p className="text-sm font-semibold">{selectedQuotationDetails.sender?.name || "N/A"}</p>
+                  <p className="text-[10px] text-gray-500  ">Sender</p>
+                  <p className="text-sm ">{selectedQuotationDetails.sender?.name || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Sender Type</p>
-                  <p className="text-sm font-semibold uppercase">{selectedQuotationDetails.senderType}</p>
+                  <p className="text-[10px] text-gray-500  ">Sender Type</p>
+                  <p className="text-sm  ">{selectedQuotationDetails.senderType}</p>
                 </div>
                 {selectedQuotationDetails.quotationRef && (
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Linked Ref</p>
-                    <p className="text-sm font-semibold text-blue-600">ID: {selectedQuotationDetails.quotationRef.substring(0, 8)}...</p>
+                    <p className="text-[10px] text-gray-500  ">Linked Ref</p>
+                    <p className="text-sm  text-blue-600">ID: {selectedQuotationDetails.quotationRef.substring(0, 8)}...</p>
                   </div>
                 )}
               </div>
 
               {selectedQuotationDetails.subject && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-1">Subject</h4>
+                  <h4 className="text-xs  text-slate-500  mb-1">Subject</h4>
                   <div className="bg-white p-3 rounded border text-sm italic">
                     {selectedQuotationDetails.subject}
                   </div>
@@ -1441,27 +1464,27 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
               {selectedQuotationDetails.moldDetails && selectedQuotationDetails.moldDetails.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs  text-slate-500  flex items-center gap-2">
                     <LayoutGrid className="h-3 w-3" />
                     Mold Specifications
                   </h4>
-                  <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+                  <div className="rounded-lg border border-slate-200 bg-white overflow-hidden ">
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                          <th className="p-2 text-left font-bold text-slate-600 uppercase tracking-tighter">Part Name</th>
-                          <th className="p-2 text-left font-bold text-slate-600 uppercase tracking-tighter">Mold No</th>
-                          <th className="p-2 text-left font-bold text-slate-600 uppercase tracking-tighter">Material</th>
-                          <th className="p-2 text-right font-bold text-slate-600 uppercase tracking-tighter">Cavity</th>
+                          <th className="p-2 text-left  text-slate-600  tracking-tighter">Part Name</th>
+                          <th className="p-2 text-left  text-slate-600  tracking-tighter">Mold No</th>
+                          <th className="p-2 text-left  text-slate-600  tracking-tighter">Material</th>
+                          <th className="p-2 text-right  text-slate-600  tracking-tighter">Cavity</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {selectedQuotationDetails.moldDetails.map((mold: any, idx: number) => (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="p-2 font-bold text-slate-800">{mold.partName}</td>
+                            <td className="p-2  text-slate-800">{mold.partName}</td>
                             <td className="p-2 text-slate-600 font-mono">{mold.mouldNo}</td>
                             <td className="p-2 text-slate-600">{mold.plasticMaterial}</td>
-                            <td className="p-2 text-right font-bold text-slate-900">{mold.noOfCavity}</td>
+                            <td className="p-2 text-right  text-slate-900">{mold.noOfCavity}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1472,52 +1495,52 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
               {selectedQuotationDetails.quotationItems && selectedQuotationDetails.quotationItems.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs  text-slate-500  flex items-center gap-2">
                     <FileText className="h-3 w-3" />
                     Itemized Table
                   </h4>
-                  <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+                  <div className="rounded-lg border border-slate-200 bg-white overflow-hidden ">
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                          <th className="p-2 text-left font-bold text-slate-600 uppercase tracking-tighter">Description</th>
-                          <th className="p-2 text-center font-bold text-slate-600 uppercase tracking-tighter">Qty</th>
-                          <th className="p-2 text-right font-bold text-slate-600 uppercase tracking-tighter">Rate</th>
-                          <th className="p-2 text-right font-bold text-slate-600 uppercase tracking-tighter">Amount</th>
+                          <th className="p-2 text-left  text-slate-600  tracking-tighter">Description</th>
+                          <th className="p-2 text-center  text-slate-600  tracking-tighter">Qty</th>
+                          <th className="p-2 text-right  text-slate-600  tracking-tighter">Rate</th>
+                          <th className="p-2 text-right  text-slate-600  tracking-tighter">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {selectedQuotationDetails.quotationItems.map((item: any, idx: number) => (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-2">
-                              <div className="font-bold text-slate-800 leading-tight">{item.displayDescription}</div>
-                              <div className="text-[9px] text-muted-foreground italic">Mold: {item.mouldNo || "N/A"}</div>
+                              <div className=" text-slate-800 leading-tight">{item.displayDescription}</div>
+                              <div className="text-[9px] text-gray-500 italic">Mold: {item.mouldNo || "N/A"}</div>
                             </td>
-                            <td className="p-2 text-center text-slate-600 font-mono font-bold">{item.displayQty}</td>
-                            <td className="p-2 text-right text-primary font-bold">₹{parseFloat(String(item.displayRate)).toLocaleString('en-IN')}</td>
-                            <td className="p-2 text-right font-bold text-slate-900 bg-slate-50/30">₹{parseFloat(String(item.displayAmount)).toLocaleString('en-IN')}</td>
+                            <td className="p-2 text-center text-slate-600 font-mono ">{item.displayQty}</td>
+                            <td className="p-2 text-right text-primary ">₹{parseFloat(String(item.displayRate)).toLocaleString('en-IN')}</td>
+                            <td className="p-2 text-right  text-slate-900 bg-slate-50/30">₹{parseFloat(String(item.displayAmount)).toLocaleString('en-IN')}</td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-slate-900 text-white divide-y divide-slate-800">
+                      <tfoot className="bg-primary text-white divide-y divide-slate-800">
                         {selectedQuotationDetails.financialBreakdown ? (
                           <>
                             <tr>
-                              <td colSpan={3} className="p-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">Subtotal</td>
-                              <td className="p-2 text-right font-medium text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.subtotal)).toLocaleString('en-IN')}</td>
+                              <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">Subtotal</td>
+                              <td className="p-2 text-right  text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.subtotal)).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr>
-                              <td colSpan={3} className="p-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">GST (18%)</td>
-                              <td className="p-2 text-right font-medium text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.gstAmount)).toLocaleString('en-IN')}</td>
+                              <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">GST (18%)</td>
+                              <td className="p-2 text-right  text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.gstAmount)).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr className="bg-slate-950">
-                              <td colSpan={3} className="p-2 text-right text-[10px] font-black uppercase tracking-widest">Total Amount</td>
+                              <td colSpan={3} className="p-2 text-right text-[10px] font-black  tracking-widest">Total Amount</td>
                               <td className="p-2 text-right font-black text-sm">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.total)).toLocaleString('en-IN')}</td>
                             </tr>
                           </>
                         ) : (
                           <tr>
-                            <td colSpan={3} className="p-2 text-right text-[10px] font-black uppercase tracking-widest">Grand Total</td>
+                            <td colSpan={3} className="p-2 text-right text-[10px] font-black  tracking-widest">Grand Total</td>
                             <td className="p-2 text-right font-black text-sm">₹{parseFloat(selectedQuotationDetails.totalAmount).toLocaleString('en-IN')}</td>
                           </tr>
                         )}
@@ -1529,7 +1552,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
 
               {selectedQuotationDetails.notes && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-1">Internal Notes</h4>
+                  <h4 className="text-xs  text-slate-500  mb-1">Internal Notes</h4>
                   <div className="bg-white p-3 rounded border text-sm text-slate-600">
                     {selectedQuotationDetails.notes}
                   </div>
@@ -1540,7 +1563,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                 <div className="flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-100">
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">{selectedQuotationDetails.attachmentName || "View Attachment"}</span>
+                    <span className="text-sm  text-blue-900">{selectedQuotationDetails.attachmentName || "View Attachment"}</span>
                   </div>
                   <Button size="sm" onClick={() => handleDownloadAttachment(selectedQuotationDetails)}>
                     <FileDown className="h-4 w-4 mr-2" />

@@ -79,7 +79,7 @@ export default function MarketingDashboard() {
   // Show loading skeleton while any query is loading
   if (isLoading || leadsLoading || visitsLoading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-8 w-64 mb-2" />
         <Skeleton className="h-4 w-96" />
         {/* Add more skeletons as needed */}
@@ -91,7 +91,7 @@ export default function MarketingDashboard() {
   if (error) {
     console.error("Dashboard fetch error:", error);
     return (
-      <div className="p-8">
+      <div className="p-4">
         <Card>
           <CardContent className="flex items-center space-x-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
@@ -111,12 +111,12 @@ export default function MarketingDashboard() {
   const todayPending = Math.max(0, fieldVisitsToday - todayCompleted);
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 space-y-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="marketing-header">
+        <h1 className="text-xl  text-foreground " data-tour="marketing-header">
           Marketing Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-gray-500">
           Overview of marketing activities, leads, and performance metrics
         </p>
       </div>
@@ -126,11 +126,11 @@ export default function MarketingDashboard() {
         <Card>
           <CardHeader className="flex items-center justify-between pb-2">
             <CardTitle className="text-sm font-light">Total Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalLeads}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl ">{totalLeads}</div>
+            <p className="text-xs text-gray-500">
               {dashboardData?.leads?.monthlyNew || 0} new this month
             </p>
           </CardContent>
@@ -139,11 +139,11 @@ export default function MarketingDashboard() {
         <Card>
           <CardHeader className="flex items-center justify-between pb-2">
             <CardTitle className="text-sm font-light">Active Tasks</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <Target className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeTasks}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl ">{activeTasks}</div>
+            <p className="text-xs text-gray-500">
               {dashboardData?.tasks?.overdue || 0} overdue
             </p>
           </CardContent>
@@ -154,13 +154,13 @@ export default function MarketingDashboard() {
             <CardTitle className="text-sm font-light">
               Conversion Rate
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl ">
               {conversionRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {dashboardData?.leads?.converted || 0} leads converted
             </p>
           </CardContent>
@@ -171,11 +171,11 @@ export default function MarketingDashboard() {
             <CardTitle className="text-sm font-light">
               Field Visits Today
             </CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <MapPin className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fieldVisitsToday}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl ">{fieldVisitsToday}</div>
+            <p className="text-xs text-gray-500">
               {todayCompleted} completed, {todayPending} pending
             </p>
           </CardContent>
@@ -202,7 +202,7 @@ export default function MarketingDashboard() {
                     <p className="font-light">
                       {lead.companyName || `${lead.firstName} ${lead.lastName}`}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-gray-500">
                       {lead.email || lead.phone || "No info"}
                     </p>
                   </div>
@@ -218,7 +218,7 @@ export default function MarketingDashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-center text-muted-foreground py-4">
+              <div className="text-center text-gray-500 py-4">
                 <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No recent leads found</p>
               </div>
@@ -245,7 +245,7 @@ export default function MarketingDashboard() {
                     <p className="font-light">
                       {visit.purpose || `Visit ${visit.visitNumber}`}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-gray-500">
                       {new Date(visit.plannedDate).toLocaleString()}
                     </p>
                   </div>
@@ -261,7 +261,7 @@ export default function MarketingDashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-center text-muted-foreground py-4">
+              <div className="text-center text-gray-500 py-4">
                 <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No upcoming visits scheduled</p>
               </div>

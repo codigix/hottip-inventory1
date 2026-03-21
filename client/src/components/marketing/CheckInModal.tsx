@@ -295,14 +295,14 @@ export default function CheckInModal({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-green-600" data-testid="checkin-current-time">
+              <p className="text-2xl  text-green-600" data-testid="checkin-current-time">
                 {new Date().toLocaleTimeString('en-US', { 
                   hour: '2-digit', 
                   minute: '2-digit',
                   hour12: false 
                 })}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-gray-500">
                 {new Date().toLocaleDateString('en-US', { 
                   weekday: 'long',
                   year: 'numeric',
@@ -324,7 +324,7 @@ export default function CheckInModal({
             <CardContent className="space-y-4">
               {isLoadingLocation && (
                 <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-blue-600"></div>
                   <span>Getting your location...</span>
                 </div>
               )}
@@ -347,13 +347,13 @@ export default function CheckInModal({
                   {/* Location Details */}
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Latitude:</span>
+                      <span className="text-gray-500">Latitude:</span>
                       <p className="font-light" data-testid="location-latitude">
                         {currentLocation.latitude.toFixed(6)}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Longitude:</span>
+                      <span className="text-gray-500">Longitude:</span>
                       <p className="font-light" data-testid="location-longitude">
                         {currentLocation.longitude.toFixed(6)}
                       </p>
@@ -486,7 +486,7 @@ export default function CheckInModal({
 
               {isUploadingPhoto && (
                 <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-blue-600"></div>
                   <span className="text-sm">Uploading photo...</span>
                 </div>
               )}
@@ -520,7 +520,7 @@ export default function CheckInModal({
             >
               {isLoading || isUploadingPhoto ? (
                 <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded h-4 w-4 border-b-2 border-white"></div>
                   <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Checking In...'}</span>
                 </div>
               ) : (

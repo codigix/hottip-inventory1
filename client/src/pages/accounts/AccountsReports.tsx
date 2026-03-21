@@ -461,16 +461,16 @@ export default function AccountsReports() {
   });
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-reports-header">
         <div>
           <h1
-            className="text-3xl font-bold text-foreground"
+            className="text-3xl  text-foreground"
             data-testid="page-title"
           >
             Accounts Reports
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Generate and export financial reports including collections,
             receivables, payables, and GST filings.
           </p>
@@ -723,20 +723,20 @@ export default function AccountsReports() {
             <CardTitle className="text-sm font-light">
               Reports Generated
             </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl font-bold"
+                className="text-2xl "
                 data-testid="text-reports-generated"
               >
                 {reportsThisMonth}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">This month</p>
+            <p className="text-xs text-gray-500">This month</p>
           </CardContent>
         </Card>
 
@@ -745,16 +745,16 @@ export default function AccountsReports() {
             <CardTitle className="text-sm font-light">
               Total Downloads
             </CardTitle>
-            <Download className="h-4 w-4 text-muted-foreground" />
+            <Download className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold"
+              className="text-2xl "
               data-testid="text-total-downloads"
             >
               {totalDownloads}
             </div>
-            <p className="text-xs text-muted-foreground">All exports</p>
+            <p className="text-xs text-gray-500">All exports</p>
           </CardContent>
         </Card>
 
@@ -771,14 +771,14 @@ export default function AccountsReports() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
+              className={`text-2xl  ${
                 collectionRate >= 85 ? "text-green-600" : "text-orange-600"
               }`}
               data-testid="text-collection-rate"
             >
               {collectionRate.toFixed(0)}%
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               {collectionRate >= 85 ? "Above target" : "Below target"}
             </p>
           </CardContent>
@@ -793,12 +793,12 @@ export default function AccountsReports() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-blue-600"
+              className="text-2xl  text-blue-600"
               data-testid="text-gst-reports"
             >
               {gstReportsCurrent}
             </div>
-            <p className="text-xs text-muted-foreground">This year</p>
+            <p className="text-xs text-gray-500">This year</p>
           </CardContent>
         </Card>
       </div>
@@ -827,8 +827,8 @@ export default function AccountsReports() {
                   <div className="flex items-start gap-3">
                     <type.icon className={`h-8 w-8 ${type.color} mt-1`} />
                     <div>
-                      <h3 className="font-semibold text-sm">{type.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <h3 className=" text-sm">{type.name}</h3>
+                      <p className="text-xs text-gray-500 mt-1">
                         {type.description}
                       </p>
                     </div>
@@ -847,7 +847,7 @@ export default function AccountsReports() {
             <CardTitle>Generated Reports</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                 <Input
                   placeholder="Search reports..."
                   value={searchTerm}
@@ -911,11 +911,11 @@ export default function AccountsReports() {
                   </div>
                 ) : filteredReports.length === 0 ? (
                   <div className="text-center py-8">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">
+                    <FileText className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                    <h3 className="text-lg  mb-2">
                       No Reports Found
                     </h3>
-                    <p className="text-muted-foreground mb-4">
+                    <p className="text-gray-500 mb-4">
                       {searchTerm
                         ? "No reports match your search criteria."
                         : "Generate your first financial report to get started."}
@@ -994,7 +994,7 @@ export default function AccountsReports() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="text-sm text-muted-foreground">
+                                <div className="text-sm text-gray-500">
                                   {format(
                                     new Date(report.generatedAt),
                                     "MMM dd, yyyy h:mm a"
@@ -1072,7 +1072,7 @@ export default function AccountsReports() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">
+                  <Label className="text-sm font-light text-gray-500">
                     Report Type
                   </Label>
                   <p className="text-sm mt-1 capitalize">
@@ -1080,7 +1080,7 @@ export default function AccountsReports() {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">
+                  <Label className="text-sm font-light text-gray-500">
                     Status
                   </Label>
                   <Badge
@@ -1091,7 +1091,7 @@ export default function AccountsReports() {
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">
+                  <Label className="text-sm font-light text-gray-500">
                     Date Range
                   </Label>
                   <p className="text-sm mt-1">
@@ -1100,7 +1100,7 @@ export default function AccountsReports() {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">
+                  <Label className="text-sm font-light text-gray-500">
                     Generated
                   </Label>
                   <p className="text-sm mt-1">

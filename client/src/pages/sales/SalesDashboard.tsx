@@ -47,7 +47,7 @@ export default function SalesDashboard() {
 
   if (outboundLoading || inboundLoading || invoicesLoading || customersLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -67,65 +67,65 @@ export default function SalesDashboard() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 bg-slate-50 min-h-full">
       <div className="mb-8" data-tour="sales-dashboard">
-        <h1 className="text-3xl font-bold tracking-tight" data-testid="text-sales-dashboard-title">
+        <h1 className="text-xl  text-slate-800" data-testid="text-sales-dashboard-title">
           Sales Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-slate-500 text-sm">
           Comprehensive overview of quotations, invoices, and sales performance
         </p>
       </div>
 
       {/* Key Metrics */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Outbound Quotations</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Outbound Quotations</CardTitle>
+            <FileText className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-outbound-count">{outboundCount}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xl  text-slate-800" data-testid="text-outbound-count">{outboundCount}</div>
+            <p className="text-xs  text-slate-500 mt-1">
               {pendingOutbound} pending approval
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Inbound Quotations</CardTitle>
-            <FileDown className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Inbound Quotations</CardTitle>
+            <FileDown className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-inbound-count">{inboundCount}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xl  text-slate-800" data-testid="text-inbound-count">{inboundCount}</div>
+            <p className="text-xs  text-slate-500 mt-1">
               {pendingInbound} need review
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Total Invoices</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Total Invoices</CardTitle>
+            <Receipt className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-invoice-count">{invoiceCount}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xl  text-slate-800" data-testid="text-invoice-count">{invoiceCount}</div>
+            <p className="text-xs  text-slate-500 mt-1">
               {conversionRate}% conversion rate
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Total Clients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Total Clients</CardTitle>
+            <Users className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-client-count">{clientCount}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xl  text-slate-800" data-testid="text-client-count">{clientCount}</div>
+            <p className="text-xs  text-slate-500 mt-1">
               Active client base
             </p>
           </CardContent>
@@ -134,44 +134,44 @@ export default function SalesDashboard() {
 
       {/* Financial Overview */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card>
+        <Card className="border-none  bg-primary text-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   opacity-60">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 opacity-40" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-revenue">
+            <div className="text-3xl " data-testid="text-total-revenue">
               ₹{totalRevenue.toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs  opacity-60 mt-1">
               From paid invoices
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-conversion-rate">{conversionRate}%</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xl  text-slate-800" data-testid="text-conversion-rate">{conversionRate}%</div>
+            <p className="text-xs  text-slate-500 mt-1">
               Quotations to invoices
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-light">Pending Actions</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs   text-slate-400">Pending Actions</CardTitle>
+            <Clock className="h-4 w-4 text-slate-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-pending-actions">
+            <div className="text-xl  text-slate-800" data-testid="text-pending-actions">
               {pendingOutbound + pendingInbound}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs  text-slate-500 mt-1">
               Require attention
             </p>
           </CardContent>
@@ -180,66 +180,66 @@ export default function SalesDashboard() {
 
       {/* Quick Overview Cards */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest quotations and invoices</CardDescription>
+            <CardTitle className="text-lg  text-slate-800">Recent Activity</CardTitle>
+            <CardDescription className="text-slate-500">Latest quotations and invoices</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-slate-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-light">New outbound quotation</p>
-                  <p className="text-xs text-muted-foreground">2 minutes ago</p>
+                  <p className="text-sm  text-slate-800">New outbound quotation</p>
+                  <p className="text-xs text-slate-500 ">2 minutes ago</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-300" />
+                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-slate-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-light">Invoice payment received</p>
-                  <p className="text-xs text-muted-foreground">1 hour ago</p>
+                  <p className="text-sm  text-slate-800">Invoice payment received</p>
+                  <p className="text-xs text-slate-500 ">1 hour ago</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                  <FileDown className="h-4 w-4 text-orange-600 dark:text-orange-300" />
+                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <FileDown className="h-5 w-5 text-slate-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-light">Inbound quotation received</p>
-                  <p className="text-xs text-muted-foreground">3 hours ago</p>
+                  <p className="text-sm  text-slate-800">Inbound quotation received</p>
+                  <p className="text-xs text-slate-500 ">3 hours ago</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none  bg-white">
           <CardHeader>
-            <CardTitle>Performance Summary</CardTitle>
-            <CardDescription>This month's sales metrics</CardDescription>
+            <CardTitle className="text-lg  text-slate-800">Performance Summary</CardTitle>
+            <CardDescription className="text-slate-500">This month's sales metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Quotations Sent</span>
-                <span className="text-sm font-light">{outboundCount}</span>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-sm  text-slate-600">Quotations Sent</span>
+                <span className="text-sm  text-slate-800">{outboundCount}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Invoices Generated</span>
-                <span className="text-sm font-light">{invoiceCount}</span>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-sm  text-slate-600">Invoices Generated</span>
+                <span className="text-sm  text-slate-800">{invoiceCount}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Revenue Generated</span>
-                <span className="text-sm font-light">₹{totalRevenue.toLocaleString('en-IN')}</span>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-sm  text-slate-600">Revenue Generated</span>
+                <span className="text-sm  text-slate-800">₹{totalRevenue.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Active Clients</span>
-                <span className="text-sm font-light">{clientCount}</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm  text-slate-600">Active Clients</span>
+                <span className="text-sm  text-slate-800">{clientCount}</span>
               </div>
             </div>
           </CardContent>

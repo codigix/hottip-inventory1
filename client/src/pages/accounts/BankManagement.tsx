@@ -378,13 +378,13 @@ export default function BankManagement() {
   });
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between" data-tour="accounts-bank-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="page-title">
+          <h1 className="text-3xl  text-foreground" data-testid="page-title">
             Bank Management
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-gray-500 mt-2">
             Bank account details and transactions
           </p>
         </div>
@@ -395,13 +395,13 @@ export default function BankManagement() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Total Balance</CardTitle>
-            <Landmark className="h-4 w-4 text-muted-foreground" />
+            <Landmark className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-balance">
+            <div className="text-2xl " data-testid="text-total-balance">
               ₹{(totalBalance / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Across {totalAccounts} {totalAccounts === 1 ? 'account' : 'accounts'}
             </p>
           </CardContent>
@@ -413,10 +413,10 @@ export default function BankManagement() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-monthly-inflow">
+            <div className="text-2xl  text-green-600" data-testid="text-monthly-inflow">
               ₹{(monthlyInflow / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               This month
             </p>
           </CardContent>
@@ -428,10 +428,10 @@ export default function BankManagement() {
             <Activity className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600" data-testid="text-monthly-outflow">
+            <div className="text-2xl  text-red-600" data-testid="text-monthly-outflow">
               ₹{(monthlyOutflow / 100000).toFixed(1)}L
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               This month
             </p>
           </CardContent>
@@ -440,13 +440,13 @@ export default function BankManagement() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Active Accounts</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
+            <Building className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-active-accounts">
+            <div className="text-2xl " data-testid="text-active-accounts">
               {activeAccounts}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Out of {totalAccounts} total
             </p>
           </CardContent>
@@ -469,7 +469,7 @@ export default function BankManagement() {
           <div className="flex items-center justify-between">
             <div className="flex gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                 <Input
                   placeholder="Search accounts..."
                   value={searchTerm}
@@ -683,9 +683,9 @@ export default function BankManagement() {
                 </div>
               ) : filteredAccounts.length === 0 ? (
                 <div className="text-center py-12">
-                  <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Bank Accounts</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <Building className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg  mb-2">No Bank Accounts</h3>
+                  <p className="text-gray-500 mb-4">
                     Get started by adding your first bank account.
                   </p>
                   <Button onClick={() => setIsCreateAccountOpen(true)} data-testid="button-add-first-account">
@@ -715,7 +715,7 @@ export default function BankManagement() {
                                 <Badge variant="secondary" className="ml-2">Default</Badge>
                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm text-gray-500">
                               ****{account.accountNumberMasked}
                             </div>
                           </div>
@@ -723,7 +723,7 @@ export default function BankManagement() {
                         <TableCell>
                           <div>
                             <div className="font-light">{account.bankName}</div>
-                            <div className="text-sm text-muted-foreground">{account.ifsc}</div>
+                            <div className="text-sm text-gray-500">{account.ifsc}</div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -731,7 +731,7 @@ export default function BankManagement() {
                             <div className="font-light" data-testid={`text-balance-${account.id}`}>
                               ₹{parseFloat(account.currentBalance).toLocaleString()}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm text-gray-500">
                               Opening: ₹{parseFloat(account.openingBalance).toLocaleString()}
                             </div>
                           </div>
@@ -787,7 +787,7 @@ export default function BankManagement() {
           <div className="flex items-center justify-between">
             <div className="flex gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                 <Input
                   placeholder="Search transactions..."
                   value={searchTerm}
@@ -994,9 +994,9 @@ export default function BankManagement() {
                 </div>
               ) : filteredTransactions.length === 0 ? (
                 <div className="text-center py-12">
-                  <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Transactions</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <CreditCard className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg  mb-2">No Transactions</h3>
+                  <p className="text-gray-500 mb-4">
                     Start by recording your first bank transaction.
                   </p>
                   <Button onClick={() => setIsCreateTransactionOpen(true)} data-testid="button-add-first-transaction">
@@ -1032,7 +1032,7 @@ export default function BankManagement() {
                           <div>
                             <div className="font-light">{transaction.description}</div>
                             {transaction.reference && (
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-sm text-gray-500">
                                 Ref: {transaction.reference}
                               </div>
                             )}
@@ -1281,29 +1281,29 @@ export default function BankManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">Account Name</Label>
+                  <Label className="text-sm font-light text-gray-500">Account Name</Label>
                   <div data-testid="view-account-name">{selectedAccount.name}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">Bank Name</Label>
+                  <Label className="text-sm font-light text-gray-500">Bank Name</Label>
                   <div data-testid="view-bank-name">{selectedAccount.bankName}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">Account Number</Label>
+                  <Label className="text-sm font-light text-gray-500">Account Number</Label>
                   <div data-testid="view-account-number">****{selectedAccount.accountNumberMasked}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">IFSC Code</Label>
+                  <Label className="text-sm font-light text-gray-500">IFSC Code</Label>
                   <div data-testid="view-ifsc">{selectedAccount.ifsc}</div>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">Current Balance</Label>
-                  <div className="text-lg font-semibold" data-testid="view-current-balance">
+                  <Label className="text-sm font-light text-gray-500">Current Balance</Label>
+                  <div className="text-lg " data-testid="view-current-balance">
                     ₹{parseFloat(selectedAccount.currentBalance).toLocaleString()}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-light text-muted-foreground">Status</Label>
+                  <Label className="text-sm font-light text-gray-500">Status</Label>
                   <div>
                     <Badge 
                       variant="secondary"

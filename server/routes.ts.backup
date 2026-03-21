@@ -2506,7 +2506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (process.env.NODE_ENV === 'development') {
     console.log('📊 Marketing routes registered:');
     marketingRoutes.forEach(route => {
-      console.log(`  ${route.method.toUpperCase()} ${route.path} [${route.mws.length} middleware]`);
+      console.log(`  ${route.method.to()} ${route.path} [${route.mws.length} middleware]`);
     });
   }
 

@@ -198,7 +198,7 @@ export function StartTourButton({
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.25s ease;
-        text-transform: uppercase;
+        text-transform: ;
         letter-spacing: 0.5px;
         flex: 1;
         text-align: center;
@@ -301,18 +301,18 @@ export function StartTourButton({
   return (
     <div className="flex flex-col items-end gap-3">
       {progress.totalSteps > 0 && !isCompleted && (
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg px-4 py-3 border border-cyan-200 shadow-sm">
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg px-4 py-3 border border-cyan-200 ">
           <div className="flex items-center gap-3">
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold text-blue-900">Tour Progress</p>
-              <div className="w-32 h-2.5 bg-blue-100 rounded-full overflow-hidden">
+              <p className="text-xs  text-blue-900">Tour Progress</p>
+              <div className="w-32 h-2.5 bg-blue-100 rounded overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 transition-all duration-500 rounded-full shadow-lg"
+                  className="h-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 transition-all duration-500 rounded shadow-lg"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
             </div>
-            <div className="text-sm font-bold text-cyan-700 whitespace-nowrap">
+            <div className="text-sm  text-cyan-700 whitespace-nowrap">
               {progress.currentStep}/{progress.totalSteps}
             </div>
           </div>
@@ -323,7 +323,7 @@ export function StartTourButton({
         onClick={startTour}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        className={`inline-flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform ${
+        className={`inline-flex items-center gap-2.5 px-4 py-2.5 text-sm  rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform ${
           isCompleted
             ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:scale-105"
             : "bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:scale-105"

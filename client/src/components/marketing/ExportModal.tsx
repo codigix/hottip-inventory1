@@ -181,7 +181,7 @@ export default function ExportModal({
                       id={option.value}
                       data-testid={`export-format-${option.value}`}
                     />
-                    <Icon className="h-5 w-5 text-muted-foreground" />
+                    <Icon className="h-5 w-5 text-gray-500" />
                     <div className="flex-1">
                       <Label 
                         htmlFor={option.value} 
@@ -189,10 +189,10 @@ export default function ExportModal({
                       >
                         {option.label}
                       </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-gray-500 mt-1">
                         {option.description}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-500">
                         {option.size}
                       </p>
                     </div>
@@ -218,7 +218,7 @@ export default function ExportModal({
                     Include charts and visualizations in PDF
                   </Label>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 ml-6">
+                <p className="text-xs text-gray-500 mt-1 ml-6">
                   This will capture chart images and include them in the PDF report
                 </p>
               </CardContent>
@@ -230,20 +230,20 @@ export default function ExportModal({
             <CardContent className="pt-4">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Report Title:</span>
+                  <span className="text-gray-500">Report Title:</span>
                   <span className="font-light">{title}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Records:</span>
+                  <span className="text-gray-500">Total Records:</span>
                   <span className="font-light">{data.rows.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Columns:</span>
+                  <span className="text-gray-500">Columns:</span>
                   <span className="font-light">{data.headers.length}</span>
                 </div>
                 {dateRange?.from && dateRange?.to && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Date Range:</span>
+                    <span className="text-gray-500">Date Range:</span>
                     <span className="font-light text-xs">
                       {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
                     </span>

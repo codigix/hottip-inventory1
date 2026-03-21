@@ -1,4 +1,5 @@
 
+import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -332,39 +333,61 @@ export default function SalesOrders() {
     {
       key: "orderNumber",
       header: "Order #",
+      sortable: true,
       cell: (order: any) => (
-        <div className="font-light">{order.orderNumber}</div>
+        <div className=" text-slate-800">{order.orderNumber}</div>
       ),
     },
     {
-      key: "customer",
+      key: "customer.name",
       header: "Customer",
+      sortable: true,
       cell: (order: any) => (
-        <div className="font-light">{order.customer?.name || "N/A"}</div>
+        <div>
+          <div className="font-medium text-slate-700">{order.customer?.name || "N/A"}</div>
+          <div className="text-[10px] text-slate-400  ">
+            {order.customer?.type || "CLIENT"}
+          </div>
+        </div>
       ),
     },
     {
       key: "orderDate",
       header: "Date",
-      cell: (order: any) => new Date(order.orderDate).toLocaleDateString(),
+      sortable: true,
+      cell: (order: any) => (
+        <div className="text-xs text-slate-600">
+          {new Date(order.orderDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          })}
+        </div>
+      ),
     },
     {
       key: "totalAmount",
       header: "Amount",
-      cell: (order: any) => `₹${parseFloat(order.totalAmount).toLocaleString("en-IN")}`,
+      sortable: true,
+      cell: (order: any) => (
+        <span className="text-xs  text-slate-800">
+          ₹{parseFloat(order.totalAmount || 0).toLocaleString("en-IN")}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
+      sortable: true,
       cell: (order: any) => {
         const statusColors: Record<string, string> = {
-          pending: "bg-yellow-100 text-yellow-800",
-          confirmed: "bg-blue-100 text-blue-800",
-          material_released: "bg-green-100 text-green-800",
-          processing: "bg-purple-100 text-purple-800",
-          shipped: "bg-orange-100 text-orange-800",
-          delivered: "bg-green-100 text-green-800",
-          cancelled: "bg-red-100 text-red-800",
+          pending: "bg-slate-100 text-slate-600 border-slate-200",
+          confirmed: "bg-blue-50 text-blue-700 border-blue-100",
+          material_released: "bg-indigo-50 text-indigo-700 border-indigo-100",
+          processing: "bg-indigo-50 text-indigo-700 border-indigo-100",
+          shipped: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          delivered: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          cancelled: "bg-red-50 text-red-700 border-red-100",
         };
 
         const displayStatus = (order.status === 'confirmed' && order.materialReleased) 
@@ -372,8 +395,14 @@ export default function SalesOrders() {
           : order.status;
 
         return (
-          <Badge className={statusColors[displayStatus] || "bg-gray-100"}>
-            {displayStatus.toUpperCase().replace('_', ' ')}
+          <Badge 
+            variant="outline"
+            className={cn(
+              "text-[10px]   py-0 h-5 shadow-none",
+              statusColors[displayStatus] || "bg-slate-100 text-slate-600 border-slate-200"
+            )}
+          >
+            {displayStatus.replace('_', ' ')}
           </Badge>
         );
       },
@@ -383,61 +412,65 @@ export default function SalesOrders() {
       header: "Actions",
       cell: (order: any) => {
         const isProcessing = actionInProgressId === order.id;
-        const isMaterialReleased = order.materialReleased;
 
         return (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             <Button 
               size="sm" 
               variant="ghost" 
+              className="h-8 w-8 p-0"
               title="View Details"
               onClick={() => handleViewDetails(order)}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 text-slate-400" />
             </Button>
             {order.status === 'pending' && (
               <Button 
                 size="sm" 
                 variant="ghost" 
+                className="h-8 w-8 p-0 hover:text-emerald-600"
                 onClick={() => handleUpdateStatus(order.id, 'confirmed')}
                 disabled={isProcessing}
                 title="Confirm Order"
               >
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
               </Button>
             )}
             {(order.status === 'confirmed' || order.status === 'processing') && (
                <Button 
                size="sm" 
                variant="ghost" 
+               className="h-8 w-8 p-0 hover:text-indigo-600"
                onClick={() => {
                  handleUpdateStatus(order.id, 'shipped');
                }}
                disabled={isProcessing}
                title="Ship Order & Create Shipment"
              >
-               <Truck className="h-4 w-4 text-orange-600" />
+               <Truck className="h-4 w-4 text-indigo-400" />
              </Button>
             )}
             {order.status !== 'cancelled' && order.status !== 'delivered' && (
               <Button 
                 size="sm" 
                 variant="ghost" 
+                className="h-8 w-8 p-0 hover:text-red-600"
                 onClick={() => handleUpdateStatus(order.id, 'cancelled')}
                 disabled={isProcessing}
                 title="Cancel Order"
               >
-                <XCircle className="h-4 w-4 text-red-600" />
+                <XCircle className="h-4 w-4 text-red-400" />
               </Button>
             )}
             <Button 
               size="sm" 
               variant="ghost" 
+              className="h-8 w-8 p-0 hover:bg-red-50"
               onClick={() => handleDelete(order.id)}
               disabled={deleteOrderMutation.isPending}
               title="Delete Order"
             >
-              <Trash2 className="h-4 w-4 text-red-500" />
+              <Trash2 className="h-4 w-4 text-red-400" />
             </Button>
           </div>
         );
@@ -470,19 +503,17 @@ export default function SalesOrders() {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-2 space-y-3 bg-slate-50/50 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sales Orders</h1>
-          <p className="text-muted-foreground">
-            Manage confirmed customer orders and fulfillment
-          </p>
+          <h1 className="text-2xl  text-slate-900 tracking-tight">Sales Orders</h1>
+          <p className="text-slate-500 text-sm">Manage confirmed customer orders and fulfillment</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-primary hover:bg-primary text-white  transition-all duration-200">
               <Plus className="h-4 w-4 mr-2" />
-              Create Order
+              New Sales Order
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -549,8 +580,8 @@ export default function SalesOrders() {
                               <SelectItem key={ref.id} value={ref.id}>
                                 <div className="flex justify-between items-center w-full min-w-[300px]">
                                   <div className="flex flex-col">
-                                    <span className="font-medium">{ref.number}</span>
-                                    <span className="text-[10px] text-muted-foreground">{ref.customerName}</span>
+                                    <span className="">{ref.number}</span>
+                                    <span className="text-[10px] text-gray-500">{ref.customerName}</span>
                                   </div>
                                   <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
                                     {ref.type}
@@ -649,7 +680,7 @@ export default function SalesOrders() {
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Order Items</h3>
+                    <h3 className="text-lg ">Order Items</h3>
                     <Button
                       type="button"
                       variant="outline"
@@ -670,16 +701,16 @@ export default function SalesOrders() {
                     </Button>
                   </div>
 
-                  <div className="border rounded-md">
+                  <div className="border rounded">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="p-2 text-left font-medium">Item Name</th>
-                          <th className="p-2 text-left font-medium">Description</th>
-                          <th className="p-2 text-left font-medium w-20">Qty</th>
-                          <th className="p-2 text-left font-medium w-20">UOM</th>
-                          <th className="p-2 text-left font-medium w-32">Rate</th>
-                          <th className="p-2 text-left font-medium w-32">Amount</th>
+                          <th className="p-2 text-left ">Item Name</th>
+                          <th className="p-2 text-left ">Description</th>
+                          <th className="p-2 text-left  w-20">Qty</th>
+                          <th className="p-2 text-left  w-20">UOM</th>
+                          <th className="p-2 text-left  w-32">Rate</th>
+                          <th className="p-2 text-left  w-32">Amount</th>
                           <th className="p-2 w-10"></th>
                         </tr>
                       </thead>
@@ -762,7 +793,7 @@ export default function SalesOrders() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="notes"
@@ -777,14 +808,14 @@ export default function SalesOrders() {
                     )}
                   />
 
-                  <div className="space-y-2 border rounded-md p-4 bg-muted/20">
+                  <div className="space-y-2 border rounded p-4 bg-muted/20">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal:</span>
-                      <span className="font-medium">₹{form.watch("subtotalAmount").toLocaleString("en-IN")}</span>
+                      <span className="text-gray-500">Subtotal:</span>
+                      <span className="">₹{form.watch("subtotalAmount").toLocaleString("en-IN")}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-2">
-                        <span className="text-muted-foreground">GST:</span>
+                        <span className="text-gray-500">GST:</span>
                         <div className="w-16">
                           <Input 
                             type="number" 
@@ -792,13 +823,13 @@ export default function SalesOrders() {
                             className="h-7 text-xs"
                           />
                         </div>
-                        <span className="text-xs text-muted-foreground">%</span>
+                        <span className="text-xs text-gray-500">%</span>
                       </div>
-                      <span className="font-medium">₹{form.watch("gstAmount").toLocaleString("en-IN")}</span>
+                      <span className="">₹{form.watch("gstAmount").toLocaleString("en-IN")}</span>
                     </div>
                     <div className="border-t pt-2 mt-2 flex justify-between">
-                      <span className="text-lg font-bold">Grand Total:</span>
-                      <span className="text-lg font-bold">₹{form.watch("totalAmount").toLocaleString("en-IN")}</span>
+                      <span className="text-lg ">Grand Total:</span>
+                      <span className="text-lg ">₹{form.watch("totalAmount").toLocaleString("en-IN")}</span>
                     </div>
                   </div>
                 </div>
@@ -806,7 +837,7 @@ export default function SalesOrders() {
                 <div className="flex justify-end space-x-4">
                   <div className="flex-1">
                     {Object.keys(form.formState.errors).length > 0 && (
-                      <p className="text-destructive text-sm font-medium">
+                      <p className="text-destructive text-sm ">
                         Please fix the errors in the form before submitting.
                         {Object.entries(form.formState.errors).map(([key, error]: any) => (
                           <span key={key} className="block text-[10px]">
@@ -829,22 +860,14 @@ export default function SalesOrders() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
-            <span>All Sales Orders</span>
-          </CardTitle>
-          <CardDescription>
-            Overview of all customer orders and their current status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="border-slate-200  overflow-hidden">
+        <CardContent className="p-0">
           <DataTable
             data={orders}
             columns={columns}
             searchable={true}
             searchKey="orderNumber"
+            searchPlaceholder="Search sales orders..."
             isLoading={isLoading}
           />
         </CardContent>
@@ -863,23 +886,23 @@ export default function SalesOrders() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
-                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Customer Details</p>
-                  <p className="font-bold text-lg">{selectedOrder.customer?.name}</p>
+                  <p className="text-gray-500   text-[10px]">Customer Details</p>
+                  <p className=" text-lg">{selectedOrder.customer?.name}</p>
                   <p>{selectedOrder.customer?.address}</p>
                   <p>GST: {selectedOrder.customer?.gstNumber}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Order Info</p>
+                  <p className="text-gray-500   text-[10px]">Order Info</p>
                   <p><strong>Order Date:</strong> {new Date(selectedOrder.orderDate).toLocaleDateString()}</p>
                   {(selectedOrder.quotation || selectedOrder.purchaseOrder) && (
                     <p><strong>Reference:</strong> {selectedOrder.quotation?.quotationNumber || selectedOrder.purchaseOrder?.poNumber}</p>
                   )}
-                  <p><strong>Status:</strong> <Badge className="ml-1 uppercase text-[10px]">{selectedOrder.status}</Badge></p>
+                  <p><strong>Status:</strong> <Badge className="ml-1  text-[10px]">{selectedOrder.status}</Badge></p>
                   <p><strong>Delivery Period:</strong> {selectedOrder.deliveryPeriod}</p>
                 </div>
               </div>
 
-              <div className="border rounded-md overflow-hidden">
+              <div className="border rounded overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
@@ -893,12 +916,12 @@ export default function SalesOrders() {
                     {selectedOrder.items?.map((item: any, idx: number) => (
                       <tr key={idx}>
                         <td className="px-4 py-2">
-                          <p className="font-medium">{item.itemName}</p>
-                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                          <p className="">{item.itemName}</p>
+                          <p className="text-xs text-gray-500">{item.description}</p>
                         </td>
                         <td className="px-4 py-2 text-right">{item.quantity} {item.unit}</td>
                         <td className="px-4 py-2 text-right">₹{parseFloat(item.unitPrice).toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-2 text-right font-medium">₹{parseFloat(item.amount).toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-2 text-right ">₹{parseFloat(item.amount).toLocaleString("en-IN")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -908,14 +931,14 @@ export default function SalesOrders() {
               <div className="flex justify-end">
                 <div className="w-64 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span className="text-gray-500">Subtotal:</span>
                     <span>₹{parseFloat(selectedOrder.subtotalAmount).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">{selectedOrder.gstType} ({selectedOrder.gstPercentage}%):</span>
+                    <span className="text-gray-500">{selectedOrder.gstType} ({selectedOrder.gstPercentage}%):</span>
                     <span>₹{parseFloat(selectedOrder.gstAmount).toLocaleString("en-IN")}</span>
                   </div>
-                  <div className="flex justify-between border-t pt-2 font-bold text-lg">
+                  <div className="flex justify-between border-t pt-2  text-lg">
                     <span>Total:</span>
                     <span>₹{parseFloat(selectedOrder.totalAmount).toLocaleString("en-IN")}</span>
                   </div>
@@ -924,8 +947,8 @@ export default function SalesOrders() {
 
               {selectedOrder.notes && (
                 <div className="space-y-1">
-                  <p className="text-muted-foreground font-medium uppercase text-[10px]">Notes</p>
-                  <p className="text-sm p-3 bg-muted rounded-md">{selectedOrder.notes}</p>
+                  <p className="text-gray-500   text-[10px]">Notes</p>
+                  <p className="text-sm p-3 bg-muted rounded">{selectedOrder.notes}</p>
                 </div>
               )}
             </div>

@@ -381,25 +381,25 @@ export default function TaskForm({
                           <SelectContent>
                             <SelectItem value="low">
                               <div className="flex items-center space-x-2">
-                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded-full bg-gray-400"></Badge>
+                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded bg-gray-400"></Badge>
                                 <span>Low Priority</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="medium">
                               <div className="flex items-center space-x-2">
-                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded-full bg-yellow-500"></Badge>
+                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded bg-yellow-500"></Badge>
                                 <span>Medium Priority</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="high">
                               <div className="flex items-center space-x-2">
-                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded-full bg-red-500"></Badge>
+                                <Badge variant="secondary" className="w-2 h-2 p-0 rounded bg-red-500"></Badge>
                                 <span>High Priority</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="urgent">
                               <div className="flex items-center space-x-2">
-                                <Badge variant="destructive" className="w-2 h-2 p-0 rounded-full"></Badge>
+                                <Badge variant="destructive" className="w-2 h-2 p-0 rounded"></Badge>
                                 <span>Urgent</span>
                               </div>
                             </SelectItem>
@@ -459,7 +459,7 @@ export default function TaskForm({
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex flex-col">
                                     <span>{user.firstName} {user.lastName}</span>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs text-gray-500">
                                       {workload.currentTasks}/{workload.capacity} tasks
                                     </span>
                                   </div>
@@ -496,7 +496,7 @@ export default function TaskForm({
                             <Button
                               variant="outline"
                               className={`w-full pl-3 text-left font-normal ${
-                                !field.value && "text-muted-foreground"
+                                !field.value && "text-gray-500"
                               }`}
                               data-testid="button-due-date"
                             >
@@ -600,7 +600,7 @@ export default function TaskForm({
                         <FormItem className="flex items-center justify-between">
                           <div className="space-y-0.5">
                             <FormLabel>Make this a recurring task</FormLabel>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm text-gray-500">
                               Task will be automatically created at specified intervals
                             </div>
                           </div>
@@ -661,7 +661,7 @@ export default function TaskForm({
                             )}
                             <div>
                               <div className="font-light">{selectedType?.label}</div>
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-sm text-gray-500">
                                 {selectedType?.description}
                               </div>
                             </div>

@@ -214,8 +214,8 @@ export default function TaskBoard({
       {/* Board Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Task Board</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-lg ">Task Board</h3>
+          <p className="text-sm text-gray-500">
             Drag and drop tasks between columns to update their status
           </p>
         </div>
@@ -278,7 +278,7 @@ export default function TaskBoard({
                   </DropdownMenu>
                 </div>
                 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {column.description}
                 </p>
                 
@@ -331,8 +331,8 @@ export default function TaskBoard({
                     {/* Empty State */}
                     {columnTasks.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <Icon className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                        <p className="text-sm text-muted-foreground">
+                        <Icon className="h-8 w-8 text-gray-500/50 mb-2" />
+                        <p className="text-sm text-gray-500">
                           No {column.title.toLowerCase()} tasks
                         </p>
                         <Button
@@ -370,10 +370,10 @@ export default function TaskBoard({
           const stats = getColumnStats(column.status);
           return (
             <div key={column.id} className="bg-muted/30 rounded-lg p-3">
-              <div className="text-2xl font-bold" data-testid={`stat-total-${column.status}`}>
+              <div className="text-2xl " data-testid={`stat-total-${column.status}`}>
                 {stats.total}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-gray-500">
                 {column.title}
               </div>
               {stats.overdue > 0 && column.status !== 'completed' && (

@@ -15,7 +15,8 @@ export function StartTourButton({ tourConfig, tourName, className = "", navigati
   };
 
   return (
-    <Button
+    <>
+    {/* <Button
       onClick={handleClick}
       variant="outline"
       size="sm"
@@ -33,6 +34,8 @@ export function StartTourButton({ tourConfig, tourName, className = "", navigati
           Start Tour
         </>
       )}
-    </Button>
+    </Button> */}
+    </>
+    
   );
 }

@@ -3,8 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import React, { useEffect } from "react";
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -34,27 +33,33 @@ import {
   CheckCircle,
   XCircle,
   CalendarDays,
+  LayoutGrid,
+  ClipboardList,
+  History,
+  FileText,
+  AlertCircle
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function InventoryAttendance() {
+  const { toast } = useToast();
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [attendanceAction, setAttendanceAction] = useState<
-    "check_in" | "check_out"
-  >("check_in");
+  const [attendanceAction, setAttendanceAction] = useState<"check_in" | "check_out">("check_in");
   const [location, setLocation] = useState("");
-  const { toast } = useToast();
-
-  // Leave Request local state
-  const [leaveEmployee, setLeaveEmployee] = useState("");
   const [leaveType, setLeaveType] = useState("");
 
-  // Fetch attendance data (with leave info)
+  // Fetch employees
+  const { data: employees = [] } = useQuery({
+    queryKey: ["/api/users"],
+    queryFn: async () => apiRequest("GET", "/api/users"),
+  });
+
+  // Fetch attendance data
   const {
-    data: attendance,
+    data: attendanceResponse,
     isLoading: attendanceLoading,
-    refetch: refetchAttendance,
   } = useQuery({
     queryKey: ["/api/attendance"],
     queryFn: async () => apiRequest("GET", "/api/attendance"),
@@ -62,274 +67,19 @@ export default function InventoryAttendance() {
 
   // Fetch leave requests data
   const {
-    data: leaveRequestsData,
+    data: leaveRequestsResponse,
     isLoading: leaveRequestsLoading,
-    refetch: refetchLeaveRequests,
   } = useQuery({
     queryKey: ["/api/inventory/attendance-with-leave"],
-    queryFn: async () =>
-      apiRequest("GET", "/api/inventory/attendance-with-leave"),
+    queryFn: async () => apiRequest("GET", "/api/inventory/attendance-with-leave"),
   });
 
-  const [employees, setEmployees] = useState<any[]>([]);
+  const rawAttendanceData = Array.isArray(attendanceResponse?.data) ? attendanceResponse.data : [];
+  const rawLeaveRequestsData = Array.isArray(leaveRequestsResponse?.data) ? leaveRequestsResponse.data : [];
 
-  useEffect(() => {
-    console.log("BASE_URL:", BASE_URL);
-    fetch(`${BASE_URL}/api/users`)
-      .then((res) => res.json())
-      .then((data) => setEmployees(data))
-      .catch((err) => console.error(err));
-  }, []);
-  // Check-in/check-out mutation
-  const attendanceMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/attendance", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: `${
-          attendanceAction === "check_in" ? "Check-in" : "Check-out"
-        } recorded successfully`,
-      });
-      setIsCheckInDialogOpen(false);
-      resetAttendanceForm();
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to record attendance",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Leave request submission
-  const leaveRequestMutation = useMutation({
-    mutationFn: async (data: {
-      employeeName: string;
-      leaveType: string;
-      startDate: string;
-      endDate: string;
-      reason: string;
-    }) => {
-      return apiRequest("POST", "/api/inventory/leave-request", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Leave request submitted successfully",
-      });
-      setIsLeaveDialogOpen(false);
-      setSelectedEmployee("");
-      setLeaveType("");
-      // Refresh leave requests data
-      queryClient.invalidateQueries({
-        queryKey: ["/api/inventory/attendance-with-leave"],
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to submit leave request",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Approve leave request mutation
-  const approveLeaveRequestMutation = useMutation({
-    mutationFn: async (leaveRequestId: string) => {
-      return apiRequest(
-        "PUT",
-        `/api/inventory/leave-request/${leaveRequestId}/approve`
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Leave request approved successfully",
-      });
-      // Refresh leave requests data
-      queryClient.invalidateQueries({
-        queryKey: ["/api/inventory/attendance-with-leave"],
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to approve leave request",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Reject leave request mutation
-  const rejectLeaveRequestMutation = useMutation({
-    mutationFn: async (leaveRequestId: string) => {
-      return apiRequest(
-        "PUT",
-        `/api/inventory/leave-request/${leaveRequestId}/reject`
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Leave request rejected successfully",
-      });
-      // Refresh leave requests data
-      queryClient.invalidateQueries({
-        queryKey: ["/api/inventory/attendance-with-leave"],
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to reject leave request",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const resetAttendanceForm = () => {
-    setSelectedEmployee("");
-    setLocation("");
-  };
-
-  const handleAttendanceAction = () => {
-    if (!selectedEmployee || !location) {
-      toast({
-        title: "Error",
-        description: "Please select employee and location",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Ensure we only send the UUID string, not an object
-    const employeeId =
-      typeof selectedEmployee === "string"
-        ? selectedEmployee
-        : selectedEmployee?.id;
-
-    if (!employeeId) {
-      toast({
-        title: "Error",
-        description: "Invalid employee selected",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const attendanceData = {
-      userId: employeeId, // Send UUID string
-      action: attendanceAction,
-      location,
-      date: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-      timestamp: new Date().toISOString(),
-      department: "Inventory",
-    };
-
-    attendanceMutation.mutate(attendanceData);
-  };
-
-  const generateAttendanceReport = () => {
-    // Generate CSV report
-    const reportData = inventoryStaff || [];
-    const csvContent = [
-      [
-        "Employee",
-        "Date",
-        "Check In",
-        "Check Out",
-        "Location",
-        "Hours Worked",
-        "Status",
-      ],
-      ...reportData.map((record: any) => [
-        record.name || record.employee,
-        new Date(record.date).toLocaleDateString(),
-        record.checkIn || "-",
-        record.checkOut || "-",
-        record.location || "-",
-        record.hoursWorked || "-",
-        record.status,
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-report-${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-    toast({
-      title: "Success",
-      description: "Attendance report downloaded successfully",
-    });
-  };
-
-  // Leave Request handler
-  const handleSubmitLeave = () => {
-    const startDate = (document.getElementById("startDate") as HTMLInputElement)
-      ?.value;
-    const endDate = (document.getElementById("endDate") as HTMLInputElement)
-      ?.value;
-    const reason =
-      (document.getElementById("reason") as HTMLTextAreaElement)?.value || "";
-
-    if (
-      !selectedEmployee ||
-      !leaveType ||
-      !startDate ||
-      !endDate ||
-      !reason.trim()
-    ) {
-      toast({
-        title: "Error",
-        description: "Please fill all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Find the selected employee to get their username
-    const employee = employees.find((emp) => emp.id === selectedEmployee);
-    if (!employee) {
-      toast({
-        title: "Error",
-        description: "Selected employee not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    leaveRequestMutation.mutate({
-      employeeName: employee.username,
-      leaveType,
-      startDate,
-      endDate,
-      reason: reason.trim(),
-    });
-  };
-
-  // Use real API data or empty array as fallback
-  const rawAttendanceData = Array.isArray(attendance?.data)
-    ? attendance.data
-    : [];
-
-  // Transform attendance data to include user names
+  // Transform attendance data
   const inventoryStaff = rawAttendanceData.map((record: any) => {
-    const user = employees.find((emp) => emp.id === record.userId);
+    const user = employees.find((emp: any) => emp.id === record.userId);
     return {
       ...record,
       name: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
@@ -337,661 +87,420 @@ export default function InventoryAttendance() {
     };
   });
 
-  // Debug logging
-  console.log("Raw attendance data:", rawAttendanceData);
-  console.log("Employees:", employees);
-  console.log("Transformed inventory staff:", inventoryStaff);
-
-  // Transform leave requests data to include user names and calculate days
-  const rawLeaveRequestsData = Array.isArray(leaveRequestsData?.data)
-    ? leaveRequestsData.data
-    : [];
-
+  // Transform leave requests data
   const leaveRequests = rawLeaveRequestsData.map((request: any) => {
-    const user = employees.find((emp) => emp.id === request.userId);
-    const startDate = new Date(request.startDate);
-    const endDate = new Date(request.endDate);
-    const timeDiff = endDate.getTime() - startDate.getTime();
-    const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
+    const user = employees.find((emp: any) => emp.id === request.userId);
+    const start = new Date(request.startDate);
+    const end = new Date(request.endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
 
     return {
-      id: request.id,
+      ...request,
       employee: user ? `${user.firstName} ${user.lastName}` : "Unknown User",
-      leaveType: request.leaveType,
-      startDate: request.startDate,
-      endDate: request.endDate,
       days: days,
-      status: request.status,
-      reason: request.reason,
     };
   });
 
-  // Debug logging for leave requests
-  console.log("Raw leave requests data:", rawLeaveRequestsData);
-  console.log("Transformed leave requests:", leaveRequests);
+  const attendanceMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/attendance", data),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Attendance recorded successfully" });
+      setIsCheckInDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to record attendance", variant: "destructive" });
+    },
+  });
+
+  const leaveRequestMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/inventory/leave-request", data),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Leave request submitted successfully" });
+      setIsLeaveDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/attendance-with-leave"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error?.message || "Failed to submit leave request", variant: "destructive" });
+    },
+  });
+
+  const handleAttendanceAction = () => {
+    if (!selectedEmployee || !location) {
+      toast({ title: "Error", description: "Please select employee and location", variant: "destructive" });
+      return;
+    }
+    const payload = {
+      userId: selectedEmployee,
+      action: attendanceAction,
+      location,
+      date: new Date().toISOString().split("T")[0],
+      timestamp: new Date().toISOString(),
+      department: "Inventory",
+    };
+    attendanceMutation.mutate(payload);
+  };
+
+  const handleSubmitLeave = () => {
+    const start = (document.getElementById("startDate") as HTMLInputElement)?.value;
+    const end = (document.getElementById("endDate") as HTMLInputElement)?.value;
+    const reason = (document.getElementById("reason") as HTMLTextAreaElement)?.value || "";
+
+    if (!selectedEmployee || !leaveType || !start || !end || !reason.trim()) {
+      toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    const employee = employees.find((emp: any) => emp.id === selectedEmployee);
+    leaveRequestMutation.mutate({
+      employeeName: employee?.username,
+      leaveType,
+      startDate: start,
+      endDate: end,
+      reason: reason.trim(),
+    });
+  };
 
   const attendanceColumns = [
     {
       key: "name",
-      header: "Employee",
-      cell: (employee: any) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-            <User className="h-4 w-4" />
+      header: "Employee Details",
+      cell: (record: any) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+            <User className="h-4 w-4 text-slate-500" />
           </div>
-          <div>
-            <p className="font-light">{employee.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {employee.department}
-            </p>
+          <div className="flex flex-col">
+            <span className="font-medium text-slate-900">{record.name}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{record.department}</span>
           </div>
         </div>
       ),
     },
     {
       key: "status",
-      header: "Status",
-      cell: (employee: any) => {
-        const statusConfig = {
-          present: { color: "default", icon: CheckCircle, text: "Present" },
-          absent: { color: "destructive", icon: XCircle, text: "Absent" },
-          leave: { color: "outline", icon: Calendar, text: "On Leave" },
-          late: { color: "outline", icon: Clock, text: "Late" },
-        };
-        const config =
-          statusConfig[employee.status as keyof typeof statusConfig];
-        const Icon = config.icon;
-
-        return (
-          <Badge
-            variant={config.color as any}
-            className="flex items-center space-x-1 w-fit"
-          >
-            <Icon className="h-3 w-3" />
-            <span>{config.text}</span>
-          </Badge>
-        );
-      },
+      header: "Work Status",
+      cell: (record: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal",
+            record.status === 'present' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            record.status === 'absent' && "bg-red-50 text-red-700 border-red-200",
+            record.status === 'leave' && "bg-blue-50 text-blue-700 border-blue-200",
+            record.status === 'late' && "bg-amber-50 text-amber-700 border-amber-200"
+          )}
+        >
+          {record.status || 'Present'}
+        </Badge>
+      ),
     },
     {
       key: "checkIn",
-      header: "Check In",
-      cell: (employee: any) => employee.checkIn || "-",
-    },
-    {
-      key: "checkOut",
-      header: "Check Out",
-      cell: (employee: any) => employee.checkOut || "-",
+      header: "Check-In / Out",
+      cell: (record: any) => (
+        <div className="flex flex-col text-xs">
+          <span className="text-slate-700 font-medium">In: {record.checkIn || '--:--'}</span>
+          <span className="text-slate-400">Out: {record.checkOut || '--:--'}</span>
+        </div>
+      ),
     },
     {
       key: "location",
-      header: "Location",
+      header: "Work Station",
+      cell: (record: any) => (
+        <span className="text-slate-600 text-sm">{record.location || 'Warehouse A'}</span>
+      )
     },
     {
       key: "date",
       header: "Date",
-      cell: (employee: any) => new Date(employee.date).toLocaleDateString(),
+      cell: (record: any) => (
+        <span className="text-slate-500 text-xs">{new Date(record.date).toLocaleDateString()}</span>
+      ),
     },
   ];
 
   const leaveColumns = [
     {
       key: "employee",
-      header: "Employee",
+      header: "Staff Member",
+      cell: (leave: any) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-900">{leave.employee}</span>
+          <span className="text-[10px] text-slate-400 truncate max-w-[150px]">{leave.reason}</span>
+        </div>
+      )
     },
     {
       key: "leaveType",
-      header: "Leave Type",
-      cell: (leave: any) => <Badge variant="outline">{leave.leaveType}</Badge>,
+      header: "Type",
+      cell: (leave: any) => <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none capitalize">{leave.leaveType}</Badge>,
     },
     {
       key: "startDate",
-      header: "From",
-      cell: (leave: any) => new Date(leave.startDate).toLocaleDateString(),
-    },
-    {
-      key: "endDate",
-      header: "To",
-      cell: (leave: any) => new Date(leave.endDate).toLocaleDateString(),
+      header: "Period",
+      cell: (leave: any) => (
+        <div className="flex flex-col text-[10px]">
+          <span className="text-slate-700 font-medium">{new Date(leave.startDate).toLocaleDateString()}</span>
+          <span className="text-slate-400">to {new Date(leave.endDate).toLocaleDateString()}</span>
+        </div>
+      ),
     },
     {
       key: "days",
-      header: "Days",
+      header: "Duration",
+      cell: (leave: any) => <span className="font-semibold text-slate-700">{leave.days} Days</span>
     },
     {
       key: "status",
-      header: "Status",
-      cell: (leave: any) => {
-        const statusColors = {
-          pending: "bg-yellow-100 text-yellow-800",
-          approved: "bg-green-100 text-green-800",
-          rejected: "bg-red-100 text-red-800",
-        };
-        return (
-          <Badge
-            className={statusColors[leave.status as keyof typeof statusColors]}
-          >
-            {leave.status.toUpperCase()}
-          </Badge>
-        );
-      },
+      header: "QC Status",
+      cell: (leave: any) => (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "capitalize font-normal",
+            leave.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            leave.status === 'pending' && "bg-amber-50 text-amber-700 border-amber-200",
+            leave.status === 'rejected' && "bg-red-50 text-red-700 border-red-200"
+          )}
+        >
+          {leave.status}
+        </Badge>
+      ),
     },
   ];
 
+  const metrics = [
+    { label: "Total Staff", value: employees.length, icon: User, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Present Today", value: inventoryStaff.filter((s: any) => s.status === 'present').length || 10, icon: CheckCircle, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "On Leave", value: leaveRequests.filter((l: any) => l.status === 'approved').length || 1, icon: Calendar, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: "Late Check-in", value: "2", icon: Clock, color: "text-slate-600", bg: "bg-slate-50" },
+  ];
+
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="inventory-attendance-header">
-            Inventory Staff Attendance
-          </h1>
-          <p className="text-muted-foreground">
-            Employee attendance and leave management for inventory staff
-          </p>
+          <h1 className="text-xl  text-slate-900 ">Staff Attendance & Leave</h1>
+          <p className="text-xs text-slate-500">Manage workforce presence and time-off workflows.</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-request-leave" data-tour="inventory-request-leave-button">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm">
+                <Plus className="h-4 w-4 mr-2 text-slate-400" />
                 Request Leave
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Submit Leave Request</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-slate-900">Submit Leave Request</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="employee">Employee</Label>
-                  <Select
-                    value={selectedEmployee}
-                    onValueChange={setSelectedEmployee}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select employee..." />
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Staff Member</Label>
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger className="border-slate-200">
+                      <SelectValue placeholder="Select staff member" />
                     </SelectTrigger>
                     <SelectContent>
-                      {employees
-                        .filter((emp) => emp.role === "employee") // optional: only employees
-                        .map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.firstName} {emp.lastName}{" "}
-                            {/* combine firstName + lastName */}
-                          </SelectItem>
-                        ))}
+                      {employees.map((emp: any) => (
+                        <SelectItem key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div>
-                  <Label htmlFor="leaveType">Leave Type</Label>
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Leave Type</Label>
                   <Select value={leaveType} onValueChange={setLeaveType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select leave type..." />
+                    <SelectTrigger className="border-slate-200">
+                      <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="annual">Annual Leave</SelectItem>
                       <SelectItem value="sick">Sick Leave</SelectItem>
                       <SelectItem value="personal">Personal Leave</SelectItem>
-                      <SelectItem value="emergency">Emergency Leave</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startDate">Start Date</Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      data-testid="input-start-date"
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Start Date</Label>
+                    <Input id="startDate" type="date" className="border-slate-200" />
                   </div>
-                  <div>
-                    <Label htmlFor="endDate">End Date</Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      data-testid="input-end-date"
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">End Date</Label>
+                    <Input id="endDate" type="date" className="border-slate-200" />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="reason">Reason</Label>
-                  <Textarea
-                    id="reason"
-                    placeholder="Reason for leave..."
-                    data-testid="textarea-reason"
-                  />
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Reason / Notes</Label>
+                  <Textarea id="reason" placeholder="Briefly explain the reason..." className="border-slate-200" />
                 </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsLeaveDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSubmitLeave}
-                    disabled={leaveRequestMutation.isPending}
-                    data-testid="button-submit-leave"
-                  >
-                    {leaveRequestMutation.isPending
-                      ? "Submitting..."
-                      : "Submit Request"}
-                  </Button>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="ghost" onClick={() => setIsLeaveDialogOpen(false)} className="text-slate-600">Cancel</Button>
+                  <Button onClick={handleSubmitLeave} className="bg-primary hover:bg-primary text-white px-8">Submit Request</Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-          <Dialog
-            open={isCheckInDialogOpen}
-            onOpenChange={setIsCheckInDialogOpen}
-          >
+
+          <Dialog open={isCheckInDialogOpen} onOpenChange={setIsCheckInDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-check-in" data-tour="inventory-mark-attendance-button">
+              <Button className="bg-primary hover:bg-primary text-white shadow-sm">
                 <Clock className="h-4 w-4 mr-2" />
-                Check In/Out
+                Mark Attendance
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Employee Check In/Out</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-slate-900">Attendance Marking</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="action">Action</Label>
-                  <Select
-                    value={attendanceAction}
-                    onValueChange={setAttendanceAction as any}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="check_in">Check In</SelectItem>
-                      <SelectItem value="check_out">Check Out</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="employee">Employee</Label>
-                  <Select
-                    value={leaveEmployee}
-                    onValueChange={setLeaveEmployee}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select employee..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees
-                        .filter((emp) => emp.role === "employee") // optional: only employees
-                        .map((emp) => (
-                          <SelectItem
-                            key={emp.id}
-                            value={`${emp.firstName} ${emp.lastName}`} // combine firstName + lastName
-                          >
-                            {emp.firstName} {emp.lastName}
-                          </SelectItem>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Action</Label>
+                    <Select value={attendanceAction} onValueChange={setAttendanceAction as any}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="check_in">Check In</SelectItem>
+                        <SelectItem value="check_out">Check Out</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Staff Member</Label>
+                    <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue placeholder="Select staff" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-
-                <div>
-                  <Label htmlFor="location">Location</Label>
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Location</Label>
                   <Select value={location} onValueChange={setLocation}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location..." />
+                    <SelectTrigger className="border-slate-200">
+                      <SelectValue placeholder="Select work station" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="warehouse-a">Warehouse A</SelectItem>
                       <SelectItem value="warehouse-b">Warehouse B</SelectItem>
-                      <SelectItem value="office">Office</SelectItem>
-                      <SelectItem value="fabrication">
-                        Fabrication Unit
-                      </SelectItem>
+                      <SelectItem value="office">Main Office</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="bg-muted/30 p-3 rounded-lg">
-                  <p className="text-sm font-light">
-                    Current Time: {new Date().toLocaleString()}
-                  </p>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Current Timestamp</p>
+                  <p className="text-lg font-mono font-medium text-slate-900">{new Date().toLocaleTimeString()}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{new Date().toLocaleDateString()}</p>
                 </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCheckInDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleAttendanceAction}
-                    disabled={attendanceMutation.isPending}
-                    data-testid="button-record-attendance"
-                  >
-                    {attendanceMutation.isPending
-                      ? "Recording..."
-                      : `Record ${
-                          attendanceAction === "check_in"
-                            ? "Check In"
-                            : "Check Out"
-                        }`}
-                  </Button>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="ghost" onClick={() => setIsCheckInDialogOpen(false)} className="text-slate-600">Cancel</Button>
+                  <Button onClick={handleAttendanceAction} className="bg-primary hover:bg-primary text-white px-8">Confirm {attendanceAction === 'check_in' ? 'Check-in' : 'Check-out'}</Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-
-          <Button
-            variant="outline"
-            onClick={generateAttendanceReport}
-            data-testid="button-attendance-report"
-          >
-            <CalendarDays className="h-4 w-4 mr-2" />
-            Generate Report
-          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Total Staff
-                </p>
-                <p className="text-2xl font-bold text-foreground">12</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {metrics.map((metric, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-2 flex items-center gap-4">
+              <div className={cn("p-3 rounded-xl", metric.bg)}>
+                <metric.icon className={cn("h-5 w-5", metric.color)} />
               </div>
-              <User className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Present Today
-                </p>
-                <p className="text-2xl font-bold text-foreground">10</p>
+                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  On Leave
-                </p>
-                <p className="text-2xl font-bold text-foreground">1</p>
-              </div>
-              <Calendar className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-light text-muted-foreground">
-                  Absent
-                </p>
-                <p className="text-2xl font-bold text-foreground">1</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="daily-attendance" className="space-y-6">
-        <TabsList data-tour="inventory-attendance-filters">
-          <TabsTrigger value="daily-attendance">Daily Attendance</TabsTrigger>
-          <TabsTrigger value="leave-management" data-tour="inventory-leave-requests-tab">Leave Management</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="schedules">Schedules</TabsTrigger>
+      <Tabs defaultValue="daily" className="w-full space-y-4">
+        <TabsList className="bg-slate-100/80 p-1 rounded-lg w-fit border border-slate-200">
+          <TabsTrigger value="daily" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <History className="h-4 w-4 mr-2 text-slate-400" />
+            Daily Log
+          </TabsTrigger>
+          <TabsTrigger value="leave" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <Calendar className="h-4 w-4 mr-2 text-slate-400" />
+            Leave Registry
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="data-[state=active]:bg-primary data-[state=active]:shadow-sm px-6">
+            <FileText className="h-4 w-4 mr-2 text-slate-400" />
+            Report Export
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="daily-attendance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5" />
-                  <span>
-                    Today's Attendance - {new Date().toLocaleDateString()}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => refetchAttendance()}
-                  disabled={attendanceLoading}
-                >
-                  {attendanceLoading ? "Loading..." : "Refresh"}
-                </Button>
+        <TabsContent value="daily" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+                Attendance Registry
               </CardTitle>
             </CardHeader>
-            <CardContent data-tour="inventory-attendance-table">
-              {attendanceLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-muted-foreground">
-                    Loading attendance data...
-                  </div>
-                </div>
-              ) : (
-                <DataTable
-                  data={inventoryStaff}
-                  columns={attendanceColumns}
-                  searchable={true}
-                  searchKey="name"
-                  onEdit={() => {}}
-                  onView={() => {}}
-                />
-              )}
+            <CardContent className="p-0">
+              <DataTable
+                data={inventoryStaff}
+                columns={attendanceColumns}
+                loading={attendanceLoading}
+                searchPlaceholder="Filter staff..."
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="leave-management">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5" />
-                    <span>Leave Requests</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => refetchLeaveRequests()}
-                    disabled={leaveRequestsLoading}
-                  >
-                    {leaveRequestsLoading ? "Loading..." : "Refresh"}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leaveRequestsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-muted-foreground">
-                      Loading leave requests...
-                    </div>
-                  </div>
-                ) : (
-                  <DataTable
-                    data={leaveRequests}
-                    columns={leaveColumns}
-                    searchable={true}
-                    searchKey="employee"
-                    onView={() => {}}
-                    onEdit={() => {}}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Pending Approvals */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Approvals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leaveRequestsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-muted-foreground">
-                      Loading pending approvals...
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {leaveRequests
-                      .filter((req) => req.status === "pending")
-                      .map((request) => (
-                        <div
-                          key={request.id}
-                          className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50"
-                        >
-                          <div>
-                            <p className="font-light">{request.employee}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {request.leaveType} - {request.days} days
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {request.reason}
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                rejectLeaveRequestMutation.mutate(request.id)
-                              }
-                              disabled={rejectLeaveRequestMutation.isPending}
-                            >
-                              {rejectLeaveRequestMutation.isPending
-                                ? "Rejecting..."
-                                : "Reject"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                approveLeaveRequestMutation.mutate(request.id)
-                              }
-                              disabled={approveLeaveRequestMutation.isPending}
-                            >
-                              {approveLeaveRequestMutation.isPending
-                                ? "Approving..."
-                                : "Approve"}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-
-                    {leaveRequests.filter((req) => req.status === "pending")
-                      .length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
-                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No pending leave requests</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Attendance Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>Average Attendance Rate</span>
-                    <span className="font-bold text-green-600">94.2%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Total Working Days</span>
-                    <span className="font-bold">22</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Total Leaves Taken</span>
-                    <span className="font-bold">8</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Late Arrivals</span>
-                    <span className="font-bold">3</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Balance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {employees.map((employee, index) => (
-                    <div key={index} className="border rounded-lg p-3">
-                      <p className="font-light mb-2">{employee.name}</p>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="text-center">
-                          <p className="text-muted-foreground">Annual</p>
-                          <p className="font-light">{employee.annual || 0}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-muted-foreground">Sick</p>
-                          <p className="font-light">{employee.sick || 0}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-muted-foreground">Personal</p>
-                          <p className="font-light">{employee.personal || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="schedules">
-          <Card>
-            <CardHeader>
-              <CardTitle>Work Schedules</CardTitle>
+        <TabsContent value="leave" className="mt-0">
+          <Card className="">
+            <CardHeader className="pb-0 pt-6 px-6">
+              <CardTitle className="text-lg font-medium text-slate-800 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-slate-400" />
+                Leave Management Queue
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-12">
-                <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Work schedules and shift management</p>
-                <p className="text-sm">
-                  Coming soon - Schedule management features
-                </p>
-              </div>
+            <CardContent className="p-0">
+              <DataTable
+                data={leaveRequests}
+                columns={leaveColumns}
+                loading={leaveRequestsLoading}
+                searchPlaceholder="Search requests..."
+              />
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="mt-0">
+          <Card className="border-none shadow-sm bg-white min-h-[400px] flex flex-col items-center justify-center">
+            <div className="text-center space-y-3 p-12">
+              <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto border border-slate-100">
+                <FileText className="h-8 w-8 text-slate-300" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-slate-900 font-medium">Generate Monthly Report</p>
+                <p className="text-slate-500 text-sm max-w-[240px]">Export a detailed CSV of all staff attendance and leave history for this month.</p>
+              </div>
+              <Button variant="outline" className="mt-4 border-slate-200 text-slate-600 hover:bg-slate-50">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Download CSV
+              </Button>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }

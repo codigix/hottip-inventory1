@@ -291,8 +291,8 @@ export default function LogisticsAttendance() {
       {/* Header */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="page-title">Logistics Attendance</h1>
-          <p className="text-muted-foreground" data-testid="page-description">
+          <h1 className="text-xl text-black" data-testid="page-title">Logistics Attendance</h1>
+          <p className="text-gray-500" data-testid="page-description">
             GPS-enabled attendance tracking for logistics team
           </p>
         </div>
@@ -303,10 +303,10 @@ export default function LogisticsAttendance() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Present Today</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-present">{metrics.totalPresent}</div>
+            <div className="text-2xl " data-testid="metric-present">{metrics.totalPresent}</div>
           </CardContent>
         </Card>
 
@@ -316,7 +316,7 @@ export default function LogisticsAttendance() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="metric-checked-in">{metrics.checkedIn}</div>
+            <div className="text-2xl  text-green-600" data-testid="metric-checked-in">{metrics.checkedIn}</div>
           </CardContent>
         </Card>
 
@@ -326,37 +326,37 @@ export default function LogisticsAttendance() {
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600" data-testid="metric-checked-out">{metrics.checkedOut}</div>
+            <div className="text-2xl  text-red-600" data-testid="metric-checked-out">{metrics.checkedOut}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Avg Hours</CardTitle>
-            <Timer className="h-4 w-4 text-muted-foreground" />
+            <Timer className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-avg-hours">{metrics.averageWorkHours?.toFixed(1) ?? "0.0"}</div>
+            <div className="text-2xl " data-testid="metric-avg-hours">{metrics.averageWorkHours?.toFixed(1) ?? "0.0"}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Deliveries</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
+            <Building className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-deliveries">{metrics.totalDeliveries}</div>
+            <div className="text-2xl " data-testid="metric-deliveries">{metrics.totalDeliveries}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-light">Active Tasks</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="metric-active-tasks">{metrics.activeTasks}</div>
+            <div className="text-2xl " data-testid="metric-active-tasks">{metrics.activeTasks}</div>
           </CardContent>
         </Card>
       </div>
@@ -364,7 +364,7 @@ export default function LogisticsAttendance() {
       {/* Search and Filters */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-x-4 md:space-y-0">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input
             placeholder="Search team members..."
             value={searchTerm}
@@ -389,7 +389,7 @@ export default function LogisticsAttendance() {
 
       {/* Team Attendance Grid */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Team Attendance</h2>
+        <h2 className="text-xl ">Team Attendance</h2>
         
         {attendanceLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -462,7 +462,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
             <h3 className="font-light truncate" data-testid={`name-${attendance.userId}`}>
               {attendance.user ? `${attendance.user.firstName} ${attendance.user.lastName}` : 'Unknown User'}
             </h3>
-            <p className="text-sm text-muted-foreground truncate" data-testid={`email-${attendance.userId}`}>
+            <p className="text-sm text-gray-500 truncate" data-testid={`email-${attendance.userId}`}>
               {attendance.user?.email || 'No email'}
             </p>
           </div>
@@ -489,7 +489,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
             </div>
             
             {attendance.checkInLocation && (
-              <div className="flex items-center text-sm text-muted-foreground">
+              <div className="flex items-center text-sm text-gray-500">
                 <MapPin className="mr-2 h-4 w-4" />
                 <span className="truncate" data-testid={`checkin-location-${attendance.userId}`}>
                   {attendance.checkInLocation}
@@ -511,7 +511,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
             </div>
             
             {attendance.checkOutLocation && (
-              <div className="flex items-center text-sm text-muted-foreground">
+              <div className="flex items-center text-sm text-gray-500">
                 <MapPin className="mr-2 h-4 w-4" />
                 <span className="truncate" data-testid={`checkout-location-${attendance.userId}`}>
                   {attendance.checkOutLocation}
@@ -563,7 +563,7 @@ function AttendanceCard({ attendance, onCheckIn, onCheckOut }: AttendanceCardPro
               Check Out
             </Button>
           ) : (
-            <div className="flex-1 text-center text-sm text-muted-foreground py-2">
+            <div className="flex-1 text-center text-sm text-gray-500 py-2">
               Day completed
             </div>
           )}

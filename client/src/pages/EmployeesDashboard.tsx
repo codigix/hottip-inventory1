@@ -308,10 +308,10 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
 
   if (usersLoading) {
     return (
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className=" mx-auto p-4">
         <div className="space-y-6">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -323,12 +323,12 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className=" mx-auto p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-tour="employees-header">Employee Management</h1>
-          <p className="text-muted-foreground">Manage staff, attendance, tasks, and performance</p>
+          <h1 className="text-xl  text-foreground " data-tour="employees-header">Employee Management</h1>
+          <p className="text-gray-500">Manage staff, attendance, tasks, and performance</p>
         </div>
         <StartTourButton tourConfig={employeesFlowTour} tourName="employees-flow-tour" navigationHandler={navigationHandler} />
         <div className="flex space-x-2">
@@ -635,13 +635,13 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
       </div>
 
       {/* Employee Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" data-tour="employees-dashboard">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-8" data-tour="employees-dashboard">
         <Card data-tour="employees-total-employees-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-bold text-foreground">{totalEmployees}</p>
+                <p className="text-sm font-light text-gray-500">Total Employees</p>
+                <p className="text-xl  text-foreground">{totalEmployees}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Users className="h-6 w-6 text-blue-600" />
@@ -654,8 +654,8 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Active Employees</p>
-                <p className="text-2xl font-bold text-foreground">{activeEmployees}</p>
+                <p className="text-sm font-light text-gray-500">Active Employees</p>
+                <p className="text-xl  text-foreground">{activeEmployees}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <UserCheck className="h-6 w-6 text-green-600" />
@@ -668,8 +668,8 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Active Tasks</p>
-                <p className="text-2xl font-bold text-foreground">{pendingTasks}</p>
+                <p className="text-sm font-light text-gray-500">Active Tasks</p>
+                <p className="text-xl  text-foreground">{pendingTasks}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                 <Target className="h-6 w-6 text-yellow-600" />
@@ -682,8 +682,8 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-light text-muted-foreground">Completed Tasks</p>
-                <p className="text-2xl font-bold text-foreground">{completedTasks}</p>
+                <p className="text-sm font-light text-gray-500">Completed Tasks</p>
+                <p className="text-xl  text-foreground">{completedTasks}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-purple-600" />
@@ -693,7 +693,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Employees Table */}

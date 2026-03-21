@@ -54,7 +54,7 @@ export function GlobalNavbar() {
   };
 
   return (
-    <nav className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
+    <nav className="bg-card border-b border-border  sticky top-0 z-50">
       <div className="max-w-full px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
@@ -64,7 +64,7 @@ export function GlobalNavbar() {
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <Building className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-semibold text-foreground">BusinessOps</span>
+                <span className="text-xl  text-foreground">BusinessOps</span>
               </div>
             </div>
           </Link>
@@ -80,11 +80,11 @@ export function GlobalNavbar() {
             </Button>
             
             <div className="hidden sm:flex items-center space-x-2">
-              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-muted-foreground" />
+              <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                <User className="h-4 w-4 text-gray-500" />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground capitalize">
+                <span className="text-sm  text-foreground capitalize">
                   {user.firstName ? `${user.firstName} ${user.lastName || ""}` : user.username}
                 </span>
               </div>
@@ -95,7 +95,7 @@ export function GlobalNavbar() {
               size="icon" 
               onClick={handleLogout}
               title="Logout"
-              className="text-muted-foreground hover:text-destructive"
+              className="text-gray-500 hover:text-destructive"
             >
               <LogOut className="h-4 w-4" />
             </Button>
@@ -114,7 +114,7 @@ export function GlobalNavbar() {
                       <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                         <Building className="h-4 w-4 text-primary-foreground" />
                       </div>
-                      <span className="text-xl font-semibold">BusinessOps</span>
+                      <span className="text-xl ">BusinessOps</span>
                     </div>
                     
                     {visibleDepartments.map((dept) => {
