@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -23,14 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, Column } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -214,6 +207,194 @@ export default function VisitTable({
     return null;
   };
 
+  const columns = useMemo<Column<VisitWithDetails>[]>(() => [
+    {
+      key: "visitNumber",
+      header: "Visit Details",
+      cell: (visit) => {
+        const duration = getVisitDuration(visit);
+        return (
+          <div className="space-y-1">
+            <div className="font-light">{visit.visitNumber}</div>
+            <div className="text-xs text-gray-500">
+              {getPurposeText(visit.purpose)}
+            </div>
+            {duration && (
+              <div className="text-xs text-green-600 flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>Duration: {duration}</span>
+              </div>
+            )}
+          </div>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "lead",
+      header: "Customer",
+      cell: (visit) => (
+        <div className="space-y-1">
+          <div className="">
+            {visit.lead?.firstName} {visit.lead?.lastName}
+          </div>
+          {visit.lead?.companyName && (
+            <div className="text-xs text-gray-500">
+              {visit.lead.companyName}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "assignedToUser",
+      header: "Assigned To",
+      cell: (visit) => (
+        <div className="flex items-center space-x-2">
+          <User className="h-4 w-4 text-gray-500" />
+          <span className="text-xs">
+            {visit.assignedToUser?.firstName}{" "}
+            {visit.assignedToUser?.lastName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "plannedDate",
+      header: "Date & Time",
+      cell: (visit) => (
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="text-xs">
+              {format(new Date(visit.plannedDate), "MMM dd, yyyy")}
+            </span>
+          </div>
+          {visit.plannedStartTime && (
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4 text-gray-500" />
+              <span className="text-xs">
+                {format(new Date(visit.plannedStartTime), "hh:mm a")}
+              </span>
+            </div>
+          )}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (visit) => {
+        const statusInfo = getStatusInfo(visit.status);
+        const StatusIcon = statusInfo.icon;
+        return (
+          <Badge
+            variant={statusInfo.variant}
+            className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
+          >
+            <StatusIcon className="h-3 w-3" />
+            <span>{visit.status.replace("_", " ")}</span>
+          </Badge>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "visitAddress",
+      header: "Location",
+      cell: (visit) => (
+        <>
+          <div className="text-xs text-gray-500 max-w-[200px] truncate">
+            {visit.visitAddress}
+            {visit.visitCity && `, ${visit.visitCity}`}
+          </div>
+          {visit.latitude && visit.longitude && (
+            <div className="text-xs text-green-600 flex items-center space-x-1 mt-1">
+              <MapPin className="h-3 w-3" />
+              <span>GPS Available</span>
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (visit) => (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                data-testid={`visit-actions-${visit.visitNumber}`}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(visit)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedVisit(visit);
+                  setReportOpen(true);
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                View Report
+              </DropdownMenuItem>
+
+              {canCheckIn(visit) && (
+                <DropdownMenuItem onClick={() => onCheckIn(visit)}>
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Check In
+                </DropdownMenuItem>
+              )}
+
+              {canCheckOut(visit) && (
+                <DropdownMenuItem onClick={() => onCheckOut(visit)}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Check Out
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem
+                onClick={() => openStatusUpdate(visit)}
+              >
+                <Timer className="h-4 w-4 mr-2" />
+                Update Status
+              </DropdownMenuItem>
+
+              {visit.status === "completed" && (
+                <DropdownMenuItem
+                  onClick={() => onProofUpload(visit)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Proof
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={() => onDelete(visit)}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    }
+  ], [onEdit, onCheckIn, onCheckOut, onStatusUpdate, onProofUpload]);
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -259,196 +440,12 @@ export default function VisitTable({
     <>
       {/* Desktop Table View */}
       <div className="hidden md:block">
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Visit Details</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Assigned To</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visits.map((visit) => {
-                const statusInfo = getStatusInfo(visit.status);
-                const StatusIcon = statusInfo.icon;
-                const duration = getVisitDuration(visit);
-
-                return (
-                  <TableRow
-                    key={visit.id}
-                    data-testid={`visit-row-${visit.visitNumber}`}
-                  >
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div
-                          className="font-light"
-                          data-testid={`visit-number-${visit.visitNumber}`}
-                        >
-                          {visit.visitNumber}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {getPurposeText(visit.purpose)}
-                        </div>
-                        {duration && (
-                          <div className="text-xs text-green-600 flex items-center space-x-1">
-                            <Clock className="h-3 w-3" />
-                            <span>Duration: {duration}</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-light">
-                          {visit.lead?.firstName} {visit.lead?.lastName}
-                        </div>
-                        {visit.lead?.companyName && (
-                          <div className="text-sm text-gray-500">
-                            {visit.lead.companyName}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">
-                          {visit.assignedToUser?.firstName}{" "}
-                          {visit.assignedToUser?.lastName}
-                        </span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">
-                            {format(
-                              new Date(visit.plannedDate),
-                              "MMM dd, yyyy"
-                            )}
-                          </span>
-                        </div>
-                        {visit.plannedStartTime && (
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">
-                              {format(
-                                new Date(visit.plannedStartTime),
-                                "hh:mm a"
-                              )}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge
-                        variant={statusInfo.variant}
-                        className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
-                      >
-                        <StatusIcon className="h-3 w-3" />
-                        <span>{visit.status.replace("_", " ")}</span>
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                        {visit.visitAddress}
-                        {visit.visitCity && `, ${visit.visitCity}`}
-                      </div>
-                      {visit.latitude && visit.longitude && (
-                        <div className="text-xs text-green-600 flex items-center space-x-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          <span>GPS Available</span>
-                        </div>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            data-testid={`visit-actions-${visit.visitNumber}`}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(visit)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedVisit(visit);
-                              setReportOpen(true);
-                            }}
-                          >
-                            <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                            View Report
-                          </DropdownMenuItem>
-
-                          {canCheckIn(visit) && (
-                            <DropdownMenuItem onClick={() => onCheckIn(visit)}>
-                              <Navigation className="h-4 w-4 mr-2" />
-                              Check In
-                            </DropdownMenuItem>
-                          )}
-
-                          {canCheckOut(visit) && (
-                            <DropdownMenuItem onClick={() => onCheckOut(visit)}>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Check Out
-                            </DropdownMenuItem>
-                          )}
-
-                          <DropdownMenuItem
-                            onClick={() => openStatusUpdate(visit)}
-                          >
-                            <Timer className="h-4 w-4 mr-2" />
-                            Update Status
-                          </DropdownMenuItem>
-
-                          {visit.status === "completed" && (
-                            <DropdownMenuItem
-                              onClick={() => onProofUpload(visit)}
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              Upload Proof
-                            </DropdownMenuItem>
-                          )}
-
-                          <DropdownMenuSeparator />
-
-                          <DropdownMenuItem
-                            onClick={() => onDelete(visit)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+        <DataTable
+          data={visits}
+          columns={columns}
+          isLoading={isLoading}
+          searchable={false}
+        />
       </div>
 
       {/* Mobile Card View */}
@@ -700,10 +697,10 @@ export default function VisitTable({
           </DialogHeader>
 
           {selectedVisit && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
-                  <p className="text-[10px] text-slate-500   ">Date & Time</p>
+                  <p className="text-xs text-slate-500   ">Date & Time</p>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-blue-500" />
                     <span className="text-sm ">
@@ -721,7 +718,7 @@ export default function VisitTable({
                 </div>
 
                 <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
-                  <p className="text-[10px] text-slate-500   ">Status & Performance</p>
+                  <p className="text-xs text-slate-500   ">Status & Performance</p>
                   <div className="mt-1">
                     <Badge
                       variant={getStatusInfo(selectedVisit.status).variant}
@@ -739,7 +736,7 @@ export default function VisitTable({
                 </div>
 
                 <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
-                  <p className="text-[10px] text-slate-500   ">Customer / Lead</p>
+                  <p className="text-xs text-slate-500   ">Customer / Lead</p>
                   <p className="text-sm ">
                     {selectedVisit.lead?.firstName} {selectedVisit.lead?.lastName}
                   </p>
@@ -749,7 +746,7 @@ export default function VisitTable({
                 </div>
 
                 <div className="space-y-1 p-3 bg-slate-50 dark:bg-primary rounded-lg">
-                  <p className="text-[10px] text-slate-500   ">Assigned To</p>
+                  <p className="text-xs text-slate-500   ">Assigned To</p>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-emerald-500" />
                     <span className="text-sm ">
@@ -760,7 +757,7 @@ export default function VisitTable({
               </div>
 
               <div className="space-y-2 p-3 bg-slate-50 dark:bg-primary rounded-lg">
-                <p className="text-[10px] text-slate-500   ">Location & Address</p>
+                <p className="text-xs text-slate-500   ">Location & Address</p>
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
                   <span className="text-sm">
@@ -769,14 +766,14 @@ export default function VisitTable({
                   </span>
                 </div>
                 {selectedVisit.latitude && selectedVisit.longitude && (
-                  <p className="text-[10px] text-green-600  pl-6">
+                  <p className="text-xs text-green-600  pl-6">
                     GPS Coordinates: {selectedVisit.latitude}, {selectedVisit.longitude}
                   </p>
                 )}
               </div>
 
               <div className="space-y-3 p-4 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">
-                <p className="text-[10px] text-slate-500    mb-2">VISIT PURPOSE & SUMMARY</p>
+                <p className="text-xs text-slate-500    mb-2">VISIT PURPOSE & SUMMARY</p>
                 <div className="space-y-3">
                   {purposeLogs && purposeLogs.length > 0 ? (
                     purposeLogs
@@ -807,7 +804,7 @@ export default function VisitTable({
 
                 {selectedVisit.notes && (
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-                    <p className="text-[10px] text-slate-500    mb-1">Current Visit Notes</p>
+                    <p className="text-xs text-slate-500    mb-1">Current Visit Notes</p>
                     <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                       {selectedVisit.notes}
                     </div>

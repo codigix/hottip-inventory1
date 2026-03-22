@@ -215,7 +215,7 @@ export default function TaskBoard({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg ">Task Board</h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs text-gray-500">
             Drag and drop tasks between columns to update their status
           </p>
         </div>
@@ -230,7 +230,7 @@ export default function TaskBoard({
       </div>
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
         {boardColumns.map((column) => {
           const Icon = column.icon;
           const columnTasks = tasksByStatus[column.status] || [];
@@ -240,7 +240,7 @@ export default function TaskBoard({
           return (
             <Card 
               key={column.id}
-              className={`min-h-[600px] transition-all duration-200 ${column.color} ${
+              className={`min-h-[600px] transition-all duration-200 border-none shadow-none ${column.color} ${
                 dragOverColumn === column.status ? 'ring-2 ring-primary shadow-lg' : ''
               }`}
               onDragOver={(e) => handleDragOver(e, column.status)}
@@ -248,22 +248,27 @@ export default function TaskBoard({
               onDrop={(e) => handleDrop(e, column.status)}
               data-testid={`column-${column.status}`}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Icon className="h-4 w-4" />
-                    <CardTitle className="text-sm font-light">
-                      {column.title}
+                    <CardTitle className="text-sm  text-slate-700">
+                      <div className="flex items-center gap-2">
+                        {column.status === 'completed' && <CheckCircle className="h-5 w-5 text-slate-600" />}
+                        {column.status === 'in_progress' && <Users className="h-5 w-5 text-slate-600" />}
+                        {column.status === 'pending' && <Clock className="h-5 w-5 text-slate-600" />}
+                        {column.status === 'cancelled' && <AlertCircle className="h-5 w-5 text-slate-600" />}
+                        {column.title}
+                        <span className="bg-[#7c3aed] text-white px-1 rounded text-xs text-center" data-testid={`column-count-${column.status}`}>
+                          {stats.total}
+                        </span>
+                      </div>
                     </CardTitle>
-                    <Badge variant="secondary" data-testid={`column-count-${column.status}`}>
-                      {stats.total}
-                    </Badge>
                   </div>
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <MoreVertical className="h-3 w-3" />
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -278,28 +283,30 @@ export default function TaskBoard({
                   </DropdownMenu>
                 </div>
                 
-                <p className="text-xs text-gray-500">
-                  {column.description}
-                </p>
+                <div className="bg-[#fef08a] p-1 rounded inline-block w-fit">
+                  <p className="text-xs  text-slate-900">
+                    {column.description}
+                  </p>
+                </div>
                 
                 {/* Column Stats */}
-                <div className="flex items-center space-x-3 text-xs">
+                <div className="flex flex-col space-y-2 text-sm">
                   {stats.highPriority > 0 && (
-                    <div className="flex items-center space-x-1 text-orange-600 dark:text-orange-400">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{stats.highPriority} high priority</span>
+                    <div className="flex items-center space-x-2 text-orange-600">
+                      <AlertCircle className="h-2 w-2" />
+                      <span className="text-xs">{stats.highPriority} high priority</span>
                     </div>
                   )}
                   
                   {stats.overdue > 0 && (
-                    <div className="flex items-center space-x-1 text-red-600 dark:text-red-400">
-                      <Clock className="h-3 w-3" />
-                      <span>{stats.overdue} overdue</span>
+                    <div className="flex items-center space-x-2 text-red-600">
+                      <Clock className="h-4 w-4" />
+                      <span className="">{stats.overdue} overdue</span>
                     </div>
                   )}
                   
                   {isMaxed && (
-                    <Badge variant="destructive" className="text-xs">
+                    <Badge variant="destructive" className="text-xs w-fit">
                       At capacity
                     </Badge>
                   )}

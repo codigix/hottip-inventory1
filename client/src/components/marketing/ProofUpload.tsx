@@ -249,7 +249,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
   return (
     <Dialog open={open} onOpenChange={!isUploading ? onOpenChange : () => {}}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="my-4">
           <DialogTitle className="flex items-center space-x-2">
             <Upload className="h-5 w-5" />
             <span>Upload Visit Proof</span>
@@ -259,7 +259,7 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Visit Information */}
           {visit && (
             <Card>
@@ -269,15 +269,15 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Customer:</span>
+                    <span className="text-gray-500 text-xs">Customer:</span>
                     <p className="font-light">
                       {visit.lead?.firstName} {visit.lead?.lastName}
                       {visit.lead?.companyName && ` - ${visit.lead.companyName}`}
                     </p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Status:</span>
-                    <Badge className="ml-2 capitalize">{visit.status.replace('_', ' ')}</Badge>
+                  <div className="grid">
+                    <span className="text-gray-500 text-xs">Status:</span>
+                    <Badge className="ml-2 capitalize w-fit">{visit.status.replace('_', ' ')}</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -285,11 +285,11 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
           )}
 
           {/* File Upload Area */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Upload Files</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="mt-5">
+            <div className="pb-2">
+              <div className="text-sm mt-5">Upload Files</div>
+            </div>
+            <div>
               <div
                 className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                   dragActive 
@@ -302,8 +302,8 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                 onDrop={handleDrop}
               >
                 <Upload className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                <p className="text-lg font-light mb-2">Drop files here or click to upload</p>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm font-light mb-2">Drop files here or click to upload</p>
+                <p className="text-xs text-gray-500 mb-4">
                   Supports: JPG, PNG, PDF, DOC, DOCX (Max 10MB per file)
                 </p>
                 
@@ -347,16 +347,16 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                   className="hidden"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Selected Files */}
           {files.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Selected Files ({files.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div>
+              <div className="pb-2">
+                <div className="text-sm">Selected Files ({files.length})</div>
+              </div>
+              <div>
                 <div className="space-y-4">
                   {files.map((file) => (
                     <div key={file.id} className="border rounded-lg p-4">
@@ -367,10 +367,10 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                             <img 
                               src={file.preview} 
                               alt={file.file.name}
-                              className="w-16 h-16 object-cover rounded border"
+                              className="w-5 h-5 object-cover rounded border"
                             />
                           ) : (
-                            <div className="w-16 h-16 bg-muted rounded border flex items-center justify-center">
+                            <div className="w-5 h-5 bg-muted rounded border flex items-center justify-center">
                               {getFileIcon(file)}
                             </div>
                           )}
@@ -456,17 +456,17 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Existing Attachments */}
           {existingAttachments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Existing Attachments</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div>
+              <div className="pb-2">
+                <div className="text-sm">Existing Attachments</div>
+              </div>
+              <div>
                 <div className="space-y-2">
                   {existingAttachments.map((path, index) => (
                     <div key={index} className="flex items-center justify-between p-2 border rounded">
@@ -485,16 +485,16 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Additional Notes */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Additional Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div>
+            <div className="pb-2">
+              <div className="text-sm">Additional Notes</div>
+            </div>
+            <div>
               <Textarea
                 placeholder="Add any additional notes about these files..."
                 value={notes}
@@ -503,13 +503,13 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                 rows={3}
                 data-testid="textarea-notes"
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Upload Guidelines */}
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
+            <AlertDescription className="text-xs">
               <strong>Upload Guidelines:</strong> Ensure all photos are clear and documents are readable. 
               GPS location will be automatically embedded in photos. All uploads are encrypted and secure.
             </AlertDescription>

@@ -178,7 +178,7 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-[10px] text-gray-400  tracking-widest">
+        <p className="mt-6 text-center text-xs text-gray-400  tracking-widest">
           © 2026 BusinessOps ERP
         </p>
       </div>
@@ -192,7 +192,7 @@ export default function Login() {
               <p className="text-xs text-gray-500">Quick login to preview department modules</p>
             </div>
             <div className="hidden sm:block">
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px]  rounded ">Auto-Setup Enabled</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs  rounded ">Auto-Setup Enabled</span>
             </div>
           </div>
           <div className="p-6">
@@ -219,7 +219,7 @@ export default function Login() {
             </div>
           </div>
           <div className="px-6 py-3 bg-blue-50/50 border-t border-blue-100">
-            <p className="text-[10px] text-blue-600 text-center  italic">
+            <p className="text-xs text-blue-600 text-center  italic">
               * Demo accounts are automatically generated on first login for evaluation.
             </p>
           </div>

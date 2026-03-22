@@ -345,7 +345,7 @@ export default function SalesOrders() {
       cell: (order: any) => (
         <div>
           <div className="font-medium text-slate-700">{order.customer?.name || "N/A"}</div>
-          <div className="text-[10px] text-slate-400  ">
+          <div className="text-xs text-slate-400  ">
             {order.customer?.type || "CLIENT"}
           </div>
         </div>
@@ -398,7 +398,7 @@ export default function SalesOrders() {
           <Badge 
             variant="outline"
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[displayStatus] || "bg-slate-100 text-slate-600 border-slate-200"
             )}
           >
@@ -534,7 +534,7 @@ export default function SalesOrders() {
                     variant: "destructive",
                   });
                 })} 
-                className="space-y-6"
+                className="space-y-2"
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
@@ -581,9 +581,9 @@ export default function SalesOrders() {
                                 <div className="flex justify-between items-center w-full min-w-[300px]">
                                   <div className="flex flex-col">
                                     <span className="">{ref.number}</span>
-                                    <span className="text-[10px] text-gray-500">{ref.customerName}</span>
+                                    <span className="text-xs text-gray-500">{ref.customerName}</span>
                                   </div>
-                                  <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
+                                  <Badge variant="outline" className="text-xs ml-2 h-4 px-1">
                                     {ref.type}
                                   </Badge>
                                 </div>
@@ -840,7 +840,7 @@ export default function SalesOrders() {
                       <p className="text-destructive text-sm ">
                         Please fix the errors in the form before submitting.
                         {Object.entries(form.formState.errors).map(([key, error]: any) => (
-                          <span key={key} className="block text-[10px]">
+                          <span key={key} className="block text-xs">
                             {key}: {error.message || (typeof error === 'object' ? 'Invalid field' : error)}
                           </span>
                         ))}
@@ -883,45 +883,45 @@ export default function SalesOrders() {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
-                  <p className="text-gray-500   text-[10px]">Customer Details</p>
-                  <p className=" text-lg">{selectedOrder.customer?.name}</p>
+                  <p className="text-gray-500   text-xs">Customer Details</p>
+                  <p className=" text-sm">{selectedOrder.customer?.name}</p>
                   <p>{selectedOrder.customer?.address}</p>
                   <p>GST: {selectedOrder.customer?.gstNumber}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-gray-500   text-[10px]">Order Info</p>
+                  <p className="text-gray-500   text-xs">Order Info</p>
                   <p><strong>Order Date:</strong> {new Date(selectedOrder.orderDate).toLocaleDateString()}</p>
                   {(selectedOrder.quotation || selectedOrder.purchaseOrder) && (
                     <p><strong>Reference:</strong> {selectedOrder.quotation?.quotationNumber || selectedOrder.purchaseOrder?.poNumber}</p>
                   )}
-                  <p><strong>Status:</strong> <Badge className="ml-1  text-[10px]">{selectedOrder.status}</Badge></p>
+                  <p><strong>Status:</strong> <Badge className="ml-1  text-xs">{selectedOrder.status}</Badge></p>
                   <p><strong>Delivery Period:</strong> {selectedOrder.deliveryPeriod}</p>
                 </div>
               </div>
 
-              <div className="border rounded overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="border rounded ">
+                <table className="w-full">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-4 py-2 text-left">Item Name</th>
-                      <th className="px-4 py-2 text-right">Qty</th>
-                      <th className="px-4 py-2 text-right">Price</th>
-                      <th className="px-4 py-2 text-right">Amount</th>
+                      <th className="p-2 text-xs text-left">Item Name</th>
+                      <th className="p-2 text-xs text-right">Qty</th>
+                      <th className="p-2 text-xs text-right">Price</th>
+                      <th className="p-2 text-xs text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {selectedOrder.items?.map((item: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="px-4 py-2">
-                          <p className="">{item.itemName}</p>
+                        <td className="p-2">
+                          <p className="text-xs">{item.itemName}</p>
                           <p className="text-xs text-gray-500">{item.description}</p>
                         </td>
-                        <td className="px-4 py-2 text-right">{item.quantity} {item.unit}</td>
-                        <td className="px-4 py-2 text-right">₹{parseFloat(item.unitPrice).toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-2 text-right ">₹{parseFloat(item.amount).toLocaleString("en-IN")}</td>
+                        <td className="p-2 text-xs text-right">{item.quantity} {item.unit}</td>
+                        <td className="p-2 text-xs text-right">₹{parseFloat(item.unitPrice).toLocaleString("en-IN")}</td>
+                        <td className="p-2 text-xs text-right ">₹{parseFloat(item.amount).toLocaleString("en-IN")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -939,15 +939,15 @@ export default function SalesOrders() {
                     <span>₹{parseFloat(selectedOrder.gstAmount).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2  text-lg">
-                    <span>Total:</span>
-                    <span>₹{parseFloat(selectedOrder.totalAmount).toLocaleString("en-IN")}</span>
+                    <span className="text-sm">Total:</span>
+                    <span className="text-sm">₹{parseFloat(selectedOrder.totalAmount).toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               </div>
 
               {selectedOrder.notes && (
                 <div className="space-y-1">
-                  <p className="text-gray-500   text-[10px]">Notes</p>
+                  <p className="text-gray-500   text-xs">Notes</p>
                   <p className="text-sm p-3 bg-muted rounded">{selectedOrder.notes}</p>
                 </div>
               )}

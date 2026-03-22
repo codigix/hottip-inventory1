@@ -496,11 +496,11 @@ export function registerAdminRoutes(app: any) {
           type: sql<string>`'logistics_task'`,
           title: logisticsTasks.title,
           status: logisticsTasks.status,
-          createdAt: logisticsTasks.createdAt,
+          createdAt: logisticsTasks.dueDate, // Fallback to dueDate
           assignedTo: logisticsTasks.assignedTo,
         })
         .from(logisticsTasks)
-        .orderBy(desc(logisticsTasks.createdAt))
+        .orderBy(desc(logisticsTasks.dueDate))
         .limit(5);
 
       // Recent inventory tasks
@@ -522,13 +522,13 @@ export function registerAdminRoutes(app: any) {
         .select({
           id: fieldVisits.id,
           type: sql<string>`'field_visit'`,
-          title: sql<string>`CONCAT('Visit to ', ${fieldVisits.location})`,
+          title: sql<string>`CONCAT('Visit to ', ${fieldVisits.visitAddress})`,
           status: fieldVisits.status,
-          createdAt: fieldVisits.createdAt,
-          assignedTo: fieldVisits.userId,
+          createdAt: fieldVisits.plannedDate, // Fallback to plannedDate
+          assignedTo: fieldVisits.assignedTo,
         })
         .from(fieldVisits)
-        .orderBy(desc(fieldVisits.createdAt))
+        .orderBy(desc(fieldVisits.plannedDate))
         .limit(5);
 
       // Recent shipments

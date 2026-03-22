@@ -20,7 +20,7 @@ const DashboardWithTour = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Tour Button - Can be placed in header or wherever convenient */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl ">Dashboard</h1>

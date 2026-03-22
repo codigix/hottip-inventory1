@@ -417,7 +417,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
       cell: (quotation: any) => (
         <div>
           <div className="font-medium text-slate-700">{quotation.customer?.name || "N/A"}</div>
-          <div className="text-[10px] text-slate-400">
+          <div className="text-xs text-slate-400">
             {quotation.customer?.email || "No email"}
           </div>
         </div>
@@ -463,7 +463,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           <Badge
             variant="outline"
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[quotation.status as keyof typeof statusColors] || statusColors.draft
             )}
           >
@@ -631,7 +631,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px]    text-slate-400">
+            <CardTitle className="text-xs    text-slate-400">
               Total Quotations
             </CardTitle>
           </CardHeader>
@@ -641,7 +641,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         </Card>
         <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px]    text-slate-400">
+            <CardTitle className="text-xs    text-slate-400">
               Approved
             </CardTitle>
           </CardHeader>
@@ -653,7 +653,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         </Card>
         <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px]    text-slate-400">
+            <CardTitle className="text-xs    text-slate-400">
               Pending
             </CardTitle>
           </CardHeader>
@@ -665,7 +665,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         </Card>
         <Card className="border-none  bg-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px]    text-slate-400">
+            <CardTitle className="text-xs    text-slate-400">
               Rejected
             </CardTitle>
           </CardHeader>
@@ -687,7 +687,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         <CardContent className="">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div className="space-y-2">
-              <label className="text-[10px]    text-slate-500">Customer</label>
+              <label className="text-xs    text-slate-500">Customer</label>
               <Select
                 value={mainFilters.customerId}
                 onValueChange={(v) =>
@@ -708,7 +708,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px]    text-slate-500">Status</label>
+              <label className="text-xs    text-slate-500">Status</label>
               <Select
                 value={mainFilters.status}
                 onValueChange={(v) =>
@@ -729,7 +729,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px]    text-slate-500">From Date</label>
+              <label className="text-xs    text-slate-500">From Date</label>
               <Input
                 type="date"
                 value={mainFilters.startDate}
@@ -741,7 +741,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             </div>
             <div className="flex items-end space-x-2">
               <div className="flex-1 space-y-2">
-                <label className="text-[10px]    text-slate-500">To Date</label>
+                <label className="text-xs    text-slate-500">To Date</label>
                 <Input
                   type="date"
                   value={mainFilters.endDate}
@@ -776,11 +776,11 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           <div className="flex items-center space-x-2">
             <FileUp className="h-5 w-5 text-slate-400" />
             <h2 className="text-sm  text-slate-700">Sent Quotations</h2>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs ">
               {displayedQuotations.length}
             </Badge>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportAll} className="h-8 text-[10px]    border-slate-200 text-slate-600 hover:bg-slate-50">
+          <Button variant="outline" size="sm" onClick={handleExportAll} className="h-8 text-xs    border-slate-200 text-slate-600 hover:bg-slate-50">
             <Download className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
             Export All
           </Button>
@@ -807,7 +807,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           </DialogHeader>
 
           {selectedQuotation && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h4 className="text-sm  text-gray-500 ">
@@ -970,7 +970,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           <Form {...exportForm}>
             <form
               onSubmit={exportForm.handleSubmit(handleExportFilterSubmit)}
-              className="space-y-6"
+              className="space-y-2"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

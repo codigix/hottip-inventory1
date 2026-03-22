@@ -216,13 +216,13 @@ export default function PaymentHistory() {
                       <TableCell>
                         <div>
                           <div className=" text-slate-700">{item.partyName || "Unknown"}</div>
-                          <div className="text-[10px] text-gray-500 ">{item.partyType}</div>
+                          <div className="text-xs text-gray-500 ">{item.partyType}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
                           <div className="text-xs  text-primary">{item.refNumber || "N/A"}</div>
-                          <div className="text-[10px] text-gray-500 ">{item.refType}</div>
+                          <div className="text-xs text-gray-500 ">{item.refType}</div>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -230,7 +230,7 @@ export default function PaymentHistory() {
                           ₹{parseFloat(item.amountPaid || "0").toLocaleString()}
                         </div>
                         {item.status !== 'paid' && (
-                          <div className="text-[10px] text-gray-500">
+                          <div className="text-xs text-gray-500">
                             Due: ₹{parseFloat(item.amountDue || "0").toLocaleString()}
                           </div>
                         )}

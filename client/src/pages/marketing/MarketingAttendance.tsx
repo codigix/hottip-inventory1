@@ -675,10 +675,10 @@ export default function MarketingAttendance() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl " data-testid="page-title">
+          <h1 className="text-xl " data-testid="page-title">
             Marketing Attendance
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-xs">
             Track team attendance with live location and leave management
           </p>
         </div>
@@ -734,7 +734,7 @@ export default function MarketingAttendance() {
         </TabsList>
 
         {/* Dashboard Tab */}
-        <TabsContent value="dashboard" className="space-y-6">
+        <TabsContent value="dashboard" className="space-y-2">
           {/* Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
@@ -746,7 +746,7 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl  text-green-600"
+                  className="text-xl  text-green-600"
                   data-testid="metric-present"
                 >
                   {displayMetrics.presentToday}
@@ -773,7 +773,7 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl  text-red-600"
+                  className="text-xl  text-red-600"
                   data-testid="metric-absent"
                 >
                   {displayMetrics.absentToday}
@@ -800,7 +800,7 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl  text-orange-600"
+                  className="text-xl  text-orange-600"
                   data-testid="metric-late"
                 >
                   {displayMetrics.lateToday}
@@ -825,7 +825,7 @@ export default function MarketingAttendance() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="text-2xl  text-blue-600"
+                  className="text-xl  text-blue-600"
                   data-testid="metric-leave"
                 >
                   {displayMetrics.onLeaveToday}
@@ -847,7 +847,7 @@ export default function MarketingAttendance() {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
+              <CardTitle className="text-sm">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -894,7 +894,7 @@ export default function MarketingAttendance() {
 
                 <Button
                   variant="secondary"
-                  className="h-16 flex-col space-y-2"
+                  className="h-16 flex-col space-y-2 text-black"
                   onClick={() => setLeaveRequestModalOpen(true)}
                   data-testid="quick-leave-request"
                 >
@@ -925,23 +925,23 @@ export default function MarketingAttendance() {
                   {combinedActivity.slice(0, 5).map((record) => (
                     <div
                       key={record.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-3 border rounded"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                        <div className=" rounded text-xs bg-muted flex items-center justify-center">
                           {record.user?.firstName?.[0]}
                           {record.user?.lastName?.[0]}
                         </div>
                         <div>
-                          <p className="font-light">
+                          <p className="font-light text-xs">
                             {record.user?.firstName} {record.user?.lastName}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs text-gray-500">
                             {record.label}
                           </p>
                         </div>
                       </div>
-                      <Badge
+                      <Badge className="text-xs"
                         variant={
                           record.type === "leave"
                             ? "secondary"
@@ -973,7 +973,7 @@ export default function MarketingAttendance() {
         </TabsContent>
 
         {/* Team Status Tab */}
-        <TabsContent value="team" className="space-y-6">
+        <TabsContent value="team" className="space-y-2">
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -1046,7 +1046,7 @@ export default function MarketingAttendance() {
         </TabsContent>
 
         {/* Calendar Tab */}
-        <TabsContent value="calendar" className="space-y-6">
+        <TabsContent value="calendar" className="space-y-2">
           <AttendanceCalendar
             attendanceData={allAttendance}
             users={usersData}
@@ -1057,43 +1057,43 @@ export default function MarketingAttendance() {
         </TabsContent>
 
         {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-6">
+        <TabsContent value="reports" className="space-y-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Monthly Summary */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Monthly Summary</CardTitle>
+                <CardTitle className="text-sm">Monthly Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span>Total Working Days</span>
-                    <span className="font-light">
+                    <span className="text-xs">Total Working Days</span>
+                    <span className="font-light text-xs">
                       {displayMetrics?.monthlyStats?.totalDays ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Days Present</span>
-                    <span className="font-light text-green-600">
+                    <span className="text-xs">Days Present</span>
+                    <span className="font-light text-xs text-green-600">
                       {displayMetrics?.monthlyStats?.presentDays ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Days Absent</span>
-                    <span className="font-light text-red-600">
+                    <span className="text-xs">Days Absent</span>
+                    <span className="font-light text-xs text-red-600">
                       {displayMetrics?.monthlyStats?.absentDays ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Leave Days</span>
-                    <span className="font-light text-blue-600">
+                    <span className="text-xs">Leave Days</span>
+                    <span className="font-light text-xs text-blue-600">
                       {displayMetrics?.monthlyStats?.leaveDays ?? 0}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
-                    <span className="font-light">Attendance Rate</span>
-                    <span className=" text-green-600">
+                    <span className="font-light text-xs">Attendance Rate</span>
+                    <span className="text-xs text-green-600">
                       {(
                         ((displayMetrics?.monthlyStats?.presentDays ?? 0) /
                           (displayMetrics?.monthlyStats?.totalDays ?? 1)) *
@@ -1109,41 +1109,41 @@ export default function MarketingAttendance() {
             {/* Leave Balance */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Leave Balance</CardTitle>
+                <CardTitle className="text-sm">Leave Balance</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span>Total Leave</span>
-                    <span className="font-light">
+                    <span className="text-xs">Total Leave</span>
+                    <span className="font-light text-xs">
                       {leaveBalance.totalLeave} days
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Used Leave</span>
-                    <span className="font-light text-orange-600">
+                    <span className="text-xs">Used Leave</span>
+                    <span className="font-light text-xs text-orange-600">
                       {leaveBalance.usedLeave} days
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Remaining Leave</span>
-                    <span className="font-light text-green-600">
+                    <span className="text-xs">Remaining Leave</span>
+                    <span className="font-light text-xs text-green-600">
                       {leaveBalance.remainingLeave} days
                     </span>
                   </div>
                   <Separator />
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Sick Leave</span>
-                      <span>{leaveBalance.sickLeave} days</span>
+                      <span className="text-xs">Sick Leave</span>
+                      <span className="text-xs">{leaveBalance.sickLeave} days</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Vacation Leave</span>
-                      <span>{leaveBalance.vacationLeave} days</span>
+                      <span className="text-xs">Vacation Leave</span>
+                      <span className="text-xs">{leaveBalance.vacationLeave} days</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Personal Leave</span>
-                      <span>{leaveBalance.personalLeave} days</span>
+                      <span className="text-xs">Personal Leave</span>
+                      <span className="text-xs">{leaveBalance.personalLeave} days</span>
                     </div>
                   </div>
                 </div>
@@ -1154,7 +1154,7 @@ export default function MarketingAttendance() {
           {/* Export Options */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Export Reports</CardTitle>
+              <CardTitle className="text-sm">Export Reports</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">

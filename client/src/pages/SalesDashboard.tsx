@@ -179,7 +179,7 @@ export default function SalesDashboard() {
   if (ordersLoading) {
     return (
       <main className=" mx-auto p-4">
-        <div className="space-y-6">
+        <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (

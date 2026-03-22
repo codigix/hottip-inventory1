@@ -1670,15 +1670,53 @@ export const getDailyShipmentsReport = async (
   res: Response
 ): Promise<void> => {
   try {
-    const date = req.query.date as string;
-    if (!date) {
-      res.status(400).json({ error: "Date parameter is required" });
+    const { date, from, to } = req.query;
+    
+    // Support date range (from/to)
+    if (from && to) {
+      const startDate = new Date(from as string);
+      const endDate = new Date(to as string);
+      
+      // Limit range to prevent massive queries (e.g. max 90 days)
+      const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays > 90) {
+        res.status(400).json({ error: "Date range too large. Maximum 90 days allowed." });
+        return;
+      }
+
+      const data = [];
+      const currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const dailyReport = await storage.getDailyShipmentsReport(new Date(currentDate));
+        // Map to frontend expectation (shipped, delivered, revenue)
+        data.push({
+          date: dailyReport.date,
+          shipped: dailyReport.total || 0,
+          delivered: dailyReport.delivered || 0,
+          revenue: 0 // Placeholder as storage doesn't calculate revenue yet
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      res.json(data);
       return;
     }
 
-    const report = await storage.getDailyShipmentsReport(new Date(date));
-    res.json(report);
+    if (!date) {
+      res.status(400).json({ error: "Date parameter (or from/to range) is required" });
+      return;
+    }
+
+    const report = await storage.getDailyShipmentsReport(new Date(date as string));
+    res.json([{
+      date: report.date,
+      shipped: report.total || 0,
+      delivered: report.delivered || 0,
+      revenue: 0
+    }]);
   } catch (error) {
+    console.error("❌ [LOGISTICS] Error in getDailyShipmentsReport:", error);
     res.status(500).json({ error: "Failed to fetch daily shipments report" });
   }
 };

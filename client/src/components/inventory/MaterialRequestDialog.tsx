@@ -198,20 +198,20 @@ export default function MaterialRequestDialog({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="border-none  bg-white">
                 <CardContent className="p-4 flex flex-col justify-center space-y-1">
-                  <p className="text-[10px]  text-slate-400 ">Request Identifier</p>
-                  <p className="text-sm  text-slate-900">{request.requestNumber}</p>
+                  <p className="text-xs  text-slate-400 ">Request Identifier</p>
+                  <p className="text-xs  text-slate-900">{request.requestNumber}</p>
                 </CardContent>
               </Card>
               <Card className="border-none  bg-white">
                 <CardContent className="p-4 flex flex-col justify-center space-y-1">
-                  <p className="text-[10px]  text-slate-400 ">Originating Dept</p>
-                  <p className="text-sm  text-slate-900">{request.department}</p>
+                  <p className="text-xs  text-slate-400 ">Originating Dept</p>
+                  <p className="text-xs  text-slate-900">{request.department}</p>
                 </CardContent>
               </Card>
               <Card className="border-none  bg-white">
                 <CardContent className="p-4 flex flex-col justify-center space-y-1">
-                  <p className="text-[10px]  text-slate-400 ">SLA Target Date</p>
-                  <p className="text-sm  text-slate-900">---</p>
+                  <p className="text-xs  text-slate-400 ">SLA Target Date</p>
+                  <p className="text-xs  text-slate-900">---</p>
                 </CardContent>
               </Card>
             </div>
@@ -221,16 +221,16 @@ export default function MaterialRequestDialog({
               <div className="flex items-center justify-between mb-4">
                 <TabsList className="bg-slate-100/50 p-1 border border-slate-200">
                   <TabsTrigger value="pending" className="px-4 py-1.5 text-xs  data-[state=active]:bg-primary data-[state=active]:text-primary data-[state=active]:">
-                    Pending Request <Badge variant="secondary" className="ml-2 bg-slate-200/50 text-slate-600 text-[10px]">{pendingItems.length}</Badge>
+                    Pending Request <Badge variant="secondary" className="ml-2 bg-slate-200/50 text-slate-600 text-xs">{pendingItems.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="complete" className="px-4 py-1.5 text-xs  data-[state=active]:bg-primary data-[state=active]:text-primary data-[state=active]:">
-                    Complete Request <Badge variant="secondary" className="ml-2 bg-slate-200/50 text-slate-600 text-[10px]">{fulfilledItems.length}</Badge>
+                    Complete Request <Badge variant="secondary" className="ml-2 bg-slate-200/50 text-slate-600 text-xs">{fulfilledItems.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px]  text-slate-400  mr-2">Items to Request ({lineItems.length})</span>
-                  <Button variant="outline" size="sm" className="h-8 text-[10px]   bg-primary/5 text-primary border-primary/20" onClick={() => refetch()} disabled={isRefetching}>
+                  <span className="text-xs  text-slate-400  mr-2">Items to Request ({lineItems.length})</span>
+                  <Button variant="outline" size="sm" className="h-8 text-xs   bg-primary/5 text-primary border-primary/20" onClick={() => refetch()} disabled={isRefetching}>
                     <RefreshCw className={`h-3 w-3 mr-1.5 ${isRefetching ? "animate-spin" : ""}`} />
                     Refresh Stock
                   </Button>
@@ -238,7 +238,7 @@ export default function MaterialRequestDialog({
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-8 text-[10px]   bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" 
+                      className="h-8 text-xs   bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" 
                       onClick={() => retryLinkingMutation.mutate()} 
                       disabled={retryLinkingMutation.isPending}
                     >
@@ -246,7 +246,7 @@ export default function MaterialRequestDialog({
                       Retry Linking
                     </Button>
                   )}
-                  <Button variant="default" size="sm" className="h-8 text-[10px]   ">
+                  <Button variant="default" size="sm" className="h-8 text-xs   ">
                     <Plus className="h-3 w-3 mr-1.5" />
                     Add Item
                   </Button>
@@ -258,10 +258,10 @@ export default function MaterialRequestDialog({
                   <Table>
                     <TableHeader className="bg-slate-50/50">
                       <TableRow>
-                        <TableHead className="text-[10px]   text-slate-500 py-3">Component Intelligence</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-center">Required</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-center">Inventory</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-right">Status Action</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3">Component Intelligence</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-center">Required</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-center">Inventory</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-right">Status Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -281,12 +281,12 @@ export default function MaterialRequestDialog({
                             <TableCell>
                               <div className="flex flex-col">
                                 <span className="text-sm  text-slate-800">{item.productName || item.sparePartName || item.notes || "Unknown Item"}</span>
-                                <span className="text-[10px] text-slate-400 ">({item.productSku || item.sparePartNumber || "UNLINKED"})</span>
+                                <span className="text-xs text-slate-400 ">({item.productSku || item.sparePartNumber || "UNLINKED"})</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
-                              <span className="text-sm  text-slate-900">{parseFloat(item.quantity).toFixed(2)}</span>
-                              <span className="text-[10px] text-slate-400 ml-1 ">{item.unit}</span>
+                              <span className="text-xs  text-slate-900">{parseFloat(item.quantity).toFixed(2)}</span>
+                              <span className="text-xs text-slate-400 ml-1 ">{item.unit}</span>
                             </TableCell>
                             <TableCell className="text-center">
                               <span className={`text-sm  ${isOutOfStock ? 'text-red-500' : 'text-slate-900'}`}>
@@ -296,7 +296,7 @@ export default function MaterialRequestDialog({
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-3">
                                 <div className="flex flex-col items-end gap-1">
-                                  <Badge variant="outline" className={`text-[10px]  px-2 py-0.5 ${isLinked && !isOutOfStock ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                  <Badge variant="outline" className={`text-xs  px-2 py-0.5 ${isLinked && !isOutOfStock ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                                     {isLinked ? (!isOutOfStock ? "AVAILABLE" : "SHORTAGE") : "NOT LINKED"}
                                   </Badge>
                                   <Badge variant="outline" className="text-[8px]  bg-slate-100/50 border-slate-200 px-1.5 py-0">
@@ -321,10 +321,10 @@ export default function MaterialRequestDialog({
                   <Table>
                     <TableHeader className="bg-slate-50/50">
                       <TableRow>
-                        <TableHead className="text-[10px]   text-slate-500 py-3">Component Intelligence</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-center">Required</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-center">Inventory</TableHead>
-                        <TableHead className="text-[10px]   text-slate-500 py-3 text-right">Status Action</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3">Component Intelligence</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-center">Required</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-center">Inventory</TableHead>
+                        <TableHead className="text-xs   text-slate-500 py-3 text-right">Status Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -339,15 +339,15 @@ export default function MaterialRequestDialog({
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="text-sm  text-slate-800">{item.productName || item.sparePartName || item.notes || "Unknown Item"}</span>
-                              <span className="text-[10px] text-slate-400 ">({item.productSku || item.sparePartNumber || "ITEM"})</span>
+                              <span className="text-xs text-slate-400 ">({item.productSku || item.sparePartNumber || "ITEM"})</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-sm  text-slate-900">{parseFloat(item.quantity).toFixed(2)}</span>
-                            <span className="text-[10px] text-slate-400 ml-1 ">{item.unit}</span>
+                            <span className="text-xs  text-slate-900">{parseFloat(item.quantity).toFixed(2)}</span>
+                            <span className="text-xs text-slate-400 ml-1 ">{item.unit}</span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-sm  text-slate-900">
+                            <span className="text-xs  text-slate-900">
                               {(item.productId ? item.productStock : item.sparePartStock) != null ? parseFloat(String(item.productId ? item.productStock : item.sparePartStock)).toFixed(2) : "0.00"}
                             </span>
                           </TableCell>
@@ -355,7 +355,7 @@ export default function MaterialRequestDialog({
                             <div className="flex items-center justify-end gap-3">
                               <div className="flex items-center text-emerald-600 gap-1.5 bg-emerald-50 px-3 py-1 rounded border border-emerald-100">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span className="text-[10px]   tracking-tight">Fulfilled</span>
+                                <span className="text-xs   tracking-tight">Fulfilled</span>
                               </div>
                             </div>
                           </TableCell>

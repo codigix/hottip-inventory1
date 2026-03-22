@@ -75,7 +75,7 @@ const MasterSettings: React.FC = () => {
         ) : error ? (
           <div className="py-8 text-center text-red-600">{error.message || "Failed to load settings."}</div>
         ) : (
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-2" onSubmit={handleSubmit}>
             <div>
               <label className="block  mb-1">GST Number</label>
               <input

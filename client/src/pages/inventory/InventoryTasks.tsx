@@ -158,11 +158,11 @@ export default function InventoryTasks() {
         const Icon = categoryIcons[task.category] || ClipboardList;
         return (
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+            {/* <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
               <Icon className="h-4 w-4 text-slate-400" />
-            </div>
+            </div> */}
             <div className="flex flex-col">
-              <span className="font-medium text-slate-900">{task.title || "Untitled Task"}</span>
+              <span className="text-xs text-slate-900">{task.title || "Untitled Task"}</span>
               <span className="text-xs text-slate-500 truncate max-w-[200px]">{task.description || "No description provided"}</span>
             </div>
           </div>
@@ -194,7 +194,7 @@ export default function InventoryTasks() {
         <Badge 
           variant="outline" 
           className={cn(
-            "capitalize font-medium text-[10px] tracking-wider border-none px-2 py-0.5",
+            "capitalize font-medium text-xs tracking-wider border-none px-2 py-0.5",
             task.priority === 'urgent' && "bg-red-100 text-red-700",
             task.priority === 'high' && "bg-amber-100 text-amber-700",
             task.priority === 'medium' && "bg-blue-100 text-blue-700",
@@ -210,7 +210,7 @@ export default function InventoryTasks() {
       header: "Assignee",
       cell: (task: any) => (
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
             {task.assignedTo ? task.assignedTo.charAt(0) : '?'}
           </div>
           <span className="text-sm text-slate-600">{task.assignedTo || 'Unassigned'}</span>
@@ -237,7 +237,7 @@ export default function InventoryTasks() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Inventory Operations Tasks</h1>
@@ -412,7 +412,7 @@ export default function InventoryTasks() {
           <div className="space-y-4 pt-4">
             {selectedTask && (
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <p className="font-medium text-slate-900">{selectedTask.title}</p>
+                <p className="text-xs text-slate-900">{selectedTask.title}</p>
                 <p className="text-xs text-slate-500 mt-1">{selectedTask.description}</p>
               </div>
             )}

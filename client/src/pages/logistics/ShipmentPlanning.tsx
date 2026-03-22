@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { DataTable, Column } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -135,7 +136,6 @@ const typeDistribution = [
 export default function ShipmentPlanning() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("list");
   const [isPlanningDialogOpen, setIsPlanningDialogOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -284,24 +284,99 @@ export default function ShipmentPlanning() {
     }
   };
 
-  const filteredShipments = useMemo(() => {
-    return shipments.filter(shipment => {
-      // For Planning page, we show all approved shipments (both Vendor and Customer)
-      // that are in a state where planning is appropriate (created, packed, planned)
-      
-      if (!searchTerm) return true;
-      const query = searchTerm.toLowerCase();
-      const vendorName = shipment.vendorName || shipment.vendor?.name || shipment.supplier?.name || "";
-      const clientName = shipment.clientName || shipment.client?.name || "";
-      
-      return (
-        shipment.consignmentNumber.toLowerCase().includes(query) ||
-        (shipment.poNumber || "").toLowerCase().includes(query) ||
-        vendorName.toLowerCase().includes(query) ||
-        clientName.toLowerCase().includes(query)
-      );
-    });
-  }, [shipments, searchTerm]);
+  const columns: Column<LogisticsShipment>[] = [
+    {
+      key: "consignmentNumber",
+      header: "Consignment #",
+      cell: (shipment) => (
+        <span className="text-primary">{shipment.consignmentNumber}</span>
+      ),
+      sortable: true,
+    },
+    {
+      key: "poNumber",
+      header: "PO Number",
+      cell: (shipment) => shipment.poNumber || "N/A",
+      sortable: true,
+    },
+    {
+      key: "vendorName",
+      header: "Vendor",
+      cell: (shipment) => getVendorName(shipment),
+      sortable: true,
+    },
+    {
+      key: "source",
+      header: "Route",
+      cell: (shipment) => (
+        <div className="text-xs">
+          <div>From: {shipment.source}</div>
+          <div>To: {shipment.destination}</div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: () => (
+        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          Approved
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: <div className="text-right">Actions</div>,
+      cell: (shipment) => (
+        <div className="flex items-center justify-end space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            onClick={() => handleOpenPlanning(shipment, true)}
+            title="View Plan"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            onClick={() => handleOpenPlanning(shipment, false)}
+            title="Edit Plan"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white h-8"
+            onClick={() => handleOpenPlanning(shipment, false)}
+          >
+            <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                deleteShipmentMutation.mutate(shipment.id);
+              }
+            }}
+            disabled={deleteShipmentMutation.isPending}
+          >
+            {deleteShipmentMutation.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   if (isLoadingShipments) {
     return (
@@ -319,11 +394,11 @@ export default function ShipmentPlanning() {
   }
 
   return (
-    <div className="p-4 space-y-3 animate-in fade-in duration-500">
+    <div className="p-2 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl text-black mb-2">Shipment Planning</h1>
-          <p className="text-gray-500">
+          <h1 className="text-xl">Shipment Planning</h1>
+          <p className="text-gray-500 text-xs">
             Optimize routes and schedule future shipments
           </p>
         </div>
@@ -334,180 +409,74 @@ export default function ShipmentPlanning() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="list" className="px-6">Planning List</TabsTrigger>
           <TabsTrigger value="analysis" className="px-6">Route Analysis</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-6">
+        <TabsContent value="list" className="space-y-2">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-none  bg-card/50">
+            <Card className="  bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <CalendarIcon className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 rounded bg-blue-50">
+                    <CalendarIcon className="h-3 w-3 text-blue-600" />
                   </div>
                   <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-1">Upcoming Visits</p>
-                <p className="text-2xl ">0</p>
+                <p className="text-xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
+            <Card className="  bg-card/50">
+              <CardContent className="p-2">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-orange-50">
-                    <Route className="h-5 w-5 text-orange-600" />
+                  <div className="p-2 rounded bg-orange-50">
+                    <Route className="h-3 w-3 text-orange-600" />
                   </div>
                   <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-1">Optimized Routes</p>
-                <p className="text-2xl ">0</p>
+                <p className="text-xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
+            <Card className="  bg-card/50">
+              <CardContent className="p-2">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-indigo-50">
-                    <MapPin className="h-5 w-5 text-indigo-600" />
+                  <div className="p-2 rounded bg-indigo-50">
+                    <MapPin className="h-3 w-3 text-indigo-600" />
                   </div>
                   <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-1">Active Clusters</p>
-                <p className="text-2xl ">0</p>
+                <p className="text-xl ">0</p>
               </CardContent>
             </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
+            <Card className="  bg-card/50">
+              <CardContent className="p-2">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-green-50">
-                    <Clock className="h-5 w-5 text-green-600" />
+                  <div className="p-2 rounded bg-green-50">
+                    <Clock className="h-3 w-3 text-green-600" />
                   </div>
                   <span className="text-xs  text-emerald-500">+0%</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-1">Resource Utilization</p>
-                <p className="text-2xl ">0%</p>
+                <p className="text-xl ">0%</p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input 
-                  placeholder="Search by plan name or region..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-muted/30 border-none h-11 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" className="h-11 px-5 border-slate-200">
-                  <Filter className="mr-2 h-4 w-4" /> Filters
-                </Button>
-                <Button variant="outline" className="h-11 px-5 border-slate-200">
-                  <Download className="mr-2 h-4 w-4" /> Export
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-              <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow className="hover:bg-transparent border-slate-200">
-                    <TableHead className="w-[180px] py-4  text-slate-700">Consignment #</TableHead>
-                    <TableHead className="py-4  text-slate-700">PO Number</TableHead>
-                    <TableHead className="py-4  text-slate-700">Vendor</TableHead>
-                    <TableHead className="py-4  text-slate-700">Route</TableHead>
-                    <TableHead className="py-4  text-slate-700">Status</TableHead>
-                    <TableHead className="text-right py-4  text-slate-700">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredShipments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-gray-500 italic">
-                        No approved shipments found for planning.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredShipments.map((shipment) => (
-                      <TableRow key={shipment.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                        <TableCell className=" text-primary py-4">{shipment.consignmentNumber}</TableCell>
-                        <TableCell className="py-4 ">{shipment.poNumber || "N/A"}</TableCell>
-                        <TableCell className="py-4 ">
-                          {getVendorName(shipment)}
-                        </TableCell>
-                        <TableCell className="py-4 text-xs">
-                          <div>From: {shipment.source}</div>
-                          <div>To: {shipment.destination}</div>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                            Approved
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right py-4">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                              onClick={() => handleOpenPlanning(shipment, true)}
-                              title="View Plan"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              onClick={() => handleOpenPlanning(shipment, false)}
-                              title="Edit Plan"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white h-8"
-                              onClick={() => handleOpenPlanning(shipment, false)}
-                            >
-                              <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
-                              onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this shipment order?")) {
-                                  deleteShipmentMutation.mutate(shipment.id);
-                                }
-                              }}
-                              disabled={deleteShipmentMutation.isPending}
-                            >
-                              {deleteShipmentMutation.isPending ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+          <DataTable
+            data={shipments || []}
+            columns={columns}
+            searchPlaceholder="Search by consignment, PO, vendor, or client..."
+          />
         </TabsContent>
 
-        <TabsContent value="analysis" className="space-y-6">
+        <TabsContent value="analysis" className="space-y-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-none  bg-card/50">
+            <Card className="  bg-card/50">
               <CardHeader>
                 <CardTitle>Shipment Planning Performance</CardTitle>
                 <CardDescription>Weekly overview of planned vs completed shipments</CardDescription>
@@ -527,7 +496,7 @@ export default function ShipmentPlanning() {
               </CardContent>
             </Card>
 
-            <Card className="border-none  bg-card/50">
+            <Card className="  bg-card/50">
               <CardHeader>
                 <CardTitle>Shipment Mode Distribution</CardTitle>
                 <CardDescription>Breakdown of shipments by transport mode</CardDescription>
@@ -555,7 +524,7 @@ export default function ShipmentPlanning() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 border-none  bg-card/50">
+            <Card className="md:col-span-2   bg-card/50">
               <CardHeader>
                 <CardTitle>Planning Activity Trend</CardTitle>
                 <CardDescription>Daily activity tracking for shipment planning</CardDescription>
@@ -591,40 +560,40 @@ export default function ShipmentPlanning() {
 
       {/* Shipment Planning Dialog */}
       <Dialog open={isPlanningDialogOpen} onOpenChange={setIsPlanningDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto p-0  shadow-2xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{isReadOnly ? "View Shipment Plan" : "Shipment Planning"}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               Optimize routes and schedule future shipments
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-primary px-6 py-8 text-white sticky top-0 z-10">
+          <div className=" p-2 bg-white sticky top-0 z-10">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-3xl  mb-1 flex items-center">
+                <h2 className="text-xl  mb-1 flex items-center">
                   <Package className="mr-3 h-8 w-8" />
                   {isReadOnly ? "View Shipment Plan" : "Shipment Planning"}
                 </h2>
-                <p className="opacity-90 text-sm tracking-wide">Optimize routes and schedule future shipments</p>
+                <p className="opacity-90 text-xs">Optimize routes and schedule future shipments</p>
               </div>
               <div className="text-right">
-                <div className="bg-white/20 px-4 py-2 rounded-lg backdrop-blur-md">
+                <div className="bg-white/20 px-4 py-2 rounded backdrop-blur-md">
                   <p className="text-xs   opacity-70">Plan Status</p>
-                  <p className="text-xl ">{shipmentPlan.status || "Planned"}</p>
+                  <p className="text-sm ">{shipmentPlan.status || "Planned"}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50/50">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-2 bg-slate-50/50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {/* Left Column: Basic Info & Timeline */}
               <div className="md:col-span-1 space-y-3">
-                <section className="bg-white p-6 rounded-2xl border border-slate-100 ">
-                  <h3 className="text-sm  text-slate-400  mb-4 flex items-center">
-                    <FileText className="mr-2 h-4 w-4 text-primary" /> Basic Information
+                <section className="bg-white p-2 rounded border border-slate-100 ">
+                  <h3 className="text-sm  text-black  mb-4 flex items-center">
+                    <FileText className="mr-2 h-4 w-4 text-sm text-primary" /> Basic Information
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div className="space-y-1.5">
                       <Label className="text-xs  text-slate-500">Plan ID</Label>
                       <Input 
@@ -637,7 +606,7 @@ export default function ShipmentPlanning() {
                     <div className="space-y-1.5 pt-2 border-t border-slate-50">
                       <p className="text-xs  text-slate-500  tracking-tighter mb-1">Vendor Details</p>
                       <div className="flex flex-col space-y-0.5">
-                        <p className=" text-slate-800 text-lg leading-tight">
+                        <p className=" text-slate-800 text-sm leading-tight">
                           {getVendorName(selectedShipment)}
                         </p>
                         {(selectedShipment?.supplier?.city || selectedShipment?.supplier?.address) && (
@@ -718,9 +687,9 @@ export default function ShipmentPlanning() {
                   </div>
                 </section>
 
-                <section className="bg-white p-6 rounded-2xl border border-slate-100  overflow-hidden relative">
+                <section className="bg-white p-2 rounded border border-slate-100  overflow-hidden relative">
                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded -mr-16 -mt-16 pointer-events-none"></div>
-                   <h3 className="text-sm  text-slate-400  mb-6 flex items-center">
+                   <h3 className="text-sm  text-black  mb-6 flex items-center">
                     <TrendingUp className="mr-2 h-4 w-4 text-primary" /> Shipment Timeline
                   </h3>
                   <div className="space-y-0 relative pl-4">
@@ -744,7 +713,7 @@ export default function ShipmentPlanning() {
                           <div className={`w-1.5 h-1.5 rounded ${step.status === "completed" ? "bg-white" : "bg-slate-200"}`}></div>
                         </div>
                         <div className="flex-1">
-                          <p className={`text-sm  ${step.status === "completed" ? "text-slate-800" : "text-slate-400"}`}>{step.label}</p>
+                          <p className={`text-xs  ${step.status === "completed" ? "text-primary" : "text-slate-400"}`}>{step.label}</p>
                         </div>
                       </div>
                     ))}
@@ -755,7 +724,7 @@ export default function ShipmentPlanning() {
               {/* Middle & Right Column: Freight Details */}
               <div className="md:col-span-2 space-y-3">
                 {/* Specific Freight Details based on Type */}
-                <section className="bg-white p-4 rounded-2xl border border-slate-100  relative">
+                <section className="bg-white p-4 rounded border border-slate-100  relative">
                   {shipmentPlan.shipmentType === "Sea" && (
                     <div className="animate-in slide-in-from-right-4 duration-500">
                       <div className="flex items-center mb-6 border-b border-slate-50 pb-4">
@@ -770,7 +739,7 @@ export default function ShipmentPlanning() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Vessel Info</h4>
+                          <h4 className="text-xs  text-slate-400   flex items-center">Vessel Info</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
@@ -800,7 +769,7 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Container details</h4>
+                          <h4 className="text-xs  text-slate-400   flex items-center">Container details</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
@@ -847,7 +816,7 @@ export default function ShipmentPlanning() {
 
                         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4  border-t border-slate-50">
                           <div className="space-y-4">
-                             <h4 className="text-xs  text-slate-400  tracking-widest">Port Information</h4>
+                             <h4 className="text-xs  text-slate-400  ">Port Information</h4>
                              <div className="space-y-3">
                                 <div className="space-y-1.5">
                                   <Label className="text-slate-600  flex items-center">
@@ -870,7 +839,7 @@ export default function ShipmentPlanning() {
                              </div>
                           </div>
                           <div className="space-y-4">
-                             <h4 className="text-xs  text-slate-400  tracking-widest">Transit Details</h4>
+                             <h4 className="text-xs  text-slate-400  ">Transit Details</h4>
                              <div className="space-y-3">
                                 <div className="space-y-1.5">
                                   <Label className="text-slate-600  flex items-center">
@@ -913,7 +882,7 @@ export default function ShipmentPlanning() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Flight Info</h4>
+                          <h4 className="text-xs  text-slate-400   flex items-center">Flight Info</h4>
                           <div className="space-y-3">
                             <div className="space-y-1.5">
                               <Label className="text-slate-600 ">Airline Name</Label>
@@ -942,7 +911,7 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Airport details</h4>
+                          <h4 className="text-xs  text-slate-400   flex items-center">Airport details</h4>
                           <div className="space-y-3">
                             <div className="space-y-1.5">
                               <Label className="text-slate-600  flex items-center">
@@ -967,7 +936,7 @@ export default function ShipmentPlanning() {
 
                         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4  border-t border-slate-50">
                            <div className="space-y-4">
-                             <h4 className="text-xs  text-slate-400  tracking-widest">Transit Details</h4>
+                             <h4 className="text-xs  text-slate-400  ">Transit Details</h4>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                   <Label className="text-slate-600 ">Flight Departure</Label>
@@ -988,7 +957,7 @@ export default function ShipmentPlanning() {
                              </div>
                            </div>
                            <div className="space-y-4">
-                             <h4 className="text-xs  text-slate-400  tracking-widest">Measurements</h4>
+                             <h4 className="text-xs  text-slate-400  ">Measurements</h4>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                   <Label className="text-slate-600 ">Weight (KG)</Label>
@@ -1017,28 +986,28 @@ export default function ShipmentPlanning() {
                     <div className="animate-in slide-in-from-right-4 duration-500">
                       <div className="flex items-center mb-6 border-b border-slate-50 pb-4">
                         <div className="bg-emerald-50 p-3 rounded-xl mr-4">
-                          <Truck className="h-6 w-6 text-emerald-600" />
+                          <Truck className="h-3 w-3 text-emerald-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl  text-slate-800">Road Transport Details</h3>
+                          <h3 className="text-sm  text-slate-800">Road Transport Details</h3>
                           <p className="text-xs text-slate-500 italic">Trucking and delivery coordination</p>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Vehicle & Driver</h4>
-                          <div className="space-y-3">
+                        <div className="space-y-2">
+                          <h4 className="text-xs  text-black   flex items-center">Vehicle & Driver</h4>
+                          <div className="space-y-2">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 ">Transport Co.</Label>
+                                <Label className="text-slate-600 text-xs ">Transport Co.</Label>
                                 <Input 
                                   value={shipmentPlan.transportCompany || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, transportCompany: e.target.value})}
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-slate-600 ">Truck Number</Label>
+                                <Label className="text-slate-600 text-xs ">Truck Number</Label>
                                 <Input 
                                   value={shipmentPlan.truckNumber || ""} 
                                   onChange={(e) => setShipmentPlan({...shipmentPlan, truckNumber: e.target.value})}
@@ -1065,7 +1034,7 @@ export default function ShipmentPlanning() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="text-xs  text-slate-400  tracking-widest flex items-center">Route & Schedule</h4>
+                          <h4 className="text-xs  text-black   flex items-center">Route & Schedule</h4>
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
@@ -1112,19 +1081,19 @@ export default function ShipmentPlanning() {
                   )}
                 </section>
 
-                <section className="bg-white p-4 rounded-2xl border border-slate-100  relative overflow-hidden">
+                <section className="bg-white p-2 rounded border border-slate-100  relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded -mr-16 -mt-16 pointer-events-none"></div>
-                  <div className="flex items-center mb-6 border-b border-slate-50 pb-4 relative">
+                  <div className="flex items-center mb-6 border-b border-slate-50  relative">
                     <div className="bg-indigo-50 p-3 rounded-xl mr-4">
-                      <ShieldCheck className="h-6 w-6 text-indigo-600" />
+                      <ShieldCheck className="h-3 w-3 text-indigo-600" />
                     </div>
                     <div>
-                      <h3 className="text-xl  text-slate-800">Custom Clearance</h3>
+                      <h3 className="text-sm  text-slate-800">Custom Clearance</h3>
                       <p className="text-xs text-slate-500 italic">Legal and import-export documentation</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative">
                     <div className="space-y-1.5">
                       <Label className="text-slate-600 ">Clearing Agent</Label>
                       <Input 

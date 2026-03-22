@@ -99,7 +99,7 @@ export default function LeadReceived() {
               {lead.companyName}
             </div>
           )}
-          <div className="text-[10px] text-slate-400">
+          <div className="text-xs text-slate-400">
             Created {lead.createdAt ? format(new Date(lead.createdAt), "dd MMM, yyyy") : "-"}
           </div>
         </div>
@@ -124,7 +124,7 @@ export default function LeadReceived() {
             </div>
           )}
           {lead.city && (
-            <div className="flex items-center text-[10px] text-slate-400">
+            <div className="flex items-center text-xs text-slate-400">
               <MapPin className="h-3 w-3 mr-1.5" />
               {lead.city}
             </div>
@@ -136,13 +136,13 @@ export default function LeadReceived() {
       key: "status",
       header: "Status",
       sortable: true,
-      cell: (lead) => <StatusBadge status={lead.status} className="text-[10px] py-0 h-5" />,
+      cell: (lead) => <StatusBadge status={lead.status} className="text-xs py-0 h-5" />,
     },
     {
       key: "priority",
       header: "Priority",
       sortable: true,
-      cell: (lead) => <PriorityBadge priority={lead.priority} className="text-[10px] py-0 h-5" />,
+      cell: (lead) => <PriorityBadge priority={lead.priority} className="text-xs py-0 h-5" />,
     },
     {
       key: "estimatedBudget",
@@ -160,7 +160,7 @@ export default function LeadReceived() {
       cell: (lead) => (
         <div className="flex items-center space-x-2">
           <Avatar className="h-6 w-6 border border-slate-200">
-            <AvatarFallback className="text-[10px] bg-slate-100 text-slate-600">
+            <AvatarFallback className="text-xs bg-slate-100 text-slate-600">
               {lead.assignee?.firstName?.[0] || ""}{lead.assignee?.lastName?.[0] || ""}
             </AvatarFallback>
           </Avatar>

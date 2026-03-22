@@ -80,11 +80,9 @@ export default function InventoryDashboard() {
       header: "Product Information",
       cell: (product: any) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-            <Package className="h-4 w-4 text-slate-400" />
-          </div>
+          
           <div className="flex flex-col">
-            <span className=" text-slate-900">{product.name}</span>
+            <span className="text-xs text-slate-900">{product.name}</span>
             <span className="text-xs text-slate-500 uppercase tracking-tight">{product.sku}</span>
           </div>
         </div>
@@ -94,7 +92,7 @@ export default function InventoryDashboard() {
       key: "category",
       header: "Category",
       cell: (product: any) => (
-        <Badge variant="outline" className="font-normal bg-slate-50 text-slate-600 border-slate-200">
+        <Badge variant="outline" className="text-xs p-1 bg-slate-50 text-slate-600 border-slate-200">
           {product.category}
         </Badge>
       ),
@@ -107,12 +105,12 @@ export default function InventoryDashboard() {
         return (
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className={cn("text-sm font-semibold", isLow ? "text-red-600" : "text-slate-900")}>
+              <span className={cn("text-xs ", isLow ? "text-red-600" : "text-slate-900")}>
                 {product.stock} {product.unit}
               </span>
               {isLow && <AlertTriangle className="h-3 w-3 text-red-500" />}
             </div>
-            <span className="text-[10px] text-slate-400  uppercase">Threshold: {product.lowStockThreshold}</span>
+            <span className="text-xs text-slate-400  ">Threshold: {product.lowStockThreshold}</span>
           </div>
         );
       },
@@ -122,8 +120,8 @@ export default function InventoryDashboard() {
       header: "Pricing",
       cell: (product: any) => (
         <div className="flex flex-col">
-          <span className="text-sm  text-slate-900">₹{parseFloat(product.price).toLocaleString()}</span>
-          <span className="text-[10px] text-slate-400 uppercase">Cost: ₹{parseFloat(product.costPrice).toLocaleString()}</span>
+          <span className="text-xs  text-slate-900">₹{parseFloat(product.price).toLocaleString()}</span>
+          <span className="text-xs text-slate-400 ">Cost: ₹{parseFloat(product.costPrice).toLocaleString()}</span>
         </div>
       ),
     },
@@ -136,7 +134,7 @@ export default function InventoryDashboard() {
           <Badge 
             variant="outline" 
             className={cn(
-              "capitalize font-normal px-2.5 py-0.5",
+              "capitalize p-1",
               isLowStock ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
             )}
           >
@@ -158,19 +156,19 @@ export default function InventoryDashboard() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Inventory Overview</h1>
           <p className="text-xs text-slate-500">Real-time monitoring of stock levels, procurement cycles, and logistics health.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 h-10 px-4">
-            <History className="h-4 w-4 mr-2 text-slate-400" />
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
+            <History className="h-4 w-4 mr-1 text-slate-400" />
             Stock Ledger
           </Button>
-          <Button className="bg-primary hover:bg-primary text-white shadow-sm h-10 px-4" onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button className="bg-primary hover:bg-primary text-white" onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
             New Product
           </Button>
         </div>
@@ -205,17 +203,18 @@ export default function InventoryDashboard() {
               </Badge>
             </div>
           </div>
-          <div className="p-0 mt-4">
+          <div className="p-0 mt-2">
             <DataTable
               data={products}
               columns={productColumns}
-              loading={productsLoading}
+              isLoading={productsLoading}
+              searchKey="name"
               searchPlaceholder="Search product name, SKU or category..."
             />
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm  text-slate-800 flex items-center gap-2">

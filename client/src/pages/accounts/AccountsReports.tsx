@@ -496,7 +496,7 @@ export default function AccountsReports() {
             <Form {...generateForm}>
               <form
                 onSubmit={generateForm.handleSubmit(handleGenerateSubmit)}
-                className="space-y-6"
+                className="space-y-2"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
@@ -1069,7 +1069,7 @@ export default function AccountsReports() {
             </DialogDescription>
           </DialogHeader>
           {selectedReport && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-light text-gray-500">

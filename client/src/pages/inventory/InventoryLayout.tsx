@@ -13,11 +13,13 @@ import {
   ShieldCheck,
   History,
   LayoutDashboard,
-  Hammer
+  Hammer,
+  ShieldAlert
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Import inventory pages
 import StockManagement from "./StockManagement";
@@ -49,10 +51,21 @@ const sidebarItems = [
 
 export default function InventoryLayout() {
   const [location] = useLocation();
+  const { user } = useAuth();
   
+  const allSidebarItems = [
+    ...sidebarItems,
+    ...(user?.role === 'admin' ? [{
+      id: 'admin',
+      label: 'Admin Portal',
+      icon: ShieldAlert,
+      path: '/admin',
+    }] : [])
+  ];
+
   const getActiveSidebarItem = () => {
     if (location === '/inventory') return 'dashboard';
-    const match = sidebarItems.find(item => item.path !== '/inventory' && location.includes(item.path));
+    const match = allSidebarItems.find(item => item.path !== '/inventory' && location.includes(item.path));
     return match ? match.id : 'dashboard';
   };
 
@@ -68,12 +81,12 @@ export default function InventoryLayout() {
           </div>
           <div>
             <h1 className="font-bold text-slate-900 leading-none">Inventory</h1>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 block">Logistics Pro</span>
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1 block">Logistics Pro</span>
           </div>
         </div>
 
         <nav className="grid overflow-y-auto gap-2 p-4 space-y-1 custom-scrollbar">
-          {sidebarItems.map((item) => {
+          {allSidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeId === item.id;
             
@@ -97,7 +110,7 @@ export default function InventoryLayout() {
           <Card className="border-none bg-slate-50 shadow-none">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">System Health</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">System Health</span>
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <div className="flex items-center justify-between">

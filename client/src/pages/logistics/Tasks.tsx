@@ -21,6 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { DataTable, Column } from "@/components/ui/data-table";
 import {
   Plus, CalendarIcon, Users, Clock, AlertCircle, CheckCircle,
   MoreVertical, Edit, Trash2, User, Calendar as CalendarDays,
@@ -321,9 +322,94 @@ export default function LogisticsTasks() {
     );
   };
 
+  const taskColumns: Column<LogisticsTask>[] = [
+    {
+      key: "title",
+      header: "Task",
+      cell: (task) => (
+        <div className="flex flex-col">
+          <span className="font-light">{task.title}</span>
+          <span className="text-xs text-slate-500 truncate max-w-[300px]">{task.description}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "assignee",
+      header: "Assignee",
+      cell: (task) => (
+        <div className="flex items-center space-x-2">
+          <Avatar className="h-6 w-6">
+            <AvatarFallback className="text-[10px]">
+              {task.assignee ? `${task.assignee.firstName.charAt(0)}${task.assignee.lastName.charAt(0)}` : "NA"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-xs">{task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : "Unassigned"}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (task) => {
+        const config = taskStatuses[task.status];
+        const StatusIcon = config.icon;
+        return (
+          <Badge variant="secondary" className={cn("text-[10px] h-5", config.color)}>
+            <StatusIcon className="h-3 w-3 mr-1" />
+            {config.label}
+          </Badge>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "priority",
+      header: "Priority",
+      cell: (task) => {
+        const config = taskPriorities[task.priority];
+        return (
+          <Badge variant="secondary" className={cn("text-[10px] h-5", config.color)}>
+            {config.label}
+          </Badge>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "dueDate",
+      header: "Due Date",
+      cell: (task) => {
+        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+        return (
+          <div className={cn("text-xs flex items-center", isOverdue ? "text-red-600" : "text-slate-500")}>
+            <CalendarDays className="h-3 w-3 mr-1" />
+            {task.dueDate ? format(new Date(task.dueDate), 'dd MMM yyyy') : "N/A"}
+          </div>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "actions",
+      header: <div className="text-right">Actions</div>,
+      cell: (task) => (
+        <div className="flex justify-end space-x-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary" onClick={() => handleEditTask(task)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDeleteTask(task.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-2">
         <div className="flex justify-between items-center">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
@@ -347,7 +433,7 @@ export default function LogisticsTasks() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -655,16 +741,11 @@ export default function LogisticsTasks() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {filteredTasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-              {filteredTasks.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No tasks found matching your filters
-                </div>
-              )}
-            </div>
+            <DataTable 
+              data={filteredTasks}
+              columns={taskColumns}
+              searchPlaceholder="Search tasks..."
+            />
           </CardContent>
         </Card>
       )}
@@ -672,7 +753,7 @@ export default function LogisticsTasks() {
       {/* Edit Task Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+          <DialogHeader className="my-4">
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
               Update task details and status

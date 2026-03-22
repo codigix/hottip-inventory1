@@ -454,7 +454,7 @@ export default function BankManagement() {
       </div>
 
       {/* Main Content with Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="accounts" data-testid="tab-accounts">
             Bank Accounts ({totalAccounts})
@@ -465,7 +465,7 @@ export default function BankManagement() {
         </TabsList>
 
         {/* Bank Accounts Tab */}
-        <TabsContent value="accounts" className="space-y-6">
+        <TabsContent value="accounts" className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex gap-4">
               <div className="relative">
@@ -783,7 +783,7 @@ export default function BankManagement() {
         </TabsContent>
 
         {/* Transactions Tab */}
-        <TabsContent value="transactions" className="space-y-6">
+        <TabsContent value="transactions" className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex gap-4">
               <div className="relative">

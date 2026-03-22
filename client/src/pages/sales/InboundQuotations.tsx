@@ -407,7 +407,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
       cell: (quotation: any) => (
         <div>
           <div className="font-medium text-slate-700">{quotation.sender?.name || "N/A"}</div>
-          <div className="text-[10px] text-slate-400  ">
+          <div className="text-xs text-slate-400  ">
             {quotation.senderType || "CLIENT"}
           </div>
         </div>
@@ -452,7 +452,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
           <Badge
             variant="outline"
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[quotation.status as keyof typeof statusColors] || statusColors.received
             )}
           >
@@ -567,7 +567,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-6"
+                  className="space-y-2"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -652,20 +652,20 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       <div className="grid grid-cols-2 gap-4">
                         {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Part Number</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
+                            <p className="text-xs text-gray-500  ">Part Number</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Job Card #</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
+                            <p className="text-xs text-gray-500  ">Job Card #</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Project Incharge</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
+                            <p className="text-xs text-gray-500  ">Project Incharge</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
                           </div>
                         )}
                       </div>
@@ -787,20 +787,20 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       <div className="grid grid-cols-2 gap-4">
                         {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Part Number</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
+                            <p className="text-xs text-gray-500  ">Part Number</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Job Card #</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
+                            <p className="text-xs text-gray-500  ">Job Card #</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
                           </div>
                         )}
                         {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
                           <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-[10px] text-gray-500  ">Project Incharge</p>
-                            <p className="text-sm  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
+                            <p className="text-xs text-gray-500  ">Project Incharge</p>
+                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
                           </div>
                         )}
                       </div>
@@ -997,7 +997,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-2"
               >
                 {/* FORM FIELDS SAME AS ABOVE */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1197,10 +1197,10 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                           <LayoutGrid className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <h4 className="text-sm  text-slate-900">
+                          <h4 className="text-xs  text-slate-900">
                             Linked Quotation: {selectedOutboundQuotation.quotationNumber}
                           </h4>
-                          <p className="text-[10px] text-gray-500">Previewing items and technical specifications</p>
+                          <p className="text-xs text-gray-500">Previewing items and technical specifications</p>
                         </div>
                       </div>
                       <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700   px-3">
@@ -1304,19 +1304,19 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                                 return (
                                   <>
                                     <tr className="border-t border-slate-700">
-                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">Subtotal</td>
+                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">Subtotal</td>
                                       <td className="p-2 text-right  text-xs">
                                         ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
                                     </tr>
                                     <tr>
-                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">GST (18%)</td>
+                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">GST (18%)</td>
                                       <td className="p-2 text-right  text-xs">
                                         ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
                                     </tr>
                                     <tr>
-                                      <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest text-red-400 opacity-90">Discount</td>
+                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest text-red-400 opacity-90">Discount</td>
                                       <td className="p-2 text-right  text-xs text-red-400">
                                         -₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                       </td>
@@ -1423,31 +1423,31 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
           </DialogHeader>
 
           {selectedQuotationDetails && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <div>
-                  <p className="text-[10px] text-gray-500  ">Date</p>
+                  <p className="text-xs text-gray-500  ">Date</p>
                   <p className="text-sm ">{new Date(selectedQuotationDetails.quotationDate).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500  ">Valid Until</p>
+                  <p className="text-xs text-gray-500  ">Valid Until</p>
                   <p className="text-sm ">{selectedQuotationDetails.validUntil ? new Date(selectedQuotationDetails.validUntil).toLocaleDateString() : "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500  ">Total Amount</p>
+                  <p className="text-xs text-gray-500  ">Total Amount</p>
                   <p className="text-sm  text-primary">₹{parseFloat(selectedQuotationDetails.totalAmount).toLocaleString("en-IN")}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500  ">Sender</p>
+                  <p className="text-xs text-gray-500  ">Sender</p>
                   <p className="text-sm ">{selectedQuotationDetails.sender?.name || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500  ">Sender Type</p>
+                  <p className="text-xs text-gray-500  ">Sender Type</p>
                   <p className="text-sm  ">{selectedQuotationDetails.senderType}</p>
                 </div>
                 {selectedQuotationDetails.quotationRef && (
                   <div>
-                    <p className="text-[10px] text-gray-500  ">Linked Ref</p>
+                    <p className="text-xs text-gray-500  ">Linked Ref</p>
                     <p className="text-sm  text-blue-600">ID: {selectedQuotationDetails.quotationRef.substring(0, 8)}...</p>
                   </div>
                 )}
@@ -1526,21 +1526,21 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                         {selectedQuotationDetails.financialBreakdown ? (
                           <>
                             <tr>
-                              <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">Subtotal</td>
+                              <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">Subtotal</td>
                               <td className="p-2 text-right  text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.subtotal)).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr>
-                              <td colSpan={3} className="p-2 text-right text-[10px]   tracking-widest opacity-70">GST (18%)</td>
+                              <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">GST (18%)</td>
                               <td className="p-2 text-right  text-xs">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.gstAmount)).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr className="bg-slate-950">
-                              <td colSpan={3} className="p-2 text-right text-[10px] font-black  tracking-widest">Total Amount</td>
+                              <td colSpan={3} className="p-2 text-right text-xs font-black  tracking-widest">Total Amount</td>
                               <td className="p-2 text-right font-black text-sm">₹{parseFloat(String(selectedQuotationDetails.financialBreakdown.total)).toLocaleString('en-IN')}</td>
                             </tr>
                           </>
                         ) : (
                           <tr>
-                            <td colSpan={3} className="p-2 text-right text-[10px] font-black  tracking-widest">Grand Total</td>
+                            <td colSpan={3} className="p-2 text-right text-xs font-black  tracking-widest">Grand Total</td>
                             <td className="p-2 text-right font-black text-sm">₹{parseFloat(selectedQuotationDetails.totalAmount).toLocaleString('en-IN')}</td>
                           </tr>
                         )}

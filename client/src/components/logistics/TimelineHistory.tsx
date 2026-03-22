@@ -173,7 +173,7 @@ export default function TimelineHistory({ shipment }: TimelineHistoryProps) {
         {/* Vertical line */}
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
         
-        <div className="space-y-6">
+        <div className="space-y-2">
           {timelineEvents.map((event, index) => {
             const isLast = index === timelineEvents.length - 1;
             

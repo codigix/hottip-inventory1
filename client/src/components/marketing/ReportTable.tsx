@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   ChevronUp, 
   ChevronDown, 
@@ -8,17 +8,9 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Card, div, div, div } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable, Column } from "@/components/ui/data-table";
 import ExportModal from "./ExportModal";
 import type { ExportData } from "@/services/exportService";
 
@@ -55,13 +48,6 @@ interface ReportTableProps {
   };
 }
 
-type SortDirection = 'asc' | 'desc' | null;
-
-interface SortConfig {
-  key: string;
-  direction: SortDirection;
-}
-
 export default function ReportTable({
   data,
   columns,
@@ -72,60 +58,19 @@ export default function ReportTable({
   onRowClick,
   dateRange
 }: ReportTableProps) {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: '', direction: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map(col => col.key));
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // Sort data
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortConfig.key || !sortConfig.direction) return 0;
-    
-    const aVal = a[sortConfig.key];
-    const bVal = b[sortConfig.key];
-    
-    if (aVal === null || aVal === undefined) return 1;
-    if (bVal === null || bVal === undefined) return -1;
-    
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      const comparison = aVal.localeCompare(bVal);
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    }
-    
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    
-    if (aVal instanceof Date && bVal instanceof Date) {
-      const comparison = aVal.getTime() - bVal.getTime();
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    }
-    
-    return 0;
-  });
-
-  // Filter data based on search term
-  const filteredData = sortedData.filter(row =>
-    Object.values(row).some(value =>
-      String(value).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
-
-  // Handle column sorting
-  const handleSort = (columnKey: string) => {
-    const column = columns.find(col => col.key === columnKey);
-    if (!column?.sortable) return;
-
-    setSortConfig(prevConfig => {
-      if (prevConfig.key === columnKey) {
-        const nextDirection = 
-          prevConfig.direction === 'asc' ? 'desc' : 
-          prevConfig.direction === 'desc' ? null : 'asc';
-        return { key: columnKey, direction: nextDirection };
-      }
-      return { key: columnKey, direction: 'asc' };
-    });
-  };
+  // Filter data based on search term (client-side)
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter(row =>
+      Object.values(row).some(value =>
+        String(value || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [data, searchTerm]);
 
   // Toggle column visibility
   const toggleColumnVisibility = (columnKey: string) => {
@@ -158,22 +103,24 @@ export default function ReportTable({
     return { headers, rows };
   };
 
-  const getSortIcon = (columnKey: string) => {
-    if (sortConfig.key !== columnKey) return null;
-    return sortConfig.direction === 'asc' ? 
-      <ChevronUp className="h-4 w-4 ml-1 inline" /> : 
-      <ChevronDown className="h-4 w-4 ml-1 inline" />;
-  };
-
-  const visibleColumnConfigs = columns.filter(col => visibleColumns.includes(col.key));
+  const dataTableColumns = useMemo<Column<any>[]>(() => {
+    return columns
+      .filter(col => visibleColumns.includes(col.key))
+      .map(col => ({
+        key: col.key,
+        header: col.header,
+        sortable: col.sortable,
+        cell: (item: any) => col.formatter ? col.formatter(item[col.key], item) : (item[col.key] ?? '-'),
+      }));
+  }, [columns, visibleColumns]);
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div>
+        <div>
+          <div className="text-sm">{title}</div>
+        </div>
+        <div>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <Skeleton className="h-10 w-64" />
@@ -186,7 +133,7 @@ export default function ReportTable({
               <div className="p-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex space-x-4 mb-4">
-                    {Array.from({ length: visibleColumnConfigs.length }).map((_, j) => (
+                    {Array.from({ length: columns.length }).map((_, j) => (
                       <Skeleton key={j} className="h-4 flex-1" />
                     ))}
                   </div>
@@ -194,25 +141,25 @@ export default function ReportTable({
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-4">
+      <div>
+        <div className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <CardTitle className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <span>{title}</span>
               <Badge variant="secondary" data-testid="table-record-count">
                 {filteredData.length} records
               </Badge>
-            </CardTitle>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div>
           {/* Controls */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             {/* Search */}
@@ -273,63 +220,13 @@ export default function ReportTable({
             </Button>
           </div>
 
-          {/* Table */}
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {visibleColumnConfigs.map((column) => (
-                    <TableHead 
-                      key={column.key}
-                      className={`${column.sortable ? 'cursor-pointer hover:bg-muted/50 select-none' : ''} ${column.width || ''}`}
-                      onClick={() => handleSort(column.key)}
-                      data-testid={`table-header-${column.key}`}
-                    >
-                      <div className="flex items-center">
-                        {column.header}
-                        {column.sortable && getSortIcon(column.key)}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.length === 0 ? (
-                  <TableRow>
-                    <TableCell 
-                      colSpan={visibleColumnConfigs.length} 
-                      className="h-24 text-center text-gray-500"
-                      data-testid="table-empty-message"
-                    >
-                      {searchTerm ? `No results found for "${searchTerm}"` : emptyMessage}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredData.map((row, index) => (
-                    <TableRow 
-                      key={index}
-                      className={onRowClick ? "cursor-pointer hover:bg-muted/50" : ""}
-                      onClick={() => onRowClick?.(row)}
-                      data-testid={`table-row-${index}`}
-                    >
-                      {visibleColumnConfigs.map((column) => (
-                        <TableCell 
-                          key={column.key}
-                          className={column.width || ''}
-                          data-testid={`table-cell-${column.key}-${index}`}
-                        >
-                          {column.formatter 
-                            ? column.formatter(row[column.key], row)
-                            : row[column.key] ?? '-'
-                          }
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {/* Table using DataTable */}
+          <DataTable
+            data={filteredData}
+            columns={dataTableColumns}
+            searchable={false}
+            onView={onRowClick ? (item) => onRowClick(item) : undefined}
+          />
 
           {/* Footer */}
           {filteredData.length > 0 && (
@@ -343,8 +240,8 @@ export default function ReportTable({
               </span>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Export Modal */}
       <ExportModal

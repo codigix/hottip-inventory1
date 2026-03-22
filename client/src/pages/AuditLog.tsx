@@ -75,10 +75,10 @@ const AuditLog: React.FC = () => {
 
   return (
     <div className=" mx-auto p-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl  mb-4" data-tour="admin-audit-log-header">Audit Log</h1>
-          <p className="text-gray-500">View all system activity, changes, and user actions for compliance and traceability.</p>
+          <h1 className="text-xl" data-tour="admin-audit-log-header">Audit Log</h1>
+          <p className="text-gray-500 text-xs">View all system activity, changes, and user actions for compliance and traceability.</p>
         </div>
         <StartTourButton tourConfig={adminAuditLogTour} tourName="admin-audit-log" />
       </div>

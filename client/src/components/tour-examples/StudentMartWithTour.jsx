@@ -19,7 +19,7 @@ const StudentMartWithTour = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Header with Tour Button */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl ">Student Mart</h1>

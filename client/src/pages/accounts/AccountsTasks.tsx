@@ -1099,7 +1099,7 @@ export default function AccountsTasks() {
       {/* Edit Task Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
+          <DialogHeader className="my-4">
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
               Update the task details and assignment.

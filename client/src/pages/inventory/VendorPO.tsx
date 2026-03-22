@@ -113,7 +113,7 @@ export default function VendorPO() {
             <Package className="h-4 w-4 text-slate-400" />
           </div>
           <div className="flex flex-col">
-            <span className="font-medium text-slate-900">{po.poNumber}</span>
+            <span className="text-xs text-slate-900">{po.poNumber}</span>
             <span className="text-xs text-slate-500">{getSupplierName(po.supplierId)}</span>
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function VendorPO() {
         <Badge 
           variant="outline" 
           className={cn(
-            "capitalize font-normal px-2.5 py-0.5",
+            "capitalize font-normal p-1",
             po.status === 'delivered' && "bg-emerald-50 text-emerald-700 border-emerald-200",
             po.status === 'shipped' && "bg-blue-50 text-blue-700 border-blue-200",
             po.status === 'processing' && "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -144,8 +144,8 @@ export default function VendorPO() {
       header: "Financials",
       cell: (po: any) => (
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-900">₹{parseFloat(po.totalAmount || 0).toLocaleString()}</span>
-          <span className="text-[10px] text-slate-400 font-medium ">{po.gstType === 'IGST' ? 'IGST @ 18%' : 'CGST+SGST @ 18%'}</span>
+          <span className="text-xs  text-slate-900">₹{parseFloat(po.totalAmount || 0).toLocaleString()}</span>
+          <span className="text-xs text-slate-400  ">{po.gstType === 'IGST' ? 'IGST @ 18%' : 'CGST+SGST @ 18%'}</span>
         </div>
       ),
     },
@@ -154,7 +154,7 @@ export default function VendorPO() {
       header: "Timeline",
       cell: (po: any) => (
         <div className="flex flex-col text-[11px]">
-          <span className="text-slate-700 font-medium">Issued: {po.orderDate ? format(new Date(po.orderDate), "dd MMM yyyy") : "N/A"}</span>
+          <span className="text-slate-700 ">Issued: {po.orderDate ? format(new Date(po.orderDate), "dd MMM yyyy") : "N/A"}</span>
           <span className="text-slate-400">Target: {po.deliveryPeriod || "Standard"}</span>
         </div>
       ),
@@ -188,6 +188,48 @@ export default function VendorPO() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const viewPoColumns = [
+    {
+      key: "itemName",
+      header: "Item Name",
+      cell: (item: any) => (
+        <span className="text-xs text-slate-800">{item.itemName}</span>
+      ),
+    },
+    {
+      key: "quantity",
+      header: "Qty",
+      cell: (item: any) => (
+        <div className="text-center text-xs">{item.quantity}</div>
+      ),
+    },
+    {
+      key: "unit",
+      header: "Unit",
+      cell: (item: any) => (
+        <div className="text-center text-xs text-slate-500">{item.unit}</div>
+      ),
+    },
+    {
+      key: "unitPrice",
+      header: "Price",
+      cell: (item: any) => (
+        <div className="text-right text-xs text-slate-600">
+          ₹{parseFloat(item.unitPrice).toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      cell: (item: any) => (
+        <div className="text-right text-xs font-semibold">
+          ₹{parseFloat(item.amount).toLocaleString()}
         </div>
       ),
     },
@@ -371,9 +413,9 @@ export default function VendorPO() {
                 <div className="p-2 rounded bg-slate-50">
                   <card.icon className="h-4 w-4 text-slate-400" />
                 </div>
-                <Badge variant="secondary" className="bg-slate-50 text-slate-400 text-[10px]  border-none">STATUS</Badge>
+                <Badge variant="secondary" className="bg-slate-50 text-slate-400 text-xs  border-none">STATUS</Badge>
               </div>
-              <p className="text-[10px]    text-slate-400 mb-1">{card.title}</p>
+              <p className="text-xs    text-slate-400 mb-1">{card.title}</p>
               <p className="text-xl  text-slate-800">{getStatusCount(card.status)}</p>
             </CardContent>
           </Card>
@@ -385,7 +427,7 @@ export default function VendorPO() {
           <div className="flex items-center space-x-2">
             <Truck className="h-5 w-5 text-slate-400" />
             <h2 className="text-sm  text-slate-700">Purchase Order Registry</h2>
-            <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-[10px] ">
+            <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-xs ">
               {purchaseOrders.length} Records
             </Badge>
           </div>
@@ -404,12 +446,12 @@ export default function VendorPO() {
 
       {/* PO Dialog */}
       <Dialog open={isPODialogOpen} onOpenChange={setIsPODialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded">
           <DialogHeader className="px-5 py-4 bg-slate-50 border-b">
             <div className="flex items-center justify-between w-full pr-8">
               <div className="space-y-0.5">
                 <DialogTitle className="text-base  text-slate-800">Create Purchase Order</DialogTitle>
-                <DialogDescription className="text-[10px] text-slate-500   ">Formal procurement request</DialogDescription>
+                <DialogDescription className="text-xs text-slate-500   ">Formal procurement request</DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -478,11 +520,11 @@ export default function VendorPO() {
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="hover:bg-transparent border-slate-100 h-8">
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0">Item Name</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-center w-20">Unit</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-right w-24">Price</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-right w-24">Amount</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0">Item Name</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-center w-20">Unit</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-right w-24">Price</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-right w-24">Amount</TableHead>
                       <TableHead className="h-8 py-0 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -543,16 +585,16 @@ export default function VendorPO() {
               <div className="flex justify-end pt-2">
                 <div className="w-64 space-y-2">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">Subtotal</span>
+                    <span className="text-slate-500 ">Subtotal</span>
                     <span className="text-slate-700 ">₹{subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">GST (18%)</span>
+                    <span className="text-slate-500 ">GST (18%)</span>
                     <span className="text-slate-700 ">₹{gstAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                    <span className="text-slate-800 font-extrabold  text-[10px] ">Total Value</span>
-                    <span className="text-slate-800 font-black text-lg">₹{totalAmount.toLocaleString()}</span>
+                    <span className="text-slate-800 font-extrabold  text-xs ">Total Value</span>
+                    <span className="text-slate-800  text-lg">₹{totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -583,7 +625,7 @@ export default function VendorPO() {
             </div>
           </div>
 
-          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2">
+          <DialogFooter className="px-5 p-2 bg-slate-50 border-t flex flex-row justify-end space-x-2">
             <Button variant="outline" onClick={() => setIsPODialogOpen(false)} className="border-slate-200 text-slate-600 px-4 h-9 text-sm">
               Cancel
             </Button>
@@ -596,96 +638,83 @@ export default function VendorPO() {
 
       {/* View PO Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
-          <DialogHeader className="px-6 py-4 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded">
+          <DialogHeader className="p-2 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
             <div className="space-y-1">
               <DialogTitle className="text-xl  text-slate-800">Purchase Order Details</DialogTitle>
               <DialogDescription className="text-xs text-slate-500">Viewing {selectedPO?.poNumber}</DialogDescription>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded" onClick={() => setIsViewDialogOpen(false)}>
+            {/* <Button variant="ghost" size="icon" className="h-9 w-9 rounded" onClick={() => setIsViewDialogOpen(false)}>
               <X className="h-5 w-5" />
-            </Button>
+            </Button> */}
           </DialogHeader>
 
-          <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h3 className="text-sm  text-slate-400  tracking-widest">Order Details</h3>
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded border border-slate-100">
+          <div className="p-2 space-y-2 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <h3 className="text-xs  text-slate-400  ">Order Details</h3>
+                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-2 rounded border border-slate-100">
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">PO Number</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">PO Number</p>
                     <p className="text-sm  text-slate-800">{selectedPO?.poNumber}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Date</p>
-                    <p className="text-sm font-medium text-slate-700">{selectedPO?.orderDate ? format(new Date(selectedPO.orderDate), "dd MMM yyyy") : "N/A"}</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Date</p>
+                    <p className="text-xs  text-slate-700">{selectedPO?.orderDate ? format(new Date(selectedPO.orderDate), "dd MMM yyyy") : "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Status</p>
-                    <Badge variant="outline" className="text-[10px]   mt-1 h-5">{selectedPO?.status}</Badge>
+                    <p className="text-xs text-slate-500   tracking-tighter">Status</p>
+                    <Badge variant="outline" className="text-xs   mt-1 h-5">{selectedPO?.status}</Badge>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Delivery</p>
-                    <p className="text-sm font-medium text-slate-700">{selectedPO?.deliveryPeriod || "As per agreement"}</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Delivery</p>
+                    <p className="text-sm  text-slate-700">{selectedPO?.deliveryPeriod || "As per agreement"}</p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-sm  text-slate-400  tracking-widest">Supplier</h3>
-                <div className="bg-slate-50 p-4 rounded border border-slate-100 h-[100px] flex flex-col justify-center">
-                  <p className="text-[10px] text-slate-500   tracking-tighter">Vendor Name</p>
-                  <p className="text-lg font-black text-slate-800">{getSupplierName(selectedPO?.supplierId)}</p>
+                <h3 className="text-sm  text-slate-400  ">Supplier</h3>
+                <div className="bg-slate-50 p-2 rounded border border-slate-100 h-[100px] flex flex-col justify-center">
+                  <p className="text-xs text-slate-500   tracking-tighter">Vendor Name</p>
+                  <p className="text-sm  text-slate-800">{getSupplierName(selectedPO?.supplierId)}</p>
                   <p className="text-xs text-slate-500 mt-1 font-mono ">ID: {selectedPO?.supplierId}</p>
                 </div>
               </div>
             </div>
 
-            <div className="border rounded-xl overflow-hidden border-slate-200">
-              <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow className="border-slate-200">
-                    <TableHead className="text-xs  text-slate-600  py-3">Item Name</TableHead>
-                    <TableHead className="text-xs  text-slate-600  py-3 text-center">Qty</TableHead>
-                    <TableHead className="text-xs  text-slate-600  py-3 text-center">Unit</TableHead>
-                    <TableHead className="text-xs  text-slate-600  py-3 text-right">Price</TableHead>
-                    <TableHead className="text-xs  text-slate-600  py-3 text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedPO?.items?.map((item: any, idx: number) => (
-                    <TableRow key={idx} className="border-slate-100">
-                      <TableCell className="text-sm font-medium text-slate-800 py-3">{item.itemName}</TableCell>
-                      <TableCell className="text-sm text-center py-3">{item.quantity}</TableCell>
-                      <TableCell className="text-sm text-center text-slate-500  py-3">{item.unit}</TableCell>
-                      <TableCell className="text-sm text-right text-slate-600 py-3">₹{parseFloat(item.unitPrice).toLocaleString()}</TableCell>
-                      <TableCell className="text-sm  text-right py-3 bg-slate-50/30">₹{parseFloat(item.amount).toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="border rounded overflow-hidden border-slate-200">
+              <DataTable
+                data={selectedPO?.items || []}
+                columns={viewPoColumns}
+                searchable={true}
+                searchKey="itemName"
+                searchPlaceholder="Search items..."
+                pageSizeOptions={[10, 20]}
+                defaultPageSize={10}
+              />
             </div>
 
             <div className="flex justify-end">
-              <div className="w-72 space-y-3 bg-primary text-white p-5 rounded-xl border border-slate-800 shadow-xl">
+              <div className="w-72 space-y-2 bg-primary text-white p-2 rounded border border-slate-800 shadow-xl">
                 <div className="flex justify-between items-center text-sm opacity-70">
-                  <span className=" tracking-widest text-[10px]">Subtotal</span>
+                  <span className="  text-xs">Subtotal</span>
                   <span className="font-mono">₹{parseFloat(selectedPO?.subtotalAmount || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm opacity-70">
-                  <span className=" tracking-widest text-[10px]">GST (18%)</span>
+                  <span className="  text-xs">GST (18%)</span>
                   <span className="font-mono">₹{parseFloat(selectedPO?.gstAmount || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                  <span className=" font-black tracking-widest text-[10px]">Grand Total</span>
-                  <span className="font-black text-xl">₹{parseFloat(selectedPO?.totalAmount || 0).toLocaleString()}</span>
+                  <span className="   text-xs">Grand Total</span>
+                  <span className=" text-sm">₹{parseFloat(selectedPO?.totalAmount || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             {selectedPO?.notes && (
               <div className="space-y-2">
-                <h3 className="text-sm  text-slate-400  tracking-widest">Order Terms</h3>
+                <h3 className="text-sm  text-slate-400  ">Order Terms</h3>
                 <div className="bg-slate-50 p-4 rounded text-sm text-slate-600 border border-slate-100 italic">
                   "{selectedPO.notes}"
                 </div>
@@ -694,20 +723,20 @@ export default function VendorPO() {
           </div>
 
           <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex flex-row justify-end space-x-3">
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="border-slate-200 text-slate-600   text-[10px] tracking-widest">
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="border-slate-200 text-slate-600   text-xs ">
               Close
             </Button>
             {selectedPO?.status === 'pending' && (
               <Button 
                 variant="outline"
-                className="border-blue-200 text-blue-600 hover:bg-blue-50   text-[10px] tracking-widest"
+                className="border-blue-200 text-blue-600 hover:bg-blue-50   text-xs "
                 onClick={() => createShipmentMutation.mutate(selectedPO)}
               >
                 <Truck className="mr-2 h-3.5 w-3.5" /> Logistics
               </Button>
             )}
             <Button 
-              className="bg-primary hover:bg-primary text-white px-6   text-[10px] tracking-widest shadow-sm"
+              className="bg-primary hover:bg-primary text-white px-6   text-xs  shadow-sm"
               onClick={() => downloadPOMutation.mutate(selectedPO?.id)}
             >
               <Download className="mr-2 h-3.5 w-3.5" /> PDF Order

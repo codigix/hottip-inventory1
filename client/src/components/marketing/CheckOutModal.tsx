@@ -409,7 +409,7 @@ export default function CheckOutModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Work Summary */}
           <Card>
             <CardHeader className="pb-2">

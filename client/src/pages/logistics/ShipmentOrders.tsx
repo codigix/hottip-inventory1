@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DataTable, Column } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -241,6 +242,141 @@ export default function ShipmentOrders() {
     setIsViewDialogOpen(true);
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "delivered":
+        return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-normal">Delivered</Badge>;
+      case "dispatched":
+        return <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-normal">Dispatched</Badge>;
+      case "in_transit":
+        return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-normal">In Transit</Badge>;
+      case "packed":
+        return <Badge className="bg-orange-50 text-orange-600 border-orange-100 font-normal">Packed</Badge>;
+      default:
+        return <Badge className="bg-slate-50 text-slate-600 border-slate-100 font-normal">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateValue: string | Date | null | undefined) => {
+    if (!dateValue) return "N/A";
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return "N/A";
+    return format(date, "dd/MM/yyyy");
+  };
+
+  const columns: Column<LogisticsShipment>[] = [
+    {
+      key: "consignmentNumber",
+      header: "Order #",
+      cell: (shipment) => (
+        <span className="text-primary">{shipment.consignmentNumber}</span>
+      ),
+      sortable: true,
+    },
+    {
+      key: "poNumber",
+      header: "PO Number",
+      cell: (shipment) => shipment.poNumber || "N/A",
+      sortable: true,
+    },
+    {
+      key: "vendorName",
+      header: "Client/Vendor",
+      cell: (shipment) => getVendorName(shipment),
+      sortable: true,
+    },
+    {
+      key: "source",
+      header: "Route",
+      cell: (shipment) => (
+        <div className="flex flex-col">
+          <span className="text-xs text-gray-500">From: {shipment.source}</span>
+          <span className="text-xs text-gray-500">To: {shipment.destination}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "currentStatus",
+      header: "Status",
+      cell: (shipment) => (
+        <div className="flex flex-col gap-1">
+          {getStatusBadge(shipment.currentStatus)}
+          {shipment.isApproved === true ? (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs w-fit">
+              <ShieldCheck className="h-3 w-3 mr-1" /> Approved
+            </Badge>
+          ) : (
+            <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-xs w-fit">
+              Pending Approval
+            </Badge>
+          )}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "createdAt",
+      header: "Dates",
+      cell: (shipment) => (
+        <div className="text-xs text-slate-600">
+          <div>Created: {formatDate(shipment.createdAt)}</div>
+          {shipment.expectedDeliveryDate && (
+            <div>Exp: {formatDate(shipment.expectedDeliveryDate)}</div>
+          )}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "actions",
+      header: <div className="text-right">Actions</div>,
+      cell: (shipment) => (
+        <div className="flex justify-end space-x-1">
+          {(!shipment.isApproved || ['created', 'packed', 'planned'].includes(shipment.currentStatus?.toLowerCase())) && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              onClick={() => {
+                setSelectedShipment(shipment);
+                setIsApproveDialogOpen(true);
+              }}
+              title="Approve Shipment"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5"
+            onClick={() => handleViewDetails(shipment)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                deleteShipmentMutation.mutate(shipment.id);
+              }
+            }}
+            disabled={deleteShipmentMutation.isPending}
+          >
+            {deleteShipmentMutation.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   // Fetch shipment metrics
   const { data: metrics } = useQuery<ShipmentMetrics>({
     queryKey: ['/logistics/dashboard']
@@ -284,28 +420,6 @@ export default function ShipmentOrders() {
     });
   }, [shipments, searchTerm, activeTab]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "delivered":
-        return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-normal">Delivered</Badge>;
-      case "dispatched":
-        return <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-normal">Dispatched</Badge>;
-      case "in_transit":
-        return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-normal">In Transit</Badge>;
-      case "packed":
-        return <Badge className="bg-orange-50 text-orange-600 border-orange-100 font-normal">Packed</Badge>;
-      default:
-        return <Badge className="bg-slate-50 text-slate-600 border-slate-100 font-normal">{status}</Badge>;
-    }
-  };
-
-  const formatDate = (dateValue: string | Date | null | undefined) => {
-    if (!dateValue) return "N/A";
-    const date = new Date(dateValue);
-    if (isNaN(date.getTime())) return "N/A";
-    return format(date, "dd/MM/yyyy");
-  };
-
   if (isLoading) {
     return (
       <div className="p-4 space-y-3">
@@ -325,8 +439,8 @@ export default function ShipmentOrders() {
     <div className="p-4 space-y-3 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl text-black mb-2">Shipment Orders</h1>
-          <p className="text-gray-500">
+          <h1 className="text-xl text-black">Shipment Orders</h1>
+          <p className="text-gray-500 text-xs">
             Manage and track customer shipment orders
           </p>
         </div>
@@ -337,199 +451,98 @@ export default function ShipmentOrders() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="customer" className="px-6">Customer Shipments</TabsTrigger>
           <TabsTrigger value="vendor" className="px-6">Vendor Shipments</TabsTrigger>
         </TabsList>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <ShoppingCart className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <span className="text-xs  text-emerald-500">+0%</span>
+          <Card className="border-none bg-card/50">
+            <CardContent className="p-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg bg-blue-50">
+                  <ShoppingCart className="h-5 w-5 text-blue-600" />
                 </div>
-                <p className="text-xs text-gray-500 mb-1">Total Orders</p>
-                <p className="text-2xl ">{metrics?.totalShipments || 0}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-orange-50">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <span className="text-xs  text-emerald-500">+0%</span>
+                <span className="text-xs text-emerald-500">+0%</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">Total Orders</p>
+              <p className="text-xl">{metrics?.totalShipments || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none bg-card/50">
+            <CardContent className="p-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg bg-orange-50">
+                  <Clock className="h-5 w-5 text-orange-600" />
                 </div>
-                <p className="text-xs text-gray-500 mb-1">Pending</p>
-                <p className="text-2xl ">{metrics?.pendingShipments || 0}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-indigo-50">
-                    <Package className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <span className="text-xs  text-emerald-500">+0%</span>
+                <span className="text-xs text-emerald-500">+0%</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">Pending</p>
+              <p className="text-xl">{metrics?.pendingShipments || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none bg-card/50">
+            <CardContent className="p-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg bg-indigo-50">
+                  <Package className="h-5 w-5 text-indigo-600" />
                 </div>
-                <p className="text-xs text-gray-500 mb-1">In Processing</p>
-                <p className="text-2xl ">{metrics?.activeShipments || 0}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none  bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-green-50">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <span className="text-xs  text-emerald-500">+0%</span>
+                <span className="text-xs text-emerald-500">+0%</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">In Processing</p>
+              <p className="text-xl">{metrics?.activeShipments || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none bg-card/50">
+            <CardContent className="p-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg bg-green-50">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
-                <p className="text-xs text-gray-500 mb-1">Completed</p>
-                <p className="text-2xl ">{metrics?.deliveredShipments || 0}</p>
-              </CardContent>
-            </Card>
+                <span className="text-xs text-emerald-500">+0%</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">Completed</p>
+              <p className="text-xl">{metrics?.deliveredShipments || 0}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input 
+                placeholder="Search by order number, customer, PO or location..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-muted/30 border-none h-11 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" className="h-11 px-5 border-slate-200">
+                <Filter className="mr-2 h-4 w-4" /> Filters
+              </Button>
+              <Button variant="outline" className="h-11 px-5 border-slate-200">
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input 
-                  placeholder="Search by order number or customer..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-muted/30 border-none h-11 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" className="h-11 px-5 border-slate-200">
-                  <Filter className="mr-2 h-4 w-4" /> Filters
-                </Button>
-                <Button variant="outline" className="h-11 px-5 border-slate-200">
-                  <Download className="mr-2 h-4 w-4" /> Export
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-              <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow className="hover:bg-transparent border-slate-200">
-                    <TableHead className="w-[180px] py-4  text-slate-700">Order #</TableHead>
-                    <TableHead className="py-4  text-slate-700">PO Number</TableHead>
-                    <TableHead className="py-4  text-slate-700">Client/Vendor</TableHead>
-                    <TableHead className="py-4  text-slate-700">Route</TableHead>
-                    <TableHead className="py-4  text-slate-700">Status</TableHead>
-                    <TableHead className="py-4  text-slate-700">Dates</TableHead>
-                    <TableHead className="text-right py-4  text-slate-700">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredShipments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-gray-500 italic">
-                        No shipment orders found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredShipments.map((shipment) => (
-                      <TableRow key={shipment.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                        <TableCell className=" text-primary py-4">
-                          {shipment.consignmentNumber}
-                        </TableCell>
-                        <TableCell className="py-4  text-slate-700">
-                          {shipment.poNumber || "N/A"}
-                        </TableCell>
-                        <TableCell className="py-4  text-slate-700">
-                          {getVendorName(shipment)}
-                        </TableCell>
-                        <TableCell className="py-4 text-slate-500">
-                          <div className="flex flex-col">
-                            <span className="text-xs text-gray-500">From: {shipment.source}</span>
-                            <span className="text-xs text-gray-500">To: {shipment.destination}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-1">
-                            {getStatusBadge(shipment.currentStatus)}
-                            {shipment.isApproved === true ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] w-fit">
-                                <ShieldCheck className="h-3 w-3 mr-1" /> Approved
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-[10px] w-fit">
-                                Pending Approval
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-4 text-slate-600 text-xs">
-                          <div>Created: {formatDate(shipment.createdAt)}</div>
-                          {shipment.expectedDeliveryDate && (
-                            <div>Exp: {formatDate(shipment.expectedDeliveryDate)}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right py-4">
-                          <div className="flex justify-end space-x-1">
-                            {(!shipment.isApproved || ['created', 'packed', 'planned'].includes(shipment.currentStatus?.toLowerCase())) && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                onClick={() => {
-                                  setSelectedShipment(shipment);
-                                  setIsApproveDialogOpen(true);
-                                }}
-                                title="Approve Shipment"
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5"
-                              onClick={() => handleViewDetails(shipment)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
-                              onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this shipment order?")) {
-                                  deleteShipmentMutation.mutate(shipment.id);
-                                }
-                              }}
-                              disabled={deleteShipmentMutation.isPending}
-                            >
-                              {deleteShipmentMutation.isPending ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          <DataTable
+            data={filteredShipments}
+            columns={columns}
+            searchable={false}
+            isLoading={isLoading}
+          />
         </div>
-      </div>
-    </Tabs>
+      </Tabs>
 
       {/* View Shipment Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl  flex items-center space-x-2">
+            <DialogTitle className="text-xl flex items-center space-x-2">
               <Package className="h-6 w-6 text-primary" />
               <span>Shipment Details: {selectedShipment?.consignmentNumber}</span>
             </DialogTitle>
@@ -542,8 +555,8 @@ export default function ShipmentOrders() {
             <div className="space-y-3 py-4">
               <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div className="space-y-1">
-                  <p className="text-xs  text-slate-400 ">Vendor / Client</p>
-                  <p className=" text-slate-700 leading-tight">
+                  <p className="text-xs text-slate-400">Vendor / Client</p>
+                  <p className="text-slate-700 leading-tight">
                     {selectedShipment.vendorName || 
                      selectedShipment.supplier?.name || 
                      selectedShipment.vendor?.name || 
@@ -558,22 +571,22 @@ export default function ShipmentOrders() {
                   )}
                   {selectedShipment.poNumber && (
                     <div className="mt-2">
-                      <p className="text-xs  text-slate-400 ">PO Number</p>
-                      <p className=" text-indigo-600">{selectedShipment.poNumber}</p>
+                      <p className="text-xs text-slate-400">PO Number</p>
+                      <p className="text-indigo-600">{selectedShipment.poNumber}</p>
                     </div>
                   )}
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs  text-slate-400 ">Status</p>
+                  <p className="text-xs text-slate-400">Status</p>
                   <div>{getStatusBadge(selectedShipment.currentStatus)}</div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs  text-slate-400 ">Route</p>
+                  <p className="text-xs text-slate-400">Route</p>
                   <p className="text-slate-600">From: {selectedShipment.source}</p>
                   <p className="text-slate-600">To: {selectedShipment.destination}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs  text-slate-400 ">Dates</p>
+                  <p className="text-xs text-slate-400">Dates</p>
                   <p className="text-slate-600 text-sm">Created: {formatDate(selectedShipment.createdAt)}</p>
                   {selectedShipment.expectedDeliveryDate && (
                     <p className="text-slate-600 text-sm">Expected: {formatDate(selectedShipment.expectedDeliveryDate)}</p>
@@ -582,7 +595,7 @@ export default function ShipmentOrders() {
               </div>
 
               <div className="space-y-4">
-                <h3 className=" text-slate-800 flex items-center border-b border-slate-100 pb-2">
+                <h3 className="text-slate-800 flex items-center border-b border-slate-100 pb-2">
                   <ShoppingCart className="mr-2 h-4 w-4 text-primary" />
                   SHIPMENT ITEMS
                 </h3>
@@ -593,8 +606,8 @@ export default function ShipmentOrders() {
                       <TableRow>
                         <TableHead className="">Material Name</TableHead>
                         <TableHead className="">Type/Description</TableHead>
-                        <TableHead className=" text-center">Qty</TableHead>
-                        <TableHead className=" text-center">Unit</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-center">Unit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -619,7 +632,7 @@ export default function ShipmentOrders() {
                               <TableCell className="text-slate-600">
                                 {item.type || item.description || "N/A"}
                               </TableCell>
-                              <TableCell className="text-center ">
+                              <TableCell className="text-center">
                                 {item.qty || item.quantity || 0}
                               </TableCell>
                               <TableCell className="text-center text-slate-500">
@@ -644,7 +657,7 @@ export default function ShipmentOrders() {
 
               {(selectedShipment as any).notes && (
                 <div className="space-y-2">
-                  <p className="text-xs  text-slate-400 ">Notes</p>
+                  <p className="text-xs text-slate-400">Notes</p>
                   <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-lg text-slate-700 text-sm italic">
                     {(selectedShipment as any).notes}
                   </div>
@@ -675,7 +688,7 @@ export default function ShipmentOrders() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <p className="text-sm  text-slate-700">Shipment: <span className=" text-primary">{selectedShipment?.consignmentNumber}</span></p>
+              <p className="text-sm text-slate-700">Shipment: <span className="text-primary">{selectedShipment?.consignmentNumber}</span></p>
               <p className="text-xs text-slate-500">PO: {selectedShipment?.poNumber || "N/A"}</p>
             </div>
             <div className="space-y-2">
@@ -720,7 +733,7 @@ export default function ShipmentOrders() {
       <Dialog open={isPlanningDialogOpen} onOpenChange={setIsPlanningDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl  flex items-center space-x-2">
+            <DialogTitle className="text-xl flex items-center space-x-2">
               <Calendar className="h-6 w-6 text-indigo-600" />
               <span>Shipment Planning: {selectedShipment?.consignmentNumber}</span>
             </DialogTitle>
@@ -778,7 +791,7 @@ export default function ShipmentOrders() {
             </div>
 
             <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <h4 className=" text-sm flex items-center">
+              <h4 className="text-sm flex items-center">
                 {shipmentPlan.shipmentType === "Sea" && <Ship className="mr-2 h-4 w-4 text-blue-600" />}
                 {shipmentPlan.shipmentType === "Air" && <Plane className="mr-2 h-4 w-4 text-orange-600" />}
                 {shipmentPlan.shipmentType === "Road" && <Truck className="mr-2 h-4 w-4 text-emerald-600" />}
@@ -825,7 +838,7 @@ export default function ShipmentOrders() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Loading Port</Label>
+                      <Label className="text-xs text-slate-400">Loading Port</Label>
                       <Input 
                         placeholder="Port of Loading" 
                         value={shipmentPlan.portOfLoading || ""} 
@@ -833,7 +846,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Destination Port</Label>
+                      <Label className="text-xs text-slate-400">Destination Port</Label>
                       <Input 
                         placeholder="Port of Destination" 
                         value={shipmentPlan.portOfDestination || ""} 
@@ -843,7 +856,7 @@ export default function ShipmentOrders() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Departure Date</Label>
+                      <Label className="text-xs text-slate-400">Departure Date</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.departureDate ? new Date(shipmentPlan.departureDate).toISOString().split('T')[0] : ""} 
@@ -851,7 +864,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">ETA Arrival</Label>
+                      <Label className="text-xs text-slate-400">ETA Arrival</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.etaArrival ? new Date(shipmentPlan.etaArrival).toISOString().split('T')[0] : ""} 
@@ -883,7 +896,7 @@ export default function ShipmentOrders() {
                   />
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Departure Airport</Label>
+                      <Label className="text-xs text-slate-400">Departure Airport</Label>
                       <Input 
                         placeholder="Departure" 
                         value={shipmentPlan.departureAirport || ""} 
@@ -891,7 +904,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Arrival Airport</Label>
+                      <Label className="text-xs text-slate-400">Arrival Airport</Label>
                       <Input 
                         placeholder="Arrival" 
                         value={shipmentPlan.arrivalAirport || ""} 
@@ -901,7 +914,7 @@ export default function ShipmentOrders() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Flight Departure</Label>
+                      <Label className="text-xs text-slate-400">Flight Departure</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.flightDeparture ? new Date(shipmentPlan.flightDeparture).toISOString().split('T')[0] : ""} 
@@ -909,7 +922,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">ETA Arrival</Label>
+                      <Label className="text-xs text-slate-400">ETA Arrival</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.etaArrivalAir ? new Date(shipmentPlan.etaArrivalAir).toISOString().split('T')[0] : ""} 
@@ -948,7 +961,7 @@ export default function ShipmentOrders() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Pickup Location</Label>
+                      <Label className="text-xs text-slate-400">Pickup Location</Label>
                       <Input 
                         placeholder="Pickup" 
                         value={shipmentPlan.pickupLocation || ""} 
@@ -956,7 +969,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Delivery Location</Label>
+                      <Label className="text-xs text-slate-400">Delivery Location</Label>
                       <Input 
                         placeholder="Delivery" 
                         value={shipmentPlan.deliveryLocation || ""} 
@@ -966,7 +979,7 @@ export default function ShipmentOrders() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Dispatch Date</Label>
+                      <Label className="text-xs text-slate-400">Dispatch Date</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.dispatchDateRoad ? new Date(shipmentPlan.dispatchDateRoad).toISOString().split('T')[0] : ""} 
@@ -974,7 +987,7 @@ export default function ShipmentOrders() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]   text-slate-400">Delivery Date</Label>
+                      <Label className="text-xs text-slate-400">Delivery Date</Label>
                       <Input 
                         type="date"
                         value={shipmentPlan.deliveryDateRoad ? new Date(shipmentPlan.deliveryDateRoad).toISOString().split('T')[0] : ""} 
@@ -987,7 +1000,7 @@ export default function ShipmentOrders() {
 
               {/* Custom Clearance Section */}
               <div className="pt-4 border-t border-slate-200 mt-4 space-y-3">
-                <h4 className=" text-sm flex items-center text-indigo-600">
+                <h4 className="text-sm flex items-center text-indigo-600">
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Custom Clearance
                 </h4>
@@ -1005,7 +1018,7 @@ export default function ShipmentOrders() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[10px]   text-slate-400">Import Duty (₹)</Label>
+                    <Label className="text-xs text-slate-400">Import Duty (₹)</Label>
                     <Input 
                       type="number"
                       placeholder="Duty Amount" 
@@ -1014,7 +1027,7 @@ export default function ShipmentOrders() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px]   text-slate-400">GST Paid (₹)</Label>
+                    <Label className="text-xs text-slate-400">GST Paid (₹)</Label>
                     <Input 
                       type="number"
                       placeholder="GST Amount" 
@@ -1025,7 +1038,7 @@ export default function ShipmentOrders() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[10px]   text-slate-400">Custom Status</Label>
+                    <Label className="text-xs text-slate-400">Custom Status</Label>
                     <Select 
                       value={shipmentPlan.customStatus || "Pending"} 
                       onValueChange={(v) => setShipmentPlan({...shipmentPlan, customStatus: v})}
@@ -1040,7 +1053,7 @@ export default function ShipmentOrders() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px]   text-slate-400">Clearance Date</Label>
+                    <Label className="text-xs text-slate-400">Clearance Date</Label>
                     <Input 
                       type="date"
                       value={shipmentPlan.clearanceDate ? new Date(shipmentPlan.clearanceDate).toISOString().split('T')[0] : ""} 
