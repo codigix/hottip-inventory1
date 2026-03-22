@@ -1,17 +1,15 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Plus,
+  Search,
   Download,
   ClipboardList,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
 } from "lucide-react";
-import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -21,40 +19,48 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { apiRequest } from "@/lib/queryClient";
-import { DataTable, Column } from "@/components/ui/data-table";
+import LeadTable from "@/components/marketing/LeadTable";
 import LeadForm from "@/components/marketing/LeadForm";
-import { StatusBadge, PriorityBadge } from "@/components/marketing/StatusBadge";
 import type {
   LeadWithAssignee,
   LeadStatus,
   LeadPriority,
   User,
+  Customer,
 } from "@/types";
 
 export default function LeadReceived() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<LeadWithAssignee | null>(null);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("converted");
+  const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<LeadPriority | "all">("all");
+  const [, setLocation] = useLocation();
 
-  // Fetch leads data (filtering handled by DataTable or server-side if needed)
-  // For now, let's keep server-side status/priority filters as they are part of the workflow
+  // Fetch customers to link leads to customers for quotations
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["/customers"],
+  });
+
+  // Build query parameters for server-side filtering
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
     if (statusFilter !== "all") params.set("status", statusFilter);
     if (priorityFilter !== "all") params.set("priority", priorityFilter);
+    if (searchQuery.trim()) params.set("search", searchQuery.trim());
     return params.toString();
-  }, [statusFilter, priorityFilter]);
+  }, [statusFilter, priorityFilter, searchQuery]);
 
+  // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
     queryKey: [
       "/marketing/leads",
       {
         status: statusFilter,
         priority: priorityFilter,
+        search: searchQuery.trim(),
       },
     ],
     queryFn: () => {
@@ -79,196 +85,131 @@ export default function LeadReceived() {
     console.log("View lead:", lead);
   };
 
+  const handleAddQuotation = (lead: LeadWithAssignee) => {
+    // Find matching customer by company name or email
+    const customer = customers.find(
+      (c) =>
+        (lead.companyName && c.company === lead.companyName) ||
+        (lead.email && c.email === lead.email)
+    );
+
+    if (customer) {
+      setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+    } else {
+      // If no customer found, just go to the new quotation page
+      setLocation("/sales/outbound-quotations/new");
+    }
+  };
+
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingLead(null);
   };
 
-  const columns: Column<LeadWithAssignee>[] = [
-    {
-      key: "firstName",
-      header: "Lead",
-      sortable: true,
-      cell: (lead) => (
-        <div className="space-y-1">
-          <div className=" text-slate-800">
-            {lead.firstName} {lead.lastName}
-          </div>
-          {lead.companyName && (
-            <div className="text-xs text-slate-500">
-              {lead.companyName}
-            </div>
-          )}
-          <div className="text-xs text-slate-400">
-            Created {lead.createdAt ? format(new Date(lead.createdAt), "dd MMM, yyyy") : "-"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "email",
-      header: "Contact",
-      sortable: true,
-      cell: (lead) => (
-        <div className="space-y-1">
-          {lead.email && (
-            <div className="flex items-center text-xs text-slate-600">
-              <Mail className="h-3 w-3 mr-1.5 text-slate-400" />
-              {lead.email}
-            </div>
-          )}
-          {lead.phone && (
-            <div className="flex items-center text-xs text-slate-600">
-              <Phone className="h-3 w-3 mr-1.5 text-slate-400" />
-              {lead.phone}
-            </div>
-          )}
-          {lead.city && (
-            <div className="flex items-center text-xs text-slate-400">
-              <MapPin className="h-3 w-3 mr-1.5" />
-              {lead.city}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      sortable: true,
-      cell: (lead) => <StatusBadge status={lead.status} className="text-xs py-0 h-5" />,
-    },
-    {
-      key: "priority",
-      header: "Priority",
-      sortable: true,
-      cell: (lead) => <PriorityBadge priority={lead.priority} className="text-xs py-0 h-5" />,
-    },
-    {
-      key: "estimatedBudget",
-      header: "Budget",
-      sortable: true,
-      cell: (lead) => lead.estimatedBudget ? (
-        <span className="text-xs font-medium text-slate-700">
-          ₹{parseFloat(lead.estimatedBudget).toLocaleString("en-IN")}
-        </span>
-      ) : "-",
-    },
-    {
-      key: "assignee",
-      header: "Assigned To",
-      cell: (lead) => (
-        <div className="flex items-center space-x-2">
-          <Avatar className="h-6 w-6 border border-slate-200">
-            <AvatarFallback className="text-xs bg-slate-100 text-slate-600">
-              {lead.assignee?.firstName?.[0] || ""}{lead.assignee?.lastName?.[0] || ""}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-slate-600">
-            {lead.assignee ? `${lead.assignee.firstName} ${lead.assignee.lastName}` : "Unassigned"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "lastContactedDate",
-      header: "Last Contact",
-      sortable: true,
-      cell: (lead) => lead.lastContactedDate ? (
-        <div className="flex items-center text-xs text-slate-500">
-          <Calendar className="h-3 w-3 mr-1.5" />
-          {format(new Date(lead.lastContactedDate), "MMM dd")}
-        </div>
-      ) : "-",
-    },
-  ];
-
   return (
-    <div className="p-2 space-y-3 bg-slate-50/50 min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 p-6 bg-slate-50/30 min-h-full">
+      {/* Header - Clean and Professional */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl  text-slate-900 tracking-tight">Leads Received</h1>
-          <p className="text-slate-500 text-sm">Lead received, quotation and invoice management</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Lead Requests & Analysis
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage incoming lead requests through the analysis workflow
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-white border-slate-200 text-slate-600 "
-          >
+        <div className="flex items-center space-x-3">
+          <Button variant="outline" size="sm">
             <Download className="mr-2 h-4 w-4" />
-            Export
+            Export Data
           </Button>
-          <Button 
-            onClick={handleAddLead} 
-            size="sm" 
-            className="bg-primary hover:bg-primary text-white  transition-all duration-200"
-          >
+          <Button onClick={handleAddLead} size="sm">
             <Plus className="mr-2 h-4 w-4" />
-            Manual Entry
+            Manual Lead Entry
           </Button>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="">
-        <div className="p-2">
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center space-x-3">
-              <span className="text-xs   text-slate-400">Workflow:</span>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as LeadStatus | "all")}
-              >
-                <SelectTrigger className="w-[180px] h-9 text-xs bg-slate-50/50">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="converted">Lead Received</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="analysis">Under Analysis</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Filter Toolbar - Compact and Professional */}
+      <Card className="border-none shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search requests by name or company..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-background border-slate-200"
+              />
             </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Workflow:</span>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as LeadStatus | "all")}
+                >
+                  <SelectTrigger className="w-[160px] h-9 text-sm">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="converted">1. Lead Received</SelectItem>
+                    <SelectItem value="contacted">2. Contacted</SelectItem>
+                    <SelectItem value="analysis">3. Under Analysis</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex items-center space-x-3">
-              <span className="text-xs   text-slate-400">Priority:</span>
-              <Select
-                value={priorityFilter}
-                onValueChange={(value) => setPriorityFilter(value as LeadPriority | "all")}
-              >
-                <SelectTrigger className="w-[140px] h-9 text-xs bg-slate-50/50">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Priority:</span>
+                <Select
+                  value={priorityFilter}
+                  onValueChange={(value) => setPriorityFilter(value as LeadPriority | "all")}
+                >
+                  <SelectTrigger className="w-[130px] h-9 text-sm">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Main Table Container */}
-      <div className=" overflow-hidden">
-        <div className="p-0">
-          <DataTable
-            data={leads}
-            columns={columns}
+      {/* Main Request List */}
+      <Card className="border-none shadow-sm">
+        <CardHeader className="border-b bg-muted/10 py-4 px-6">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center">
+              <ClipboardList className="h-4 w-4 mr-2 text-primary" />
+              Incoming Requests ({leads.length})
+            </CardTitle>
+            <Badge variant="outline" className="font-bold text-[10px] bg-white uppercase tracking-tighter border-slate-800">
+              Viewing: {statusFilter === "converted" ? "Lead Received" : statusFilter.replace("_", " ")}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <LeadTable
+            leads={leads}
             isLoading={isLoading}
             onEdit={handleEditLead}
             onView={handleViewLead}
-            searchable={true}
-            searchKey="firstName"
-            searchPlaceholder="Search leads by name..."
+            onAddQuotation={handleAddQuotation}
+            isSalesMode={true}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <LeadForm
         open={isFormOpen}

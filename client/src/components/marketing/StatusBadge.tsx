@@ -20,7 +20,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     contacted: 'Contacted',
     analysis: 'Analysis',
     in_progress: 'In Progress',
-    converted: 'Converted',
+    converted: 'Confirmed for Sales',
     dropped: 'Dropped'
   };
 

@@ -11,6 +11,7 @@ import {
   MapPin,
   Calendar,
   User,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -55,11 +56,15 @@ export default function LeadTable({
   isLoading = false,
   onEdit,
   onView,
+  isSalesMode = false,
+  onAddQuotation,
 }: {
   leads?: LeadWithAssignee[];
   isLoading?: boolean;
   onEdit: (lead: LeadWithAssignee) => void;
   onView: (lead: LeadWithAssignee) => void;
+  isSalesMode?: boolean;
+  onAddQuotation?: (lead: LeadWithAssignee) => void;
 }) {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
@@ -95,7 +100,7 @@ export default function LeadTable({
       toast({
         title:
           variables.status === "converted"
-            ? "Lead converted successfully!"
+            ? "Lead confirmed for sales successfully!"
             : "Lead status updated successfully!",
       });
       setStatusChangeLeadId(null);
@@ -111,7 +116,7 @@ export default function LeadTable({
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
-        title: "Lead converted and handed over to Sales!",
+        title: "Lead confirmed for Sales and handed over!",
       });
     },
   });
@@ -304,12 +309,194 @@ export default function LeadTable({
 
   return (
     <>
-      <DataTable
-        data={leads}
-        columns={columns}
-        isLoading={isLoading}
-        searchable={false}
-      />
+      <div className="border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[250px]">Lead</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead data-tour="marketing-lead-status-workflow">Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Budget</TableHead>
+              <TableHead>Assigned To</TableHead>
+              <TableHead>Last Contact</TableHead>
+              <TableHead className="text-right" data-tour="marketing-lead-actions">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leads.map((lead) => (
+              <TableRow key={lead.id}>
+                {/* ✅ Lead Info */}
+                <TableCell>
+                  <div className="space-y-1">
+                    <div className="font-light text-foreground">
+                      {lead.firstName} {lead.lastName}
+                    </div>
+                    {lead.companyName && (
+                      <div className="text-sm text-gray-500">
+                        {lead.companyName}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      Created{" "}
+                      {lead.createdAt
+                        ? format(new Date(lead.createdAt), "MM dd, yyyy")
+                        : "Unknown"}
+                    </div>
+                  </div>
+                </TableCell>
+
+                {/* ✅ Contact */}
+                <TableCell>
+                  <div className="space-y-1">
+                    {lead.email && (
+                      <div className="flex items-center text-sm">
+                        <Mail className="h-3 w-3 mr-1 text-gray-500" />
+                        {lead.email}
+                      </div>
+                    )}
+                    {lead.phone && (
+                      <div className="flex items-center text-sm">
+                        <Phone className="h-3 w-3 mr-1 text-gray-500" />
+                        {lead.phone}
+                      </div>
+                    )}
+                    {lead.city && (
+                      <div className="flex items-center text-xs text-gray-500">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {lead.city}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* ✅ Source */}
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {lead.source?.replace("_", " ").toUpperCase()}
+                  </Badge>
+                </TableCell>
+
+                {/* ✅ Status */}
+                <TableCell>
+                  <StatusBadge status={lead.status} />
+                </TableCell>
+
+                {/* ✅ Priority */}
+                <TableCell>
+                  <PriorityBadge priority={lead.priority} />
+                </TableCell>
+
+                {/* ✅ Budget */}
+                <TableCell>
+                  {lead.estimatedBudget && (
+                    <div className="text-sm">
+                      {formatCurrency(lead.estimatedBudget)}
+                    </div>
+                  )}
+                </TableCell>
+
+                {/* ✅ Assignee */}
+                <TableCell>
+                  {(lead as any).assignedToUser && ((lead as any).assignedToUser.firstName || (lead as any).assignedToUser.lastName) ? (
+                    <div className="flex items-center space-x-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">
+                          {((lead as any).assignedToUser.firstName?.[0] || "") + ((lead as any).assignedToUser.lastName?.[0] || "") || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">
+                        {(lead as any).assignedToUser.firstName} {(lead as any).assignedToUser.lastName}
+                      </span>
+                    </div>
+                  ) : lead.assignee ? (
+                    <div className="flex items-center space-x-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">
+                          {lead.assignee.firstName?.[0] || ""}{lead.assignee.lastName?.[0] || ""}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">
+                        {lead.assignee.firstName} {lead.assignee.lastName}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-500 italic">
+                      {lead.assignedTo ? `User (${lead.assignedTo.slice(0, 8)})` : "Unassigned"}
+                    </span>
+                  )}
+                </TableCell>
+
+                {/* ✅ Last Contact */}
+                <TableCell>
+                  {lead.lastContactedDate ? (
+                    <div className="flex items-center text-sm">
+                      <Calendar className="h-3 w-3 mr-1 text-gray-500" />
+                      {format(new Date(lead.lastContactedDate), "MMM dd")}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-500">Never</span>
+                  )}
+                </TableCell>
+
+                {/* ✅ Actions */}
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      {isSalesMode ? (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => onAddQuotation?.(lead)}
+                            className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
+                          >
+                            <FileText className="mr-2 h-4 w-4" /> Create Quotation
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem onClick={() => setViewingLead(lead)}>
+                            <Eye className="mr-2 h-4 w-4" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onEdit(lead)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {getAvailableStatuses(lead.status).map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={() => {
+                                setStatusChangeLeadId(lead.id);
+                                setNewStatus(status);
+                              }}
+                            >
+                              <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
+                              {status.replace("_", " ")}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteLeadId(lead.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* ✅ Delete Confirmation */}
       <AlertDialog
@@ -343,14 +530,14 @@ export default function LeadTable({
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
               {newStatus === "converted"
-                ? "Converting this lead will create a Sales customer record."
+                ? "Confirming this lead for sales will create a Sales customer record."
                 : `Are you sure you want to mark as "${newStatus}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusChange}>
-              Confirm
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
+              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

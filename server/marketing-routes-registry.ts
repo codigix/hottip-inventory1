@@ -449,9 +449,9 @@ export const convertLead = async (
       action: "CONVERT_LEAD",
       entityType: "customer",
       entityId: customer.id,
-      details: `Converted lead to customer: ${customer.name}`,
+      details: `Confirmed lead for Sales: ${customer.name}`,
     });
-    res.json({ customer, message: "Lead successfully converted to customer" });
+    res.json({ customer, message: "Lead successfully confirmed for Sales" });
   } catch (error) {
     if (error instanceof z.ZodError) {
       res
