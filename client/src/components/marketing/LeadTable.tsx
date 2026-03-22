@@ -11,6 +11,7 @@ import {
   MapPin,
   Calendar,
   User,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -63,11 +64,15 @@ export default function LeadTable({
   isLoading = false,
   onEdit,
   onView,
+  isSalesMode = false,
+  onAddQuotation,
 }: {
   leads?: LeadWithAssignee[];
   isLoading?: boolean;
   onEdit: (lead: LeadWithAssignee) => void;
   onView: (lead: LeadWithAssignee) => void;
+  isSalesMode?: boolean;
+  onAddQuotation?: (lead: LeadWithAssignee) => void;
 }) {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
@@ -103,7 +108,7 @@ export default function LeadTable({
       toast({
         title:
           variables.status === "converted"
-            ? "Lead converted successfully!"
+            ? "Lead confirmed for sales successfully!"
             : "Lead status updated successfully!",
       });
       setStatusChangeLeadId(null);
@@ -119,7 +124,7 @@ export default function LeadTable({
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
-        title: "Lead converted and handed over to Sales!",
+        title: "Lead confirmed for Sales and handed over!",
       });
     },
   });
@@ -328,32 +333,45 @@ export default function LeadTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setViewingLead(lead)}>
-                        <Eye className="mr-2 h-4 w-4" /> View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit(lead)}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {getAvailableStatuses(lead.status).map((status) => (
-                        <DropdownMenuItem
-                          key={status}
-                          onClick={() => {
-                            setStatusChangeLeadId(lead.id);
-                            setNewStatus(status);
-                          }}
-                        >
-                          <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
-                          {status.replace("_", " ")}
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setDeleteLeadId(lead.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
+                      {isSalesMode ? (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => onAddQuotation?.(lead)}
+                            className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
+                          >
+                            <FileText className="mr-2 h-4 w-4" /> Create Quotation
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem onClick={() => setViewingLead(lead)}>
+                            <Eye className="mr-2 h-4 w-4" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onEdit(lead)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {getAvailableStatuses(lead.status).map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={() => {
+                                setStatusChangeLeadId(lead.id);
+                                setNewStatus(status);
+                              }}
+                            >
+                              <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
+                              {status.replace("_", " ")}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteLeadId(lead.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -395,14 +413,14 @@ export default function LeadTable({
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
               {newStatus === "converted"
-                ? "Converting this lead will create a Sales customer record."
+                ? "Confirming this lead for sales will create a Sales customer record."
                 : `Are you sure you want to mark as "${newStatus}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
-              {newStatus === "converted" ? "Convert Lead" : "Update Status"}
+              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1940,6 +1940,18 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
         `Field visit with ID '${id}' not found for status update.`
       );
     }
+
+    // Automatically convert lead to customer when a visit is marked as completed
+    if (status.toLowerCase() === "completed" && row.leadId) {
+      try {
+        await this.convertLeadToCustomer(row.leadId);
+      } catch (error) {
+        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
+        // Fallback to just updating status if conversion fails (e.g. already converted)
+        await this.updateLead(row.leadId, { status: "converted" });
+      }
+    }
+
     return row;
   }
 
@@ -1970,6 +1982,18 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     if (!row) {
       throw new Error(`Field visit with ID '${id}' not found for check-out.`);
     }
+
+    // Automatically convert lead to customer when a visit is completed
+    if (row.leadId) {
+      try {
+        await this.convertLeadToCustomer(row.leadId);
+      } catch (error) {
+        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
+        // Fallback to just updating status if conversion fails (e.g. already converted)
+        await this.updateLead(row.leadId, { status: "converted" });
+      }
+    }
+
     return row;
   }
 

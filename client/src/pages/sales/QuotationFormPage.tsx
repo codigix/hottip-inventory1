@@ -151,6 +151,27 @@ export default function QuotationFormPage() {
   });
 
   useEffect(() => {
+    // Check for customerId in URL search params
+    const searchParams = new URLSearchParams(window.location.search);
+    const customerIdParam = searchParams.get("customerId");
+    
+    if (customerIdParam && !isEdit && customers.length > 0) {
+      const customer = customers.find(c => c.id === customerIdParam);
+      if (customer) {
+        form.setValue("customerId", customer.id);
+        form.setValue("companyName", customer.company || customer.name);
+        form.setValue("companyAddress", customer.address || "");
+        form.setValue("companyEmail", customer.email || "");
+        form.setValue("companyPhone", customer.phone || "");
+        // Also update the gst number if available in customer record
+        if (customer.gstNumber) {
+          form.setValue("companyGstin", customer.gstNumber);
+        }
+      }
+    }
+  }, [isEdit, customers, form]);
+
+  useEffect(() => {
     if (!isEdit && !form.getValues("quotationNumber")) {
       const timestamp = Date.now().toString().slice(-6);
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");

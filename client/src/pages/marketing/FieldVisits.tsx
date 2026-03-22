@@ -104,14 +104,15 @@ export default function FieldVisits() {
   const displayMetrics = {
     todayVisits: safeVisits.filter(v => v.date === new Date().toISOString().split("T")[0]).length,
     completionRate: safeVisits.length
-      ? (safeVisits.filter(v => v.status === "completed").length / safeVisits.length) * 100
+      ? (safeVisits.filter(v => v.status?.toLowerCase() === "completed").length / safeVisits.length) * 100
       : 0,
   };
 
   /** ===== Computed Values ===== **/
   const filteredVisits = useMemo(() => {
     return safeVisits.filter((v) => {
-      const matchesStatus = statusFilter === "all" || v.status === statusFilter;
+      const normalizedStatus = v.status?.toLowerCase().replace(" ", "_");
+      const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
       const matchesAssignee = assigneeFilter === "all" || v.assignedTo === assigneeFilter;
       const matchesSearch = !searchTerm || v.visitNumber?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStatus && matchesAssignee && matchesSearch;
@@ -121,7 +122,8 @@ export default function FieldVisits() {
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 };
     safeVisits.forEach((v) => {
-      if (v.status in counts) counts[v.status]++;
+      const normalizedStatus = v.status?.toLowerCase().replace(" ", "_");
+      if (normalizedStatus in counts) counts[normalizedStatus]++;
     });
     return { all: safeVisits.length, ...counts };
   }, [safeVisits]);

@@ -23,7 +23,6 @@ const visitFormSchema = z.object({
   leadId: z.string().min(1, "Lead is required"),
   plannedDate: z.date({ required_error: "Visit date is required" }),
   plannedStartTime: z.string().optional(),
-  plannedEndTime: z.string().optional(),
   assignedTo: z.string().optional(),
   visitAddress: z.string().min(1, "Visit address is required"),
   visitCity: z.string().optional(),
@@ -98,8 +97,6 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         plannedDate: visit.plannedDate ? new Date(visit.plannedDate) : new Date(),
         plannedStartTime: visit.plannedStartTime ? 
           format(new Date(visit.plannedStartTime), 'HH:mm') : '',
-        plannedEndTime: visit.plannedEndTime ? 
-          format(new Date(visit.plannedEndTime), 'HH:mm') : '',
         assignedTo: visit.assignedTo,
         visitAddress: visit.visitAddress,
         visitCity: visit.visitCity || '',
@@ -151,9 +148,6 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
       plannedDate: data.plannedDate,
       plannedStartTime: data.plannedStartTime ? 
         new Date(`${format(data.plannedDate, 'yyyy-MM-dd')}T${data.plannedStartTime}`) : 
-        undefined,
-      plannedEndTime: data.plannedEndTime ? 
-        new Date(`${format(data.plannedDate, 'yyyy-MM-dd')}T${data.plannedEndTime}`) : 
         undefined,
       assignedTo: data.assignedTo,
       visitAddress: data.visitAddress,
@@ -264,7 +258,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="plannedDate"
@@ -317,13 +311,13 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                   <FormItem>
                     <FormLabel className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
-                      <span>Start Time</span>
+                      <span>Scheduled Time</span>
                     </FormLabel>
                     <FormControl>
                       <Input 
                         type="time" 
                         {...field}
-                        data-testid="input-start-time"
+                        data-testid="input-scheduled-time"
                       />
                     </FormControl>
                     <FormMessage />
@@ -331,26 +325,6 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="plannedEndTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4" />
-                      <span>End Time</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field}
-                        data-testid="input-end-time"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             <FormField
