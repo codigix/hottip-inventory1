@@ -1,13 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OutboundQuotations from "./OutboundQuotations";
 import InboundQuotations from "./InboundQuotations";
 import { FileUp, FileDown, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function QuotationsPage() {
-  const [activeTab, setActiveTab] = useState("sent");
+  const [location, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState(location.includes("inbound") ? "received" : "sent");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [preFillNumber, setPreFillNumber] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (location.includes("inbound-quotations")) {
+      setActiveTab("received");
+    } else if (location.includes("outbound-quotations") || location.endsWith("/quotations")) {
+      setActiveTab("sent");
+    }
+
+    // Check for quotationNumber in URL
+    const queryParams = new URLSearchParams(window.location.search);
+    const qNum = queryParams.get("quotationNumber");
+    
+    if (qNum) {
+      console.log("🎯 [QUOTATIONS PAGE] Detected quotationNumber in URL:", qNum);
+      
+      // Clear the query parameter FIRST to avoid re-triggering this effect
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete("quotationNumber");
+      const newSearch = searchParams.toString();
+      const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+      
+      // Use replace: true and do NOT update state until AFTER location change if possible
+      // or do them together
+      setPreFillNumber(qNum);
+      setActiveTab("received");
+      setIsUploadModalOpen(true);
+      setLocation(newPath, { replace: true });
+    }
+  }, [location]); // Removed setLocation from dependencies as it's stable and can cause loops in some routers
+
+  const handleModalClose = (open: boolean) => {
+    setIsUploadModalOpen(open);
+    if (!open) {
+      setPreFillNumber(null);
+    }
+  };
 
   return (
     <div className="p-4 space-y-2 bg-slate-50 min-h-screen">
@@ -28,10 +67,7 @@ export default function QuotationsPage() {
               </Button>
             </Link>
           ) : (
-            <Button className="bg-primary hover:bg-primary text-white border-none " onClick={() => {
-              const uploadBtn = document.querySelector('[data-testid="button-upload-inbound-quotation"]') as HTMLButtonElement;
-              if (uploadBtn) uploadBtn.click();
-            }}>
+            <Button className="bg-primary hover:bg-primary text-white border-none " onClick={() => setIsUploadModalOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Upload Received Quotation
             </Button>
@@ -63,7 +99,12 @@ export default function QuotationsPage() {
           </TabsContent>
 
           <TabsContent value="received" className="border-none p-0 outline-none animate-in fade-in-50 duration-300">
-            <InboundQuotations isEmbedded={true} />
+            <InboundQuotations 
+              isEmbedded={true} 
+              defaultOpen={isUploadModalOpen} 
+              onOpenChange={handleModalClose}
+              preFillNumber={preFillNumber}
+            />
           </TabsContent>
         </div>
       </Tabs>

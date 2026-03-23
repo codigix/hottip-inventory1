@@ -70,7 +70,19 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     OutboundQuotation[]
   >([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+
+  const setActionLoading = (id: string | number, action: string, loading: boolean) => {
+    setLoadingActions(prev => ({
+      ...prev,
+      [`${id}-${action}`]: loading
+    }));
+  };
+
+  const isActionLoading = (id: string | number, action: string) => {
+    return !!loadingActions[`${id}-${action}`];
+  };
 
   const { data: quotations = [], isLoading: isLoadingSent } = useQuery<OutboundQuotation[]>({
     queryKey: ["/outbound-quotations"],
@@ -202,6 +214,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
 
   // Handler for Download PDF action
   const handleDownloadPDF = async (quotation: OutboundQuotation) => {
+    setActionLoading(quotation.id, 'download', true);
     try {
       const response = await apiRequest(
         "GET",
@@ -233,11 +246,14 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         description: "Failed to download quotation PDF",
         variant: "destructive",
       });
+    } finally {
+      setActionLoading(quotation.id, 'download', false);
     }
   };
 
   // Handler for Convert to Invoice action
   const handleConvertToInvoice = async (quotation: OutboundQuotation) => {
+    setActionLoading(quotation.id, 'invoice', true);
     try {
       const invoiceNumber = quotation.quotationNumber.replace(/^QUO/i, "INV");
       const invoiceDate = new Date();
@@ -291,13 +307,26 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           error?.data?.error || "Failed to convert quotation to invoice",
         variant: "destructive",
       });
+    } finally {
+      setActionLoading(quotation.id, 'invoice', false);
     }
   };
 
   // Handler for opening Material Request dialog
   const handleCreateMaterialRequest = (quotation: OutboundQuotation) => {
+    setActionLoading(quotation.id, 'mr', true);
     setMrQuotationId(quotation.id.toString());
     setIsMrDialogOpen(true);
+    // Short delay to show loading state before dialog opens
+    setTimeout(() => setActionLoading(quotation.id, 'mr', false), 500);
+  };
+
+  // Handler for opening Inbound Quotation upload
+  const handleUploadReceivedQuotation = (quotation: OutboundQuotation) => {
+    setActionLoading(quotation.id, 'upload', true);
+    setLocation(`/sales/inbound-quotations?quotationNumber=${quotation.quotationNumber}`);
+    // Clear loading state after a small delay to ensure it's not stuck
+    setTimeout(() => setActionLoading(quotation.id, 'upload', false), 1000);
   };
 
   // Handler for Delete action
@@ -510,18 +539,30 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             variant="ghost"
             className="h-8 w-8 p-0"
             onClick={() => handleCreateMaterialRequest(quotation)}
+            disabled={isActionLoading(quotation.id, 'mr')}
             title="Create Material Request"
           >
-            <Package className="h-4 w-4 text-slate-400" />
+            <Package className={cn("h-4 w-4", isActionLoading(quotation.id, 'mr') ? "animate-pulse text-primary" : "text-slate-400")} />
           </Button>
           <Button
             size="sm"
             variant="ghost"
             className="h-8 w-8 p-0"
             onClick={() => handleDownloadPDF(quotation)}
+            disabled={isActionLoading(quotation.id, 'download')}
             title="Download PDF"
           >
-            <Download className="h-4 w-4 text-slate-400" />
+            <Download className={cn("h-4 w-4", isActionLoading(quotation.id, 'download') ? "animate-bounce text-primary" : "text-slate-400")} />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => handleUploadReceivedQuotation(quotation)}
+            disabled={isActionLoading(quotation.id, 'upload')}
+            title="Upload Received Quotation"
+          >
+            <FileUp className={cn("h-4 w-4", isActionLoading(quotation.id, 'upload') ? "animate-pulse text-primary" : "text-slate-400")} />
           </Button>
           <Button
             size="sm"

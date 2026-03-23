@@ -2002,6 +2002,27 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
   }
 
   // Sales Order Methods
+  async generateSalesOrderNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `SO-${year}-`;
+    
+    const latestOrder = await db
+      .select({ orderNumber: salesOrders.orderNumber })
+      .from(salesOrders)
+      .where(sql`${salesOrders.orderNumber} LIKE ${prefix + "%"}`)
+      .orderBy(desc(salesOrders.orderNumber))
+      .limit(1);
+
+    let nextCount = 1;
+    if (latestOrder.length > 0 && latestOrder[0].orderNumber) {
+      const parts = latestOrder[0].orderNumber.split("-");
+      const lastPart = parts[parts.length - 1];
+      nextCount = parseInt(lastPart) + 1;
+    }
+
+    return `${prefix}${String(nextCount).padStart(3, "0")}`;
+  }
+
   async getSalesOrders(): Promise<any[]> {
     const result = await db
       .select({
@@ -2070,9 +2091,28 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     const { items, ...orderData } = order;
 
     return await db.transaction(async (tx) => {
+      // Robust order number check/generation
+      let finalOrderNumber = orderData.orderNumber;
+      
+      // Check if orderNumber already exists
+      const existing = await tx
+        .select({ id: salesOrders.id })
+        .from(salesOrders)
+        .where(eq(salesOrders.orderNumber, finalOrderNumber))
+        .limit(1);
+
+      if (existing.length > 0) {
+        console.log(`⚠️ [STORAGE] Order number ${finalOrderNumber} already exists. Generating new one.`);
+        finalOrderNumber = await this.generateSalesOrderNumber();
+        console.log(`✅ [STORAGE] New order number generated: ${finalOrderNumber}`);
+      }
+
       const [newOrder] = await tx
         .insert(salesOrders)
-        .values(orderData)
+        .values({
+          ...orderData,
+          orderNumber: finalOrderNumber
+        })
         .returning();
 
       let createdItems = [];
@@ -2083,6 +2123,15 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
             salesOrderId: newOrder.id,
           }))
         ).returning();
+      }
+
+      // Update Purchase Order status if linked
+      if (orderData.purchaseOrderId) {
+        console.log(`🔄 [STORAGE] Updating linked PO ${orderData.purchaseOrderId} status to 'approved'`);
+        await tx
+          .update(purchaseOrders)
+          .set({ status: "approved", updatedAt: new Date() })
+          .where(eq(purchaseOrders.id, orderData.purchaseOrderId));
       }
 
       return {
