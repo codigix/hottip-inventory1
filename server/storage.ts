@@ -2524,6 +2524,11 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
   async deleteLogisticsShipment(id: string): Promise<void> {
     try {
       console.log(`📦 [STORAGE] Deleting shipment ${id}`);
+      // Manually handle tables that don't have cascade delete
+      await db.update(logisticsTasks)
+        .set({ shipmentId: null })
+        .where(eq(logisticsTasks.shipmentId, id));
+        
       await db.delete(logisticsShipments).where(eq(logisticsShipments.id, id));
     } catch (error) {
       console.error(`❌ [STORAGE] Error deleting shipment:`, error);

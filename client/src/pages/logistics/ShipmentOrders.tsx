@@ -127,8 +127,8 @@ export default function ShipmentOrders() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking
+      setLocation("/logistics/shipment-tracking");
     },
   });
 
@@ -143,8 +143,8 @@ export default function ShipmentOrders() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking
+      setLocation("/logistics/shipment-tracking");
     },
   });
 
@@ -1092,10 +1092,33 @@ export default function ShipmentOrders() {
             </Button>
             <Button 
               onClick={() => {
+                // Sanitize shipmentPlan to remove nulls or empty strings for optional fields
+                // and remove extra fields that shouldn't be sent to backend
+                const sanitizedPlan = Object.entries(shipmentPlan).reduce((acc, [key, value]) => {
+                  // Keep shipmentId and planId as they are required
+                  if (key === "shipmentId" || key === "planId") {
+                    acc[key] = value;
+                    return acc;
+                  }
+
+                  // Remove internal/backend fields
+                  if (key === "id" || key === "createdAt" || key === "updatedAt" || key === "shipment" || key === "vendor" || key === "client") {
+                    return acc;
+                  }
+
+                  // Remove null or empty string values for optional fields
+                  if (value === null || value === "") {
+                    return acc;
+                  }
+
+                  acc[key] = value;
+                  return acc;
+                }, {} as any);
+
                 if (shipmentPlan.id) {
-                  updatePlanMutation.mutate({ id: shipmentPlan.id, plan: shipmentPlan });
+                  updatePlanMutation.mutate({ id: shipmentPlan.id, plan: sanitizedPlan });
                 } else {
-                  createPlanMutation.mutate(shipmentPlan);
+                  createPlanMutation.mutate(sanitizedPlan);
                 }
               }}
               disabled={createPlanMutation.isPending || updatePlanMutation.isPending}

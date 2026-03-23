@@ -248,6 +248,12 @@ export const createLogisticsShipment = async (
   try {
     const shipmentData = insertLogisticsShipmentSchema.parse(req.body);
 
+    // Validate mutual exclusivity of clientId and vendorId
+    if (shipmentData.clientId && shipmentData.vendorId) {
+      res.status(400).json({ error: "Shipment cannot have both a Client and a Vendor" });
+      return;
+    }
+
     // Set current user as the creator and assignee if not specified
     if (!shipmentData.assignedTo) {
       shipmentData.assignedTo = req.user!.id;
@@ -308,6 +314,13 @@ export const updateLogisticsShipment = async (
     }
 
     const shipmentData = updateLogisticsShipmentSchema.parse(req.body);
+
+    // Validate mutual exclusivity of clientId and vendorId
+    if (shipmentData.clientId && shipmentData.vendorId) {
+      res.status(400).json({ error: "Shipment cannot have both a Client and a Vendor" });
+      return;
+    }
+
     const shipment = await storage.updateLogisticsShipment(
       req.params.id,
       shipmentData

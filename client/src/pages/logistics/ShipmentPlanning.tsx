@@ -171,8 +171,8 @@ export default function ShipmentPlanning() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking after successful planning
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking after successful planning
+      setLocation("/logistics/shipment-tracking");
     },
     onError: (error: any) => {
       toast({
@@ -194,8 +194,8 @@ export default function ShipmentPlanning() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking after successful planning
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking after successful planning
+      setLocation("/logistics/shipment-tracking");
     },
     onError: (error: any) => {
       toast({
