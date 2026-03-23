@@ -47,6 +47,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
