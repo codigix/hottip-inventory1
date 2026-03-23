@@ -167,6 +167,30 @@ export const adminReportsTour = {
   ],
 };
 
+export const adminTasksTour = {
+  name: "admin-tasks",
+  steps: [
+    {
+      element: "[data-tour='admin-tasks-header']",
+      title: "Task Console Overview",
+      text: "Monitor and manage tasks across all departments from this central console.",
+      position: "bottom",
+    },
+    {
+      element: "[data-tour='admin-tasks-stats']",
+      title: "Task Statistics",
+      text: "View a summary of task statuses across the entire system.",
+      position: "bottom",
+    },
+    {
+      element: "[data-tour='admin-tasks-tabs']",
+      title: "Tasks & Logs",
+      text: "Switch between active tasks and detailed activity logs for full transparency.",
+      position: "top",
+    },
+  ],
+};
+
 // Inventory Subcomponent Tours
 export const inventoryStockManagementTour = {
   name: "inventory-stock-management",

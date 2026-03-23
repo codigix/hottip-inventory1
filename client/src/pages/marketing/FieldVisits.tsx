@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
+  Search,
   MapPin,
   Calendar,
   Users,
@@ -9,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  TrendingUp,
   Map,
   Table,
 } from "lucide-react";
@@ -21,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 import VisitForm from "@/components/marketing/VisitForm";
 import VisitTable from "@/components/marketing/VisitTable";
@@ -248,21 +251,25 @@ const updateVisitMutation = useMutation({
   if (visitsLoading) return <div className="p-4">Loading visits...</div>;
 
   return (
-   <div className="p-4 md:p-4 space-y-2">
+    <div className="space-y-2 p-4 bg-slate-50/50 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-xl  text-foreground" data-testid="page-title">Field Visits</h1>
-          <p className="text-gray-500 text-xs">
-            Schedule, track, and manage field visits with GPS verification
+          <h1 className="text-xl  text-slate-900 flex items-center gap-2" data-testid="page-title">
+            <MapPin className="h-6 w-6 text-primary" />
+            Field Visits
+          </h1>
+          <p className="text-slate-500 text-xs mt-1">
+            Schedule, track, and manage field visits with GPS verification.
           </p>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setViewMode(viewMode === 'table' ? 'map' : 'table')}
+            className="bg-white"
             data-testid="toggle-view-mode"
           >
             {viewMode === 'table' ? <Map className="h-4 w-4 mr-2" /> : <Table className="h-4 w-4 mr-2" />}
@@ -270,6 +277,7 @@ const updateVisitMutation = useMutation({
           </Button>
           
           <Button 
+            size="sm"
             onClick={() => {
               setSelectedVisit(null);
               setIsFormOpen(true);
@@ -283,119 +291,133 @@ const updateVisitMutation = useMutation({
       </div>
 
       {/* Metrics Dashboard */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              Today's Visits
               <Calendar className="h-4 w-4 text-blue-500" />
-              <span>Today's Visits</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-today-visits">
+            <div className="text-xl text-slate-900" data-testid="metric-today-visits">
               {metricsLoading ? '...' : displayMetrics.todayVisits}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              Scheduled
               <Clock className="h-4 w-4 text-orange-500" />
-              <span>Scheduled</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-scheduled-visits">
+            <div className="text-xl text-slate-900" data-testid="metric-scheduled-visits">
               {statusCounts.scheduled}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              In Progress
               <MapPin className="h-4 w-4 text-blue-500" />
+<<<<<<< Updated upstream
               <span>Upcoming</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl " data-testid="metric-upcoming-visits">
               {statusCounts.upcoming}
+=======
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl text-slate-900" data-testid="metric-in-progress-visits">
+              {statusCounts.in_progress}
+>>>>>>> Stashed changes
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              Completed
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Completed</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-completed-visits">
+            <div className="text-xl text-slate-900" data-testid="metric-completed-visits">
               {statusCounts.completed}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              Cancelled
               <XCircle className="h-4 w-4 text-red-500" />
-              <span>Cancelled</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-cancelled-visits">
+            <div className="text-xl text-slate-900" data-testid="metric-cancelled-visits">
               {statusCounts.cancelled}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-light flex items-center space-x-2">
-              <Users className="h-4 w-4 text-emerald-500" />
-              <span>Completion Rate</span>
+            <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
+              Comp. Rate
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-completion-rate">
+            <div className="text-xl text-slate-900" data-testid="metric-completion-rate">
               {metricsLoading ? '...' : `${displayMetrics.completionRate?.toFixed(1) || 0}%`}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search visits, customers, or addresses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            data-testid="input-search-visits"
-          />
+      {/* Search and Filters */}
+      <div className="border-slate-200 shadow-sm bg-white p-4 rounded-lg">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search visits, customers, or addresses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-slate-50 border-slate-200 h-10"
+              data-testid="input-search-visits"
+            />
+          </div>
+          
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="w-full sm:w-64 bg-slate-50 border-slate-200 h-10" data-testid="select-assignee-filter">
+              <SelectValue placeholder="Filter by assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assignees</SelectItem>
+              {users.map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.firstName} {user.lastName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className="w-full sm:w-48" data-testid="select-assignee-filter">
-            <SelectValue placeholder="Filter by assignee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Assignees</SelectItem>
-            {users.map(user => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.firstName} {user.lastName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Status Filter Tabs */}
+<<<<<<< Updated upstream
       <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')}>
         <TabsList className="grid w-full grid-cols-3 md:grid-cols-5">
           <TabsTrigger value="all" data-testid="tab-all-visits">
@@ -414,30 +436,56 @@ const updateVisitMutation = useMutation({
             Cancelled ({statusCounts.cancelled})
           </TabsTrigger>
         </TabsList>
+=======
+      <div className="">
+        <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')} className="w-full">
+          <div className="p-2 border-b border-slate-100">
+            <TabsList className="bg-slate-100/50 p-1 my-2 w-full justify-start  gap-1">
+              <TabsTrigger value="all" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
+                All <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.all}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="scheduled" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
+                Scheduled <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.scheduled}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="in_progress" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
+                In Progress <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.in_progress}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="completed" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
+                Completed <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.completed}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="cancelled" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
+                Cancelled <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.cancelled}</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+>>>>>>> Stashed changes
 
-        <TabsContent value={statusFilter} className="mt-6">
-          {viewMode === 'table' ? (
-            <VisitTable
-              visits={filteredVisits}
-              isLoading={visitsLoading}
-              onEdit={handleEditVisit}
-              onDelete={handleDeleteVisit}
-              onCheckIn={(visit) => handleGPSAction(visit, 'check-in')}
-              onCheckOut={(visit) => handleGPSAction(visit, 'check-out')}
-              onStatusUpdate={handleStatusUpdate}
-              onProofUpload={handleProofUpload}
-            />
-          ) : (
-            <VisitMap
-              visits={filteredVisits}
-              isLoading={visitsLoading}
-              onVisitSelect={setSelectedVisit}
-              onCheckIn={(visit) => handleGPSAction(visit, 'check-in')}
-              onCheckOut={(visit) => handleGPSAction(visit, 'check-out')}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value={statusFilter} className="mt-0 p-0">
+            {viewMode === 'table' ? (
+              <VisitTable
+                visits={filteredVisits}
+                isLoading={visitsLoading}
+                onEdit={handleEditVisit}
+                onDelete={handleDeleteVisit}
+                onCheckIn={(visit) => handleGPSAction(visit, 'check-in')}
+                onCheckOut={(visit) => handleGPSAction(visit, 'check-out')}
+                onStatusUpdate={handleStatusUpdate}
+                onProofUpload={handleProofUpload}
+              />
+            ) : (
+              <div className="h-[600px] p-4">
+                <VisitMap
+                  visits={filteredVisits}
+                  isLoading={visitsLoading}
+                  onVisitSelect={setSelectedVisit}
+                  onCheckIn={(visit) => handleGPSAction(visit, 'check-in')}
+                  onCheckOut={(visit) => handleGPSAction(visit, 'check-out')}
+                />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Visit Form Modal */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

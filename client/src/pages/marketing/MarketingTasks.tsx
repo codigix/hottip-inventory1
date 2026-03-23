@@ -16,6 +16,7 @@ import {
   RefreshCw,
   X,
   CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 import {
   format,
@@ -328,16 +329,19 @@ export default function MarketingTasks() {
   }
 
   return (
-    <div className="flex-1 space-y-3 p-4">
+    <div className="space-y-4 bg-slate-50/50 min-h-screen p-4">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl text-black">Marketing Tasks</h1>
-          <p className="text-gray-500 text-xs">
-            Manage and track marketing team tasks and assignments
+          <h1 className="text-xl  text-slate-900 flex items-center gap-2">
+            <ClipboardList className="h-6 w-6 text-primary" />
+            Marketing Tasks
+          </h1>
+          <p className="text-slate-500 text-xs mt-1">
+            Manage and track marketing team tasks and assignments.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -345,18 +349,20 @@ export default function MarketingTasks() {
               queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] })
             }
             disabled={tasksLoading}
+            className="bg-white"
           >
             <RefreshCw
-              className={`h-4 w-4 ${tasksLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 mr-2 ${tasksLoading ? "animate-spin" : ""}`}
             />
-            <span className="ml-2">Refresh</span>
+            Refresh
           </Button>
           <Button
+            size="sm"
             onClick={handleCreateTaskWithStatus}
             className="flex items-center space-x-2"
           >
-            <Plus className="h-4 w-4" />
-            <span>Create Task</span>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Task
           </Button>
         </div>
       </div>
@@ -364,175 +370,135 @@ export default function MarketingTasks() {
       {/* Metrics Dashboard */}
       <TaskMetrics />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() =>
-            setFilters((f) => ({ ...f, status: "all", dateFilter: "all" }))
-          }
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl ">{stats.total}</div>
-            <div className="text-xs text-gray-500">Total Tasks</div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() => setFilters((f) => ({ ...f, status: "pending" }))}
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl  text-orange-600">
-              {stats.pending}
-            </div>
-            <div className="text-xs text-gray-500">Pending</div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() => setFilters((f) => ({ ...f, status: "in_progress" }))}
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl  text-blue-600">
-              {stats.inProgress}
-            </div>
-            <div className="text-xs text-gray-500">In Progress</div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() => setFilters((f) => ({ ...f, status: "completed" }))}
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl  text-green-600">
-              {stats.completed}
-            </div>
-            <div className="text-xs text-gray-500">Completed</div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() => setFilters((f) => ({ ...f, dateFilter: "overdue" }))}
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl  text-red-600">
-              {stats.overdue}
-            </div>
-            <div className="text-xs text-gray-500">Overdue</div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/50"
-          onClick={() => setFilters((f) => ({ ...f, dateFilter: "today" }))}
-        >
-          <CardContent className="pt-4 text-center">
-            <div className="text-xl  text-yellow-600">
-              {stats.dueToday}
-            </div>
-            <div className="text-xs text-gray-500">Due Today</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and Search */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Search tasks..."
-                  value={filters.search}
-                  onChange={(e) =>
-                    setFilters((f) => ({ ...f, search: e.target.value }))
-                  }
-                  className="pl-9"
-                />
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2"
-              >
-                <Filter className="h-4 w-4" />
-                <span>Filters</span>
-                {getActiveFiltersCount() > 0 && (
-                  <Badge variant="secondary">{getActiveFiltersCount()}</Badge>
-                )}
-              </Button>
-
-              {getActiveFiltersCount() > 0 && (
-                <Button variant="ghost" size="sm" onClick={resetFilters}>
-                  <X className="h-4 w-4" />
-                  <span>Clear</span>
-                </Button>
-              )}
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center space-x-2 border rounded-lg p-1">
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-              >
-                <TableIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "board" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("board")}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "cards" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("cards")}
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Search and Filters */}
+      <div className="border border-slate-200 shadow-sm bg-white p-4 rounded-lg">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Tabs 
+              value={viewMode} 
+              onValueChange={(v) => setViewMode(v as ViewMode)}
+              className="bg-slate-100/50 p-1 rounded-lg h-10"
+            >
+              <TabsList className="bg-transparent border-none p-0 h-auto">
+                <TabsTrigger value="table" className="data-[state=active]:bg-white data-[state=active]:shadow-sm h-8 px-3">
+                  <TableIcon className="h-4 w-4 mr-2" /> Table
+                </TabsTrigger>
+                <TabsTrigger value="board" className="data-[state=active]:bg-white data-[state=active]:shadow-sm h-8 px-3">
+                  <Grid3X3 className="h-4 w-4 mr-2" /> Board
+                </TabsTrigger>
+                <TabsTrigger value="cards" className="data-[state=active]:bg-white data-[state=active]:shadow-sm h-8 px-3">
+                  <Users className="h-4 w-4 mr-2" /> Cards
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          {/* Expanded Filters */}
-          {showFilters && (
-            <div className="pt-4 border-t space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Status, Priority, Assignee, Date Filters */}
-                {/* ... keep the same Select components with Popover for custom dates ... */}
-              </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search tasks..."
+                value={filters.search}
+                onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                className="pl-10 bg-slate-50 border-slate-200 h-10"
+              />
             </div>
-          )}
-        </CardHeader>
-      </Card>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowFilters(!showFilters)}
+              className={"bg-white h-10 px-4" + (showFilters ? " bg-slate-100 border-primary/50" : "")}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+              {getActiveFiltersCount() > 0 && (
+                <Badge variant="secondary" className="ml-2 bg-primary/10 text-primary border-none text-[10px]">
+                  {getActiveFiltersCount()}
+                </Badge>
+              )}
+            </Button>
+            {getActiveFiltersCount() > 0 && (
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-10 text-slate-500 hover:text-slate-900">
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
 
-      {/* Task Views */}
-      <div className="space-y-2">
+        {showFilters && (
+          <div className="pt-4 mt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-slate-500 font-medium ml-1">Status</label>
+              <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v as StatusFilter }))}>
+                <SelectTrigger className="h-9 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-slate-500 font-medium ml-1">Priority</label>
+              <Select value={filters.priority} onValueChange={(v) => setFilters(f => ({ ...f, priority: v as PriorityFilter }))}>
+                <SelectTrigger className="h-9 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-slate-500 font-medium ml-1">Assignee</label>
+              <Select value={filters.assignee} onValueChange={(v) => setFilters(f => ({ ...f, assignee: v }))}>
+                <SelectTrigger className="h-9 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map(user => (
+                    <SelectItem key={user.id} value={user.id}>{user.firstName} {user.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-slate-500 font-medium ml-1">Due Date</label>
+              <Select value={filters.dateFilter} onValueChange={(v) => setFilters(f => ({ ...f, dateFilter: v as DateFilter }))}>
+                <SelectTrigger className="h-9 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Due Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main View Area */}
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden min-h-[500px]">
         {viewMode === "table" && (
           <TaskTable
-            tasks={filteredTasks}
-            onEdit={handleEditTask}
-            onDelete={handleDeleteTask}
-            loading={tasksLoading}
-          />
-        )}
-        {viewMode === "board" && (
-          <Suspense fallback={<div>Loading board...</div>}>
-            <TaskBoard
-              tasks={filteredTasks}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onCreateTask={handleCreateTaskWithStatus}
-              loading={tasksLoading}
-            />
-          </Suspense>
-        )}
-        {viewMode === "cards" && (
-          <TaskCalendar
             tasks={filteredTasks}
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
@@ -540,9 +506,42 @@ export default function MarketingTasks() {
             loading={tasksLoading}
           />
         )}
+
+        {viewMode === "board" && (
+          <Suspense fallback={<div className="p-8 text-center"><RefreshCw className="h-8 w-8 animate-spin mx-auto text-slate-300" /></div>}>
+            <TaskBoard
+              tasks={filteredTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onViewDetails={handleViewTaskDetails}
+            />
+          </Suspense>
+        )}
+
+        {viewMode === "cards" && (
+          <Suspense fallback={<div className="p-8 text-center"><RefreshCw className="h-8 w-8 animate-spin mx-auto text-slate-300" /></div>}>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTasks.map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={() => handleEditTask(task)}
+                  onDelete={() => handleDeleteTask(task.id)}
+                  onView={() => handleViewTaskDetails(task)}
+                />
+              ))}
+              {filteredTasks.length === 0 && (
+                <div className="col-span-full py-12 text-center text-slate-400">
+                  <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                  <p>No tasks found matching your filters</p>
+                </div>
+              )}
+            </div>
+          </Suspense>
+        )}
       </div>
 
-      {/* Task Form Dialog */}
+      {/* Forms and Modals */}
       <TaskForm
         open={showTaskForm}
         onOpenChange={(open) => {
@@ -602,12 +601,24 @@ export default function MarketingTasks() {
         open={!!selectedTaskDetails}
         onOpenChange={() => setSelectedTaskDetails(null)}
       >
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Task Details</DialogTitle>
           </DialogHeader>
-          <Suspense fallback={<div>Loading task details...</div>}>
-            {selectedTaskDetails && <TaskCard task={selectedTaskDetails} />}
+          <Suspense fallback={<div className="p-8 text-center"><RefreshCw className="h-8 w-8 animate-spin mx-auto text-slate-300" /></div>}>
+            {selectedTaskDetails && (
+              <TaskCard 
+                task={selectedTaskDetails} 
+                onEdit={() => {
+                  setSelectedTaskDetails(null);
+                  handleEditTask(selectedTaskDetails);
+                }}
+                onDelete={() => {
+                  setSelectedTaskDetails(null);
+                  handleDeleteTask(selectedTaskDetails.id);
+                }}
+              />
+            )}
           </Suspense>
         </DialogContent>
       </Dialog>

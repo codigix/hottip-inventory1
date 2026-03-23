@@ -608,7 +608,7 @@ function AllDepartmentsSummary() {
     {
       name: "Inventory & Manufacturing",
       icon: Box,
-      color: "cyan",
+      color: "green",
       data: summary.inventory,
       items: [
         { label: "Products", value: summary.inventory.breakdown.products },
@@ -656,7 +656,7 @@ function AllDepartmentsSummary() {
     {
       name: "Logistics",
       icon: Truck,
-      color: "rose",
+      color: "red",
       data: summary.logistics,
       items: [
         { label: "Shipments", value: summary.logistics.breakdown.shipments },
@@ -685,14 +685,14 @@ function AllDepartmentsSummary() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {departments.map((dept) => (
-          <Card key={dept.name} className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className={`bg-${dept.color}-600 text-white p-4`}>
+          <Card key={dept.name} className="overflow-hidden border-0 transition-shadow">
+            <CardHeader className={`bg-${dept.color}-600 text-white p-2`}>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm  flex items-center gap-2">
+                <CardTitle className="text-xs  flex items-center gap-2">
                   <dept.icon className="w-5 h-5" />
                   {dept.name}
                 </CardTitle>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                <span className="text-[10px] bg-white/20 p-1 rounded backdrop-blur-sm">
                   {dept.data.total} Total Entities
                 </span>
               </div>
@@ -701,8 +701,8 @@ function AllDepartmentsSummary() {
               <div className="space-y-3">
                 {dept.items.map((item) => (
                   <div key={item.label} className="flex items-center justify-between border-b border-gray-50 pb-2 last:border-0">
-                    <span className="text-sm text-gray-600">{item.label}</span>
-                    <span className="text-sm  text-gray-900">{item.value}</span>
+                    <span className="text-xs text-gray-600">{item.label}</span>
+                    <span className="text-xs  text-gray-900">{item.value}</span>
                   </div>
                 ))}
               </div>

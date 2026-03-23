@@ -131,7 +131,7 @@ export default function MarketingDashboard() {
             <Users className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{totalLeads}</div>
+            <div className="text-xl  text-slate-900">{totalLeads}</div>
             <p className="text-[10px] text-slate-400 mt-1">
               {dashboardData?.leads?.monthlyNew || 0} new this month
             </p>
@@ -144,7 +144,7 @@ export default function MarketingDashboard() {
             <Target className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{activeTasks}</div>
+            <div className="text-xl  text-slate-900">{activeTasks}</div>
             <p className="text-[10px] text-slate-400 mt-1">
               {dashboardData?.tasks?.overdue || 0} overdue
             </p>
@@ -159,7 +159,7 @@ export default function MarketingDashboard() {
             <TrendingUp className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-xl  text-slate-900">
               {conversionRate.toFixed(1)}%
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
@@ -176,7 +176,7 @@ export default function MarketingDashboard() {
             <MapPin className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{fieldVisitsToday}</div>
+            <div className="text-xl  text-slate-900">{fieldVisitsToday}</div>
             <p className="text-[10px] text-slate-400 mt-1">
               {todayCompleted} completed, {todayPending} pending
             </p>

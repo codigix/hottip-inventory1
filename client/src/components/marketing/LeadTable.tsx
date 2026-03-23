@@ -247,11 +247,11 @@ export default function LeadTable({
         if (user && (user.firstName || user.lastName)) {
           return (
             <div className="flex items-center space-x-2">
-              {/* <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="text-[10px]">
                   {(user.firstName?.[0] || "") + (user.lastName?.[0] || "") || "?"}
                 </AvatarFallback>
-              </Avatar> */}
+              </Avatar>
               <span className="text-xs">
                 {user.firstName} {user.lastName}
               </span>
@@ -291,41 +291,53 @@ export default function LeadTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setViewingLead(lead)}>
-                <Eye className="mr-2 h-4 w-4" /> View
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(lead)}>
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {getAvailableStatuses(lead.status).map((status) => (
+              {isSalesMode ? (
                 <DropdownMenuItem
-                  key={status}
-                  onClick={() => {
-                    setStatusChangeLeadId(lead.id);
-                    setNewStatus(status);
-                  }}
+                  onClick={() => onAddQuotation?.(lead)}
+                  className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
                 >
-                  <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
-                  {status.replace("_", " ")}
+                  <FileText className="mr-2 h-4 w-4" /> Create Quotation
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setDeleteLeadId(lead.id)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem onClick={() => setViewingLead(lead)}>
+                    <Eye className="mr-2 h-4 w-4" /> View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(lead)}>
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {getAvailableStatuses(lead.status).map((status) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => {
+                        setStatusChangeLeadId(lead.id);
+                        setNewStatus(status);
+                      }}
+                    >
+                      <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
+                      {status.replace("_", " ")}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setDeleteLeadId(lead.id)}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       ),
     }
-  ], [onEdit, getAvailableStatuses]);
+  ], [onEdit, getAvailableStatuses, isSalesMode, onAddQuotation]);
 
   return (
     <>
+<<<<<<< Updated upstream
       <div className="border">
         <Table>
           <TableHeader>
@@ -513,6 +525,16 @@ export default function LeadTable({
             ))}
           </TableBody>
         </Table>
+=======
+      <div className="bg-white rounded-md">
+        <DataTable
+          data={leads}
+          columns={columns}
+          isLoading={isLoading}
+          searchable={false}
+          defaultPageSize={10}
+        />
+>>>>>>> Stashed changes
       </div>
 
       {/* ✅ Delete Confirmation */}

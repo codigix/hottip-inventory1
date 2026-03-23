@@ -1,11 +1,10 @@
 // LeadForm.tsx
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  X,
   Calendar,
   User as UserIcon,
   MapPin,
@@ -52,7 +51,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
 import type { LeadFormData, User } from "@/types";
@@ -108,7 +106,6 @@ export default function LeadForm({
   leadId,
   defaultValues,
 }: LeadFormProps) {
-  const [activeTab, setActiveTab] = useState("basic");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -217,27 +214,15 @@ export default function LeadForm({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2 mt-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4 mb-5">
-                <TabsTrigger value="basic" data-testid="tab-basic">
-                  Basic Info
-                </TabsTrigger>
-                <TabsTrigger value="contact" data-testid="tab-contact">
-                  Contact
-                </TabsTrigger>
-                <TabsTrigger
-                  value="requirements"
-                  data-testid="tab-requirements"
-                >
-                  Requirements
-                </TabsTrigger>
-                <TabsTrigger value="management" data-testid="tab-management">
-                  Management
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="basic" className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
+            <div className="space-y-8">
+              {/* Basic Information Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <UserIcon className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Basic Information</h3>
+                </div>
+                <Separator />
                 <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -406,10 +391,15 @@ export default function LeadForm({
                     )}
                   />
                 </div>
+              </div>
 
-              </TabsContent>
-
-              <TabsContent value="contact" className="space-y-4">
+              {/* Contact Information Section */}
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
+                </div>
+                <Separator />
                 <div className="grid grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
@@ -557,14 +547,15 @@ export default function LeadForm({
 
 
 
-                <div className="grid grid-cols-3 gap-4">
+              </div>
 
+              {/* Requirements Section */}
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Requirements</h3>
                 </div>
-
-
-              </TabsContent>
-
-              <TabsContent value="requirements" className="space-y-4">
+                <Separator />
                 <FormField
                   control={form.control}
                   name="requirementDescription"
@@ -630,9 +621,15 @@ export default function LeadForm({
                     </FormItem>
                   )}
                 />
-              </TabsContent>
+              </div>
 
-              <TabsContent value="management" className="space-y-4">
+              {/* Management Section */}
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center space-x-2">
+                  <NotebookPen className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Management</h3>
+                </div>
+                <Separator />
                 <FormField
                   control={form.control}
                   name="assignedTo"
@@ -708,8 +705,8 @@ export default function LeadForm({
                     )}
                   />
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
 
             <div className="flex justify-end space-x-2 pt-4">
               <Button

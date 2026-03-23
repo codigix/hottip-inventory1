@@ -3,33 +3,53 @@ import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StartTourButton } from "@/components/StartTourButton";
 import { adminAuditLogTour } from "@/components/tours/dashboardTour";
+import { DataTable, Column } from "@/components/ui/data-table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download, FileText, Filter, RefreshCcw } from "lucide-react";
+import { format } from "date-fns";
 
-const fetchAuditLog = async () => {
+interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  user: string;
+  action: string;
+  details: string;
+}
+
+const fetchAuditLog = async (): Promise<AuditLogEntry[]> => {
   const res = await fetch("/api/admin/audit-log");
-  if (!res.ok) throw new Error("Failed to fetch audit log");
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || "Failed to fetch audit log");
+  }
   return res.json();
 };
 
 const AuditLog: React.FC = () => {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["/admin/audit-log"],
     queryFn: fetchAuditLog,
   });
-  const [searchTerm, setSearchTerm] = useState("");
+  
   const [userFilter, setUserFilter] = useState("all");
   const [actionFilter, setActionFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("30");
 
   const logs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
+  const uniqueUsers = useMemo(() => {
+    return Array.from(new Set(logs.map((log) => log.user).filter(Boolean)));
+  }, [logs]);
+
+  const uniqueActions = useMemo(() => {
+    return Array.from(new Set(logs.map((log) => log.action).filter(Boolean)));
+  }, [logs]);
+
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
-      const normalizedSearch = searchTerm.trim().toLowerCase();
-      const matchesSearch = normalizedSearch
-        ? [log.user, log.action, log.details]
-            .filter(Boolean)
-            .some((value) => value.toLowerCase().includes(normalizedSearch))
-        : true;
       const matchesUser = userFilter === "all" || log.user === userFilter;
       const matchesAction = actionFilter === "all" || log.action === actionFilter;
       const matchesDate = (() => {
@@ -40,17 +60,39 @@ const AuditLog: React.FC = () => {
         const diffInDays = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
         return diffInDays <= days;
       })();
-      return matchesSearch && matchesUser && matchesAction && matchesDate;
+      return matchesUser && matchesAction && matchesDate;
     });
-  }, [logs, searchTerm, userFilter, actionFilter, dateFilter]);
+  }, [logs, userFilter, actionFilter, dateFilter]);
 
-  const uniqueUsers = useMemo(() => {
-    return Array.from(new Set(logs.map((log) => log.user).filter(Boolean)));
-  }, [logs]);
-
-  const uniqueActions = useMemo(() => {
-    return Array.from(new Set(logs.map((log) => log.action).filter(Boolean)));
-  }, [logs]);
+  const columns: Column<AuditLogEntry>[] = [
+    {
+      key: "timestamp",
+      header: "Timestamp",
+      sortable: true,
+      cell: (item) => item.timestamp ? format(new Date(item.timestamp), "MMM d, yyyy HH:mm:ss") : "-",
+    },
+    {
+      key: "user",
+      header: "User",
+      sortable: true,
+    },
+    {
+      key: "action",
+      header: "Action",
+      sortable: true,
+      cell: (item) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 uppercase tracking-wider">
+          {item.action}
+        </span>
+      ),
+    },
+    {
+      key: "details",
+      header: "Details",
+      sortable: true,
+      cell: (item) => <span className="text-slate-500 break-words max-w-md block">{item.details || "-"}</span>,
+    },
+  ];
 
   const handleExport = () => {
     if (!filteredLogs.length) return;
@@ -68,108 +110,103 @@ const AuditLog: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "audit-log.csv";
+    link.download = `audit-log-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className=" mx-auto p-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-2 bg-slate-50/50 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl" data-tour="admin-audit-log-header">Audit Log</h1>
-          <p className="text-gray-500 text-xs">View all system activity, changes, and user actions for compliance and traceability.</p>
+          <h1 className="text-xl  text-slate-900 tracking-tight" data-tour="admin-audit-log-header">
+            Audit Log
+          </h1>
+          <p className="text-slate-500 text-xs mt-1">
+            Track and monitor all system activities and user actions for compliance.
+          </p>
         </div>
-        <StartTourButton tourConfig={adminAuditLogTour} tourName="admin-audit-log" />
-      </div>
-      <div className="bg-white rounded shadow p-4 space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <input
-            className="flex-1 min-w-[220px] border rounded p-2"
-            placeholder="Search user, action, or details"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            data-tour="admin-audit-log-search"
-          />
-          <div className="flex flex-wrap gap-3" data-tour="admin-audit-log-filters">
-            <select
-              className="border rounded p-2"
-              value={userFilter}
-              onChange={(event) => setUserFilter(event.target.value)}
-            >
-              <option value="all">All Users</option>
-              {uniqueUsers.map((user) => (
-                <option key={user} value={user}>
-                  {user}
-                </option>
-              ))}
-            </select>
-            <select
-              className="border rounded p-2"
-              value={actionFilter}
-              onChange={(event) => setActionFilter(event.target.value)}
-            >
-              <option value="all">All Actions</option>
-              {uniqueActions.map((action) => (
-                <option key={action} value={action}>
-                  {action}
-                </option>
-              ))}
-            </select>
-            <select
-              className="border rounded p-2"
-              value={dateFilter}
-              onChange={(event) => setDateFilter(event.target.value)}
-            >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="all">All time</option>
-            </select>
-          </div>
-          <button
-            className="bg-indigo-600 text-white px-4 py-2 rounded "
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="bg-white"
+          >
+            <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
             onClick={handleExport}
-            disabled={!filteredLogs.length}
+            disabled={!filteredLogs.length || isLoading}
+            className="bg-white"
             data-tour="admin-audit-log-export"
           >
+            <Download className="h-4 w-4 mr-2" />
             Export CSV
-          </button>
+          </Button>
+          <StartTourButton tourConfig={adminAuditLogTour} tourName="admin-audit-log" />
         </div>
-        {isLoading ? (
-          <div className="py-8 text-center text-gray-500">Loading...</div>
-        ) : error ? (
-          <div className="py-8 text-center text-red-600">{error.message || "Failed to load audit log."}</div>
-        ) : (
-          <div className="overflow-x-auto" data-tour="admin-audit-log-table">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-3">Timestamp</th>
-                  <th className="text-left py-2 px-3">User</th>
-                  <th className="text-left py-2 px-3">Action</th>
-                  <th className="text-left py-2 px-3">Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.length > 0 ? (
-                  filteredLogs.map((log, index) => (
-                    <tr key={log.id || `${log.timestamp}-${index}`} className="border-b last:border-0">
-                      <td className="py-2 px-3">{log.timestamp ? new Date(log.timestamp).toLocaleString() : "-"}</td>
-                      <td className="py-2 px-3">{log.user || "-"}</td>
-                      <td className="py-2 px-3">{log.action || "-"}</td>
-                      <td className="py-2 px-3">{log.details || "-"}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-500">No audit log entries found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      </div>
+
+      <div className="border-slate-200 shadow-sm overflow-hidden">
+        <div className=" border-b border-slate-100 py-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 min-w-[150px]">
+              <Filter className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-medium text-slate-700">Filters:</span>
+            </div>
+            
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger className="w-[180px] h-9 bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Filter by User" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {uniqueUsers.map((user) => (
+                  <SelectItem key={user} value={user}>{user}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger className="w-[180px] h-9 bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Filter by Action" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Actions</SelectItem>
+                {uniqueActions.map((action) => (
+                  <SelectItem key={action} value={action}>{action}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[180px] h-9 bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
+        </div>
+        <div className="p-0">
+          <DataTable
+            data={filteredLogs}
+            columns={columns}
+            isLoading={isLoading}
+            searchable={true}
+            searchPlaceholder="Search audit details, actions or users..."
+            defaultPageSize={10}
+          />
+        </div>
       </div>
     </div>
   );
