@@ -285,7 +285,7 @@ export default function LogisticsDashboard() {
   if (shipmentsLoading || customersLoading || suppliersLoading || usersLoading) {
     return (
       <main className=" mx-auto p-4">
-        <div className="space-y-6">
+        <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             {[...Array(4)].map((_, i) => (
@@ -304,7 +304,7 @@ export default function LogisticsDashboard() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-xl  text-foreground " data-tour="logistics-header">Logistics Dashboard</h1>
-          <p className="text-gray-500">Manage shipments, tracking, and delivery operations</p>
+          <p className="text-gray-500 text-xs">Manage shipments, tracking, and delivery operations</p>
         </div>
         <Dialog open={isShipmentDialogOpen || !!editingShipment} onOpenChange={(open) => {
           if (!open) {
@@ -689,13 +689,13 @@ export default function LogisticsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Shipments Table */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Shipments</CardTitle>
-              <CardDescription>
+          <div>
+            <div>
+              <div className="text-lg">Active Shipments</div>
+              <div className="text-xs">
                 Track and manage all shipments and deliveries
-              </CardDescription>
-            </CardHeader>
+              </div>
+            </div>
             <CardContent>
               <DataTable
                 data={(shipments || [])}
@@ -705,15 +705,15 @@ export default function LogisticsDashboard() {
                 searchKey="consignmentNumber"
               />
             </CardContent>
-          </Card>
+          </div>
         </div>
 
         {/* Logistics Tools & Status */}
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Logistics Tools</CardTitle>
+              <CardTitle className="text-sm">Logistics Tools</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button
@@ -761,7 +761,7 @@ export default function LogisticsDashboard() {
           {/* Delivery Status Overview */}
           <Card>
             <CardHeader>
-              <CardTitle>Delivery Status</CardTitle>
+              <CardTitle className="text-sm">Delivery Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -769,10 +769,10 @@ export default function LogisticsDashboard() {
                   <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
                     <Clock className="h-4 w-4 text-yellow-600" />
                   </div>
-                  <span className="text-sm font-light text-foreground">Preparing</span>
+                  <span className="text-xs font-light text-foreground">Preparing</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-light text-foreground">{pendingShipments}</p>
+                  <p className="text-xs font-light text-foreground">{pendingShipments}</p>
                   <p className="text-xs text-gray-500">shipments</p>
                 </div>
               </div>
@@ -782,10 +782,10 @@ export default function LogisticsDashboard() {
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Truck className="h-4 w-4 text-blue-600" />
                   </div>
-                  <span className="text-sm font-light text-foreground">In Transit</span>
+                  <span className="text-xs font-light text-foreground">In Transit</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-light text-foreground">{inTransitShipments}</p>
+                  <p className="text-xs font-light text-foreground">{inTransitShipments}</p>
                   <p className="text-xs text-gray-500">shipments</p>
                 </div>
               </div>
@@ -795,7 +795,7 @@ export default function LogisticsDashboard() {
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-light text-foreground">Delivered</span>
+                  <span className="text-xs font-light text-foreground">Delivered</span>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-light text-foreground">{deliveredShipments}</p>
@@ -808,14 +808,14 @@ export default function LogisticsDashboard() {
           {/* Recent Deliveries */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Deliveries</CardTitle>
+              <CardTitle className="text-sm">Recent Deliveries</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {shipmentsArray.filter((s: any) => s.currentStatus === 'delivered').slice(0, 3).map((shipment: any) => (
                   <div key={shipment.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-sm">
                     <div>
-                      <p className="text-sm font-light">{shipment.consignmentNumber}</p>
+                      <p className="text-xs font-light">{shipment.consignmentNumber}</p>
                       <p className="text-xs text-gray-500">
                         {shipment.source} → {shipment.destination}
                       </p>

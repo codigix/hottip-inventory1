@@ -1011,7 +1011,7 @@ export default function AccountsPayables() {
               </div>
               <div className="text-right">
                 <div className="bg-white/10 px-6 py-2 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner inline-block">
-                  <p className="text-[10px]  font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
+                  <p className="text-xs  font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
                   <p className="text-2xl font-black tabular-nums">
                     ₹{selectedPayable ? (
                       parseFloat(selectedPayable.amountDue) -
@@ -1042,7 +1042,7 @@ export default function AccountsPayables() {
                       {selectedPayable && (
                         <div className="space-y-3 relative z-10">
                           <div className="space-y-1">
-                            <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Supplier</Label>
+                            <Label className="text-xs font-black  text-slate-400 tracking-widest">Supplier</Label>
                             <p className=" text-slate-800 text-lg leading-tight">
                               {suppliers.find((s: any) => s.id === selectedPayable.supplierId)?.name || "Unknown Vendor"}
                             </p>
@@ -1050,11 +1050,11 @@ export default function AccountsPayables() {
 
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
                             <div className="space-y-1">
-                              <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Total Payable</Label>
+                              <Label className="text-xs font-black  text-slate-400 tracking-widest">Total Payable</Label>
                               <p className=" text-slate-700">₹{parseFloat(selectedPayable.amountDue).toLocaleString()}</p>
                             </div>
                             <div className="space-y-1 text-right">
-                              <Label className="text-[10px] font-black  text-slate-400 tracking-widest">Already Paid</Label>
+                              <Label className="text-xs font-black  text-slate-400 tracking-widest">Already Paid</Label>
                               <p className=" text-emerald-600">₹{parseFloat(selectedPayable.amountPaid).toLocaleString()}</p>
                             </div>
                           </div>
@@ -1103,7 +1103,7 @@ export default function AccountsPayables() {
                                 <SelectItem value="debit_card" className="">Debit Card</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormMessage className="text-[10px] " />
+                            <FormMessage className="text-xs " />
                           </FormItem>
                         )}
                       />
@@ -1143,7 +1143,7 @@ export default function AccountsPayables() {
                                   />
                                 </div>
                               </FormControl>
-                              <FormMessage className="text-[10px] " />
+                              <FormMessage className="text-xs " />
                             </FormItem>
                           )}
                         />
@@ -1160,14 +1160,14 @@ export default function AccountsPayables() {
                                   className="h-14 bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all  text-lg rounded-2xl"
                                 />
                               </FormControl>
-                              <FormMessage className="text-[10px] " />
+                              <FormMessage className="text-xs " />
                             </FormItem>
                           )}
                         />
                       </div>
 
                       <div className="mt-8 space-y-3 relative z-10">
-                        <h4 className="text-[10px] font-black  text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                        <h4 className="text-xs font-black  text-slate-400 tracking-[0.2em] flex items-center gap-2">
                           <div className="h-px bg-slate-100 flex-1" />
                           Transaction Metadata
                           <div className="h-px bg-slate-100 flex-1" />
@@ -1181,7 +1181,7 @@ export default function AccountsPayables() {
                                 name="bankName"
                                 render={({ field }) => (
                                   <FormItem className="md:col-span-2">
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Receiving Bank</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Receiving Bank</FormLabel>
                                     <FormControl><Input {...field} placeholder="e.g. HDFC Bank Main" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1192,7 +1192,7 @@ export default function AccountsPayables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">TXN ID</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">TXN ID</FormLabel>
                                     <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1203,7 +1203,7 @@ export default function AccountsPayables() {
                                 name="referenceNumber"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Ref #</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Ref #</FormLabel>
                                     <FormControl><Input {...field} placeholder="REF123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1219,7 +1219,7 @@ export default function AccountsPayables() {
                                 name="upiId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Vendor UPI ID</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Vendor UPI ID</FormLabel>
                                     <FormControl><Input {...field} placeholder="vendor@upi" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1230,7 +1230,7 @@ export default function AccountsPayables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Transaction Ref</FormLabel>
                                     <FormControl><Input {...field} placeholder="TXN123..." className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1246,7 +1246,7 @@ export default function AccountsPayables() {
                                 name="chequeNumber"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Cheque Number</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Cheque Number</FormLabel>
                                     <FormControl><Input {...field} placeholder="000123" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1257,7 +1257,7 @@ export default function AccountsPayables() {
                                 name="chequeDate"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Cheque Date</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Cheque Date</FormLabel>
                                     <FormControl><Input {...field} type="date" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1268,7 +1268,7 @@ export default function AccountsPayables() {
                                 name="bankName"
                                 render={({ field }) => (
                                   <FormItem className="md:col-span-2">
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Issuing Bank</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Issuing Bank</FormLabel>
                                     <FormControl><Input {...field} placeholder="e.g. HDFC Bank" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1284,7 +1284,7 @@ export default function AccountsPayables() {
                                 name="receivedBy"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Recipient Name</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Recipient Name</FormLabel>
                                     <FormControl><Input {...field} placeholder="Who received the cash?" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1300,7 +1300,7 @@ export default function AccountsPayables() {
                                 name="cardLast4"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Last 4 Digits</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Last 4 Digits</FormLabel>
                                     <FormControl><Input {...field} placeholder="4242" maxLength={4} className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1311,7 +1311,7 @@ export default function AccountsPayables() {
                                 name="transactionId"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-[10px] font-black  text-slate-500 tracking-widest ml-1">Auth Code</FormLabel>
+                                    <FormLabel className="text-xs font-black  text-slate-500 tracking-widest ml-1">Auth Code</FormLabel>
                                     <FormControl><Input {...field} placeholder="AUTH123" className="h-12 bg-slate-50 border-slate-100 rounded-xl " /></FormControl>
                                     <FormMessage />
                                   </FormItem>

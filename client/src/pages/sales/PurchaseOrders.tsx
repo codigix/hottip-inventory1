@@ -591,7 +591,7 @@ export default function PurchaseOrders() {
         return (
           <div>
             <div className="font-medium text-slate-700">{supplierName}</div>
-            <div className="text-[10px] text-slate-400  ">
+            <div className="text-xs text-slate-400  ">
               {po.supplier?.type || "VENDOR"}
             </div>
           </div>
@@ -627,7 +627,7 @@ export default function PurchaseOrders() {
           <Badge 
             variant="outline"
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[po.status] || "bg-slate-100 text-slate-600 border-slate-200"
             )}
           >
@@ -730,7 +730,7 @@ export default function PurchaseOrders() {
                               <SelectItem key={q.id} value={q.id}>
                                 <div className="flex justify-between items-center w-full min-w-[200px]">
                                   <span>{q.quotationNumber}</span>
-                                  <Badge variant="outline" className="text-[10px] ml-2 h-4 px-1">
+                                  <Badge variant="outline" className="text-xs ml-2 h-4 px-1">
                                     {q.type}
                                   </Badge>
                                 </div>
@@ -775,10 +775,10 @@ export default function PurchaseOrders() {
                         {selectedQuotation ? (
                           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 group transition-all hover:bg-white hover:border-blue-300">
                             <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100   tracking-tight text-[10px] py-0 px-2 h-5">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100   tracking-tight text-xs py-0 px-2 h-5">
                                 {selectedQuotation.type}
                               </Badge>
-                              <span className="text-sm  text-slate-900 flex-1 truncate">{selectedSupplierName}</span>
+                              <span className="text-xs  text-slate-900 flex-1 truncate">{selectedSupplierName}</span>
                             </div>
                             {selectedSupplierEmail && (
                               <div className="text-[11px] text-gray-500 ml-1">
@@ -788,12 +788,12 @@ export default function PurchaseOrders() {
                             {(selectedSupplierAddress || selectedSupplierGst) && (
                               <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1">
                                 {selectedSupplierAddress && (
-                                  <div className="text-[10px] text-slate-500 italic flex items-center gap-1">
+                                  <div className="text-xs text-slate-500 italic flex items-center gap-1">
                                     <span className="  text-[9px] not-italic">Addr:</span> {selectedSupplierAddress}
                                   </div>
                                 )}
                                 {selectedSupplierGst && (
-                                  <div className="text-[10px] text-slate-500 italic flex items-center gap-1">
+                                  <div className="text-xs text-slate-500 italic flex items-center gap-1">
                                     <span className="  text-[9px] not-italic text-blue-600">GST:</span> {selectedSupplierGst}
                                   </div>
                                 )}
@@ -987,7 +987,7 @@ export default function PurchaseOrders() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="text-[10px]  text-slate-500  ">{stat.title}</p>
+                    <p className="text-xs  text-slate-500  ">{stat.title}</p>
                     <h3 className="text-xl  text-slate-900">{stat.value}</h3>
                   </div>
                   <div className="bg-white/80 p-2 rounded-lg border border-slate-100 ">
@@ -1021,17 +1021,17 @@ export default function PurchaseOrders() {
           </DialogHeader>
 
           {selectedPo && (
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
-                  <p className="text-gray-500   text-[10px]">Customer Details</p>
+                  <p className="text-gray-500   text-xs">Customer Details</p>
                   <p className=" text-lg">{selectedPo.supplier?.name || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.name || "N/A"}</p>
                   <p>{selectedPo.supplier?.address || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.address || "N/A"}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-gray-500   text-[10px]">Order Info</p>
+                  <p className="text-gray-500   text-xs">Order Info</p>
                   <p><strong>Order Date:</strong> {selectedPo.orderDate ? new Date(selectedPo.orderDate).toLocaleDateString() : (selectedPo.createdAt ? new Date(selectedPo.createdAt).toLocaleDateString() : "N/A")}</p>
-                  <p><strong>Status:</strong> <Badge className="ml-1  text-[10px]">{selectedPo.status}</Badge></p>
+                  <p><strong>Status:</strong> <Badge className="ml-1  text-xs">{selectedPo.status}</Badge></p>
                 </div>
               </div>
 

@@ -87,7 +87,7 @@ import { inventoryTourConfig } from '@/components/tours/inventoryTour'; // New!
 
 export default function InventoryLayout() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Header with tour */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl ">Inventory Management</h1>
@@ -246,7 +246,7 @@ export default function MarketingLayout() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Auto-start prompt */}
       {!isTourDone('marketingTourDone') && showAutoStartPrompt && (
         <div className="bg-blue-50 border border-blue-200 rounded p-4 flex justify-between items-center">

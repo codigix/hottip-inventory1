@@ -184,16 +184,16 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 my-3">
             <TabsTrigger value="basic" data-testid="tab-basic-info">Basic Info</TabsTrigger>
             <TabsTrigger value="location" data-testid="tab-location-info">Location</TabsTrigger>
             <TabsTrigger value="details" data-testid="tab-visit-details">Details</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
               <FormField
                 control={form.control}
                 name="leadId"
@@ -274,7 +274,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                           <Button
                             variant="outline"
                             className={`w-full pl-3 text-left font-normal ${
-                              !field.value && "text-gray-500"
+                              !field.value && "text-gray-500 text-xs"
                             }`}
                             data-testid="button-select-date"
                           >
@@ -359,15 +359,15 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
             />
 
             {visit && purposeLogs && purposeLogs.length > 0 && (
-              <div className="mt-4 space-y-3 p-4 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">
-                <p className="text-[10px] text-slate-500    mb-2">Visit Purpose History</p>
-                <div className="space-y-3">
+              <div className=" space-y-2 p-2 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">
+                <p className="text-xs text-slate-500    mb-2">Visit Purpose History</p>
+                <div className="space-y-2">
                   {purposeLogs
                     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                     .map((log) => (
                       <div key={log.id} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-800 last:border-0">
                         <div className="space-y-1">
-                          <p className="text-sm  text-slate-800 dark:text-slate-200">
+                          <p className="text-xs  text-slate-800 dark:text-slate-200">
                             {getPurposeText(log.purpose)}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -393,33 +393,33 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 <CardContent className="space-y-2">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-500">Name:</span>
+                      <span className="text-gray-500 text-xs">Name:</span>
                       <p className="font-light">
                         {selectedLead.firstName} {selectedLead.lastName}
                       </p>
                     </div>
                     {selectedLead.companyName && (
                       <div>
-                        <span className="text-gray-500">Company:</span>
+                        <span className="text-gray-500 text-xs">Company:</span>
                         <p className="font-light">{selectedLead.companyName}</p>
                       </div>
                     )}
                     {selectedLead.phone && (
                       <div>
-                        <span className="text-gray-500">Phone:</span>
+                        <span className="text-gray-500 text-xs">Phone:</span>
                         <p className="font-light">{selectedLead.phone}</p>
                       </div>
                     )}
                     {selectedLead.email && (
                       <div>
-                        <span className="text-gray-500">Email:</span>
+                        <span className="text-gray-500 text-xs">Email:</span>
                         <p className="font-light">{selectedLead.email}</p>
                       </div>
                     )}
                   </div>
                   {selectedLead.requirementDescription && (
                     <div>
-                      <span className="text-gray-500">Requirements:</span>
+                      <span className="text-gray-500 text-xs">Requirements:</span>
                       <p className="text-sm mt-1">{selectedLead.requirementDescription}</p>
                     </div>
                   )}
@@ -428,7 +428,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
             )}
           </TabsContent>
 
-          <TabsContent value="location" className="space-y-4">
+          <TabsContent value="location" className="space-y-4 mt-5">
             <FormField
               control={form.control}
               name="visitAddress"
@@ -490,7 +490,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
             </div>
           </TabsContent>
 
-          <TabsContent value="details" className="space-y-4">
+          <TabsContent value="details" className="space-y-4 mt-5">
             <FormField
               control={form.control}
               name="preVisitNotes"
@@ -541,11 +541,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
               <CardContent className="space-y-2">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Visit Number:</span>
-                    <p className="font-light">{visit?.visitNumber || generateVisitNumber()}</p>
+                    <span className="text-gray-500 text-xs">Visit Number:</span>
+                    <p className="font-light text-sm">{visit?.visitNumber || generateVisitNumber()}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Status:</span>
+                    <span className="text-gray-500 text-xs">Status:</span>
                     <p className="font-light">Scheduled</p>
                   </div>
                 </div>

@@ -318,7 +318,7 @@ export default function VendorManagement() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-2"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
@@ -657,7 +657,7 @@ export default function VendorManagement() {
           <div className="flex items-center space-x-2">
             <Building2 className="h-5 w-5 text-slate-400" />
             <h2 className="text-sm  text-slate-700">Vendor List</h2>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs ">
               {suppliers?.length || 0}
             </Badge>
           </div>
@@ -686,29 +686,27 @@ export default function VendorManagement() {
             </DialogDescription>
           </DialogHeader>
           {selectedVendor && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 mt-5">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Vendor Name
                   </label>
-                  <p className="text-base mt-1">{selectedVendor.name}</p>
+                  <p className="text-xs mt-1">{selectedVendor.name}</p>
                 </div>
                 <div>
                   <label className="text-sm  text-gray-500">
                     Contact Person
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.contactPerson || "N/A"}
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Email
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.email || "N/A"}
                   </p>
                 </div>
@@ -716,17 +714,15 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     Phone
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.phone || "N/A"}
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+                 <div>
                   <label className="text-sm  text-gray-500">
                     GST Number
                   </label>
-                  <p className="text-base mt-1 font-mono">
+                  <p className="text-xs mt-1 font-mono">
                     {selectedVendor.gstNumber || "N/A"}
                   </p>
                 </div>
@@ -734,25 +730,23 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     PAN Number
                   </label>
-                  <p className="text-base mt-1 font-mono">
+                  <p className="text-xs mt-1 font-mono">
                     {selectedVendor.panNumber || "N/A"}
                   </p>
                 </div>
-              </div>
-              <div>
+                <div>
                 <label className="text-sm  text-gray-500">
                   Address
                 </label>
-                <p className="text-base mt-1">
+                <p className="text-xs mt-1">
                   {selectedVendor.address || "N/A"}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
+              <div>
                   <label className="text-sm  text-gray-500">
                     City
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.city || "N/A"}
                   </p>
                 </div>
@@ -760,7 +754,7 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     State
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.state || "N/A"}
                   </p>
                 </div>
@@ -768,17 +762,15 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     ZIP Code
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.zipCode || "N/A"}
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Company Type
                   </label>
-                  <p className="text-base mt-1 capitalize">
+                  <p className="text-xs mt-1 capitalize">
                     {selectedVendor.companyType || "N/A"}
                   </p>
                 </div>
@@ -786,17 +778,15 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     Payment Terms
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.paymentTerms || 30} days
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Website
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     {selectedVendor.website ? (
                       <a
                         href={selectedVendor.website}
@@ -815,16 +805,15 @@ export default function VendorManagement() {
                   <label className="text-sm  text-gray-500">
                     Credit Limit
                   </label>
-                  <p className="text-base mt-1">
+                  <p className="text-xs mt-1">
                     ₹{selectedVendor.creditLimit || "0"}
                   </p>
                 </div>
-              </div>
-              <div>
+                 <div>
                 <label className="text-sm  text-gray-500">
                   Status
                 </label>
-                <p className="text-base mt-1">
+                <p className="text-xs mt-1">
                   <Badge
                     className={
                       selectedVendor.isActive
@@ -836,12 +825,17 @@ export default function VendorManagement() {
                   </Badge>
                 </p>
               </div>
+              </div>
+              
+              
+             
+             
               {selectedVendor.notes && (
                 <div>
                   <label className="text-sm  text-gray-500">
                     Notes
                   </label>
-                  <p className="text-base mt-1">{selectedVendor.notes}</p>
+                  <p className="text-xs mt-1">{selectedVendor.notes}</p>
                 </div>
               )}
             </div>
@@ -860,8 +854,8 @@ export default function VendorManagement() {
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -897,9 +891,6 @@ export default function VendorManagement() {
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -935,9 +926,6 @@ export default function VendorManagement() {
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="gstNumber"
@@ -973,6 +961,11 @@ export default function VendorManagement() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
               </div>
 
               <FormField

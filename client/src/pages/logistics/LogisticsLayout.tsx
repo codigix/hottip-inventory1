@@ -124,23 +124,16 @@ export default function LogisticsLayout() {
                 data-testid={`sidebar-${item.id}`}
               >
                 <div
-                  className={`p-2 rounded transition-colors cursor-pointer ${
+                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer mb-1 ${
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted/50'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'hover:bg-slate-100 text-slate-600'
                   }`}
                   data-tour={`logistics-${item.id}`}
                 >
                   <div className="flex items-center space-x-3">
-                    <Icon className="h-5 w-5" />
-                    <div>
-                      <div className="text-xs">{item.label}</div>
-                      <div className={`text-xs ${
-                        isActive ? 'text-primary-foreground/80' : 'text-gray-500'
-                      }`}>
-                        {/* {item.description} */}
-                      </div>
-                    </div>
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <div className="text-xs ">{item.label}</div>
                   </div>
                 </div>
               </Link>
@@ -149,34 +142,34 @@ export default function LogisticsLayout() {
         </div>
 
         {/* Quick Stats Card */}
-        <div className="mt-8">
-          <Card className="bg-muted/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-light flex items-center space-x-2">
-                <Truck className="h-4 w-4" />
-                <span>Logistics Overview</span>
+        <div className="mt-8 px-1">
+          <Card className="bg-slate-50/50 border-slate-100 shadow-none">
+            <CardHeader className="pb-3 px-3 pt-3">
+              <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <BarChart3 className="h-3 w-3" />
+                Logistics Overview
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-3 pb-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Active Shipments</span>
-                <div className="flex items-center space-x-1">
+                <span className="text-xs text-slate-500">Active Shipments</span>
+                <div className="flex items-center gap-1.5">
                   <Package className="h-3 w-3 text-blue-500" />
-                  <span className="text-xs font-light">45</span>
+                  <span className="text-xs font-bold text-slate-900">45</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Deliveries Today</span>
-                <div className="flex items-center space-x-1">
+                <span className="text-xs text-slate-500">Deliveries Today</span>
+                <div className="flex items-center gap-1.5">
                   <Calendar className="h-3 w-3 text-green-500" />
-                  <span className="text-xs font-light">12</span>
+                  <span className="text-xs font-bold text-slate-900">12</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">On-Time Rate</span>
-                <div className="flex items-center space-x-1">
+                <span className="text-xs text-slate-500">On-Time Rate</span>
+                <div className="flex items-center gap-1.5">
                   <TrendingUp className="h-3 w-3 text-emerald-500" />
-                  <span className="text-xs font-light">92%</span>
+                  <span className="text-xs font-bold text-emerald-600">92%</span>
                 </div>
               </div>
             </CardContent>

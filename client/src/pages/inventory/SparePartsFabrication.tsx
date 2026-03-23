@@ -207,7 +207,7 @@ export default function SparePartsFabrication() {
       cell: (order: any) => (
         <div className="flex flex-col">
           <span className="text-xs text-slate-500">Due: {order.dueDate ? new Date(order.dueDate).toLocaleDateString() : 'N/A'}</span>
-          <span className="text-[10px] text-slate-400">Start: {order.startDate ? new Date(order.startDate).toLocaleDateString() : 'N/A'}</span>
+          <span className="text-xs text-slate-400">Start: {order.startDate ? new Date(order.startDate).toLocaleDateString() : 'N/A'}</span>
         </div>
       )
     }
@@ -221,7 +221,7 @@ export default function SparePartsFabrication() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Spare Parts & Fabrication</h1>

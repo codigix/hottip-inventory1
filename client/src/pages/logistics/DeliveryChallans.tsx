@@ -29,8 +29,9 @@ import { openAuthenticatedPdf } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+import { DataTable, Column } from "@/components/ui/data-table";
+
 export default function DeliveryChallans() {
-  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   const { data: shipments = [], isLoading } = useQuery<any[]>({
@@ -44,15 +45,6 @@ export default function DeliveryChallans() {
       s.currentStatus === 'closed'
     );
   }, [shipments]);
-
-  const filteredData = useMemo(() => {
-    return challanShipments.filter(item => 
-      item.consignmentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.vendorName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.clientName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.poNumber || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [challanShipments, searchTerm]);
 
   const handleViewChallan = (shipmentId: string) => {
     openAuthenticatedPdf(`/api/logistics/shipments/${shipmentId}/delivery-challan`);
@@ -95,9 +87,94 @@ export default function DeliveryChallans() {
     sendToAccountsMutation.mutate(shipment);
   };
 
+  const columns: Column<any>[] = [
+    {
+      key: "challanNumber",
+      header: "Challan #",
+      cell: (item) => <span className="text-primary">DC-{item.consignmentNumber.split('-').pop()}</span>,
+      sortable: true,
+    },
+    {
+      key: "consignmentNumber",
+      header: "Consignment #",
+      cell: (item) => item.consignmentNumber,
+      sortable: true,
+    },
+    {
+      key: "poNumber",
+      header: "PO #",
+      cell: (item) => item.poNumber || "N/A",
+      sortable: true,
+    },
+    {
+      key: "clientName",
+      header: "Client / Vendor",
+      cell: (item) => (
+        <div className="text-slate-900">{item.clientName || item.vendorName || "N/A"}</div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "route",
+      header: "Route",
+      cell: (item) => (
+        <div className="flex items-center text-xs text-slate-500">
+          <MapPin className="h-3 w-3 mr-1 text-slate-400" />
+          {item.source} → {item.destination}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "deliveredAt",
+      header: <div className="text-right">Delivery Date</div>,
+      cell: (item) => (
+        <div className="flex flex-col items-end">
+          <span className="text-slate-700">
+            {item.deliveredAt ? format(new Date(item.deliveredAt), "dd MMM yyyy") : "N/A"}
+          </span>
+          <span className="text-xs text-gray-500 flex items-center">
+            <Calendar className="h-2 w-2 mr-1" /> Delivered
+          </span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "actions",
+      header: <div className="text-right">Actions</div>,
+      cell: (item) => (
+        <div className="flex justify-end gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-primary hover:text-primary hover:bg-primary/5"
+            onClick={() => handleViewChallan(item.id)}
+          >
+            <ExternalLink className="h-3 w-3 mr-1" /> View PDF
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+            onClick={() => handleSendToAccounts(item)}
+            disabled={sendToAccountsMutation.isPending}
+          >
+            {sendToAccountsMutation.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3 mr-1" />
+            )}
+            Send
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   if (isLoading) {
     return (
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-2">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -108,104 +185,18 @@ export default function DeliveryChallans() {
     <div className="p-4 space-y-3 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl text-black mb-2">Delivery Challans</h1>
-          <p className="text-gray-500">
+          <h1 className="text-xl">Delivery Challans</h1>
+          <p className="text-gray-500 text-xs">
             View and download generated delivery challans for completed shipments
           </p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Search by consignment #, PO #, or client..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-muted/30 border-none h-11"
-            />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow className="hover:bg-transparent border-slate-200">
-                <TableHead className="py-4  text-slate-700">Challan #</TableHead>
-                <TableHead className="py-4  text-slate-700">Consignment #</TableHead>
-                <TableHead className="py-4  text-slate-700">PO #</TableHead>
-                <TableHead className="py-4  text-slate-700">Client / Vendor</TableHead>
-                <TableHead className="py-4  text-slate-700">Route</TableHead>
-                <TableHead className="py-4  text-slate-700 text-right">Delivery Date</TableHead>
-                <TableHead className="w-[120px] text-right py-4  text-slate-700">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-gray-500 italic">
-                    No delivery challans found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredData.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                    <TableCell className=" text-primary py-4">DC-{item.consignmentNumber.split('-').pop()}</TableCell>
-                    <TableCell className="py-4 ">{item.consignmentNumber}</TableCell>
-                    <TableCell className="py-4 ">{item.poNumber || "N/A"}</TableCell>
-                    <TableCell className="py-4">
-                      <div className=" text-slate-900">{item.clientName || item.vendorName || "N/A"}</div>
-                    </TableCell>
-                    <TableCell className="py-4 text-xs text-slate-500">
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1 text-slate-400" />
-                        {item.source} → {item.destination}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4 text-right">
-                      <div className="flex flex-col items-end">
-                        <span className=" text-slate-700">
-                          {item.deliveredAt ? format(new Date(item.deliveredAt), "dd MMM yyyy") : "N/A"}
-                        </span>
-                        <span className="text-[10px] text-gray-500 flex items-center">
-                          <Calendar className="h-2 w-2 mr-1" /> Delivered
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 text-primary hover:text-primary hover:bg-primary/5"
-                          onClick={() => handleViewChallan(item.id)}
-                        >
-                          <ExternalLink className="h-4 w-4 mr-1" /> View PDF
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                          onClick={() => handleSendToAccounts(item)}
-                          disabled={sendToAccountsMutation.isPending}
-                        >
-                          {sendToAccountsMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4 mr-1" />
-                          )}
-                          Send
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <DataTable
+        data={challanShipments}
+        columns={columns}
+        searchPlaceholder="Search by consignment #, PO #, or client..."
+      />
     </div>
   );
 }

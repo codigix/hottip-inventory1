@@ -244,12 +244,12 @@ const updateVisitMutation = useMutation({
   if (visitsLoading) return <div className="p-4">Loading visits...</div>;
 
   return (
-   <div className="p-4 md:p-4 space-y-6">
+   <div className="p-4 md:p-4 space-y-2">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl  text-foreground" data-testid="page-title">Field Visits</h1>
-          <p className="text-gray-500">
+          <h1 className="text-xl md:text-xl  text-foreground" data-testid="page-title">Field Visits</h1>
+          <p className="text-gray-500 text-xs">
             Schedule, track, and manage field visits with GPS verification
           </p>
         </div>
@@ -282,13 +282,13 @@ const updateVisitMutation = useMutation({
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-blue-500" />
               <span>Today's Visits</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-today-visits">
+            <div className="text-xl " data-testid="metric-today-visits">
               {metricsLoading ? '...' : displayMetrics.todayVisits}
             </div>
           </CardContent>
@@ -296,13 +296,13 @@ const updateVisitMutation = useMutation({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <Clock className="h-4 w-4 text-orange-500" />
               <span>Scheduled</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-scheduled-visits">
+            <div className="text-xl " data-testid="metric-scheduled-visits">
               {statusCounts.scheduled}
             </div>
           </CardContent>
@@ -310,13 +310,13 @@ const updateVisitMutation = useMutation({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-blue-500" />
               <span>In Progress</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-in-progress-visits">
+            <div className="text-xl " data-testid="metric-in-progress-visits">
               {statusCounts.in_progress}
             </div>
           </CardContent>
@@ -324,13 +324,13 @@ const updateVisitMutation = useMutation({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span>Completed</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-completed-visits">
+            <div className="text-xl " data-testid="metric-completed-visits">
               {statusCounts.completed}
             </div>
           </CardContent>
@@ -338,13 +338,13 @@ const updateVisitMutation = useMutation({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <XCircle className="h-4 w-4 text-red-500" />
               <span>Cancelled</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-cancelled-visits">
+            <div className="text-xl " data-testid="metric-cancelled-visits">
               {statusCounts.cancelled}
             </div>
           </CardContent>
@@ -352,13 +352,13 @@ const updateVisitMutation = useMutation({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light flex items-center space-x-2">
+            <CardTitle className="text-xs font-light flex items-center space-x-2">
               <Users className="h-4 w-4 text-emerald-500" />
               <span>Completion Rate</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl " data-testid="metric-completion-rate">
+            <div className="text-xl " data-testid="metric-completion-rate">
               {metricsLoading ? '...' : `${displayMetrics.completionRate?.toFixed(1) || 0}%`}
             </div>
           </CardContent>
@@ -438,7 +438,7 @@ const updateVisitMutation = useMutation({
       {/* Visit Form Modal */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="my-4">
             <DialogTitle>
               {selectedVisit ? 'Edit Visit' : 'Schedule New Visit'}
             </DialogTitle>

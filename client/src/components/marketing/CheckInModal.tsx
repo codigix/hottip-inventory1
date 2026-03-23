@@ -285,7 +285,7 @@ export default function CheckInModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Current Time */}
           <Card>
             <CardHeader className="pb-2">

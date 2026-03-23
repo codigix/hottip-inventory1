@@ -73,15 +73,15 @@ const taskTypeIcons = {
 };
 
 const taskTypeColors = {
-  visit_client: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  follow_up: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  demo: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  presentation: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  proposal: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  phone_call: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-  email_campaign: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
-  market_research: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-  other: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+  visit_client: "bg-blue-100 text-blue-800",
+  follow_up: "bg-[#dcfce7] text-[#166534]",
+  demo: "bg-purple-100 text-purple-800",
+  presentation: "bg-orange-100 text-orange-800",
+  proposal: "bg-red-100 text-red-800",
+  phone_call: "bg-[#dcfce7] text-[#166534]",
+  email_campaign: "bg-pink-100 text-pink-800",
+  market_research: "bg-indigo-100 text-indigo-800",
+  other: "bg-gray-100 text-gray-800"
 };
 
 const priorityColors = {
@@ -94,7 +94,7 @@ const priorityColors = {
 const statusColors = {
   pending: "bg-gray-100 text-gray-800",
   in_progress: "bg-blue-100 text-blue-800",
-  completed: "bg-green-100 text-green-800",
+  completed: "bg-[#dcfce7] text-[#166534]",
   cancelled: "bg-red-100 text-red-800"
 };
 
@@ -193,220 +193,149 @@ export default function TaskCard({
 
   return (
     <Card 
-      className={`transition-all duration-200 hover:shadow-md ${
+      className={`transition-all duration-200 hover:shadow-md border border-slate-200 relative ${
         draggable ? 'cursor-move' : ''
-      } ${isOverdue ? 'border-l-4 border-l-red-500' : ''} ${
-        task.priority === 'urgent' ? 'border-l-4 border-l-red-400' : ''
       }`}
       data-testid={`task-card-${task.id}`}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between space-x-2">
-          <div className="flex items-start space-x-2 flex-1">
-            <div className={`p-1.5 rounded-lg ${taskTypeColors[task.type]}`}>
-              <TaskIcon className="h-3 w-3" />
-            </div>
-            <div className="flex-1 min-w-0">
+      <CardHeader className="p-3">
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded flex-shrink-0 ${taskTypeColors[task.type] || taskTypeColors.other}`}>
+            <TaskIcon className="h-4 w-4" />
+          </div>
+          
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-start justify-between">
               <h3 
-                className=" text-sm leading-tight truncate cursor-pointer hover:text-primary"
+                className="text-xs  text-slate-900 leading-snug cursor-pointer hover:text-primary pr-6"
                 onClick={() => setIsExpanded(!isExpanded)}
                 data-testid={`task-title-${task.id}`}
               >
                 {task.title}
               </h3>
-              {!compact && task.description && (
-                <p 
-                  className={`text-xs text-gray-500 mt-1 ${
-                    isExpanded ? '' : 'line-clamp-2'
-                  }`}
-                  data-testid={`task-description-${task.id}`}
-                >
-                  {task.description}
-                </p>
-              )}
+              
+              <div className="absolute right-2 top-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {task.status === 'pending' && (
+                      <DropdownMenuItem 
+                        onClick={() => handleStatusChange('in_progress')}
+                        data-testid={`task-start-${task.id}`}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Task
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {task.status === 'in_progress' && (
+                      <>
+                        <DropdownMenuItem className="lowercase"
+                          onClick={() => handleStatusChange('completed')}
+                          data-testid={`task-complete-${task.id}`}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Complete Task
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange('pending')}
+                          data-testid={`task-pause-${task.id}`}
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          Pause Task
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    
+                    {(task.status === 'pending' || task.status === 'in_progress') && (
+                      <DropdownMenuItem 
+                        onClick={() => handleStatusChange('cancelled')}
+                        data-testid={`task-cancel-${task.id}`}
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Cancel Task
+                      </DropdownMenuItem>
+                    )}
+                    
+                    <DropdownMenuSeparator />
+                    
+                    {onEdit && (
+                      <DropdownMenuItem 
+                        onClick={() => onEdit(task)}
+                        data-testid={`task-edit-${task.id}`}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {onDelete && (
+                      <DropdownMenuItem 
+                        onClick={() => onDelete(task.id)}
+                        className="text-red-600 dark:text-red-400"
+                        data-testid={`task-delete-${task.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center space-x-1">
+
             <Badge 
               variant="secondary" 
-              className={`text-xs ${priorityColors[task.priority]}`}
-              data-testid={`task-priority-${task.id}`}
+              className={`text-[10px]  p-1 lowercase ${statusColors[task.status]}`}
+              data-testid={`task-status-${task.id}`}
             >
-              {task.priority}
+              {task.status.replace('_', ' ')}
             </Badge>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <MoreVertical className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {task.status === 'pending' && (
-                  <DropdownMenuItem 
-                    onClick={() => handleStatusChange('in_progress')}
-                    data-testid={`task-start-${task.id}`}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Task
-                  </DropdownMenuItem>
-                )}
-                
-                {task.status === 'in_progress' && (
-                  <>
-                    <DropdownMenuItem 
-                      onClick={() => handleStatusChange('completed')}
-                      data-testid={`task-complete-${task.id}`}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Complete Task
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleStatusChange('pending')}
-                      data-testid={`task-pause-${task.id}`}
-                    >
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pause Task
-                    </DropdownMenuItem>
-                  </>
-                )}
-                
-                {(task.status === 'pending' || task.status === 'in_progress') && (
-                  <DropdownMenuItem 
-                    onClick={() => handleStatusChange('cancelled')}
-                    data-testid={`task-cancel-${task.id}`}
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Cancel Task
-                  </DropdownMenuItem>
-                )}
-                
-                <DropdownMenuSeparator />
-                
-                {onEdit && (
-                  <DropdownMenuItem 
-                    onClick={() => onEdit(task)}
-                    data-testid={`task-edit-${task.id}`}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                )}
-                
-                {onDelete && (
-                  <DropdownMenuItem 
-                    onClick={() => onDelete(task.id)}
-                    className="text-red-600 dark:text-red-400"
-                    data-testid={`task-delete-${task.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          {/* Progress Bar */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <Badge 
-                variant="secondary" 
-                className={statusColors[task.status]}
-                data-testid={`task-status-${task.id}`}
-              >
-                {task.status.replace('_', ' ').toUpperCase()}
-              </Badge>
-              <span className="text-gray-500">
-                {getProgressPercentage()}%
-              </span>
-            </div>
-            <Progress value={getProgressPercentage()} className="h-1" />
-          </div>
+      <div className="p-2">
+        <Progress value={getProgressPercentage()} className="h-1 bg-slate-100 [&>div]:bg-[#7c3aed]" />
+      </div>
 
-          {/* Task Info */}
-          <div className="space-y-2">
-            {/* Assignee & Due Date */}
-            <div className="flex items-center justify-between text-xs">
-              {showAssignee && task.assignedToUser && (
-                <div className="flex items-center space-x-1">
-                  <Avatar className="h-4 w-4">
-                    <AvatarFallback className="text-[8px]">
-                      {task.assignedToUser.firstName[0]}{task.assignedToUser.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span 
-                    className="text-gray-500 truncate max-w-[80px]"
-                    data-testid={`task-assignee-${task.id}`}
-                  >
-                    {task.assignedToUser.firstName} {task.assignedToUser.lastName}
-                  </span>
-                </div>
-              )}
-
-              {task.dueDate && (
-                <div className={`flex items-center space-x-1 ${getDueDateColor()}`}>
-                  <Calendar className="h-3 w-3" />
-                  <span data-testid={`task-due-date-${task.id}`}>
-                    {getDueDateText()}
-                  </span>
-                  {isOverdue && <AlertTriangle className="h-3 w-3" />}
-                </div>
-              )}
-            </div>
-
-            {/* Estimated Hours */}
-            {task.estimatedHours && (
-              <div className="flex items-center space-x-1 text-xs text-gray-500">
-                <Timer className="h-3 w-3" />
-                <span data-testid={`task-estimated-hours-${task.id}`}>
-                  {task.estimatedHours}h estimated
+      <CardContent className="p-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 overflow-hidden">
+            {showAssignee && task.assignedToUser && (
+              <div className="flex items-center gap-2">
+                {/* <Avatar className="h-6 w-6 border border-slate-200">
+                  <AvatarFallback className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase">
+                    {task.assignedToUser.firstName[0]}{task.assignedToUser.lastName[0]}
+                  </AvatarFallback>
+                </Avatar> */}
+                <span 
+                  className="text-xs  text-slate-500 truncate"
+                  data-testid={`task-assignee-${task.id}`}
+                >
+                  {task.assignedToUser.firstName} {task.assignedToUser.lastName}
                 </span>
               </div>
             )}
+          </div>
 
-            {/* Related entities */}
-            <div className="flex items-center space-x-2 text-xs">
-              {task.lead && (
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-                      <UserIcon className="h-2.5 w-2.5 mr-1" />
-                      Lead
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{task.lead.firstName} {task.lead.lastName}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
-              {task.fieldVisit && (
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-                      <MapPin className="h-2.5 w-2.5 mr-1" />
-                      Visit
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{task.fieldVisit.visitNumber}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-
-            {/* Recurring indicator */}
-            {task.is_recurring && (
-              <div className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400">
-                <TrendingUp className="h-3 w-3" />
-                <span>Recurring {task.recurringFrequency}</span>
-              </div>
+          <div className="flex items-center gap-2">
+            {task.lead && (
+              <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-700 border-slate-200 px-2 py-0 h-6 flex items-center gap-1">
+                <UserIcon className="h-3 w-3" />
+                Lead
+              </Badge>
+            )}
+            
+            {!task.lead && task.fieldVisit && (
+              <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-700 border-slate-200 px-2 py-0 h-6 flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                Visit
+              </Badge>
             )}
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import {
   Users,
   UserCheck,
@@ -99,15 +99,15 @@ function MetricCard({
       <Card
         className={`relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-gradient-to-br ${gradientFrom} ${gradientTo}`}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-2">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <p className="text-sm  text-white/80 mb-1">{title}</p>
-              <p className="text-3xl  text-white mb-2">{value}</p>
+              <p className="text-xl  text-white mb-2">{value}</p>
               {trend && trendValue && (
                 <div className="flex items-center gap-1">
                   <TrendingUp
-                    className={`w-4 h-4 ${
+                    className={`w-3 h-3 ${
                       trend === "up" ? "text-white" : "text-white/60 rotate-180"
                     }`}
                   />
@@ -116,9 +116,9 @@ function MetricCard({
               )}
             </div>
             <div
-              className={`p-3 rounded ${iconColor} bg-white/20 backdrop-blur-sm`}
+              className={`p-2 rounded ${iconColor} bg-white/20 backdrop-blur-sm`}
             >
-              <Icon className="w-6 h-6 text-white" />
+              <Icon className="w-3 h-3 text-white" />
             </div>
           </div>
           <div className="absolute bottom-0 right-0 opacity-10">
@@ -132,7 +132,7 @@ function MetricCard({
 
 // DashboardContent: system overview with entity counts
 function DashboardContent() {
-  const { data, isLoading, error } = useQuery({
+  const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["/admin/overview"],
     queryFn: async () => {
       const res = await fetch("/api/admin/overview");
@@ -141,41 +141,35 @@ function DashboardContent() {
     },
   });
 
-  if (isLoading) {
+  const { data: metrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ["/admin/metrics"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/metrics");
+      if (!res.ok) throw new Error("Failed to fetch metrics");
+      return res.json();
+    },
+  });
+
+  const { data: recentActivity, isLoading: activityLoading } = useQuery({
+    queryKey: ["/admin/dashboard/recent-activity"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/dashboard/recent-activity");
+      if (!res.ok) throw new Error("Failed to fetch recent activity");
+      return res.json();
+    },
+  });
+
+  if (overviewLoading || metricsLoading || activityLoading) {
     return (
-      <div className="space-y-3">
-        <div>
-          <h1 className="text-3xl  text-gray-800 mb-2">
-            Admin Dashboard
-          </h1>
-          <p className="text-gray-600">
-            System-wide overview and entity counts
-          </p>
-        </div>
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(20)].map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-3">
-        <div>
-          <h1 className="text-3xl  text-gray-800 mb-2">
-            Admin Dashboard
-          </h1>
-          <p className="text-gray-600">
-            System-wide overview and entity counts
-          </p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600 ">
-            {error.message || "Failed to load overview."}
-          </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-[400px] rounded-xl" />
+          <Skeleton className="h-[400px] rounded-xl" />
         </div>
       </div>
     );
@@ -183,16 +177,16 @@ function DashboardContent() {
 
   // Prepare chart data
   const totalEntities =
-    data.users +
-    data.customers +
-    data.suppliers +
-    data.leads +
-    data.fieldVisits +
-    data.marketingTasks +
-    data.shipments +
-    data.products +
-    data.invoices +
-    data.receivables;
+    overview.users +
+    overview.customers +
+    overview.suppliers +
+    overview.leads +
+    overview.fieldVisits +
+    overview.marketingTasks +
+    overview.shipments +
+    overview.products +
+    overview.invoices +
+    overview.receivables;
 
   // System activity percentage (simulated based on active entities)
   const systemActivity = Math.min(95, Math.floor((totalEntities / 1000) * 100));
@@ -204,30 +198,30 @@ function DashboardContent() {
     { month: "Mar", users: 61, activities: 165, revenue: 38000 },
     { month: "Apr", users: 70, activities: 190, revenue: 42000 },
     { month: "May", users: 85, activities: 210, revenue: 48000 },
-    { month: "Jun", users: data.users || 95, activities: 235, revenue: 55000 },
+    { month: "Jun", users: overview.users || 95, activities: 235, revenue: 55000 },
   ];
 
   // Department activity data for bar chart
   const departmentData = [
     {
       name: "Marketing",
-      count: data.leads + data.fieldVisits,
+      count: overview.leads + overview.fieldVisits,
       color: "#f97316",
     },
     {
       name: "Sales",
-      count: data.invoices + data.outboundQuotations,
+      count: overview.invoices + overview.outboundQuotations,
       color: "#10b981",
     },
-    { name: "Logistics", count: data.shipments, color: "#ef4444" },
+    { name: "Logistics", count: overview.shipments, color: "#ef4444" },
     {
       name: "Inventory",
-      count: data.products + data.spareParts,
+      count: overview.products + overview.spareParts,
       color: "#06b6d4",
     },
     {
       name: "Accounts",
-      count: data.receivables + data.payables,
+      count: overview.receivables + overview.payables,
       color: "#8b5cf6",
     },
   ].sort((a, b) => b.count - a.count);
@@ -239,8 +233,8 @@ function DashboardContent() {
   ];
 
   return (
-    <div className="space-y-3" data-tour="admin-dashboard">
-      {/* Header with Purple/Indigo Theme */}
+    <div className="space-y-6" data-tour="admin-dashboard">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -249,15 +243,63 @@ function DashboardContent() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl  text-black" data-tour="welcome-header">
-              Admin Dashboard
+              Admin Overview
             </h1>
             <p className="text-gray-600 text-xs">
-              System-wide overview with analytics and insights
+              Real-time insights across all departments
             </p>
           </div>
           <StartTourButton tourConfig={dashboardTour} tourName="admin-dashboard" />
         </div>
       </motion.div>
+
+      {/* KPI Metrics from /api/admin/metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Receivables"
+          value={metrics.totalReceivables}
+          icon={DollarSign}
+          gradientFrom="from-green-500"
+          gradientTo="to-emerald-600"
+          iconColor="text-green-500"
+          delay={0.1}
+          trend="up"
+          trendValue="+15% vs last month"
+        />
+        <MetricCard
+          title="Overdue Tasks"
+          value={metrics.overdueTasks}
+          icon={ListTodo}
+          gradientFrom="from-red-500"
+          gradientTo="to-rose-600"
+          iconColor="text-red-500"
+          delay={0.2}
+          trend="down"
+          trendValue="-2 this week"
+        />
+        <MetricCard
+          title="Shipments In Transit"
+          value={metrics.shipmentsInTransit}
+          icon={Truck}
+          gradientFrom="from-blue-500"
+          gradientTo="to-indigo-600"
+          iconColor="text-blue-500"
+          delay={0.3}
+          trend="up"
+          trendValue="+5 active"
+        />
+        <MetricCard
+          title="Stock Alerts"
+          value={metrics.stockAlerts}
+          icon={Package}
+          gradientFrom="from-amber-500"
+          gradientTo="to-orange-600"
+          iconColor="text-amber-500"
+          delay={0.4}
+          trend="down"
+          trendValue="Needs attention"
+        />
+      </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -269,38 +311,40 @@ function DashboardContent() {
           transition={{ duration: 0.6, delay: 0.1 }}
           data-tour="system-activity"
         >
-          <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle className="text-lg  text-gray-700 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-indigo-600" />
+          <Card className="shadow-lg border-0 h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm  text-gray-500 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-600" />
                 System Activity
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={systemStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={1500}
-                  >
-                    {systemStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="text-center -mt-4">
-                <p className="text-3xl  text-indigo-600">
-                  {systemActivity}%
-                </p>
-                <p className="text-sm text-gray-600">Active Operations</p>
+              <div className="flex flex-col items-center">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={systemStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                      animationBegin={0}
+                      animationDuration={1500}
+                    >
+                      {systemStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="text-center -mt-8">
+                  <p className="text-4xl font-bold text-indigo-600">
+                    {systemActivity}%
+                  </p>
+                  <p className="text-xs text-gray-500">Active Load</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -316,10 +360,10 @@ function DashboardContent() {
           data-tour="growth-trends"
         >
           <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle className="text-lg  text-gray-700 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-indigo-600" />
-                Growth Trends
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm  text-gray-500 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                Growth Trend
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -350,16 +394,17 @@ function DashboardContent() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#9ca3af" />
-                  <YAxis stroke="#9ca3af" />
+                  <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "white",
                       border: "1px solid #e5e7eb",
                       borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
                   />
-                  <Legend />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                   <Area
                     type="monotone"
                     dataKey="users"
@@ -367,7 +412,7 @@ function DashboardContent() {
                     fill="url(#colorUsers)"
                     strokeWidth={2}
                     animationDuration={2000}
-                    name="Users"
+                    name="Active Users"
                   />
                   <Area
                     type="monotone"
@@ -376,7 +421,7 @@ function DashboardContent() {
                     fill="url(#colorActivities)"
                     strokeWidth={2}
                     animationDuration={2000}
-                    name="Activities"
+                    name="System Actions"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -385,336 +430,285 @@ function DashboardContent() {
         </motion.div>
       </div>
 
-      {/* Department Activity Bar Chart */}
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={cardVariants}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        data-tour="department-activity"
-      >
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <CardTitle className="text-lg  text-gray-700">
-              Department Activity Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={departmentData} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" stroke="#9ca3af" />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  stroke="#9ca3af"
-                  width={100}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "white",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Bar
-                  dataKey="count"
-                  radius={[0, 8, 8, 0]}
-                  animationDuration={1500}
-                >
-                  {departmentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Department Activity Bar Chart */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={cardVariants}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          data-tour="department-activity"
+        >
+          <Card className="shadow-lg border-0 h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm  text-gray-500">
+                Department Workload
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={departmentData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <XAxis type="number" stroke="#9ca3af" fontSize={12} hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    width={100}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    radius={[0, 4, 4, 0]}
+                    animationDuration={1500}
+                    barSize={24}
+                  >
+                    {departmentData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      {/* 👥 Users & Contacts */}
+        {/* Recent Activity Feed */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={cardVariants}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card className="shadow-lg border-0 h-full">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm  text-gray-500">
+               Recent System Activity
+              </CardTitle>
+              <Link href="/admin/audit-log" className="text-xs text-indigo-600 hover:underline">
+                View All Logs
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentActivity?.map((activity: any, i: number) => (
+                  <div key={activity.id || i} className="flex gap-4 items-start">
+                    <div className={`p-2 rounded-full mt-1 ${
+                      activity.type.includes('task') ? 'bg-amber-100 text-amber-600' :
+                      activity.type === 'shipment' ? 'bg-blue-100 text-blue-600' :
+                      'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {activity.type.includes('task') ? <ListTodo className="w-3 h-3" /> :
+                       activity.type === 'shipment' ? <Truck className="w-3 h-3" /> :
+                       <Activity className="w-3 h-3" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs  text-gray-900 truncate">
+                        {activity.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          activity.status === 'completed' || activity.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {activity.status.replace('_', ' ')}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(activity.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Quick Access Grid */}
       <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>👥</span> Users & Contacts
+        <h2 className="text-sm  text-gray-400   mb-4 px-1">
+          Entity Overview
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
-            title="Users"
-            value={data.users}
+            title="Total Users"
+            value={overview.users}
             icon={Users}
             gradientFrom="from-blue-500"
             gradientTo="to-blue-600"
             iconColor="text-blue-500"
             delay={0.1}
-            trend="up"
-            trendValue="+12%"
           />
           <MetricCard
-            title="Customers"
-            value={data.customers}
+            title="Total Customers"
+            value={overview.customers}
             icon={UserCheck}
             gradientFrom="from-green-500"
             gradientTo="to-green-600"
             iconColor="text-green-500"
             delay={0.2}
-            trend="up"
-            trendValue="+8%"
           />
           <MetricCard
-            title="Suppliers"
-            value={data.suppliers}
-            icon={Package}
-            gradientFrom="from-purple-500"
-            gradientTo="to-purple-600"
-            iconColor="text-purple-500"
-            delay={0.3}
-            trend="up"
-            trendValue="+5%"
-          />
-          <MetricCard
-            title="Leads"
-            value={data.leads}
-            icon={Target}
-            gradientFrom="from-pink-500"
-            gradientTo="to-pink-600"
-            iconColor="text-pink-500"
-            delay={0.4}
-            trend="up"
-            trendValue="+15%"
-          />
-        </div>
-      </div>
-
-      {/* 📢 Marketing */}
-      <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>📢</span> Marketing
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <MetricCard
-            title="Field Visits"
-            value={data.fieldVisits}
-            icon={MapPin}
-            gradientFrom="from-pink-500"
-            gradientTo="to-rose-600"
-            iconColor="text-pink-500"
-            delay={0.5}
-            trend="up"
-            trendValue="+22%"
-          />
-          <MetricCard
-            title="Marketing Tasks"
-            value={data.marketingTasks}
-            icon={ClipboardList}
-            gradientFrom="from-fuchsia-500"
-            gradientTo="to-purple-600"
-            iconColor="text-fuchsia-500"
-            delay={0.6}
-            trend="up"
-            trendValue="+18%"
-          />
-          <MetricCard
-            title="Leave Requests"
-            value={data.leaveRequests}
-            icon={Calendar}
-            gradientFrom="from-orange-500"
-            gradientTo="to-amber-600"
-            iconColor="text-orange-500"
-            delay={0.7}
-            trend="down"
-            trendValue="-3%"
-          />
-        </div>
-      </div>
-
-      {/* 🚚 Logistics */}
-      <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>🚚</span> Logistics
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <MetricCard
-            title="Shipments"
-            value={data.shipments}
-            icon={Truck}
-            gradientFrom="from-indigo-500"
-            gradientTo="to-blue-600"
-            iconColor="text-indigo-500"
-            delay={0.8}
-            trend="up"
-            trendValue="+14%"
-          />
-          <MetricCard
-            title="Logistics Tasks"
-            value={data.logisticsTasks}
-            icon={TruckIcon}
-            gradientFrom="from-violet-500"
-            gradientTo="to-purple-600"
-            iconColor="text-violet-500"
-            delay={0.9}
-            trend="up"
-            trendValue="+9%"
-          />
-        </div>
-      </div>
-
-      {/* 📦 Inventory & Manufacturing */}
-      <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>📦</span> Inventory & Manufacturing
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Products"
-            value={data.products}
+            title="Total Products"
+            value={overview.products}
             icon={Box}
             gradientFrom="from-teal-500"
             gradientTo="to-cyan-600"
             iconColor="text-teal-500"
-            delay={0.2}
-            trend="up"
-            trendValue="+7%"
-          />
-          <MetricCard
-            title="Spare Parts"
-            value={data.spareParts}
-            icon={Wrench}
-            gradientFrom="from-cyan-500"
-            gradientTo="to-blue-600"
-            iconColor="text-cyan-500"
             delay={0.3}
-            trend="up"
-            trendValue="+4%"
           />
           <MetricCard
-            title="Fabrication Orders"
-            value={data.fabricationOrders}
-            icon={Factory}
-            gradientFrom="from-sky-500"
-            gradientTo="to-indigo-600"
-            iconColor="text-sky-500"
-            delay={0.4}
-            trend="up"
-            trendValue="+11%"
-          />
-          <MetricCard
-            title="Inventory Tasks"
-            value={data.inventoryTasks}
-            icon={ListTodo}
-            gradientFrom="from-emerald-500"
-            gradientTo="to-green-600"
-            iconColor="text-emerald-500"
-            delay={0.5}
-            trend="up"
-            trendValue="+6%"
-          />
-        </div>
-      </div>
-
-      {/* 💰 Sales & Quotations */}
-      <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>💰</span> Sales & Quotations
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Outbound Quotations"
-            value={data.outboundQuotations}
-            icon={FileText}
-            gradientFrom="from-violet-500"
-            gradientTo="to-purple-600"
-            iconColor="text-violet-500"
-            delay={0.2}
-            trend="up"
-            trendValue="+19%"
-          />
-          <MetricCard
-            title="Inbound Quotations"
-            value={data.inboundQuotations}
-            icon={FolderInput}
-            gradientFrom="from-purple-500"
-            gradientTo="to-fuchsia-600"
-            iconColor="text-purple-500"
-            delay={0.3}
-            trend="up"
-            trendValue="+13%"
-          />
-          <MetricCard
-            title="Purchase Orders"
-            value={data.purchaseOrders}
-            icon={ShoppingCart}
+            title="Total Leads"
+            value={overview.leads}
+            icon={Target}
             gradientFrom="from-pink-500"
             gradientTo="to-rose-600"
             iconColor="text-pink-500"
             delay={0.4}
-            trend="up"
-            trendValue="+16%"
-          />
-          <MetricCard
-            title="Invoices"
-            value={data.invoices}
-            icon={Receipt}
-            gradientFrom="from-fuchsia-500"
-            gradientTo="to-pink-600"
-            iconColor="text-fuchsia-500"
-            delay={0.5}
-            trend="up"
-            trendValue="+21%"
           />
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 💵 Accounts & Finance */}
+function AllDepartmentsSummary() {
+  const { data: summary, isLoading } = useQuery({
+    queryKey: ["/admin/dashboard/module-summary"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/dashboard/module-summary");
+      if (!res.ok) throw new Error("Failed to fetch module summary");
+      return res.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <Skeleton key={i} className="h-64 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  const departments = [
+    {
+      name: "Inventory & Manufacturing",
+      icon: Box,
+      color: "cyan",
+      data: summary.inventory,
+      items: [
+        { label: "Products", value: summary.inventory.breakdown.products },
+        { label: "Spare Parts", value: summary.inventory.breakdown.spareParts },
+        { label: "Fabrication Orders", value: summary.inventory.breakdown.fabricationOrders },
+        { label: "Pending Tasks", value: summary.inventory.breakdown.inventoryTasks },
+      ],
+    },
+    {
+      name: "Sales & CRM",
+      icon: TrendingUp,
+      color: "emerald",
+      data: summary.sales,
+      items: [
+        { label: "Total Invoices", value: summary.sales.breakdown.invoices },
+        { label: "Outbound Quotes", value: summary.sales.breakdown.outboundQuotations },
+        { label: "Inbound Quotes", value: summary.sales.breakdown.inboundQuotations },
+        { label: "Purchase Orders", value: summary.sales.breakdown.purchaseOrders },
+      ],
+    },
+    {
+      name: "Accounts & Finance",
+      icon: DollarSign,
+      color: "indigo",
+      data: summary.accounts,
+      items: [
+        { label: "Receivables", value: summary.accounts.breakdown.receivables },
+        { label: "Payables", value: summary.accounts.breakdown.payables },
+        { label: "GST Returns", value: summary.accounts.breakdown.gstReturns },
+        { label: "Account Tasks", value: summary.accounts.breakdown.accountTasks },
+      ],
+    },
+    {
+      name: "Marketing",
+      icon: Target,
+      color: "orange",
+      data: summary.marketing,
+      items: [
+        { label: "Total Leads", value: summary.usersAndContacts.breakdown.leads },
+        { label: "Field Visits", value: summary.marketing.breakdown.fieldVisits },
+        { label: "Marketing Tasks", value: summary.marketing.breakdown.tasks },
+        { label: "Active Customers", value: summary.usersAndContacts.breakdown.customers },
+      ],
+    },
+    {
+      name: "Logistics",
+      icon: Truck,
+      color: "rose",
+      data: summary.logistics,
+      items: [
+        { label: "Shipments", value: summary.logistics.breakdown.shipments },
+        { label: "Logistics Tasks", value: summary.logistics.breakdown.tasks },
+        { label: "Leave Requests", value: summary.logistics.breakdown.leaveRequests },
+      ],
+    },
+    {
+      name: "Users & Staff",
+      icon: Users,
+      color: "blue",
+      data: summary.usersAndContacts,
+      items: [
+        { label: "System Users", value: summary.usersAndContacts.breakdown.users },
+        { label: "Suppliers", value: summary.usersAndContacts.breakdown.suppliers },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
       <div>
-        <h2 className="text-xl  mb-4 text-gray-700 flex items-center gap-2">
-          <span>💵</span> Accounts & Finance
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Receivables"
-            value={data.receivables}
-            icon={DollarSign}
-            gradientFrom="from-green-500"
-            gradientTo="to-emerald-600"
-            iconColor="text-green-500"
-            delay={0.2}
-            trend="up"
-            trendValue="+10%"
-          />
-          <MetricCard
-            title="Payables"
-            value={data.payables}
-            icon={CreditCard}
-            gradientFrom="from-red-500"
-            gradientTo="to-rose-600"
-            iconColor="text-red-500"
-            delay={0.3}
-            trend="down"
-            trendValue="-5%"
-          />
-          <MetricCard
-            title="GST Returns"
-            value={data.gstReturns}
-            icon={FileSpreadsheet}
-            gradientFrom="from-amber-500"
-            gradientTo="to-orange-600"
-            iconColor="text-amber-500"
-            delay={0.4}
-            trend="up"
-            trendValue="+2%"
-          />
-          <MetricCard
-            title="Account Tasks"
-            value={data.accountTasks}
-            icon={CheckCircle}
-            gradientFrom="from-yellow-500"
-            gradientTo="to-amber-600"
-            iconColor="text-yellow-500"
-            delay={0.5}
-            trend="up"
-            trendValue="+8%"
-          />
-        </div>
+        <h1 className="text-xl font-bold text-gray-900">All Departments Summary</h1>
+        <p className="text-sm text-gray-500">Comprehensive overview of all operational modules</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {departments.map((dept) => (
+          <Card key={dept.name} className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className={`bg-${dept.color}-600 text-white p-4`}>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm  flex items-center gap-2">
+                  <dept.icon className="w-5 h-5" />
+                  {dept.name}
+                </CardTitle>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  {dept.data.total} Total Entities
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 bg-white">
+              <div className="space-y-3">
+                {dept.items.map((item) => (
+                  <div key={item.label} className="flex items-center justify-between border-b border-gray-50 pb-2 last:border-0">
+                    <span className="text-sm text-gray-600">{item.label}</span>
+                    <span className="text-sm  text-gray-900">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
@@ -725,6 +719,7 @@ export default function AdminDashboard() {
     <AdminLayout>
       <Switch>
         <Route path="/admin" component={DashboardContent} />
+        <Route path="/admin/summary" component={AllDepartmentsSummary} />
         <Route path="/admin/accounts" component={AccountsDashboard} />
         <Route path="/admin/inventory" component={InventoryDashboard} />
         <Route path="/admin/logistics" component={LogisticsDashboard} />

@@ -58,7 +58,7 @@ export default function BatchBarcode() {
       header: "Batch Details",
       cell: (batch: any) => (
         <div className="flex flex-col">
-          <span className="font-medium text-slate-900">{batch.batchNumber}</span>
+          <span className="text-xs text-slate-900">{batch.batchNumber}</span>
           <span className="text-xs text-slate-500">{batch.productName}</span>
         </div>
       ),
@@ -122,12 +122,12 @@ export default function BatchBarcode() {
       header: "Identifier",
       cell: (code: any) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+          {/* <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
             <QrCode className="h-4 w-4 text-slate-400" />
-          </div>
+          </div> */}
           <div className="flex flex-col">
-            <span className="font-mono text-xs font-medium text-slate-900">{code.barcode}</span>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{code.type} Code</span>
+            <span className="font-mono text-xs text-xs text-slate-900">{code.barcode}</span>
+            <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">{code.type} Code</span>
           </div>
         </div>
       ),
@@ -138,7 +138,7 @@ export default function BatchBarcode() {
       cell: (code: any) => (
         <div className="flex flex-col">
           <span className="text-sm font-medium text-slate-700">{code.entityId}</span>
-          <span className="text-[10px] text-slate-400 capitalize">{code.entityType} Entity</span>
+          <span className="text-xs text-slate-400 capitalize">{code.entityType} Entity</span>
         </div>
       ),
     },
@@ -159,7 +159,7 @@ export default function BatchBarcode() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Batch & Barcode Management</h1>
@@ -233,7 +233,7 @@ export default function BatchBarcode() {
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold text-slate-900">Code Scanner</DialogTitle>
               </DialogHeader>
-              <div className="space-y-6 pt-4 text-center">
+              <div className="space-y-2 pt-4 text-center">
                 <div className="aspect-square w-full max-w-[280px] mx-auto border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50/50 relative overflow-hidden group">
                   <QrCode className="h-24 w-24 text-slate-200 group-hover:text-slate-300 transition-colors" />
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/5 to-transparent animate-scan" />

@@ -295,7 +295,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Visit Information */}
           {visit && (
             <Card>

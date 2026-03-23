@@ -350,7 +350,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
           <h1 className="text-xl text-black" data-testid="reports-title">
             Marketing Reports & Analytics
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-xs">
             Comprehensive business intelligence for marketing operations
           </p>
         </div>
@@ -368,21 +368,21 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
       </div>
 
       {/* Date Range Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+      <div>
+        <div>
+          <div className="flex items-center space-x-2">
             <Calendar className="h-5 w-5" />
-            <span>Report Period</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+            <span className="text-xs">Report Period</span>
+          </div>
+        </div>
+        <div>
           <DateRangeSelector
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
             data-testid="reports-date-range-selector"
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {!hasDateRange && (
         <Alert>
@@ -396,7 +396,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
       {hasDateRange && (
         <>
           {/* KPI Dashboard */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {kpiMetrics.map((metric, index) => {
               const Icon = metric.icon;
               const isLoading = loadingLeads || loadingLeadsMetrics || loadingVisits ||
@@ -404,7 +404,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
 
               return (
                 <Card key={index} data-testid={`kpi-card-${index}`}>
-                  <CardContent className="p-6">
+                  <CardContent className="p-2">
                     {isLoading ? (
                       <div className="space-y-3">
                         <Skeleton className="h-4 w-20" />
@@ -417,7 +417,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
                           <p className="text-sm font-light text-gray-500">
                             {metric.label}
                           </p>
-                          <p className="text-2xl " data-testid={`kpi-value-${index}`}>
+                          <p className="text-xl " data-testid={`kpi-value-${index}`}>
                             {metric.value}
                           </p>
                           {metric.change && (
@@ -428,7 +428,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
                             </p>
                           )}
                         </div>
-                        <Icon className={`h-8 w-8 ${metric.color}`} />
+                        <Icon className={`h-5 w-5 ${metric.color}`} />
                       </div>
                     )}
                   </CardContent>
@@ -438,7 +438,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
           </div>
 
           {/* Main Reports Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview" data-testid="tab-overview">
                 Overview
@@ -455,15 +455,15 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="overview" className="space-y-2">
               <div id="marketing-report-charts" data-testid="marketing-report-charts">
                 <ReportCharts dateRange={dateRange} />
               </div>
             </TabsContent>
 
             {/* Leads Analytics Tab */}
-            <TabsContent value="leads" className="space-y-6">
-              <ReportTable
+            <TabsContent value="leads" className="space-y-2">
+              <ReportTable 
                 data={Array.isArray(leadsData) ? leadsData : []}
                 columns={leadsColumns}
                 title="Lead Performance Analytics"
@@ -471,11 +471,12 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
                 emptyMessage="No leads found for the selected period"
                 exportFilename={`leads-report-${format(new Date(), 'yyyy-MM-dd')}`}
                 dateRange={dateRange}
+                
               />
             </TabsContent>
 
             {/* Field Visits Tab */}
-            <TabsContent value="visits" className="space-y-6">
+            <TabsContent value="visits" className="space-y-2">
               <ReportTable
                 data={Array.isArray(fieldVisitsData) ? fieldVisitsData : []}
                 columns={visitsColumns}
@@ -488,7 +489,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
             </TabsContent>
 
             {/* Tasks Performance Tab */}
-            <TabsContent value="tasks" className="space-y-6">
+            <TabsContent value="tasks" className="space-y-2">
               <ReportTable
                 data={Array.isArray(tasksData) ? tasksData : []}
                 columns={tasksColumns}

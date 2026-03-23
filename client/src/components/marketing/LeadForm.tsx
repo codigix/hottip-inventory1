@@ -217,9 +217,9 @@ export default function LeadForm({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2 mt-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-4 mb-5">
                 <TabsTrigger value="basic" data-testid="tab-basic">
                   Basic Info
                 </TabsTrigger>
@@ -238,7 +238,7 @@ export default function LeadForm({
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -272,26 +272,27 @@ export default function LeadForm({
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="companyName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Building className="h-4 w-4" />
+                          <span>Company Name</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-company-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="companyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center space-x-2">
-                        <Building className="h-4 w-4" />
-                        <span>Company Name</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-company-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
                     name="source"
@@ -363,9 +364,6 @@ export default function LeadForm({
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="sourceDetails"
@@ -408,10 +406,11 @@ export default function LeadForm({
                     )}
                   />
                 </div>
+
               </TabsContent>
 
               <TabsContent value="contact" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
                     name="email"
@@ -449,49 +448,45 @@ export default function LeadForm({
                       </FormItem>
                     )}
                   />
-                </div>
+                  <FormField
+                    control={form.control}
+                    name="alternatePhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Phone className="h-4 w-4" />
+                          <span>Alternate Phone</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-alternate-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="alternatePhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4" />
-                        <span>Alternate Phone</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-alternate-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  
 
-                <Separator />
-
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>Address</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          rows={3}
-                          data-testid="input-address"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <MapPin className="h-4 w-4" />
+                          <span>Address</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            rows={1}
+                            data-testid="input-address"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="city"
@@ -542,24 +537,31 @@ export default function LeadForm({
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <Globe className="h-4 w-4" />
+                          <span>Country</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-country" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center space-x-2">
-                        <Globe className="h-4 w-4" />
-                        <span>Country</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-country" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+
+                <div className="grid grid-cols-3 gap-4">
+
+                </div>
+
+
               </TabsContent>
 
               <TabsContent value="requirements" className="space-y-4">
@@ -721,8 +723,8 @@ export default function LeadForm({
                 {isPending
                   ? "Saving..."
                   : leadId
-                  ? "Update Lead"
-                  : "Create Lead"}
+                    ? "Update Lead"
+                    : "Create Lead"}
               </Button>
             </div>
           </form>

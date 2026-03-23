@@ -201,7 +201,7 @@ export default function ClientManagement() {
       cell: (customer: any) => (
         <div data-tour="sales-client-name-column">
           <div className=" text-slate-800">{customer.name}</div>
-          <div className="text-[10px] text-slate-400  font-medium">
+          <div className="text-xs text-slate-400  font-medium">
             {customer.companyType || "Individual"}
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function ClientManagement() {
       cell: (customer: any) => (
         <div data-tour="sales-client-contact-column">
           <div className="text-xs text-slate-600">{customer.email}</div>
-          <div className="text-[10px] text-slate-400">{customer.phone}</div>
+          <div className="text-xs text-slate-400">{customer.phone}</div>
         </div>
       ),
     },
@@ -258,8 +258,8 @@ export default function ClientManagement() {
             variant="outline"
             className={
               customer.isActive
-                ? "bg-emerald-50 text-emerald-700 border-emerald-100 text-[10px] py-0 h-5"
-                : "bg-slate-50 text-slate-500 border-slate-200 text-[10px] py-0 h-5"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-100 text-xs py-0 h-5"
+                : "bg-slate-50 text-slate-500 border-slate-200 text-xs py-0 h-5"
             }
           >
             {customer.isActive ? "ACTIVE" : "INACTIVE"}
@@ -544,7 +544,7 @@ export default function ClientManagement() {
           <div className="flex items-center space-x-2">
             <Users className="h-5 w-5 text-slate-400" />
             <h2 className="text-sm  text-slate-700">Client List</h2>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] ">
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs ">
               {customers.length}
             </Badge>
           </div>
@@ -786,13 +786,13 @@ export default function ClientManagement() {
             </DialogDescription>
           </DialogHeader>
           {viewClient && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Client Name
                   </label>
-                  <p className="text-base mt-1 ">
+                  <p className="text-xs mt-1 ">
                     {viewClient.name}
                   </p>
                 </div>
@@ -800,41 +800,41 @@ export default function ClientManagement() {
                   <label className="text-sm  text-gray-500">
                     Email
                   </label>
-                  <p className="text-base mt-1">{viewClient.email || "N/A"}</p>
+                  <p className="text-xs mt-1">{viewClient.email || "N/A"}</p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm  text-gray-500">
                     Phone
                   </label>
-                  <p className="text-base mt-1">{viewClient.phone || "N/A"}</p>
+                  <p className="text-xs mt-1">{viewClient.phone || "N/A"}</p>
                 </div>
                 <div>
                   <label className="text-sm  text-gray-500">
                     GST Number
                   </label>
-                  <p className="text-base mt-1 font-mono">
+                  <p className="text-xs mt-1 font-mono">
                     {viewClient.gstNumber || "N/A"}
                   </p>
                 </div>
-              </div>
-              <div>
+                 <div>
                 <label className="text-sm  text-gray-500">
                   Address
                 </label>
-                <p className="text-base mt-1">{viewClient.address || "N/A"}</p>
+                <p className="text-xs mt-1">{viewClient.address || "N/A"}</p>
               </div>
               <div>
                 <label className="text-sm  text-gray-500">
                   Created At
                 </label>
-                <p className="text-base mt-1">
+                <p className="text-xs mt-1">
                   {viewClient.createdAt
                     ? new Date(viewClient.createdAt).toLocaleDateString()
                     : "N/A"}
                 </p>
               </div>
+              </div>
+              
+             
               <div className="flex justify-end">
                 <Button onClick={() => setIsViewDialogOpen(false)}>
                   Close

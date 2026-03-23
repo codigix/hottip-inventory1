@@ -234,7 +234,7 @@ export default function LeaveRequestForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="my-5">
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5 text-blue-500" />
             <span>
@@ -248,18 +248,18 @@ export default function LeaveRequestForm({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Leave Balance Overview */}
           {leaveBalance && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center space-x-2">
                   <Clock className="h-4 w-4" />
-                  <span>Leave Balance</span>
+                  <span className="text-sm">Leave Balance</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <p className="text-gray-500">Total Leave</p>
                     <p

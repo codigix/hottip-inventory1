@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 
 export interface Column<T> {
   key: keyof T | string;
-  header: string;
+  header: React.ReactNode;
   cell?: (item: T) => React.ReactNode;
   sortable?: boolean;
 }
@@ -84,6 +84,9 @@ export function DataTable<T extends Record<string, any>>({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
 
+  // Default to first column if searchKey not provided but searchable is true
+  const effectiveSearchKey = searchKey || (searchable && columns.length > 0 ? columns[0].key : undefined);
+
   // Helper to get nested values
   const getValue = (item: T, key: string): any => {
     if (key.includes('.')) {
@@ -113,12 +116,22 @@ export function DataTable<T extends Record<string, any>>({
     let result = [...data];
 
     // Filter
-    if (searchable && searchQuery && searchKey) {
+    if (searchable && searchQuery) {
       result = result.filter((item) => {
-        const value = getValue(item, searchKey as string);
-        return String(value || '')
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+        if (searchKey) {
+          const value = getValue(item, searchKey as string);
+          return String(value || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
+        }
+        
+        // Global search across all provided columns if no searchKey
+        return columns.some(col => {
+          const value = getValue(item, col.key as string);
+          return String(value || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
+        });
       });
     }
 
@@ -175,14 +188,14 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className="space-y-2 w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-        {searchable && searchKey && (
-          <div className="relative w-full sm:max-w-sm">
+        {searchable && (
+          <div className="relative w-full sm:max-w-lg">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder={searchPlaceholder || `Search...`}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9 bg-white border-slate-200"
+              className="pl-10 bg-white border-slate-200 h-10 shadow-sm focus:ring-1 focus:ring-primary/20 transition-all"
               data-testid="input-search"
             />
           </div>
@@ -262,7 +275,7 @@ export function DataTable<T extends Record<string, any>>({
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                              className="h-8 w-8 p-0  group-hover:opacity-100 transition-opacity focus:opacity-100"
                               data-testid={`button-actions-${rowIndex}`}
                             >
                               <MoreHorizontal className="h-4 w-4 text-slate-400" />

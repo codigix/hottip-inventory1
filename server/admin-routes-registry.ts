@@ -31,6 +31,7 @@ import {
   marketingAttendance,
   logisticsAttendance,
   gstReturns,
+  auditLogs,
 } from "../shared/schema";
 import { desc, sql, count } from "drizzle-orm";
 
@@ -220,17 +221,18 @@ export function registerAdminRoutes(app: any) {
     res.json({ success: true });
   });
 
-  // Audit Log (GET) - dummy
+  // Audit Log (GET) - Fetch from database
   app.get("/api/admin/audit-log", async (req, res) => {
-    res.json([
-      { id: "a1", action: "LOGIN", user: "admin", timestamp: new Date() },
-      {
-        id: "a2",
-        action: "UPDATE_SETTINGS",
-        user: "admin",
-        timestamp: new Date(),
-      },
-    ]);
+    try {
+      const logs = await db
+        .select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.timestamp));
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
   });
 
   // Approvals (GET, POST, PATCH) - dummy
@@ -496,11 +498,11 @@ export function registerAdminRoutes(app: any) {
           type: sql<string>`'logistics_task'`,
           title: logisticsTasks.title,
           status: logisticsTasks.status,
-          createdAt: logisticsTasks.createdAt,
+          createdAt: logisticsTasks.dueDate, // Fallback to dueDate
           assignedTo: logisticsTasks.assignedTo,
         })
         .from(logisticsTasks)
-        .orderBy(desc(logisticsTasks.createdAt))
+        .orderBy(desc(logisticsTasks.dueDate))
         .limit(5);
 
       // Recent inventory tasks
@@ -522,13 +524,13 @@ export function registerAdminRoutes(app: any) {
         .select({
           id: fieldVisits.id,
           type: sql<string>`'field_visit'`,
-          title: sql<string>`CONCAT('Visit to ', ${fieldVisits.location})`,
+          title: sql<string>`CONCAT('Visit to ', ${fieldVisits.visitAddress})`,
           status: fieldVisits.status,
-          createdAt: fieldVisits.createdAt,
-          assignedTo: fieldVisits.userId,
+          createdAt: fieldVisits.plannedDate, // Fallback to plannedDate
+          assignedTo: fieldVisits.assignedTo,
         })
         .from(fieldVisits)
-        .orderBy(desc(fieldVisits.createdAt))
+        .orderBy(desc(fieldVisits.plannedDate))
         .limit(5);
 
       // Recent shipments

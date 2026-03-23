@@ -147,7 +147,7 @@ export default function ExportModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Filename Input */}
           <div className="space-y-2">
             <Label htmlFor="filename">Filename</Label>
@@ -174,14 +174,14 @@ export default function ExportModal({
                 return (
                   <div 
                     key={option.value} 
-                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <RadioGroupItem 
                       value={option.value} 
                       id={option.value}
                       data-testid={`export-format-${option.value}`}
                     />
-                    <Icon className="h-5 w-5 text-gray-500" />
+                    <Icon className="h-3 w-3 text-gray-500" />
                     <div className="flex-1">
                       <Label 
                         htmlFor={option.value} 
@@ -189,7 +189,7 @@ export default function ExportModal({
                       >
                         {option.label}
                       </Label>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         {option.description}
                       </p>
                       <p className="text-xs text-gray-500">
@@ -214,7 +214,7 @@ export default function ExportModal({
                     disabled={isExporting}
                     data-testid="include-charts-checkbox"
                   />
-                  <Label htmlFor="include-charts" className="text-sm">
+                  <Label htmlFor="include-charts" className="text-xs">
                     Include charts and visualizations in PDF
                   </Label>
                 </div>
@@ -228,7 +228,7 @@ export default function ExportModal({
           {/* Report Summary */}
           <Card className="bg-muted/30">
             <CardContent className="pt-4">
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Report Title:</span>
                   <span className="font-light">{title}</span>

@@ -171,8 +171,8 @@ export default function InventoryAttendance() {
             <User className="h-4 w-4 text-slate-500" />
           </div>
           <div className="flex flex-col">
-            <span className="font-medium text-slate-900">{record.name}</span>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{record.department}</span>
+            <span className="text-xs text-slate-900">{record.name}</span>
+            <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">{record.department}</span>
           </div>
         </div>
       ),
@@ -227,8 +227,8 @@ export default function InventoryAttendance() {
       header: "Staff Member",
       cell: (leave: any) => (
         <div className="flex flex-col">
-          <span className="font-medium text-slate-900">{leave.employee}</span>
-          <span className="text-[10px] text-slate-400 truncate max-w-[150px]">{leave.reason}</span>
+          <span className="text-xs text-slate-900">{leave.employee}</span>
+          <span className="text-xs text-slate-400 truncate max-w-[150px]">{leave.reason}</span>
         </div>
       )
     },
@@ -241,7 +241,7 @@ export default function InventoryAttendance() {
       key: "startDate",
       header: "Period",
       cell: (leave: any) => (
-        <div className="flex flex-col text-[10px]">
+        <div className="flex flex-col text-xs">
           <span className="text-slate-700 font-medium">{new Date(leave.startDate).toLocaleDateString()}</span>
           <span className="text-slate-400">to {new Date(leave.endDate).toLocaleDateString()}</span>
         </div>
@@ -279,7 +279,7 @@ export default function InventoryAttendance() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Staff Attendance & Leave</h1>
@@ -399,9 +399,9 @@ export default function InventoryAttendance() {
                   </Select>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Current Timestamp</p>
-                  <p className="text-lg font-mono font-medium text-slate-900">{new Date().toLocaleTimeString()}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{new Date().toLocaleDateString()}</p>
+                  <p className="text-xs uppercase tracking-wider text-slate-400 font-bold mb-1">Current Timestamp</p>
+                  <p className="text-lg font-mono text-xs text-slate-900">{new Date().toLocaleTimeString()}</p>
+                  <p className="text-xs text-slate-400 mt-1">{new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="ghost" onClick={() => setIsCheckInDialogOpen(false)} className="text-slate-600">Cancel</Button>

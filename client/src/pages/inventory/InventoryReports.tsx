@@ -43,8 +43,8 @@ export default function InventoryReports() {
       header: "Product Details",
       cell: (row: any) => (
         <div className="flex flex-col">
-          <span className="font-medium text-slate-900">{row.name}</span>
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{row.sku}</span>
+          <span className="text-xs text-slate-900">{row.name}</span>
+          <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">{row.sku}</span>
         </div>
       )
     },
@@ -81,7 +81,7 @@ export default function InventoryReports() {
     {
       key: "name",
       header: "Vendor Name",
-      cell: (row: any) => <span className="font-medium text-slate-900">{row.name}</span>
+      cell: (row: any) => <span className="text-xs text-slate-900">{row.name}</span>
     },
     {
       key: "totalOrders",
@@ -91,7 +91,7 @@ export default function InventoryReports() {
     {
       key: "totalValue",
       header: "Total Spend",
-      cell: (row: any) => <span className="font-medium text-slate-900">₹{row.totalValue?.toLocaleString()}</span>
+      cell: (row: any) => <span className="text-xs text-slate-900">₹{row.totalValue?.toLocaleString()}</span>
     },
     {
       key: "onTimeDelivery",
@@ -113,8 +113,8 @@ export default function InventoryReports() {
       header: "Item Forecast",
       cell: (row: any) => (
         <div className="flex flex-col">
-          <span className="font-medium text-slate-900">{row.name}</span>
-          <span className="text-[10px] text-slate-400">{row.sku}</span>
+          <span className="text-xs text-slate-900">{row.name}</span>
+          <span className="text-xs text-slate-400">{row.sku}</span>
         </div>
       )
     },
@@ -142,7 +142,7 @@ export default function InventoryReports() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Inventory Insights & Reports</h1>

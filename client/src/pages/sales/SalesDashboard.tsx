@@ -186,7 +186,7 @@ export default function SalesDashboard() {
             <CardDescription className="text-slate-500">Latest quotations and invoices</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
                   <FileText className="h-5 w-5 text-slate-600" />

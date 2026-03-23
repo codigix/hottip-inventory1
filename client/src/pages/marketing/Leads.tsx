@@ -128,10 +128,10 @@ export default function Leads() {
       {/* Header */}
       <div className="flex items-center justify-between" data-tour="marketing-leads-header">
         <div>
-          <h1 className="text-3xl  text-foreground">
+          <h1 className="text-xl  text-foreground">
             Leads Management
           </h1>
-          <p className="text-gray-500">
+          <p className=" text-xs text-gray-500">
             Manage leads through the sales pipeline with status workflow and
             auto-handover
           </p>
@@ -151,7 +151,7 @@ export default function Leads() {
               <Users className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl ">{metrics.totalLeads}</div>
+              <div className="text-xl ">{metrics.totalLeads}</div>
               <p className="text-xs text-gray-500">
                 Active leads in pipeline
               </p>
@@ -164,7 +164,7 @@ export default function Leads() {
               <Target className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl ">{metrics.newLeads}</div>
+              <div className="text-xl ">{metrics.newLeads}</div>
               <p className="text-xs text-gray-500">
                 Awaiting first contact
               </p>
@@ -177,7 +177,7 @@ export default function Leads() {
               <TrendingUp className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl ">
+              <div className="text-xl ">
                 {metrics.inProgressLeads}
               </div>
               <p className="text-xs text-gray-500">
@@ -194,7 +194,7 @@ export default function Leads() {
               <UserCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl ">
+              <div className="text-xl ">
                 {(metrics?.conversionRate ?? 0).toFixed(1)}%
               </div>
               <p className="text-xs text-gray-500">
@@ -206,8 +206,8 @@ export default function Leads() {
       )}
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="" data-tour="marketing-leads-filters">
+      <div>
+        <div className="" data-tour="marketing-leads-filters">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="relative flex-1">
@@ -315,22 +315,22 @@ export default function Leads() {
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Status Tabs and Lead Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+      <div>
+        <div>
+          <div className="flex items-center justify-between">
             <span>Leads ({filteredLeads.length})</span>
             {selectedStatus !== "all" && (
               <Badge variant="secondary" className="ml-2">
                 {selectedStatus.replace("_", " ")} leads
               </Badge>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent data-tour="marketing-leads-table">
+          </div>
+        </div>
+        <div data-tour="marketing-leads-table">
           <Tabs
             value={selectedStatus}
             onValueChange={(value) =>
@@ -370,8 +370,8 @@ export default function Leads() {
               />
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Lead Form Modal */}
       <LeadForm

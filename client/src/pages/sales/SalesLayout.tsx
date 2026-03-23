@@ -17,9 +17,11 @@ import {
   Search,
   Filter,
   ShoppingCart,
-  UserPlus
+  UserPlus,
+  ShieldAlert
 } from "lucide-react";
 import { StartTourButton } from "@/components/StartTourButton";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   salesFlowTour,
   comprehensiveOutboundQuotationsTour,
@@ -119,7 +121,20 @@ const sidebarItems = [
 
 export default function SalesLayout() {
   const [location] = useLocation();
-  const { navigationHandler } = useTourNavigation(sidebarItems);
+  const { user } = useAuth();
+  
+  const allSidebarItems = [
+    ...sidebarItems,
+    ...(user?.role === 'admin' ? [{
+      id: 'admin',
+      label: 'Admin Portal',
+      icon: ShieldAlert,
+      path: '/admin',
+      description: 'System-wide administration'
+    }] : [])
+  ];
+
+  const { navigationHandler } = useTourNavigation(allSidebarItems);
   const { startTour } = useTour();
   const { getPendingNavigationTour, clearPendingNavigationTour } = useTourStatus();
   
@@ -177,7 +192,7 @@ export default function SalesLayout() {
         </div> */}
 
         <div className="space-y-2 grid gap-1.5">
-          {sidebarItems.map((item) => {
+          {allSidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = getActiveSidebarItem() === item.id;
             

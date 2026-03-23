@@ -39,7 +39,7 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-2">
         <TabsList className="bg-white border border-slate-200 p-1 h-11  inline-flex w-auto">
           <TabsTrigger 
             value="sent" 

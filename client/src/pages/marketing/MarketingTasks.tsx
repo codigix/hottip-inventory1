@@ -333,7 +333,7 @@ export default function MarketingTasks() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl text-black">Marketing Tasks</h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-xs">
             Manage and track marketing team tasks and assignments
           </p>
         </div>
@@ -373,8 +373,8 @@ export default function MarketingTasks() {
           }
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl ">{stats.total}</div>
-            <div className="text-sm text-gray-500">Total Tasks</div>
+            <div className="text-xl ">{stats.total}</div>
+            <div className="text-xs text-gray-500">Total Tasks</div>
           </CardContent>
         </Card>
         <Card
@@ -382,10 +382,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "pending" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl  text-orange-600">
+            <div className="text-xl  text-orange-600">
               {stats.pending}
             </div>
-            <div className="text-sm text-gray-500">Pending</div>
+            <div className="text-xs text-gray-500">Pending</div>
           </CardContent>
         </Card>
         <Card
@@ -393,10 +393,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "in_progress" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl  text-blue-600">
+            <div className="text-xl  text-blue-600">
               {stats.inProgress}
             </div>
-            <div className="text-sm text-gray-500">In Progress</div>
+            <div className="text-xs text-gray-500">In Progress</div>
           </CardContent>
         </Card>
         <Card
@@ -404,10 +404,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, status: "completed" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl  text-green-600">
+            <div className="text-xl  text-green-600">
               {stats.completed}
             </div>
-            <div className="text-sm text-gray-500">Completed</div>
+            <div className="text-xs text-gray-500">Completed</div>
           </CardContent>
         </Card>
         <Card
@@ -415,10 +415,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, dateFilter: "overdue" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl  text-red-600">
+            <div className="text-xl  text-red-600">
               {stats.overdue}
             </div>
-            <div className="text-sm text-gray-500">Overdue</div>
+            <div className="text-xs text-gray-500">Overdue</div>
           </CardContent>
         </Card>
         <Card
@@ -426,10 +426,10 @@ export default function MarketingTasks() {
           onClick={() => setFilters((f) => ({ ...f, dateFilter: "today" }))}
         >
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl  text-yellow-600">
+            <div className="text-xl  text-yellow-600">
               {stats.dueToday}
             </div>
-            <div className="text-sm text-gray-500">Due Today</div>
+            <div className="text-xs text-gray-500">Due Today</div>
           </CardContent>
         </Card>
       </div>
@@ -511,7 +511,7 @@ export default function MarketingTasks() {
       </Card>
 
       {/* Task Views */}
-      <div className="space-y-6">
+      <div className="space-y-2">
         {viewMode === "table" && (
           <TaskTable
             tasks={filteredTasks}

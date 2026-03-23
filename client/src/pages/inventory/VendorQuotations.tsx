@@ -131,7 +131,7 @@ export default function VendorQuotations() {
         <Badge 
           variant="outline" 
           className={cn(
-            "capitalize font-normal px-2.5 py-0.5",
+            "capitalize font-normal p-1",
             q.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
             q.status === 'under_review' && "bg-amber-50 text-amber-700 border-amber-200",
             q.status === 'rfq' && "bg-blue-50 text-blue-700 border-blue-200",
@@ -148,8 +148,8 @@ export default function VendorQuotations() {
       header: "Valuation",
       cell: (q: any) => (
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-900">₹{parseFloat(q.totalAmount || 0).toLocaleString()}</span>
-          <span className="text-[10px] text-slate-400  ">Incl. GST</span>
+          <span className="text-xs  text-slate-900">₹{parseFloat(q.totalAmount || 0).toLocaleString()}</span>
+          <span className="text-xs text-slate-400  ">Incl. GST</span>
         </div>
       ),
     },
@@ -361,7 +361,7 @@ export default function VendorQuotations() {
           <Badge 
             variant="outline" 
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[q.status] || "bg-slate-100 text-slate-600"
             )}
           >
@@ -380,7 +380,7 @@ export default function VendorQuotations() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="h-8 text-[10px]    border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+                className="h-8 text-xs    border-emerald-100 text-emerald-700 hover:bg-emerald-50"
                 onClick={() => updateQuotationStatusMutation.mutate({ id: q.id, status: "approved" })}
               >
                 Approve
@@ -388,7 +388,7 @@ export default function VendorQuotations() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="h-8 text-[10px]    border-red-100 text-red-700 hover:bg-red-50"
+                className="h-8 text-xs    border-red-100 text-red-700 hover:bg-red-50"
                 onClick={() => updateQuotationStatusMutation.mutate({ id: q.id, status: "rejected" })}
               >
                 Reject
@@ -399,7 +399,7 @@ export default function VendorQuotations() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-[10px]    border-blue-100 text-blue-700 hover:bg-blue-50"
+              className="h-8 text-xs    border-blue-100 text-blue-700 hover:bg-blue-50"
               onClick={() => createShipmentMutation.mutate(q)}
             >
               <Truck className="h-3.5 w-3.5 mr-1.5" />
@@ -556,7 +556,7 @@ export default function VendorQuotations() {
       <Badge 
         variant="outline" 
         className={cn(
-          "text-[10px]   py-0 h-5 shadow-none",
+          "text-xs   py-0 h-5 shadow-none",
           statusColors[status] || "bg-slate-100 text-slate-600"
         )}
       >
@@ -623,18 +623,18 @@ export default function VendorQuotations() {
                 <div className={cn("p-2 rounded bg-slate-50")}>
                   <card.icon className={cn("h-4 w-4 text-slate-400")} />
                 </div>
-                <Badge variant="secondary" className="bg-slate-50 text-slate-400 text-[10px]  border-none">
+                <Badge variant="secondary" className="bg-slate-50 text-slate-400 text-xs  border-none">
                   +0%
                 </Badge>
               </div>
-              <p className="text-[10px]    text-slate-400 mb-1">{card.title}</p>
+              <p className="text-xs    text-slate-400 mb-1">{card.title}</p>
               <p className="text-xl  text-slate-800">{getStatusCount(card.status)}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
         <TabsList className="bg-white border border-slate-200 p-1 h-11 shadow-sm inline-flex w-auto">
           <TabsTrigger 
             value="request" 
@@ -658,7 +658,7 @@ export default function VendorQuotations() {
               <div className="flex items-center space-x-2">
                 <FileText className="h-5 w-5 text-slate-400" />
                 <h2 className="text-sm  text-slate-700">Request for Quotation Registry</h2>
-                <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-[10px] ">
+                <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-xs ">
                   {rfqQuotations.length}
                 </Badge>
               </div>
@@ -682,7 +682,7 @@ export default function VendorQuotations() {
               <div className="flex items-center space-x-2">
                 <LayoutGrid className="h-5 w-5 text-slate-400" />
                 <h2 className="text-sm  text-slate-700">Received Quotation Analysis</h2>
-                <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-[10px] ">
+                <Badge variant="secondary" className="bg-slate-200/50 text-slate-600 text-xs ">
                   {analysisQuotations.length}
                 </Badge>
               </div>
@@ -707,7 +707,7 @@ export default function VendorQuotations() {
           <DialogHeader className="px-5 py-3 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
             <div className="space-y-0.5">
               <DialogTitle className="text-base  text-slate-800">Add Received Quotation</DialogTitle>
-              <DialogDescription className="text-[10px] text-slate-500">
+              <DialogDescription className="text-xs text-slate-500">
                 Log a quotation received from a vendor
               </DialogDescription>
             </div>
@@ -811,11 +811,11 @@ export default function VendorQuotations() {
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="hover:bg-transparent border-slate-100 h-8">
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0">Material Name</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0">Type</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-right w-24">Rate</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-right w-24">Amount</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0">Material Name</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0">Type</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-right w-24">Rate</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-right w-24">Amount</TableHead>
                       <TableHead className="h-8 py-0 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -921,7 +921,7 @@ export default function VendorQuotations() {
           <DialogHeader className="p-2 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
             <div className="space-y-0.5">
               <DialogTitle className="text-base  text-slate-800">Create Quote Request (RFQ)</DialogTitle>
-              <DialogDescription className="text-[10px] text-slate-500">
+              <DialogDescription className="text-xs text-slate-500">
                 Send a new request for quotation to a vendor
               </DialogDescription>
             </div>
@@ -1025,9 +1025,9 @@ export default function VendorQuotations() {
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="hover:bg-transparent border-slate-100 h-8">
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0">Material Name</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0">Type</TableHead>
-                      <TableHead className="text-[10px]  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0">Material Name</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0">Type</TableHead>
+                      <TableHead className="text-xs  text-slate-400  h-8 py-0 text-center w-16">Qty</TableHead>
                       <TableHead className="h-8 py-0 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1118,21 +1118,21 @@ export default function VendorQuotations() {
                 <h3 className="text-sm  text-slate-400  tracking-widest">Quotation Information</h3>
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded border border-slate-100">
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Number</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Number</p>
                     <p className="text-sm  text-slate-800">{selectedQuotation?.quotationNumber}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Date</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Date</p>
                     <p className="text-sm  text-slate-700">
                       {selectedQuotation?.quotationDate ? format(new Date(selectedQuotation.quotationDate), "dd MMM yyyy") : "N/A"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Status</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Status</p>
                     <div className="mt-1">{selectedQuotation && getStatusBadge(selectedQuotation.status)}</div>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500   tracking-tighter">Valid Until</p>
+                    <p className="text-xs text-slate-500   tracking-tighter">Valid Until</p>
                     <p className="text-sm  text-slate-700">
                       {selectedQuotation?.validUntil ? format(new Date(selectedQuotation.validUntil), "dd MMM yyyy") : "N/A"}
                     </p>
@@ -1143,7 +1143,7 @@ export default function VendorQuotations() {
               <div className="space-y-4">
                 <h3 className="text-sm  text-slate-400  tracking-widest">Vendor Information</h3>
                 <div className="bg-slate-50 p-4 rounded border border-slate-100 h-[100px] flex flex-col justify-center">
-                  <p className="text-[10px] text-slate-500   tracking-tighter">Vendor Name</p>
+                  <p className="text-xs text-slate-500   tracking-tighter">Vendor Name</p>
                   <p className="text-lg  text-slate-800">{getVendorName(selectedQuotation?.senderId)}</p>
                   <p className="text-xs text-slate-500 mt-1 font-mono ">ID: {selectedQuotation?.senderId}</p>
                 </div>
@@ -1190,15 +1190,15 @@ export default function VendorQuotations() {
               <div className="flex justify-end">
                 <div className="w-72 space-y-3 bg-primary text-white p-5 rounded-xl border border-slate-800 shadow-xl">
                   <div className="flex justify-between items-center text-sm opacity-70">
-                    <span className=" tracking-widest text-[10px]">Subtotal</span>
+                    <span className=" tracking-widest text-xs">Subtotal</span>
                     <span className="font-mono">₹{(selectedQuotation?.financialBreakdown?.subtotal || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm opacity-70">
-                    <span className=" tracking-widest text-[10px]">GST (18%)</span>
+                    <span className=" tracking-widest text-xs">GST (18%)</span>
                     <span className="font-mono">₹{(selectedQuotation?.financialBreakdown?.gst || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                    <span className="  tracking-widest text-[10px]">Total Amount</span>
+                    <span className="  tracking-widest text-xs">Total Amount</span>
                     <span className=" text-xl">₹{(parseFloat(selectedQuotation?.totalAmount) || 0).toLocaleString()}</span>
                   </div>
                 </div>
@@ -1216,10 +1216,10 @@ export default function VendorQuotations() {
           </div>
 
           <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex flex-row justify-end space-x-3">
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="border-slate-200 text-slate-600   text-[10px] tracking-widest">
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="border-slate-200 text-slate-600   text-xs tracking-widest">
               Close
             </Button>
-            <Button className="bg-primary hover:bg-primary text-white px-6   text-[10px] tracking-widest shadow-sm">
+            <Button className="bg-primary hover:bg-primary text-white px-6   text-xs tracking-widest shadow-sm">
               <Download className="mr-2 h-3.5 w-3.5" /> Download PDF
             </Button>
           </DialogFooter>

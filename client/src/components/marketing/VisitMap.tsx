@@ -281,7 +281,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Map Container */}
       <Card>
         <CardHeader className="pb-2">

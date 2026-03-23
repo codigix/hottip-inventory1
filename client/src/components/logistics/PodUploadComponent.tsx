@@ -171,7 +171,7 @@ export default function PodUploadComponent({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* File Upload Section */}
       <div className="space-y-4">
         <div className="text-sm font-light">Upload Proof of Delivery</div>

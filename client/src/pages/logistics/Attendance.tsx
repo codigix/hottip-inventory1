@@ -287,7 +287,7 @@ export default function LogisticsAttendance() {
   const selectedUser = users.find(u => u.id === selectedUserId);
 
   return (
-    <div className="space-y-6" data-testid="logistics-attendance-page">
+    <div className="space-y-2" data-testid="logistics-attendance-page">
       {/* Header */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>

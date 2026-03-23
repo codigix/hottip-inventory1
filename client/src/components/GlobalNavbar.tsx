@@ -69,9 +69,35 @@ export function GlobalNavbar() {
             </div>
           </Link>
 
-          {/* Desktop Navigation - Hidden as per request (redundant with sidebar) */}
-          <div className="hidden md:flex flex-1 items-center justify-center space-x-1">
-          </div>
+          {/* Desktop Navigation - Modules Switcher */}
+          {/* <div className="hidden md:flex flex-1 items-center justify-center space-x-2">
+            {visibleDepartments.map((dept) => {
+              const Icon = dept.icon;
+              const isActive = location === dept.href || location.startsWith(`${dept.href}/`);
+              const deptKey = dept.name.toLowerCase();
+              
+              return (
+                <Link 
+                  key={dept.href} 
+                  href={dept.href} 
+                  data-testid={`desktop-link-${deptKey}`}
+                >
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size="sm"
+                    className={`flex items-center gap-2 font-medium transition-all duration-200 ${
+                      isActive 
+                        ? "bg-primary text-primary-foreground shadow-sm" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-tight font-bold">{dept.name}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div> */}
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">

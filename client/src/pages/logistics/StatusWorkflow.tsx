@@ -82,7 +82,7 @@ export default function StatusWorkflow() {
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -190,7 +190,7 @@ export default function StatusWorkflow() {
       </Card>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="workflow" className="space-y-6">
+      <Tabs defaultValue="workflow" className="space-y-2">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="workflow" data-testid="tab-workflow">
             <Package className="h-4 w-4 mr-2" />
@@ -202,7 +202,7 @@ export default function StatusWorkflow() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="workflow" className="space-y-6">
+        <TabsContent value="workflow" className="space-y-2">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-32 w-full" />
@@ -217,7 +217,7 @@ export default function StatusWorkflow() {
           )}
         </TabsContent>
 
-        <TabsContent value="table" className="space-y-6">
+        <TabsContent value="table" className="space-y-2">
           {isLoading ? (
             <Skeleton className="h-96 w-full" />
           ) : (

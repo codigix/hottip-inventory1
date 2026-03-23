@@ -359,7 +359,7 @@ export default function QuotationFormPage() {
       </div>
 
       <Form {...form}>
-        <form className="space-y-6">
+        <form className="space-y-2">
           {/* 1. Basic Information */}
           <Card className="border-none  overflow-hidden">
             <CardHeader className="bg-white border-b py-4">
@@ -580,7 +580,7 @@ export default function QuotationFormPage() {
                         </div>
                         <div>
                           <div className=" text-slate-800">{mold.partName || "Untitled Mold"}</div>
-                          <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                          <div className="text-xs text-gray-500 flex items-center gap-2">
                             <span>{mold.mouldNo || "No ID"}</span>
                             <Separator orientation="vertical" className="h-2" />
                             <span>{mold.plasticMaterial || "No Material"}</span>
@@ -614,7 +614,7 @@ export default function QuotationFormPage() {
                             { label: "Weight (g)", value: mold.partWeight, field: "partWeight", type: "number" },
                           ].map((spec) => (
                             <div key={spec.field} className="space-y-1">
-                              <label className="text-[10px]   text-slate-400 ">{spec.label}</label>
+                              <label className="text-xs   text-slate-400 ">{spec.label}</label>
                               <Input 
                                 type={spec.type || "text"}
                                 value={spec.value} 

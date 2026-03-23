@@ -10,12 +10,14 @@ import {
   TrendingUp,
   Target,
   PhoneCall,
-  Calendar
+  Calendar,
+  ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StartTourButton } from "@/components/StartTourButton";
 import { marketingFlowTour } from "@/components/tours/dashboardTour";
 import { useTourNavigation } from "@/hooks/useTourNavigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Import marketing pages
 import MarketingDashboard from "@/pages/MarketingDashboard";
@@ -78,7 +80,21 @@ const sidebarItems = [
 
 export default function MarketingLayout() {
   const [location] = useLocation();
-  const { navigationHandler } = useTourNavigation(sidebarItems);
+  const { user } = useAuth();
+  
+  const allSidebarItems = [
+    ...sidebarItems,
+    ...(user?.role === 'admin' ? [{
+      id: 'admin',
+      label: 'Admin Portal',
+      icon: ShieldCheck,
+      path: '/admin',
+      description: 'System-wide administration',
+      tourConfig: null,
+    }] : [])
+  ];
+
+  const { navigationHandler } = useTourNavigation(allSidebarItems);
   
   const tourConfigWithNavigation = {
     ...marketingFlowTour,
@@ -116,7 +132,7 @@ export default function MarketingLayout() {
         </div> */}
 
         <div className="space-y-2">
-          {sidebarItems.map((item) => {
+          {allSidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = getActiveSidebarItem() === item.id;
             

@@ -69,37 +69,37 @@ function StockDetailsModal({ open, onOpenChange, product }: { open: boolean; onO
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md border-none shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-slate-900 font-semibold">Stock Details</DialogTitle>
+          <DialogTitle className="text-slate-900 text-xs">Stock Details</DialogTitle>
           <DialogDescription className="text-slate-500">Full inventory information for {product.name}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Product Name</p>
-              <p className="text-sm font-semibold text-slate-900">{product.name}</p>
+              <p className="text-xs  text-slate-400  tracking-wider">Product Name</p>
+              <p className="text-xs  text-slate-900">{product.name}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SKU</p>
+              <p className="text-xs  text-slate-400  tracking-wider">SKU</p>
               <p className="text-sm font-mono text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 w-fit">{product.sku}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category</p>
+              <p className="text-xs  text-slate-400  tracking-wider">Category</p>
               <p className="text-sm text-slate-700">{product.category}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unit</p>
-              <p className="text-sm text-slate-700 uppercase">{product.unit}</p>
+              <p className="text-xs  text-slate-400  tracking-wider">Unit</p>
+              <p className="text-sm text-slate-700 ">{product.unit}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Stock</p>
-              <p className="text-lg font-bold text-slate-900">{product.stock}</p>
+              <p className="text-xs  text-slate-400  tracking-wider">Current Stock</p>
+              <p className="text-lg  text-slate-900">{product.stock}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+              <p className="text-xs  text-slate-400  tracking-wider">Status</p>
               <Badge 
                 variant="outline" 
                 className={cn(
-                  "text-[10px] font-medium uppercase px-2 py-0.5",
+                  "text-xs   px-2 py-0.5",
                   product.stock <= product.lowStockThreshold 
                     ? "bg-red-50 text-red-700 border-red-200" 
                     : "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -110,7 +110,7 @@ function StockDetailsModal({ open, onOpenChange, product }: { open: boolean; onO
             </div>
           </div>
           <div className="space-y-1 border-t pt-4 border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Description</p>
+            <p className="text-xs  text-slate-400  tracking-wider">Description</p>
             <p className="text-sm text-slate-600 italic">"{product.description || 'No description provided'}"</p>
           </div>
         </div>
@@ -133,12 +133,12 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
         <DialogHeader className="p-2 bg-slate-50 border-b border-slate-100">
-          <DialogTitle className="text-slate-900 font-semibold">Edit Stock Details</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500 font-medium">Update inventory records and tracking thresholds.</DialogDescription>
+          <DialogTitle className="text-slate-900 text-xs">Edit Stock Details</DialogTitle>
+          <DialogDescription className="text-xs text-slate-500 ">Update inventory records and tracking thresholds.</DialogDescription>
         </DialogHeader>
         <div className="p-2 grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Product Name</Label>
+            <Label className="text-xs text-xs text-slate-700">Product Name</Label>
             <Input 
               value={form.name || ''} 
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -146,7 +146,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">SKU</Label>
+            <Label className="text-xs text-xs text-slate-700">SKU</Label>
             <Input 
               value={form.sku || ''} 
               onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
@@ -154,7 +154,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Category</Label>
+            <Label className="text-xs text-xs text-slate-700">Category</Label>
             <Input 
               value={form.category || ''} 
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
@@ -162,7 +162,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Unit</Label>
+            <Label className="text-xs text-xs text-slate-700">Unit</Label>
             <Input 
               value={form.unit || ''} 
               onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
@@ -170,7 +170,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Current Stock</Label>
+            <Label className="text-xs text-xs text-slate-700">Current Stock</Label>
             <Input 
               type="number" 
               value={form.stock ?? ''} 
@@ -179,7 +179,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Low Stock Alert Level</Label>
+            <Label className="text-xs text-xs text-slate-700">Low Stock Alert Level</Label>
             <Input 
               type="number" 
               value={form.lowStockThreshold ?? ''} 
@@ -188,7 +188,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
             />
           </div>
           <div className="col-span-2 space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Description</Label>
+            <Label className="text-xs text-xs text-slate-700">Description</Label>
             <Textarea 
               value={form.description || ''} 
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -198,7 +198,7 @@ function StockEditModal({ open, onOpenChange, product, onSave }: { open: boolean
         </div>
         <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-10 border-slate-200 text-slate-600">Cancel</Button>
-          <Button onClick={() => onSave(form)} className="h-10 bg-primary hover:bg-primary text-white font-semibold px-6 shadow-sm border-none">Update Product</Button>
+          <Button onClick={() => onSave(form)} className="h-10 bg-primary hover:bg-primary text-white text-xs px-6 shadow-sm border-none">Update Product</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -354,7 +354,7 @@ export default function StockManagement() {
       type: transactionType,
       quantity: parseInt(quantity),
       reason,
-      referenceNumber: `${transactionType.toUpperCase()}-${Date.now()}`,
+      referenceNumber: `${transactionType.to()}-${Date.now()}`,
       notes,
     };
 
@@ -381,8 +381,8 @@ export default function StockManagement() {
       header: "Product / SKU",
       cell: (p: any) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-900">{p.name}</span>
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{p.sku}</span>
+          <span className="text-xs text-slate-900">{p.name}</span>
+          <span className="text-xs font-mono text-slate-400  ">{p.sku}</span>
         </div>
       )
     },
@@ -397,12 +397,12 @@ export default function StockManagement() {
       cell: (p: any) => (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className={cn("text-sm font-bold", p.stock <= p.lowStockThreshold ? "text-red-600" : "text-slate-900")}>
+            <span className={cn("text-xs ", p.stock <= p.lowStockThreshold ? "text-red-600" : "text-slate-900")}>
               {p.stock} {p.unit}
             </span>
             {p.stock <= p.lowStockThreshold && <AlertTriangle className="h-3 w-3 text-red-500" />}
           </div>
-          <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Threshold: {p.lowStockThreshold}</span>
+          <span className="text-xs text-slate-400   ">Threshold: {p.lowStockThreshold}</span>
         </div>
       ),
     },
@@ -411,8 +411,8 @@ export default function StockManagement() {
       header: "Inventory Value",
       cell: (p: any) => (
         <div className="flex flex-col">
-          <span className="text-sm font-medium text-slate-900">₹{(parseFloat(p.costPrice) * p.stock).toLocaleString()}</span>
-          <span className="text-[10px] text-slate-400 uppercase">Rate: ₹{parseFloat(p.costPrice).toLocaleString()}</span>
+          <span className="text-xs  text-slate-900">₹{(parseFloat(p.costPrice) * p.stock).toLocaleString()}</span>
+          <span className="text-xs text-slate-400 ">Rate: ₹{parseFloat(p.costPrice).toLocaleString()}</span>
         </div>
       )
     },
@@ -438,8 +438,8 @@ export default function StockManagement() {
       header: "Timestamp",
       cell: (t: any) => (
         <div className="flex flex-col">
-          <span className="text-sm font-medium text-slate-900">{new Date(t.createdAt || Date.now()).toLocaleDateString()}</span>
-          <span className="text-[10px] text-slate-400 uppercase font-medium">{new Date(t.createdAt || Date.now()).toLocaleTimeString()}</span>
+          <span className="text-sm  text-slate-900">{new Date(t.createdAt || Date.now()).toLocaleDateString()}</span>
+          <span className="text-xs text-slate-400  ">{new Date(t.createdAt || Date.now()).toLocaleTimeString()}</span>
         </div>
       )
     },
@@ -450,8 +450,8 @@ export default function StockManagement() {
         const product = productsArray.find((p: any) => p.id === t.productId);
         return (
           <div className="flex flex-col">
-            <span className="font-semibold text-slate-900">{product?.name || `Product #${t.productId}`}</span>
-            <span className="text-[10px] text-slate-400 uppercase tracking-tight">{product?.sku || t.referenceNumber}</span>
+            <span className="text-xs text-slate-900">{product?.name || `Product #${t.productId}`}</span>
+            <span className="text-xs text-slate-400  ">{product?.sku || t.referenceNumber}</span>
           </div>
         );
       }
@@ -468,7 +468,7 @@ export default function StockManagement() {
             {t.type === 'in' ? <ArrowDownCircle className="h-3.5 w-3.5 text-emerald-600" /> : <ArrowUpCircle className="h-3.5 w-3.5 text-red-600" />}
           </div>
           <span className={cn(
-            "text-sm font-bold",
+            "text-sm ",
             t.type === 'in' ? "text-emerald-700" : "text-red-700"
           )}>
             {t.type === 'in' ? '+' : '-'}{t.quantity}
@@ -481,8 +481,8 @@ export default function StockManagement() {
       header: "Classification",
       cell: (t: any) => (
         <div className="flex flex-col">
-          <span className="text-sm text-slate-700 font-medium capitalize">{t.reason.replace('_', ' ')}</span>
-          <span className="text-[10px] text-slate-400 truncate max-w-[150px] italic">{t.notes || 'No notes'}</span>
+          <span className="text-sm text-slate-700  capitalize">{t.reason.replace('_', ' ')}</span>
+          <span className="text-xs text-slate-400 truncate max-w-[150px] italic">{t.notes || 'No notes'}</span>
         </div>
       )
     }
@@ -496,7 +496,7 @@ export default function StockManagement() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Stock & Asset Management</h1>
@@ -522,7 +522,7 @@ export default function StockManagement() {
                 <metric.icon className={cn("h-5 w-5", metric.color)} />
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500 ">{metric.label}</p>
+                <p className="text-xs  text-slate-500 ">{metric.label}</p>
                 <p className="text-xl  text-slate-900 mt-0.5">{metric.value}</p>
               </div>
             </CardContent>
@@ -551,13 +551,13 @@ export default function StockManagement() {
 
         <TabsContent value="overview" className="mt-0">
           <div className="">
-            <div className="pb-0 pt-6 px-6">
-              <div className="text-lg font-medium text-slate-800 flex items-center gap-2">
+            <div className="">
+              <div className="text-lg  text-slate-800 flex items-center gap-2">
                 <Boxes className="h-4 w-4 text-slate-400" />
                 Inventory Registry
               </div>
             </div>
-            <div className="p-0 mt-4">
+            <div className="p-0 mt-2">
               <DataTable
                 data={productsArray}
                 columns={productColumns}
@@ -571,7 +571,7 @@ export default function StockManagement() {
         <TabsContent value="transactions" className="mt-0">
           <div className="">
             <div className="p-2">
-              <div className="text-lg font-medium text-slate-800 flex items-center gap-2">
+              <div className="text-lg  text-slate-800 flex items-center gap-2">
                 <History className="h-4 w-4 text-slate-400" />
                 Audit Trail
               </div>
@@ -591,7 +591,7 @@ export default function StockManagement() {
       <Dialog open={isStockTransactionDialogOpen} onOpenChange={setIsStockTransactionDialogOpen}>
         <DialogContent className="max-w-xl border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-slate-900">Stock Movement Recording</DialogTitle>
+            <DialogTitle className="text-xl text-slate-900">Stock Movement Recording</DialogTitle>
             <DialogDescription>Record receipt or issuance of items from the warehouse.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
@@ -673,7 +673,7 @@ export default function StockManagement() {
 
             <DialogFooter className="pt-4 border-t border-slate-100 gap-2">
               <Button variant="ghost" onClick={() => setIsStockTransactionDialogOpen(false)} className="text-slate-600">Cancel</Button>
-              <Button onClick={handleStockTransaction} className="bg-primary hover:bg-primary text-white font-semibold px-8" disabled={stockTransactionMutation.isPending}>
+              <Button onClick={handleStockTransaction} className="bg-primary hover:bg-primary text-white text-xs px-8" disabled={stockTransactionMutation.isPending}>
                 {stockTransactionMutation.isPending ? "Recording..." : "Finalize Movement"}
               </Button>
             </DialogFooter>
@@ -684,7 +684,7 @@ export default function StockManagement() {
       <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
         <DialogContent className="max-w-2xl border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-slate-900">New Asset Registration</DialogTitle>
+            <DialogTitle className="text-xl text-xs text-slate-900">New Asset Registration</DialogTitle>
           </DialogHeader>
           <Form {...productForm}>
             <form onSubmit={productForm.handleSubmit(onAddProductSubmit)} className="space-y-4 pt-4">
@@ -783,7 +783,7 @@ export default function StockManagement() {
               />
               <DialogFooter className="pt-4 border-t border-slate-100 gap-2">
                 <Button type="button" variant="ghost" onClick={() => setIsAddProductDialogOpen(false)} className="text-slate-600">Cancel</Button>
-                <Button type="submit" className="bg-primary hover:bg-primary text-white font-semibold px-8" disabled={createProductMutation.isPending}>
+                <Button type="submit" className="bg-primary hover:bg-primary text-white text-xs px-8" disabled={createProductMutation.isPending}>
                   {createProductMutation.isPending ? "Saving..." : "Register Product"}
                 </Button>
               </DialogFooter>

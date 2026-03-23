@@ -184,14 +184,14 @@ export default function LogisticsReports() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl text-black" data-testid="heading-reports">
+          <h1 className="text-xl" data-testid="heading-reports">
             Logistics Reports & Analytics
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-xs">
             Comprehensive delivery analytics and performance metrics
           </p>
         </div>
@@ -208,7 +208,7 @@ export default function LogisticsReports() {
                 )}
                 data-testid="button-date-range"
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-3 w-3" />
                 {dateRange?.from ? (
                   dateRange.to ? (
                     <>
@@ -245,7 +245,7 @@ export default function LogisticsReports() {
             variant="outline"
             data-testid="button-export-all"
           >
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="h-3 w-3 mr-2" />
             Export All
           </Button>
         </div>
@@ -256,7 +256,7 @@ export default function LogisticsReports() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className="p-2">
                 <div className="animate-pulse space-y-2">
                   <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                   <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -268,98 +268,98 @@ export default function LogisticsReports() {
       ) : dashboardMetrics ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card data-testid="metric-total-shipments">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Total Shipments</p>
-                  <p className="text-2xl ">{normalizedMetrics.totalShipments.toLocaleString()}</p>
+                  <p className="text-xs font-light text-gray-500">Total Shipments</p>
+                  <p className="text-xl ">{normalizedMetrics.totalShipments.toLocaleString()}</p>
                 </div>
-                <Package className="h-8 w-8 text-blue-600" />
+                <Package className="h-3 w-3 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-delivered-shipments">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Delivered</p>
-                  <p className="text-2xl  text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
+                  <p className="text-xs font-light text-gray-500">Delivered</p>
+                  <p className="text-xl  text-green-600">{normalizedMetrics.deliveredShipments.toLocaleString()}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-3 w-3 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-pending-shipments">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Pending</p>
-                  <p className="text-2xl  text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
+                  <p className="text-xs font-light text-gray-500">Pending</p>
+                  <p className="text-xl  text-yellow-600">{normalizedMetrics.pendingShipments.toLocaleString()}</p>
                 </div>
-                <Clock className="h-8 w-8 text-yellow-600" />
+                <Clock className="h-3 w-3 text-yellow-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-overdue-shipments">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Overdue</p>
-                  <p className="text-2xl  text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
+                  <p className="text-xs font-light text-gray-500">Overdue</p>
+                  <p className="text-xl  text-red-600">{normalizedMetrics.overdueShipments.toLocaleString()}</p>
                 </div>
-                <AlertCircle className="h-8 w-8 text-red-600" />
+                <AlertCircle className="h-3 w-3 text-red-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-avg-delivery-time">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Avg. Delivery Time</p>
-                  <p className="text-2xl ">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
+                  <p className="text-xs font-light text-gray-500">Avg. Delivery Time</p>
+                  <p className="text-xl ">{normalizedMetrics.averageDeliveryTime.toFixed(1)} days</p>
                 </div>
-                <Activity className="h-8 w-8 text-purple-600" />
+                <Activity className="h-3 w-3 text-purple-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-ontime-rate">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">On-Time Rate</p>
-                  <p className="text-2xl ">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
+                  <p className="text-xs font-light text-gray-500">On-Time Rate</p>
+                  <p className="text-xl ">{(normalizedMetrics.onTimeDeliveryRate * 100).toFixed(1)}%</p>
                   <Progress value={normalizedMetrics.onTimeDeliveryRate * 100} className="mt-2" />
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
+                <TrendingUp className="h-3 w-3 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-revenue">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Total Revenue</p>
-                  <p className="text-2xl ">₹{(normalizedMetrics.totalRevenue ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-light text-gray-500">Total Revenue</p>
+                  <p className="text-xl ">₹{(normalizedMetrics.totalRevenue ?? 0).toLocaleString()}</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-emerald-600" />
+                <BarChart3 className="h-3 w-3 text-emerald-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="metric-active-vendors">
-            <CardContent className="p-6">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-light text-gray-500">Active Vendors</p>
-                  <p className="text-2xl ">{normalizedMetrics.activeVendors}</p>
+                  <p className="text-xs font-light text-gray-500">Active Vendors</p>
+                  <p className="text-xl ">{normalizedMetrics.activeVendors}</p>
                 </div>
-                <Users className="h-8 w-8 text-indigo-600" />
+                <Users className="h-3 w-3 text-indigo-600" />
               </div>
             </CardContent>
           </Card>
@@ -377,13 +377,13 @@ export default function LogisticsReports() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {/* Daily Shipments Chart */}
             <Card data-testid="chart-daily-shipments">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Daily Shipments</CardTitle>
-                  <CardDescription>Shipped vs Delivered over time</CardDescription>
+                  <CardTitle className="text-sm">Daily Shipments</CardTitle>
+                  <CardDescription className="text-xs">Shipped vs Delivered over time</CardDescription>
                 </div>
                 <Button
                   variant="outline"
@@ -391,12 +391,12 @@ export default function LogisticsReports() {
                   onClick={() => handleExportReport('daily')}
                   data-testid="button-export-daily"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3 w-3" />
                 </Button>
               </CardHeader>
               <CardContent>
                 {loadingDaily ? (
-                  <div className="h-80 animate-pulse bg-gray-200 rounded"></div>
+                  <div className="h-40 animate-pulse bg-gray-200 rounded"></div>
                 ) : normalizedDailyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={normalizedDailyData}>
@@ -419,8 +419,8 @@ export default function LogisticsReports() {
             {/* Status Distribution */}
             <Card data-testid="chart-status-distribution">
               <CardHeader>
-                <CardTitle>Shipment Status Distribution</CardTitle>
-                <CardDescription>Current status breakdown</CardDescription>
+                <CardTitle className="text-sm mb-0">Shipment Status Distribution</CardTitle>
+                <CardDescription className="text-xs">Current status breakdown</CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingDashboard ? (
@@ -459,8 +459,8 @@ export default function LogisticsReports() {
           <Card data-testid="chart-volume-trends">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Volume Trends</CardTitle>
-                <CardDescription>Shipment volume over time with growth indicators</CardDescription>
+                <CardTitle className="text-sm">Volume Trends</CardTitle>
+                <CardDescription className="text-xs">Shipment volume over time with growth indicators</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -468,7 +468,7 @@ export default function LogisticsReports() {
                 onClick={() => handleExportReport('volume')}
                 data-testid="button-export-volume"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3 w-3" />
               </Button>
             </CardHeader>
             <CardContent>
@@ -498,8 +498,8 @@ export default function LogisticsReports() {
           <Card data-testid="table-vendor-performance">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Vendor Performance</CardTitle>
-                <CardDescription>Delivery performance by vendor</CardDescription>
+                <CardTitle className="text-sm">Vendor Performance</CardTitle>
+                <CardDescription className="text-xs">Delivery performance by vendor</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -507,7 +507,7 @@ export default function LogisticsReports() {
                 onClick={() => handleExportReport('vendor-performance')}
                 data-testid="button-export-vendors"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3 w-3" />
               </Button>
             </CardHeader>
             <CardContent>
@@ -525,14 +525,14 @@ export default function LogisticsReports() {
               ) : normalizedVendorPerformance.length > 0 ? (
                 <div className="space-y-4">
                   {normalizedVendorPerformance.map((vendor, index) => (
-                    <div key={index} className="border rounded-lg p-4" data-testid={`vendor-${index}`}>
+                    <div key={index} className="border rounded p-4" data-testid={`vendor-${index}`}>
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="">{vendor.vendorName}</h4>
                         <Badge variant={vendor.onTimeRate >= 0.9 ? "default" : vendor.onTimeRate >= 0.7 ? "secondary" : "destructive"}>
                           {(vendor.onTimeRate * 100).toFixed(1)}% On-Time
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
+                      <div className="grid grid-cols-3 gap-4 text-xs text-gray-500">
                         <div>
                           <span className="font-light">Total Shipments:</span> {vendor.totalShipments}
                         </div>
@@ -561,8 +561,8 @@ export default function LogisticsReports() {
           <Card data-testid="table-performance-metrics">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Performance Metrics</CardTitle>
-                <CardDescription>Key performance indicators with trends</CardDescription>
+                <CardTitle className="text-sm">Performance Metrics</CardTitle>
+                <CardDescription className="text-xs">Key performance indicators with trends</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -570,12 +570,12 @@ export default function LogisticsReports() {
                 onClick={() => handleExportReport('performance')}
                 data-testid="button-export-performance"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3 w-3" />
               </Button>
             </CardHeader>
             <CardContent>
               {loadingPerformance ? (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="animate-pulse flex justify-between items-center p-4 border rounded">
                       <div className="h-4 bg-gray-200 rounded w-1/3"></div>
@@ -584,24 +584,24 @@ export default function LogisticsReports() {
                   ))}
                 </div>
               ) : normalizedPerformanceMetrics.length > 0 ? (
-                <div className="space-y-4">
+                <div className=" grid grid-cols-3 gap-3">
                   {normalizedPerformanceMetrics.map((metric, index) => (
-                    <div key={index} className="flex justify-between items-center p-4 border rounded-lg" data-testid={`performance-${index}`}>
+                    <div key={index} className="flex justify-between items-center p-2 border rounded" data-testid={`performance-${index}`}>
                       <div>
-                        <h4 className="">{metric.metric}</h4>
-                        <p className="text-2xl ">{(metric.current ?? 0).toLocaleString()}</p>
+                        <h4 className="text-sm">{metric.metric}</h4>
+                        <p className="text-xs">{(metric.current ?? 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <div className={cn(
                           "flex items-center space-x-1",
                           metric.trend === 'up' ? "text-green-600" : metric.trend === 'down' ? "text-red-600" : "text-gray-600"
                         )}>
-                          {metric.trend === 'up' ? <TrendingUp className="h-4 w-4" /> :
-                            metric.trend === 'down' ? <TrendingDown className="h-4 w-4" /> :
-                              <span className="h-4 w-4">→</span>}
+                          {metric.trend === 'up' ? <TrendingUp className="h-3 w-3" /> :
+                            metric.trend === 'down' ? <TrendingDown className="h-3 w-3" /> :
+                              <span className="h-3 w-3">→</span>}
                           <span className="font-light">{(metric.change ?? 0).toFixed(1) > 0 ? '+' : ''}{(metric.change ?? 0).toFixed(1)}%</span>
                         </div>
-                        <p className="text-sm text-gray-500">vs previous period</p>
+                        <p className="text-xs text-gray-500">vs previous period</p>
                       </div>
                     </div>
                   ))}

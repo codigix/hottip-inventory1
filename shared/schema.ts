@@ -296,6 +296,20 @@ export const insertAdminBackupSchema = z.object({
   size: z.coerce.number().optional(),
   filePath: z.string().optional(),
 });
+
+// =====================
+// AUDIT LOGS
+// =====================
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id),
+  user: text("user").notNull(),
+  action: text("action").notNull(),
+  details: text("details"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
 // shared/schema.ts
 // =====================
 // (Removed duplicate userRole and users exports)

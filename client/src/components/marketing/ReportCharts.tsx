@@ -200,20 +200,20 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Conversion Funnel Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Target className="h-5 w-5 text-primary" />
-            <span>Lead Conversion Funnel</span>
+            <span className="text-sm">Lead Conversion Funnel</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loadingConversion ? (
             <Skeleton className="h-80 w-full" />
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} className="text-xs">
               <BarChart data={conversionFunnelData} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
@@ -239,7 +239,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <MapPin className="h-5 w-5 text-green-600" />
-              <span>Visit Success Timeline</span>
+              <span className="text-sm">Visit Success Timeline</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -275,7 +275,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Users className="h-5 w-5 text-purple-600" />
-              <span>Lead Sources</span>
+              <span className="text-sm">Lead Sources</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -312,7 +312,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Users className="h-5 w-5 text-orange-600" />
-            <span>Team Performance Comparison</span>
+            <span className="text-sm">Team Performance Comparison</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -340,7 +340,7 @@ export default function ReportCharts({ dateRange }: ReportChartsProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Clock className="h-5 w-5 text-blue-600" />
-            <span>Team Efficiency Scores</span>
+            <span className="text-sm ">Team Efficiency Scores</span>
           </CardTitle>
         </CardHeader>
         <CardContent>

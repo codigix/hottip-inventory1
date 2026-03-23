@@ -94,9 +94,9 @@ export default function MaterialRequests() {
       header: "Request Information",
       cell: (request: any) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+          {/* <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
             <ClipboardList className="h-4 w-4 text-slate-400" />
-          </div>
+          </div> */}
           <div className="flex flex-col">
             <Link href={`/inventory/material-requests/${request.id}`} className=" text-slate-900 hover:text-slate-600 transition-colors">
               {request.requestNumber || `MR-${request.id}`}
@@ -112,11 +112,11 @@ export default function MaterialRequests() {
       cell: (request: any) => (
         <div className="flex flex-col gap-1">
           {request.poNumber ? (
-            <Badge variant="outline" className="w-fit text-[10px]  bg-slate-50 text-slate-600 border-slate-200">
+            <Badge variant="outline" className="w-fit text-xs  bg-slate-50 text-slate-600 border-slate-200">
               PO: {request.poNumber}
             </Badge>
           ) : (
-            <span className="text-[10px] text-slate-400  uppercase tracking-wider">Internal Use</span>
+            <span className="text-xs text-slate-400  uppercase tracking-wider">Internal Use</span>
           )}
         </div>
       ),
@@ -128,11 +128,11 @@ export default function MaterialRequests() {
         <Badge 
           variant="outline" 
           className={cn(
-            "capitalize font-normal px-2.5 py-0.5",
-            request.status === 'FULFILLED' && "bg-emerald-50 text-emerald-700 border-emerald-200",
-            request.status === 'PROCESSING' && "bg-blue-50 text-blue-700 border-blue-200",
-            (request.status === 'DRAFT' || request.status === 'PENDING') && "bg-amber-50 text-amber-700 border-amber-200",
-            request.status === 'CANCELLED' && "bg-red-50 text-red-700 border-red-200",
+            "capitalize font-normal p-1",
+            request.status === 'Fullfilled' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+            request.status === 'Processing' && "bg-blue-50 text-blue-700 border-blue-200",
+            (request.status === 'Draft' || request.status === 'PENDING') && "bg-amber-50 text-amber-700 border-amber-200",
+            request.status === 'Cancelled' && "bg-red-50 text-red-700 border-red-200",
             !request.status && "bg-slate-100 text-slate-600 border-slate-200"
           )}
         >
@@ -146,7 +146,7 @@ export default function MaterialRequests() {
       cell: (request: any) => (
         <div className="flex items-center gap-2 text-slate-600">
           <Clock className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-sm ">
+          <span className="text-xs ">
             {request.requiredBy ? format(new Date(request.requiredBy), "dd MMM yyyy") : "TBD"}
           </span>
         </div>
@@ -198,19 +198,19 @@ export default function MaterialRequests() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Material Requisitions</h1>
           <p className="text-xs text-slate-500">Track and manage internal stock requests from production and site teams.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 h-10 px-4">
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 ">
             <Download className="h-4 w-4 mr-2 text-slate-400" />
             Export Data
           </Button>
           <Link href="/inventory/material-requests/new">
-            <Button className="bg-primary hover:bg-primary text-white shadow-sm h-10 px-4">
+            <Button className="bg-primary hover:bg-primary text-white shadow-sm ">
               <Plus className="h-4 w-4 mr-2" />
               New Requisition
             </Button>

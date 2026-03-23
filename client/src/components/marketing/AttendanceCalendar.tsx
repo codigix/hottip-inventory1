@@ -202,7 +202,7 @@ export default function AttendanceCalendar({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Calendar Header */}
       <Card>
         <CardHeader className="pb-4">

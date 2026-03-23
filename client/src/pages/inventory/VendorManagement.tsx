@@ -164,11 +164,11 @@ export default function VendorManagement() {
       header: "Vendor Profile",
       cell: (vendor: any) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+          {/* <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
             <Building2 className="h-4 w-4 text-slate-400" />
-          </div>
+          </div> */}
           <div className="flex flex-col">
-            <span className="font-medium text-slate-900">{vendor.name}</span>
+            <span className="text-xs text-slate-900">{vendor.name}</span>
             <span className="text-xs text-slate-500 uppercase tracking-tight">{vendor.contactPerson || 'No Contact Person'}</span>
           </div>
         </div>
@@ -195,7 +195,7 @@ export default function VendorManagement() {
       header: "Tax ID",
       cell: (vendor: any) => (
         <div className="flex flex-col">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">GSTIN</span>
+          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">GSTIN</span>
           <span className="font-mono text-[11px] text-slate-600">{vendor.gstNumber || 'N/A'}</span>
         </div>
       ),
@@ -204,7 +204,7 @@ export default function VendorManagement() {
       key: "paymentTerms",
       header: "Terms",
       cell: (vendor: any) => (
-        <Badge variant="outline" className="font-medium text-[10px] bg-slate-50 text-slate-600 border-slate-200">
+        <Badge variant="outline" className="font-medium text-xs bg-slate-50 text-slate-600 border-slate-200">
           {vendor.paymentTerms ?? '30'} DAYS
         </Badge>
       ),
@@ -216,7 +216,7 @@ export default function VendorManagement() {
         <Badge 
           variant="outline" 
           className={cn(
-            "capitalize font-normal px-2.5 py-0.5",
+            "capitalize font-normal p-1",
             vendor.isActive !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
           )}
         >
@@ -261,18 +261,18 @@ export default function VendorManagement() {
   ];
 
   return (
-    <div className="p-2 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-2 space-y-2 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl  text-slate-900 ">Vendor Management</h1>
           <p className="text-xs text-slate-500">Maintain long-term relationships and compliance records for your supplier network.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 h-10 px-4" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] })}>
+          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50 " onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] })}>
             <RefreshCw className="h-4 w-4 mr-2 text-slate-400" />
             Sync Registry
           </Button>
-          <Button className="bg-primary hover:bg-primary text-white shadow-sm h-10 px-4" onClick={() => { resetVendorForm(); setIsVendorDialogOpen(true); }}>
+          <Button className="bg-primary hover:bg-primary text-white shadow-sm " onClick={() => { resetVendorForm(); setIsVendorDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             Add New Vendor
           </Button>
@@ -318,11 +318,11 @@ export default function VendorManagement() {
       </div>
 
       <Dialog open={isVendorDialogOpen} onOpenChange={setIsVendorDialogOpen}>
-        <DialogContent className="max-w-2xl border-none shadow-2xl">
+        <DialogContent className="max-w-2xl border-none shadow-2xl max-h-[75vh] overflow-scroll">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-slate-900">{editingVendor ? 'Edit Vendor Profile' : 'New Vendor Registration'}</DialogTitle>
+            <DialogTitle className="text-xl  text-slate-900">{editingVendor ? 'Edit Vendor Profile' : 'New Vendor Registration'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 pt-4">
+          <div className="grid grid-cols-3 gap-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700">Company Name *</Label>
               <Input value={vendorName} onChange={e => setVendorName(e.target.value)} className="border-slate-200" />

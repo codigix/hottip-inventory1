@@ -93,9 +93,9 @@ export default function SalesReports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px]  text-slate-500  ">{stat.title}</p>
+                  <p className="text-xs  text-slate-500  ">{stat.title}</p>
                   <h3 className="text-xl  text-slate-900">{stat.value}</h3>
-                  <p className="text-[10px] text-slate-400">{stat.desc}</p>
+                  <p className="text-xs text-slate-400">{stat.desc}</p>
                 </div>
                 <div className="bg-white/80 p-2 rounded-lg border border-slate-100 ">
                   <stat.icon className="h-4 w-4 text-slate-600" />

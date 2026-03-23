@@ -227,7 +227,7 @@ export default function StatusWorkflowPanel({ shipments }: StatusWorkflowPanelPr
   // Use the shared getNextStatus function from schema instead of local one
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Workflow Overview */}
       <div className="flex items-center justify-between overflow-x-auto pb-4">
         {statusWorkflow.map((status, index) => {

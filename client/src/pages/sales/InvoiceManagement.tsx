@@ -182,7 +182,7 @@ export default function InvoiceManagement() {
       cell: (invoice: any) => (
         <div>
           <div className="font-medium text-slate-700">{invoice.customer?.name || "N/A"}</div>
-          <div className="text-[10px] text-slate-400   ">
+          <div className="text-xs text-slate-400   ">
             {invoice.customer?.gstNumber || "GST NOT PROVIDED"}
           </div>
         </div>
@@ -241,7 +241,7 @@ export default function InvoiceManagement() {
           <Badge
             variant="outline"
             className={cn(
-              "text-[10px]   py-0 h-5 shadow-none",
+              "text-xs   py-0 h-5 shadow-none",
               statusColors[invoice.status as keyof typeof statusColors] || statusColors.draft
             )}
           >
@@ -291,7 +291,7 @@ export default function InvoiceManagement() {
     <div className="p-2 space-y-3 bg-slate-50/50 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl  text-slate-900 tracking-tight">Invoice Management</h1>
+          <h1 className="text-xl  text-slate-900 tracking-tight">Invoice Management</h1>
           <p className="text-slate-500 text-sm">GST invoices with tax breakdowns and PDF downloads</p>
         </div>
         <Link href="/sales/invoices/new">
@@ -313,12 +313,12 @@ export default function InvoiceManagement() {
           />
 
           {/* View Invoice Modal */}
-          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+          <Dialog  open={isViewOpen} onOpenChange={setIsViewOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-tour="sales-invoice-view-dialog">
-              <DialogHeader className="sticky top-0 bg-background border-b z-10 p-4">
+              <DialogHeader className="sticky top-0 border-b z-10 p-4 bg-white">
                 <div className="flex justify-between items-center w-full">
                   <div>
-                    <DialogTitle className="text-2xl" data-tour="sales-view-invoice-title">
+                    <DialogTitle className="text-xl" data-tour="sales-view-invoice-title">
                       Invoice Details: {selectedInvoice?.invoiceNumber}
                     </DialogTitle>
                     <DialogDescription data-tour="sales-view-invoice-description">
@@ -343,11 +343,11 @@ export default function InvoiceManagement() {
                     <div className="space-y-4">
                       <div data-tour="sales-view-billing-from">
                         <h4 className="text-xs   text-gray-400 ">From</h4>
-                        <p className=" text-lg text-primary">HOTTIP INDIA POLYMERS</p>
-                        <p className="text-sm text-gray-500 whitespace-pre-line">
+                        <p className=" text-sm text-primary">HOTTIP INDIA POLYMERS</p>
+                        <p className="text-xs text-gray-500 whitespace-pre-line">
                           123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra
                         </p>
-                        <p className="text-sm  mt-1">GSTIN: 27AABCH1234F1Z5</p>
+                        <p className="text-xs  mt-1">GSTIN: 27AABCH1234F1Z5</p>
                       </div>
                       <div data-tour="sales-view-billing-to">
                         <h4 className="text-xs   text-gray-400 ">Bill To</h4>
@@ -394,10 +394,10 @@ export default function InvoiceManagement() {
                         {selectedInvoice.items?.map((item: any) => (
                           <TableRow key={item.id}>
                             <TableCell className="">{item.description}</TableCell>
-                            <TableCell className="text-center text-gray-500">{item.hsnSac || "-"}</TableCell>
-                            <TableCell className="text-center">{item.quantity} {item.unit}</TableCell>
-                            <TableCell className="text-right">₹{Number(item.unitPrice).toLocaleString("en-IN")}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-center text-xs text-gray-500">{item.hsnSac || "-"}</TableCell>
+                            <TableCell className="text-center text-xs">{item.quantity} {item.unit}</TableCell>
+                            <TableCell className="text-right text-xs">₹{Number(item.unitPrice).toLocaleString("en-IN")}</TableCell>
+                            <TableCell className="text-right text-xs">
                               {item.igstRate > 0 ? `IGST ${item.igstRate}%` : 
                                (item.cgstRate + item.sgstRate) > 0 ? `CGST+SGST ${item.cgstRate+item.sgstRate}%` : "0%"}
                             </TableCell>
@@ -409,7 +409,7 @@ export default function InvoiceManagement() {
                   </div>
 
                   <div className="flex justify-end " data-tour="sales-view-financial-summary">
-                    <div className="w-[350px] space-y-3 bg-gray-50 p-6 rounded-xl border border-gray-100 ">
+                    <div className="w-[350px] space-y-3 bg-gray-50 p-2 rounded border border-gray-100 ">
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Subtotal:</span>
                         <span className="">₹{Number(selectedInvoice.subtotalAmount).toLocaleString("en-IN")}</span>
@@ -439,8 +439,8 @@ export default function InvoiceManagement() {
                         </div>
                       )}
                       <div className="border-t-2 border-gray-200 pt-3 flex justify-between  text-xl text-primary" data-tour="sales-total-amount-display">
-                        <span>Grand Total:</span>
-                        <span>₹{Number(selectedInvoice.totalAmount).toLocaleString("en-IN")}</span>
+                        <span className="text-sm">Grand Total:</span>
+                        <span className="text-sm">₹{Number(selectedInvoice.totalAmount).toLocaleString("en-IN")}</span>
                       </div>
                     </div>
                   </div>
