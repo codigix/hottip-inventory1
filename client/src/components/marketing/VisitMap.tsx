@@ -82,6 +82,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
     switch (status) {
       case 'scheduled':
         return '#3b82f6'; // Blue
+      case 'upcoming':
       case 'in_progress':
         return '#f59e0b'; // Orange
       case 'completed':
@@ -98,6 +99,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
     switch (status) {
       case 'scheduled':
         return Timer;
+      case 'upcoming':
       case 'in_progress':
         return Navigation;
       case 'completed':
@@ -232,7 +234,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
           <div className="space-y-1">
             {[
               { status: 'scheduled', label: 'Scheduled', color: '#3b82f6' },
-              { status: 'in_progress', label: 'In Progress', color: '#f59e0b' },
+              { status: 'upcoming', label: 'Upcoming', color: '#f59e0b' },
               { status: 'completed', label: 'Completed', color: '#10b981' },
               { status: 'cancelled', label: 'Cancelled', color: '#ef4444' }
             ].map(({ status, label, color }) => (
@@ -327,7 +329,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                 <span>Selected Visit</span>
               </div>
               <Badge className="capitalize">
-                {selectedVisit.status.replace('_', ' ')}
+                {selectedVisit.status.toLowerCase().replace('_', ' ') === 'in progress' ? 'Upcoming' : selectedVisit.status.replace('_', ' ')}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -375,7 +377,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                 </Button>
               )}
               
-              {selectedVisit.status === 'in_progress' && selectedVisit.actualStartTime && !selectedVisit.actualEndTime && (
+              {(selectedVisit.status === 'in_progress' || selectedVisit.status === 'upcoming' || selectedVisit.status === 'Upcoming') && selectedVisit.actualStartTime && !selectedVisit.actualEndTime && (
                 <Button
                   size="sm"
                   onClick={() => onCheckOut(selectedVisit)}
@@ -419,7 +421,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                           </p>
                         </div>
                         <Badge variant="outline" className="text-xs">
-                          {visit.status.replace('_', ' ')}
+                          {visit.status.toLowerCase().replace('_', ' ') === 'in progress' ? 'Upcoming' : visit.status.replace('_', ' ')}
                         </Badge>
                       </div>
                     ))}
@@ -459,7 +461,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                     style={{ color: getStatusColor(visit.status) }}
                   >
                     <StatusIcon className="h-3 w-3" />
-                    <span className="capitalize text-xs">{visit.status.replace('_', ' ')}</span>
+                    <span className="capitalize text-xs">{visit.status.toLowerCase().replace('_', ' ') === 'in progress' ? 'Upcoming' : visit.status.replace('_', ' ')}</span>
                   </Badge>
                 </div>
                 

@@ -36,7 +36,7 @@ interface VisitWithDetails extends FieldVisit {
   assignedByUser?: { id: string; firstName: string; lastName: string };
 }
 
-type VisitStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+type VisitStatus = "scheduled" | "upcoming" | "completed" | "cancelled";
 type ViewMode = "table" | "map";
 
 export default function FieldVisits() {
@@ -120,10 +120,14 @@ export default function FieldVisits() {
   }, [safeVisits, statusFilter, assigneeFilter, searchTerm]);
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 };
+    const counts: Record<string, number> = { scheduled: 0, upcoming: 0, completed: 0, cancelled: 0 };
     safeVisits.forEach((v) => {
       const normalizedStatus = v.status?.toLowerCase().replace(" ", "_");
-      if (normalizedStatus in counts) counts[normalizedStatus]++;
+      if (normalizedStatus === "in_progress") {
+        counts["upcoming"]++;
+      } else if (normalizedStatus in counts) {
+        counts[normalizedStatus]++;
+      }
     });
     return { all: safeVisits.length, ...counts };
   }, [safeVisits]);
@@ -170,7 +174,7 @@ export default function FieldVisits() {
   const handleStatusUpdate = (visit: VisitWithDetails, status: VisitStatus) => {
     const statusMap: Record<string, string> = {
       scheduled: "Scheduled",
-      in_progress: "In Progress",
+      upcoming: "Upcoming",
       completed: "Completed",
       cancelled: "Cancelled",
     };
@@ -312,12 +316,12 @@ const updateVisitMutation = useMutation({
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-light flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-blue-500" />
-              <span>In Progress</span>
+              <span>Upcoming</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl " data-testid="metric-in-progress-visits">
-              {statusCounts.in_progress}
+            <div className="text-xl " data-testid="metric-upcoming-visits">
+              {statusCounts.upcoming}
             </div>
           </CardContent>
         </Card>
@@ -400,8 +404,8 @@ const updateVisitMutation = useMutation({
           <TabsTrigger value="scheduled" data-testid="tab-scheduled-visits">
             Scheduled ({statusCounts.scheduled})
           </TabsTrigger>
-          <TabsTrigger value="in_progress" data-testid="tab-in-progress-visits">
-            In Progress ({statusCounts.in_progress})
+          <TabsTrigger value="upcoming" data-testid="tab-upcoming-visits">
+            Upcoming ({statusCounts.upcoming})
           </TabsTrigger>
           <TabsTrigger value="completed" data-testid="tab-completed-visits">
             Completed ({statusCounts.completed})

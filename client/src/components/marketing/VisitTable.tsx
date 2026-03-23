@@ -69,7 +69,7 @@ interface VisitWithDetails extends FieldVisit {
   };
 }
 
-type VisitStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+type VisitStatus = "scheduled" | "upcoming" | "completed" | "cancelled";
 
 interface VisitTableProps {
   visits: VisitWithDetails[];
@@ -134,6 +134,7 @@ export default function VisitTable({
           color: "text-blue-600",
           bgColor: "bg-blue-100 dark:bg-blue-900",
         };
+      case "upcoming":
       case "in_progress":
         return {
           variant: "default" as const,
@@ -184,14 +185,15 @@ export default function VisitTable({
     visit.status === "scheduled" && !visit.actualStartTime;
 
   const canCheckOut = (visit: VisitWithDetails) =>
-    visit.status === "in_progress" &&
+    (visit.status === "in_progress" || visit.status === "upcoming" || visit.status === "Upcoming") &&
     visit.actualStartTime &&
     !visit.actualEndTime;
 
   const openStatusUpdate = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
     // Normalize status to lowercase for the select component
-    const currentStatus = visit.status.toLowerCase().replace(" ", "_") as VisitStatus;
+    let currentStatus = visit.status.toLowerCase().replace(" ", "_") as VisitStatus;
+    if (currentStatus === ("in_progress" as any)) currentStatus = "upcoming";
     setNewStatus(currentStatus);
     setStatusUpdateOpen(true);
   };
@@ -303,7 +305,7 @@ export default function VisitTable({
             className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
           >
             <StatusIcon className="h-3 w-3" />
-            <span>{visit.status.replace("_", " ")}</span>
+            <span>{visit.status.toLowerCase().replace("_", " ") === "in progress" ? "Upcoming" : visit.status.replace("_", " ")}</span>
           </Badge>
         );
       },
@@ -483,7 +485,7 @@ export default function VisitTable({
                       className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
                     >
                       <StatusIcon className="h-3 w-3" />
-                      <span>{visit.status.replace("_", " ")}</span>
+                      <span>{visit.status.toLowerCase().replace("_", " ") === "in progress" ? "Upcoming" : visit.status.replace("_", " ")}</span>
                     </Badge>
                   </div>
 
@@ -657,7 +659,7 @@ export default function VisitTable({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
@@ -733,7 +735,7 @@ export default function VisitTable({
                       variant={getStatusInfo(selectedVisit.status).variant}
                       className={`${getStatusInfo(selectedVisit.status).bgColor} ${getStatusInfo(selectedVisit.status).color} capitalize flex items-center space-x-1 w-fit`}
                     >
-                      {selectedVisit.status.replace("_", " ")}
+                      {selectedVisit.status.toLowerCase().replace("_", " ") === "in progress" ? "Upcoming" : selectedVisit.status.replace("_", " ")}
                     </Badge>
                   </div>
                   {getVisitDuration(selectedVisit) && (
