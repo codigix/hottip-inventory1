@@ -1,6 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -103,6 +104,8 @@ export default function PurchaseOrders() {
   const [selectedPo, setSelectedPo] = useState<any>(null);
   const [editingPoId, setEditingPoId] = useState<string | null>(null);
 
+  const [, setLocation] = useLocation();
+
   const { data: purchaseOrders = [], isLoading } = useQuery({
     queryKey: ["/purchase-orders"],
   });
@@ -192,6 +195,43 @@ export default function PurchaseOrders() {
     control: form.control,
     name: "items",
   });
+
+  // Handle URL parameters for auto-opening the dialog with a quotation
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const quotationId = searchParams.get("quotationId");
+    
+    if (quotationId && !isDialogOpen && !editingPoId && allQuotations.length > 0) {
+      const quotation = allQuotations.find((q: any) => q.id === quotationId);
+      if (quotation) {
+        // First generate a PO number if it doesn't exist
+        if (!form.getValues("poNumber")) {
+          const year = new Date().getFullYear();
+          let nextCount = 1;
+          if (purchaseOrders && purchaseOrders.length > 0) {
+            const poNumbers = purchaseOrders
+              .map((po: any) => po.poNumber)
+              .filter((num: string) => num && typeof num === 'string' && num.startsWith(`PO-${year}-`));
+            
+            if (poNumbers.length > 0) {
+              const counts = poNumbers.map((num: string) => {
+                const parts = num.split("-");
+                return parseInt(parts[parts.length - 1]) || 0;
+              });
+              nextCount = Math.max(...counts) + 1;
+            }
+          }
+          form.setValue("poNumber", `PO-${year}-${String(nextCount).padStart(3, "0")}`);
+        }
+        
+        form.setValue("quotationId", quotationId);
+        setIsDialogOpen(true);
+        
+        // Clean up URL to prevent re-opening
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [allQuotations, isDialogOpen, editingPoId, form, purchaseOrders]);
 
   // Auto-generate PO Number
   useEffect(() => {
@@ -609,6 +649,15 @@ export default function PurchaseOrders() {
             title="View Details"
           >
             <Eye className="h-4 w-4 text-slate-400" />
+          </Button>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="h-8 w-8 p-0 hover:text-primary"
+            onClick={() => setLocation(`/sales/orders?purchaseOrderId=${po.id}`)} 
+            title="Create Sales Order"
+          >
+            <FileText className="h-4 w-4 text-primary" />
           </Button>
           <Button 
             size="sm" 

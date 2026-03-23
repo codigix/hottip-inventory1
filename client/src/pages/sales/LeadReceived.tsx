@@ -156,7 +156,7 @@ export default function LeadReceived() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="converted">1. Lead Received</SelectItem>
+                    <SelectItem value="converted">1. Confirmed for Sales</SelectItem>
                     <SelectItem value="contacted">2. Contacted</SelectItem>
                     <SelectItem value="analysis">3. Under Analysis</SelectItem>
                   </SelectContent>
@@ -195,7 +195,7 @@ export default function LeadReceived() {
               Incoming Requests ({leads.length})
             </CardTitle>
             <Badge variant="outline" className="font-bold text-[10px] bg-white uppercase tracking-tighter border-slate-800">
-              Viewing: {statusFilter === "converted" ? "Lead Received" : statusFilter.replace("_", " ")}
+              Viewing: {statusFilter === "converted" ? "Confirmed for Sales" : statusFilter.replace("_", " ")}
             </Badge>
           </div>
         </CardHeader>

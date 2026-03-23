@@ -1,6 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -50,6 +51,7 @@ import {
   Eye,
   CheckCircle,
   Truck,
+  Receipt,
   XCircle,
   Trash2,
 } from "lucide-react";
@@ -60,6 +62,7 @@ type SalesOrderFormValues = z.infer<typeof insertSalesOrderSchema>;
 export default function SalesOrders() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -120,6 +123,43 @@ export default function SalesOrders() {
     control: form.control,
     name: "items",
   });
+
+  // Handle URL parameters for auto-opening the dialog with a PO
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const poId = searchParams.get("purchaseOrderId");
+    
+    if (poId && !isDialogOpen && purchaseOrders.length > 0) {
+      const po = purchaseOrders.find((p: any) => p.id === poId);
+      if (po) {
+        // First generate a SO number if it doesn't exist
+        if (!form.getValues("orderNumber")) {
+          const year = new Date().getFullYear();
+          let nextCount = 1;
+          if (orders && orders.length > 0) {
+            const soNumbers = orders
+              .map((o: any) => o.orderNumber)
+              .filter((num: string) => num && typeof num === 'string' && num.startsWith(`SO-${year}-`));
+            
+            if (soNumbers.length > 0) {
+              const counts = soNumbers.map((num: string) => {
+                const parts = num.split("-");
+                return parseInt(parts[parts.length - 1]) || 0;
+              });
+              nextCount = Math.max(...counts) + 1;
+            }
+          }
+          form.setValue("orderNumber", `SO-${year}-${String(nextCount).padStart(3, "0")}`);
+        }
+        
+        form.setValue("purchaseOrderId", poId);
+        setIsDialogOpen(true);
+        
+        // Clean up URL to prevent re-opening
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [purchaseOrders, isDialogOpen, form, orders]);
 
   // Auto-generate Order Number
   useEffect(() => {
@@ -424,6 +464,17 @@ export default function SalesOrders() {
             >
               <Eye className="h-4 w-4 text-slate-400" />
             </Button>
+            {order.status === 'shipped' && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="h-8 w-8 p-0 hover:text-emerald-600"
+                onClick={() => setLocation(`/sales/invoices/new?orderId=${order.id}`)}
+                title="Create Invoice"
+              >
+                <Receipt className="h-4 w-4 text-emerald-400" />
+              </Button>
+            )}
             {order.status === 'pending' && (
               <Button 
                 size="sm" 

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -53,6 +54,7 @@ import {
   Filter,
   LayoutGrid,
   Trash2,
+  ShoppingCart,
 } from "lucide-react";
 import { insertInboundQuotationSchema, type Supplier, type OutboundQuotation, type Customer } from "@shared/schema"; // Import Customer and Supplier type
 import { z } from "zod";
@@ -88,6 +90,7 @@ const buildAttachmentUrl = (path: string) => {
 };
 
 export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?: boolean }) {
+  const [, setLocation] = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{
     uploadURL: string;
@@ -490,31 +493,41 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
             >
               <FileDown className="h-4 w-4 text-slate-400" />
             </Button>
-            {!isApproved && (
+            {isApproved ? (
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 hover:text-emerald-600"
-                disabled={isProcessing}
-                onClick={() => handleUpdateStatus(quotation, "approved")}
-                data-testid={`button-approve-${quotation.id}`}
-                title="Approve"
+                className="h-8 w-8 p-0 hover:text-primary"
+                onClick={() => setLocation(`/sales/purchase-orders?quotationId=${quotation.id}`)}
+                title="Create PO"
               >
-                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                <ShoppingCart className="h-4 w-4 text-primary" />
               </Button>
-            )}
-            {!isRejected && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 hover:text-red-600"
-                disabled={isProcessing}
-                onClick={() => handleUpdateStatus(quotation, "rejected")}
-                data-testid={`button-reject-${quotation.id}`}
-                title="Reject"
-              >
-                <XCircle className="h-4 w-4 text-red-400" />
-              </Button>
+            ) : !isRejected && (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 hover:text-emerald-600"
+                  disabled={isProcessing}
+                  onClick={() => handleUpdateStatus(quotation, "approved")}
+                  data-testid={`button-approve-${quotation.id}`}
+                  title="Approve"
+                >
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 hover:text-red-600"
+                  disabled={isProcessing}
+                  onClick={() => handleUpdateStatus(quotation, "rejected")}
+                  data-testid={`button-reject-${quotation.id}`}
+                  title="Reject"
+                >
+                  <XCircle className="h-4 w-4 text-red-400" />
+                </Button>
+              </>
             )}
             <Button
               size="sm"

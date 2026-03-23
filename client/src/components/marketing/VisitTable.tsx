@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +108,15 @@ export default function VisitTable({
   const [statusNotes, setStatusNotes] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // ✅ Sort visits by createdAt/plannedDate (LIFO)
+  const sortedVisits = useMemo(() => {
+    return [...visits].sort((a, b) => {
+      const aDate = new Date(a.createdAt || a.plannedDate || 0).getTime();
+      const bDate = new Date(b.createdAt || b.plannedDate || 0).getTime();
+      return bDate - aDate;
+    });
+  }, [visits]);
 
   // Fetch visit history for the selected lead
   const { data: visitHistory = [] } = useQuery<VisitWithDetails[]>({
@@ -273,7 +282,7 @@ export default function VisitTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visits.map((visit) => {
+              {sortedVisits.map((visit) => {
                 const statusInfo = getStatusInfo(visit.status);
                 const StatusIcon = statusInfo.icon;
                 const duration = getVisitDuration(visit);

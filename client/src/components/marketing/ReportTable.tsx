@@ -79,7 +79,19 @@ export default function ReportTable({
 
   // Sort data
   const sortedData = [...data].sort((a, b) => {
-    if (!sortConfig.key || !sortConfig.direction) return 0;
+    if (!sortConfig.key || !sortConfig.direction) {
+      // Default LIFO sorting if no sort config is active
+      const possibleKeys = ['createdAt', 'created_at', 'date', 'id'];
+      const defaultKey = possibleKeys.find(key => a[key] !== undefined);
+      
+      if (defaultKey) {
+        const aVal = a[defaultKey];
+        const bVal = b[defaultKey];
+        if (aVal === bVal) return 0;
+        return aVal > bVal ? -1 : 1;
+      }
+      return 0;
+    }
     
     const aVal = a[sortConfig.key];
     const bVal = b[sortConfig.key];

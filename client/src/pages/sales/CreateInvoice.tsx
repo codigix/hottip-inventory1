@@ -164,6 +164,83 @@ export default function CreateInvoice() {
     }
   }, [invoices, form]);
 
+  // Handle auto-fill from Sales Order when coming from URL parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const orderId = searchParams.get("orderId");
+    
+    if (orderId && salesOrders.length > 0) {
+      const order = salesOrders.find((o: any) => o.id === orderId);
+      if (order) {
+        form.setValue("customerId", order.customerId);
+        form.setValue("billingAddress", order.billingAddress || "");
+        form.setValue("shippingAddress", order.shippingAddress || "");
+        form.setValue("billingGstNumber", order.customer?.gstNumber || "");
+        form.setValue("subtotalAmount", parseFloat(order.subtotalAmount) || 0);
+        
+        if (order.gstType === "IGST") {
+          form.setValue("igstRate", parseFloat(order.gstPercentage) || 18);
+          form.setValue("igstAmount", parseFloat(order.gstAmount) || 0);
+          form.setValue("cgstRate", 0);
+          form.setValue("cgstAmount", 0);
+          form.setValue("sgstRate", 0);
+          form.setValue("sgstAmount", 0);
+        } else {
+          form.setValue("cgstRate", (parseFloat(order.gstPercentage) / 2) || 9);
+          form.setValue("cgstAmount", (parseFloat(order.gstAmount) / 2) || 0);
+          form.setValue("sgstRate", (parseFloat(order.gstPercentage) / 2) || 9);
+          form.setValue("sgstAmount", (parseFloat(order.gstAmount) / 2) || 0);
+          form.setValue("igstRate", 0);
+          form.setValue("igstAmount", 0);
+        }
+
+        form.setValue("totalAmount", parseFloat(order.totalAmount) || 0);
+        form.setValue("balanceAmount", parseFloat(order.totalAmount) || 0);
+        
+        const city = order.customer?.city || "";
+        const state = order.customer?.state || "";
+        form.setValue("placeOfSupply", city && state ? `${city}, ${state}` : (city || state || ""));
+        
+        if (order.items && Array.isArray(order.items)) {
+          const mappedLineItems = order.items.map((item: any) => {
+            const baseAmount = parseFloat(item.amount) || (parseFloat(item.unitPrice) * item.quantity) || 0;
+            let itemCgstRate = 0, itemSgstRate = 0, itemIgstRate = 0;
+            
+            if (order.gstType === "IGST") {
+              itemIgstRate = parseFloat(order.gstPercentage) || 18;
+            } else {
+              itemCgstRate = (parseFloat(order.gstPercentage) / 2) || 9;
+              itemSgstRate = (parseFloat(order.gstPercentage) / 2) || 9;
+            }
+
+            const itemName = item.itemName || item.partName || "";
+            const itemDescription = item.description || item.partDescription || "";
+            const displayDescription = itemName && itemDescription 
+              ? `${itemName} - ${itemDescription}` 
+              : (itemName || itemDescription || "N/A");
+
+            return {
+              id: generateLineItemId(),
+              description: displayDescription,
+              hsnSac: "",
+              quantity: Number(item.quantity) || 1,
+              unitPrice: parseFloat(item.unitPrice) || 0,
+              unit: item.unit || "pcs",
+              cgstRate: itemCgstRate,
+              sgstRate: itemSgstRate,
+              igstRate: itemIgstRate,
+              amount: baseAmount + (baseAmount * (itemCgstRate + itemSgstRate + itemIgstRate) / 100)
+            };
+          });
+          setLineItems(mappedLineItems);
+        }
+        
+        // Clean up URL to prevent re-filling
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [salesOrders, form]);
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (payload: z.infer<typeof insertInvoiceSchema>) => {
       return await apiRequest("POST", "/invoices", payload);

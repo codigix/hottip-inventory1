@@ -133,6 +133,23 @@ export function DataTable<T extends Record<string, any>>({
         const comparison = aValue > bValue ? 1 : -1;
         return sortConfig.direction === 'asc' ? comparison : -comparison;
       });
+    } else {
+      // Default LIFO (Last In, First Out) sorting
+      // Try to find a timestamp or ID field to sort by descending
+      const possibleKeys = ['createdAt', 'created_at', 'date', 'id'];
+      const defaultKey = possibleKeys.find(key => 
+        result.length > 0 && getValue(result[0], key) !== undefined
+      );
+
+      if (defaultKey) {
+        result.sort((a, b) => {
+          const aValue = getValue(a, defaultKey);
+          const bValue = getValue(b, defaultKey);
+
+          if (aValue === bValue) return 0;
+          return aValue > bValue ? -1 : 1;
+        });
+      }
     }
 
     return result;

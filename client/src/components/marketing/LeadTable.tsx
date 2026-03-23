@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MoreHorizontal,
@@ -83,6 +83,15 @@ export default function LeadTable({
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // ✅ Sort leads by createdAt (LIFO)
+  const sortedLeads = useMemo(() => {
+    return [...leads].sort((a, b) => {
+      const aDate = new Date(a.createdAt || 0).getTime();
+      const bDate = new Date(b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+  }, [leads]);
 
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
@@ -208,7 +217,7 @@ export default function LeadTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leads.map((lead) => (
+            {sortedLeads.map((lead) => (
               <TableRow key={lead.id}>
                 {/* ✅ Lead Info */}
                 <TableCell>
@@ -325,24 +334,24 @@ export default function LeadTable({
 
                 {/* ✅ Actions */}
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      {isSalesMode ? (
-                        <>
-                          <DropdownMenuItem 
-                            onClick={() => onAddQuotation?.(lead)}
-                            className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
-                          >
-                            <FileText className="mr-2 h-4 w-4" /> Create Quotation
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
+                  {isSalesMode ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onAddQuotation?.(lead)}
+                      className="bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary font-medium border-primary/20"
+                    >
+                      <FileText className="mr-2 h-4 w-4" /> Create Quotation
+                    </Button>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <>
                           <DropdownMenuItem onClick={() => setViewingLead(lead)}>
                             <Eye className="mr-2 h-4 w-4" /> View
@@ -371,9 +380,9 @@ export default function LeadTable({
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
