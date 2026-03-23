@@ -325,7 +325,6 @@ const updateVisitMutation = useMutation({
             <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
               Upcoming
               <MapPin className="h-4 w-4 text-blue-500" />
-              <span>Upcoming</span>
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   Plus, 
   Search, 
@@ -183,6 +183,26 @@ export default function VendorPO() {
           <Button 
             variant="ghost" 
             size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+            title="Create Shipment"
+            onClick={() => createShipmentMutation.mutate(po.id)}
+            disabled={createShipmentMutation.isPending || po.status === 'shipped' || po.status === 'delivered'}
+          >
+            <Truck className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+            title="Create Invoice"
+            onClick={() => createInvoiceMutation.mutate(po.id)}
+            disabled={createInvoiceMutation.isPending || po.status === 'processing' || po.status === 'shipped' || po.status === 'delivered'}
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
             className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
             onClick={() => handleDeletePO(po.id)}
           >
@@ -248,9 +268,45 @@ export default function VendorPO() {
   const [gstType, setGstType] = useState("CGST_SGST");
   const [poItems, setPoItems] = useState([{ id: 1, itemName: "", quantity: 1, unit: "Nos", unitPrice: 0, amount: 0 }]);
 
-  // Dummy data for missing queries
-  const quotations: any[] = [];
-  const materialRequests: any[] = [];
+  // Data for missing queries
+  const { data: quotationsResponse } = useQuery({
+    queryKey: ["/api/vendor-quotations"],
+    queryFn: async () => apiRequest("GET", "/api/vendor-quotations"),
+  });
+  const quotations = Array.isArray(quotationsResponse?.data) ? quotationsResponse.data : (Array.isArray(quotationsResponse) ? quotationsResponse : []);
+
+  const { data: materialRequestsResponse } = useQuery({
+    queryKey: ["/api/material-requests"],
+    queryFn: async () => apiRequest("GET", "/api/material-requests"),
+  });
+  const materialRequests = Array.isArray(materialRequestsResponse?.data) ? materialRequestsResponse.data : (Array.isArray(materialRequestsResponse) ? materialRequestsResponse : []);
+
+  useEffect(() => {
+    const quoteId = localStorage.getItem("create_po_from_quote");
+    if (quoteId && quotations.length > 0 && suppliers.length > 0) {
+      const quote = quotations.find((q: any) => q.id === quoteId);
+      if (quote) {
+        setPoQuotation(quote.id);
+        setPoSupplier(quote.senderId);
+        setPoMaterialRequest(quote.materialRequestId || "none");
+        setPoNotes(quote.notes || "");
+        
+        if (quote.quotationItems && Array.isArray(quote.quotationItems)) {
+          setPoItems(quote.quotationItems.map((item: any, index: number) => ({
+            id: index + 1,
+            itemName: item.materialName || item.itemName || "Item",
+            quantity: item.designQty || item.quantity || 1,
+            unit: item.unit || "Nos",
+            unitPrice: item.rate || item.unitPrice || 0,
+            amount: (item.designQty || item.quantity || 1) * (item.rate || item.unitPrice || 0)
+          })));
+        }
+        
+        setIsPODialogOpen(true);
+        localStorage.removeItem("create_po_from_quote");
+      }
+    }
+  }, [quotations, suppliers]);
 
   const subtotal = poItems.reduce((acc, item) => acc + (item.amount || 0), 0);
   const gstAmount = subtotal * 0.18;
@@ -286,7 +342,9 @@ export default function VendorPO() {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
         if (field === "quantity" || field === "unitPrice") {
-          updatedItem.amount = (parseFloat(updatedItem.quantity) || 0) * (parseFloat(updatedItem.unitPrice) || 0);
+          const qty = typeof updatedItem.quantity === 'string' ? parseFloat(updatedItem.quantity) : updatedItem.quantity;
+          const price = typeof updatedItem.unitPrice === 'string' ? parseFloat(updatedItem.unitPrice) : updatedItem.unitPrice;
+          updatedItem.amount = (qty || 0) * (price || 0);
         }
         return updatedItem;
       }
@@ -332,9 +390,25 @@ export default function VendorPO() {
   ];
 
   const createShipmentMutation = useMutation({
-    mutationFn: async (po: any) => {
-      toast({ title: "Logistics", description: "Logistics module coming soon" });
+    mutationFn: async (poId: string | number) => apiRequest("POST", `/api/purchase-orders/${poId}/create-shipment`),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Shipment created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
     },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create shipment", variant: "destructive" });
+    }
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (poId: string | number) => apiRequest("POST", `/api/purchase-orders/${poId}/send-to-accounts`),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Invoice sent to accounts successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create invoice", variant: "destructive" });
+    }
   });
 
   const isLoadingPO = poLoading;
@@ -446,8 +520,8 @@ export default function VendorPO() {
 
       {/* PO Dialog */}
       <Dialog open={isPODialogOpen} onOpenChange={setIsPODialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded">
-          <DialogHeader className="px-5 py-4 bg-slate-50 border-b">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded flex flex-col max-h-[90vh]">
+          <DialogHeader className="px-5 py-4 bg-slate-50 border-b flex-shrink-0">
             <div className="flex items-center justify-between w-full pr-8">
               <div className="space-y-0.5">
                 <DialogTitle className="text-base  text-slate-800">Create Purchase Order</DialogTitle>
@@ -456,7 +530,7 @@ export default function VendorPO() {
             </div>
           </DialogHeader>
           
-          <div className="p-2 space-y-2 max-h-[75vh] overflow-y-auto">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs  text-slate-700">Select Quotation (Auto-fill)</Label>
@@ -625,7 +699,7 @@ export default function VendorPO() {
             </div>
           </div>
 
-          <DialogFooter className="px-5 p-2 bg-slate-50 border-t flex flex-row justify-end space-x-2">
+          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2">
             <Button variant="outline" onClick={() => setIsPODialogOpen(false)} className="border-slate-200 text-slate-600 px-4 h-9 text-sm">
               Cancel
             </Button>
@@ -638,18 +712,15 @@ export default function VendorPO() {
 
       {/* View PO Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded">
-          <DialogHeader className="p-2 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded flex flex-col max-h-[90vh]">
+          <DialogHeader className="p-4 bg-slate-50 border-b flex-shrink-0 flex flex-row items-center justify-between space-y-0 pr-10">
             <div className="space-y-1">
               <DialogTitle className="text-xl  text-slate-800">Purchase Order Details</DialogTitle>
               <DialogDescription className="text-xs text-slate-500">Viewing {selectedPO?.poNumber}</DialogDescription>
             </div>
-            {/* <Button variant="ghost" size="icon" className="h-9 w-9 rounded" onClick={() => setIsViewDialogOpen(false)}>
-              <X className="h-5 w-5" />
-            </Button> */}
           </DialogHeader>
 
-          <div className="p-2 space-y-2 max-h-[70vh] overflow-y-auto">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <h3 className="text-xs  text-slate-400  ">Order Details</h3>

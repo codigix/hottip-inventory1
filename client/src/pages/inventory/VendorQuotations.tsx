@@ -189,6 +189,20 @@ export default function VendorQuotations() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          {q.status === 'approved' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+              title="Create PO"
+              onClick={() => {
+                localStorage.setItem("create_po_from_quote", q.id);
+                setLocation("/inventory/vendor-po");
+              }}
+            >
+              <Package className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -399,11 +413,14 @@ export default function VendorQuotations() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-xs    border-blue-100 text-blue-700 hover:bg-blue-50"
-              onClick={() => createShipmentMutation.mutate(q)}
+              className="h-8 text-xs border-blue-100 text-blue-700 hover:bg-blue-50"
+              onClick={() => {
+                localStorage.setItem("create_po_from_quote", q.id);
+                setLocation("/inventory/vendor-po");
+              }}
             >
-              <Truck className="h-3.5 w-3.5 mr-1.5" />
-              Logistics
+              <Package className="h-3.5 w-3.5 mr-1.5" />
+              Create PO
             </Button>
           )}
         </div>

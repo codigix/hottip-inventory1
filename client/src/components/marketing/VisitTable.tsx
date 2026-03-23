@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -181,13 +181,17 @@ export default function VisitTable({
     return purposeMap[purpose] || purpose;
   };
 
-  const canCheckIn = (visit: VisitWithDetails) =>
-    visit.status === "scheduled" && !visit.actualStartTime;
+  const canCheckIn = useCallback((visit: VisitWithDetails) => {
+    const status = visit.status?.toLowerCase()?.trim();
+    return status === "scheduled" && !visit.actualStartTime;
+  }, []);
 
-  const canCheckOut = (visit: VisitWithDetails) =>
-    (visit.status === "in_progress" || visit.status === "upcoming" || visit.status === "Upcoming") &&
-    visit.actualStartTime &&
-    !visit.actualEndTime;
+  const canCheckOut = useCallback((visit: VisitWithDetails) => {
+    const status = visit.status?.toLowerCase()?.trim();
+    return (status === "in_progress" || status === "upcoming") &&
+      visit.actualStartTime &&
+      !visit.actualEndTime;
+  }, []);
 
   const openStatusUpdate = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
@@ -381,7 +385,7 @@ export default function VisitTable({
                 Update Status
               </DropdownMenuItem>
 
-              {visit.status === "completed" && (
+              {visit.status?.toLowerCase()?.trim()?.replace("_", " ") === "completed" && (
                 <DropdownMenuItem
                   onClick={() => onProofUpload(visit)}
                 >
@@ -404,7 +408,7 @@ export default function VisitTable({
         </div>
       ),
     }
-  ], [onEdit, onCheckIn, onCheckOut, onStatusUpdate, onProofUpload]);
+  ], [onEdit, onCheckIn, onCheckOut, onStatusUpdate, onProofUpload, canCheckIn, canCheckOut]);
 
   // Loading skeleton
   if (isLoading) {
@@ -534,7 +538,7 @@ export default function VisitTable({
                         Update Status
                       </DropdownMenuItem>
 
-                      {visit.status === "completed" && (
+                      {visit.status?.toLowerCase() === "completed" && (
                         <DropdownMenuItem onClick={() => onProofUpload(visit)}>
                           <Upload className="h-4 w-4 mr-2" />
                           Upload Proof

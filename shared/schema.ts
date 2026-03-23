@@ -528,6 +528,21 @@ export const fieldVisits = pgTable("field_visits", {
   purpose: varchar("purpose", { length: 100 }),
   travelExpense: numeric("travelExpense", { precision: 12, scale: 2 }),
   status: varchar("status", { length: 20 }).default("Scheduled"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+  checkInLocation: text("checkInLocation"),
+  checkInPhotoPath: text("checkInPhotoPath"),
+  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+  checkOutLocation: text("checkOutLocation"),
+  checkOutPhotoPath: text("checkOutPhotoPath"),
+  actualStartTime: timestamp("actualStartTime"),
+  actualEndTime: timestamp("actualEndTime"),
+  visitNotes: text("visitNotes"),
+  outcome: text("outcome"),
+  nextAction: text("nextAction"),
 });
 
 // =====================

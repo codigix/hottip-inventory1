@@ -638,7 +638,9 @@ export const createFieldVisit = async (
       await storage.createVisitPurposeLog({
         visitId: visit.id,
         purpose: visit.purpose,
-        status: "DONE"
+        status: "DONE",
+        visitDate: visit.plannedDate,
+        visitTime: visit.plannedStartTime || visit.plannedDate
       });
     }
 
@@ -715,7 +717,9 @@ export const updateFieldVisit = async (
       await storage.createVisitPurposeLog({
         visitId: visit.id,
         purpose: visitData.purpose,
-        status: "DONE"
+        status: "DONE",
+        visitDate: visit.plannedDate,
+        visitTime: visit.plannedStartTime || visit.plannedDate
       });
     }
 

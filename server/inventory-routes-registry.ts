@@ -8,7 +8,7 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
-import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables, logisticsShipments } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
 import { sql, eq, lte, desc, and, or, isNull, like } from "drizzle-orm";
@@ -1642,7 +1642,7 @@ export function registerInventoryRoutes(
         poId: order.id,
         amountDue: order.totalAmount,
         amountPaid: "0",
-        dueDate: order.expectedDelivery ? new Date() : new Date(), // Use delivery date or current
+        dueDate: new Date(), // Use current as default
         status: "pending",
         notes: `Auto-generated from PO: ${order.poNumber}`,
       });
@@ -1657,6 +1657,56 @@ export function registerInventoryRoutes(
     } catch (error) {
       console.error("Error sending to accounts:", error);
       res.status(500).json({ error: "Failed to send to accounts" });
+    }
+  });
+
+  // POST - create shipment for purchase order
+  app.post("/api/purchase-orders/:id/create-shipment", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      // Check if already has a shipment
+      const [existing] = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.poNumber, order.poNumber));
+
+      if (existing) {
+        return res.status(400).json({ error: "Shipment already exists for this PO" });
+      }
+
+      // Create shipment record
+      const [newShipment] = await db.insert(logisticsShipments).values({
+        consignmentNumber: `SHIP-${Math.floor(100000 + Math.random() * 900000)}`,
+        poNumber: order.poNumber,
+        source: "Vendor Warehouse",
+        destination: "Main Warehouse",
+        vendorId: order.supplierId,
+        currentStatus: "created",
+        createdBy: req.user?.id,
+        items: [], // Could be populated from PO items
+        notes: `Auto-generated from PO: ${order.poNumber}`,
+      }).returning();
+
+      // Update PO status
+      await db
+        .update(purchaseOrders)
+        .set({ status: "shipped" })
+        .where(eq(purchaseOrders.id, id));
+
+      res.json({ success: true, shipment: newShipment });
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      res.status(500).json({ error: "Failed to create shipment" });
     }
   });
 
