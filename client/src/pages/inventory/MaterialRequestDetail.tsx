@@ -112,6 +112,22 @@ export default function MaterialRequestDetail() {
     },
   });
 
+  const retryLinkingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/material-requests/${id}/retry-linking`);
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Linking Complete", 
+        description: `Successfully linked ${data.linkedCount || 0} items to stock.` 
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Linking Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-screen bg-slate-50/30">
@@ -236,6 +252,15 @@ export default function MaterialRequestDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50"
+            onClick={() => retryLinkingMutation.mutate()}
+            disabled={retryLinkingMutation.isPending}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", retryLinkingMutation.isPending && "animate-spin")} />
+            Retry Linking
+          </Button>
           <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
             <Printer className="h-4 w-4 mr-2 text-slate-400" />
             Print Request

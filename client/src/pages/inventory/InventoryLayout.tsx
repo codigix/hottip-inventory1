@@ -9,11 +9,7 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
-  Settings,
-  ShieldCheck,
-  History,
   LayoutDashboard,
-  Hammer,
   ShieldAlert
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,10 +26,6 @@ import MaterialRequests from "./MaterialRequests";
 import MaterialRequestDetail from "./MaterialRequestDetail";
 import VendorQuotations from "./VendorQuotations";
 import VendorPO from "./VendorPO";
-import SparePartsFabrication from "./SparePartsFabrication";
-import BatchBarcode from "./BatchBarcode";
-import InventoryAttendance from "./InventoryAttendance";
-import InventoryTasks from "./InventoryTasks";
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, path: '/inventory' },
@@ -42,10 +34,6 @@ const sidebarItems = [
   { id: 'vendor-quotations', label: 'Quotations', icon: FileText, path: '/inventory/vendor-quotations' },
   { id: 'vendor-po', label: 'Purchase Orders', icon: Truck, path: '/inventory/vendor-po' },
   { id: 'vendors', label: 'Vendor Directory', icon: Building2, path: '/inventory/vendors' },
-  { id: 'spare-parts', label: 'Spare Parts', icon: Hammer, path: '/inventory/spare-parts' },
-  { id: 'batch-barcode', label: 'Batch/Barcode', icon: ShieldCheck, path: '/inventory/batch-barcode' },
-  { id: 'attendance', label: 'Staff Attendance', icon: History, path: '/inventory/attendance' },
-  { id: 'tasks', label: 'Ops Tasks', icon: Settings, path: '/inventory/tasks' },
   { id: 'reports', label: 'Analytics', icon: BarChart3, path: '/inventory/reports' },
 ];
 
@@ -136,10 +124,6 @@ export default function InventoryLayout() {
           <Route path="/inventory/vendor-quotations"><VendorQuotations /></Route>
           <Route path="/inventory/vendor-po"><VendorPO /></Route>
           <Route path="/inventory/vendors"><VendorManagement /></Route>
-          <Route path="/inventory/spare-parts"><SparePartsFabrication /></Route>
-          <Route path="/inventory/batch-barcode"><BatchBarcode /></Route>
-          <Route path="/inventory/attendance"><InventoryAttendance /></Route>
-          <Route path="/inventory/tasks"><InventoryTasks /></Route>
           <Route path="/inventory/reports"><InventoryReports /></Route>
           <Route>
             <div className="p-12 text-center h-full flex flex-col items-center justify-center space-y-4">

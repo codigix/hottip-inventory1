@@ -942,6 +942,7 @@ export const orderStatus = pgEnum("order_status", [
   "shipped",
   "delivered",
   "cancelled",
+  "po approved",
 ]);
 
 export const purchaseOrders = pgTable("purchase_orders", {
@@ -955,7 +956,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
     .references(() => users.id),
   orderDate: timestamp("orderDate").notNull().defaultNow(),
   deliveryPeriod: text("deliveryPeriod"),
-  status: orderStatus("status").notNull().default("pending"),
+  status: text("status").notNull().default("pending"),
   subtotalAmount: numeric("subtotalAmount", { precision: 12, scale: 2 }),
   gstType: gstTypeEnum("gstType").default("IGST"),
   gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default("18"),
@@ -1017,7 +1018,7 @@ export const insertPurchaseOrderSchema = z.object({
   ),
   deliveryPeriod: z.string().optional().nullable(),
   status: z
-    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled", "po approved"])
     .optional()
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),

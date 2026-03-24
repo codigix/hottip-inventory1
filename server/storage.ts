@@ -2127,10 +2127,10 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
       // Update Purchase Order status if linked
       if (orderData.purchaseOrderId) {
-        console.log(`🔄 [STORAGE] Updating linked PO ${orderData.purchaseOrderId} status to 'approved'`);
+        console.log(`🔄 [STORAGE] Updating linked PO ${orderData.purchaseOrderId} status to 'po approved'`);
         await tx
           .update(purchaseOrders)
-          .set({ status: "approved", updatedAt: new Date() })
+          .set({ status: "po approved", updatedAt: new Date() })
           .where(eq(purchaseOrders.id, orderData.purchaseOrderId));
       }
 

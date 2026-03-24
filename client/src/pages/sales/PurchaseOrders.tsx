@@ -61,7 +61,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Define a comprehensive schema for Purchase Orders
 const purchaseOrderFormSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
-  supplierId: z.string().uuid("Supplier is required"),
+  supplierId: z.string().uuid("Customer is required"),
   quotationId: z.string().optional(),
   userId: z.string().uuid("User is required"),
   orderDate: z.preprocess(
@@ -475,7 +475,7 @@ export default function PurchaseOrders() {
     if (!data.supplierId || data.supplierId === "") {
       toast({
         title: "Validation Error",
-        description: "Please select a valid supplier.",
+        description: "Please select a valid customer.",
         variant: "destructive",
       });
       return;
@@ -584,7 +584,7 @@ export default function PurchaseOrders() {
     },
     {
       key: "supplier.name",
-      header: "Supplier",
+      header: "Customer",
       sortable: true,
       cell: (po: any) => {
         const supplierName = po.supplier?.name || allEntities.find((e: any) => e.id === po.supplierId)?.name || "N/A";
@@ -592,7 +592,7 @@ export default function PurchaseOrders() {
           <div>
             <div className="font-medium text-slate-700">{supplierName}</div>
             <div className="text-xs text-slate-400  ">
-              {po.supplier?.type || "VENDOR"}
+              {"CUSTOMER"}
             </div>
           </div>
         );
@@ -687,7 +687,7 @@ export default function PurchaseOrders() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl  text-slate-900 tracking-tight">Purchase Orders</h1>
-          <p className="text-slate-500 text-sm">Manage procurement and vendor purchase orders</p>
+          <p className="text-slate-500 text-sm">Manage procurement and customer purchase orders</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
@@ -699,7 +699,7 @@ export default function PurchaseOrders() {
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPoId ? "Edit Purchase Order" : "Create Purchase Order"}</DialogTitle>
-              <DialogDescription>{editingPoId ? "Update purchase order details" : "Create a new purchase order for a vendor"}</DialogDescription>
+              <DialogDescription>{editingPoId ? "Update purchase order details" : "Create a new purchase order for a customer"}</DialogDescription>
             </DialogHeader>
 
             <Form {...form}>

@@ -1037,6 +1037,76 @@ export function registerInventoryRoutes(
     }
   });
 
+  // Retry linking for material request items
+  app.post("/api/material-requests/:id/retry-linking", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`🔄 Retrying linking for MR ${id}...`);
+
+      const items = await db.select().from(materialRequestItems).where(eq(materialRequestItems.requestId, id));
+      if (items.length === 0) {
+        return res.status(404).json({ error: "No items found for this material request" });
+      }
+
+      // Fetch all products and spares for in-memory matching
+      const [allProducts, allSpares] = await Promise.all([
+        db.select({ id: products.id, name: products.name, sku: products.sku }).from(products),
+        db.select({ id: spareParts.id, name: spareParts.name, partNumber: spareParts.partNumber }).from(spareParts)
+      ]);
+
+      let linkedCount = 0;
+      for (const item of items) {
+        // Skip if already linked
+        if (item.productId || item.sparePartId) continue;
+
+        const sName = (item.notes || "").trim().toLowerCase();
+        // Try to extract pure name if it's in format "Name (Desc)"
+        const sPureName = sName.includes('(') ? sName.split('(')[0].trim() : sName;
+        
+        console.log(`   Searching for: "${sName}" (Pure: "${sPureName}")`);
+
+        // Try to find product
+        const foundProduct = allProducts.find(p => p.name.toLowerCase() === sName) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sName) ||
+                             allProducts.find(p => p.name.toLowerCase() === sPureName) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sPureName) ||
+                             allProducts.find(p => sName.includes(p.name.toLowerCase()) && p.name.length > 3) ||
+                             allProducts.find(p => p.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+        
+        if (foundProduct) {
+          console.log(`   ✅ Found Product: ${foundProduct.name} (${foundProduct.id})`);
+          await db.update(materialRequestItems)
+            .set({ productId: foundProduct.id })
+            .where(eq(materialRequestItems.id, item.id));
+          linkedCount++;
+        } else {
+          // Try spare parts
+          const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sName) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
+                             allSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sPureName) ||
+                             allSpares.find(sp => sName.includes(sp.name.toLowerCase()) && sp.name.length > 3) ||
+                             allSpares.find(sp => sp.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+          
+          if (foundSpare) {
+            console.log(`   ✅ Found Spare: ${foundSpare.name} (${foundSpare.id})`);
+            await db.update(materialRequestItems)
+              .set({ sparePartId: foundSpare.id })
+              .where(eq(materialRequestItems.id, item.id));
+            linkedCount++;
+          } else {
+             console.log(`   ❌ No match for: "${sName}"`);
+          }
+        }
+      }
+
+      res.json({ message: `Successfully linked ${linkedCount} items`, linkedCount });
+    } catch (e) {
+      console.error("Error retrying material request linking:", e);
+      res.status(500).json({ error: "Failed to retry linking" });
+    }
+  });
+
   // POST create material request
   app.post("/api/material-requests", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -1108,6 +1178,7 @@ export function registerInventoryRoutes(
           sparePartId: materialRequestItems.sparePartId,
           quantity: materialRequestItems.quantity,
           unit: materialRequestItems.unit,
+          notes: materialRequestItems.notes,
           productName: products.name,
           sparePartName: spareParts.name,
         })
@@ -1130,8 +1201,8 @@ export function registerInventoryRoutes(
       
       const quotationItems = items.map(item => ({
         id: Math.random().toString(36).substr(2, 9),
-        materialName: item.productName || item.sparePartName || "Unknown Item",
-        type: item.productId ? "Product" : "Spare Part",
+        materialName: item.productName || item.sparePartName || item.notes || "Unknown Item",
+        type: item.productId ? "Product" : (item.sparePartId ? "Spare Part" : "Manual"),
         designQty: Number(item.quantity),
         rate: 0,
         amount: 0,
