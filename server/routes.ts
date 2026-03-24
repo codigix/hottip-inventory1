@@ -1659,6 +1659,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CUSTOMER PURCHASE ORDERS
+  app.get("/api/customer-purchase-orders", requireAuth, async (_req, res) => {
+    try {
+      const orders = await storage.getCustomerPurchaseOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("❌ Error in GET /api/customer-purchase-orders:", error);
+      res.status(500).json({
+        error: "Failed to fetch customer purchase orders",
+        details: error.message,
+      });
+    }
+  });
+
+  app.get("/api/customer-purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const order = await storage.getCustomerPurchaseOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Customer purchase order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("❌ Error in GET /api/customer-purchase-orders/:id:", error);
+      res.status(500).json({
+        error: "Failed to fetch customer purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.post("/api/customer-purchase-orders", requireAuth, async (req: any, res) => {
+    try {
+      const { insertCustomerPurchaseOrderSchema } = await import("../shared/schema");
+      const data = { ...req.body, userId: req.user.id };
+      const parsedData = insertCustomerPurchaseOrderSchema.parse(data);
+      const order = await storage.createCustomerPurchaseOrder(parsedData);
+      res.status(201).json(order);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid customer purchase order data",
+          details: error.errors,
+        });
+      }
+      console.error("❌ Error in POST /api/customer-purchase-orders:", error);
+      res.status(500).json({
+        error: "Failed to create customer purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.put("/api/customer-purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { insertCustomerPurchaseOrderSchema } = await import("../shared/schema");
+      const parsedData = insertCustomerPurchaseOrderSchema.partial().parse(req.body);
+      const order = await storage.updateCustomerPurchaseOrder(
+        req.params.id,
+        parsedData
+      );
+      res.json(order);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid customer purchase order data",
+          details: error.errors,
+        });
+      }
+      console.error("❌ Error in PUT /api/customer-purchase-orders/:id:", error);
+      res.status(500).json({
+        error: "Failed to update customer purchase order",
+        details: error.message,
+      });
+    }
+  });
+
+  app.delete("/api/customer-purchase-orders/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteCustomerPurchaseOrder(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("❌ Error in DELETE /api/customer-purchase-orders/:id:", error);
+      res.status(500).json({
+        error: "Failed to delete customer purchase order",
+        details: error.message,
+      });
+    }
+  });
+
   // Dashboard/Activities/Orders basic stubs for frontend expectations
   app.get("/api/dashboard/metrics", (_req, res) => {
     res.json({ totalUsers: 0, totalSales: 0, totalOrders: 0 });

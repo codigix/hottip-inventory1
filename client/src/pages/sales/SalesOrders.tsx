@@ -72,8 +72,8 @@ export default function SalesOrders() {
     queryKey: ["/sales-orders"],
   });
 
-  const { data: purchaseOrders = [] } = useQuery({
-    queryKey: ["/purchase-orders"],
+  const { data: customerPurchaseOrders = [] } = useQuery({
+    queryKey: ["/customer-purchase-orders"],
   });
 
   const { data: customers = [] } = useQuery({
@@ -86,16 +86,16 @@ export default function SalesOrders() {
 
   const allReferences = useMemo(() => {
     return [
-      ...purchaseOrders.map((p: any) => ({ 
+      ...customerPurchaseOrders.map((p: any) => ({ 
         id: `PO:${p.id}`, 
         originalId: p.id,
         number: p.poNumber, 
-        customerName: p.supplier?.name || p.customer?.name || "Unknown",
+        customerName: p.customer?.name || "Unknown",
         type: 'PO', 
         data: p 
       }))
     ];
-  }, [purchaseOrders]);
+  }, [customerPurchaseOrders]);
 
   const form = useForm<SalesOrderFormValues>({
     resolver: zodResolver(insertSalesOrderSchema),
@@ -129,8 +129,8 @@ export default function SalesOrders() {
     const searchParams = new URLSearchParams(window.location.search);
     const poId = searchParams.get("purchaseOrderId");
     
-    if (poId && !isDialogOpen && purchaseOrders.length > 0) {
-      const po = purchaseOrders.find((p: any) => p.id === poId);
+    if (poId && !isDialogOpen && customerPurchaseOrders.length > 0) {
+      const po = customerPurchaseOrders.find((p: any) => p.id === poId);
       if (po) {
         // First generate a SO number if it doesn't exist
         if (!form.getValues("orderNumber")) {
@@ -159,7 +159,7 @@ export default function SalesOrders() {
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-  }, [purchaseOrders, isDialogOpen, form, orders]);
+  }, [customerPurchaseOrders, isDialogOpen, form, orders]);
 
   // Auto-generate Order Number
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function SalesOrders() {
   useEffect(() => {
     let reference = null;
     if (selectedPurchaseOrderId && selectedPurchaseOrderId !== "none") {
-      reference = purchaseOrders.find((p: any) => p.id === selectedPurchaseOrderId);
+      reference = customerPurchaseOrders.find((p: any) => p.id === selectedPurchaseOrderId);
     }
 
     if (reference) {
@@ -211,7 +211,7 @@ export default function SalesOrders() {
         replace(mappedItems);
       }
     }
-  }, [selectedPurchaseOrderId, purchaseOrders, products, form, replace]);
+  }, [selectedPurchaseOrderId, customerPurchaseOrders, products, form, replace]);
 
   // Calculate Totals
   const watchItems = form.watch("items");
