@@ -1696,6 +1696,22 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
       throw new Error(`Lead with ID '${leadId}' not found for conversion.`);
     }
 
+    const existingCustomers = await this.getCustomers();
+    
+    // Check if customer already exists by email, phone, or name
+    const existing = existingCustomers.find(c => 
+      (c.email === lead.email && lead.email !== null && lead.email !== "") || 
+      (c.phone === lead.phone && lead.phone !== null && lead.phone !== "") ||
+      c.name === `${lead.firstName} ${lead.lastName}`
+    );
+
+    if (existing) {
+      if (lead.status !== "converted") {
+        await this.updateLead(leadId, { status: "converted" });
+      }
+      return existing;
+    }
+
     const insertCustomer: InsertCustomer = {
       name: `${lead.firstName} ${lead.lastName}`,
       company: lead.companyName,

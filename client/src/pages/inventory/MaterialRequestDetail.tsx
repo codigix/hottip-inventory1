@@ -265,14 +265,6 @@ export default function MaterialRequestDetail() {
             <Printer className="h-4 w-4 mr-2 text-slate-400" />
             Print Request
           </Button>
-          <Button 
-            className="bg-primary hover:bg-primary text-white shadow-sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-          >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isRefetching && "animate-spin")} />
-            Update Stock
-          </Button>
         </div>
       </div>
 
