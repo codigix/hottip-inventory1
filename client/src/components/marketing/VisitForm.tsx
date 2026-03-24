@@ -60,7 +60,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
 
   // Fetch purpose logs for the selected visit
   const { data: purposeLogs = [] } = useQuery<any[]>({
-    queryKey: [visit ? `/api/field-visits/${visit.id}/purpose-logs` : null],
+    queryKey: [visit ? `/api/field-visits/${visit.id}/purpose-logs` : ""],
     enabled: !!visit?.id,
   });
 

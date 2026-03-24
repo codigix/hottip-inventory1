@@ -78,7 +78,7 @@ export default function FieldVisits() {
   /** ===== Mutations ===== **/
   const createVisitMutation = useMutation({
     mutationFn: (data: InsertFieldVisit) =>
-      apiRequest("/field-visits", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/field-visits", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
       queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
@@ -115,7 +115,14 @@ export default function FieldVisits() {
   const filteredVisits = useMemo(() => {
     return safeVisits.filter((v) => {
       const normalizedStatus = v.status?.toLowerCase().replace(" ", "_");
-      const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
+      
+      let matchesStatus = statusFilter === "all";
+      if (statusFilter === "upcoming") {
+        matchesStatus = normalizedStatus === "upcoming" || normalizedStatus === "in_progress";
+      } else if (statusFilter !== "all") {
+        matchesStatus = normalizedStatus === statusFilter;
+      }
+
       const matchesAssignee = assigneeFilter === "all" || v.assignedTo === assigneeFilter;
       const matchesSearch = !searchTerm || v.visitNumber?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStatus && matchesAssignee && matchesSearch;
@@ -163,7 +170,7 @@ export default function FieldVisits() {
     mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string }) =>
       apiRequest(`/field-visits/${id}/status`, { 
         method: "PUT",
-        body: JSON.stringify({ status, notes })
+        body: { status, notes }
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -204,7 +211,7 @@ export default function FieldVisits() {
     mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
       apiRequest(`/field-visits/${visitId}/check-in`, { 
         method: "POST",
-        body: JSON.stringify(data)
+        body: data
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -220,7 +227,7 @@ export default function FieldVisits() {
     mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
       apiRequest(`/field-visits/${visitId}/check-out`, { 
         method: "POST",
-        body: JSON.stringify(data)
+        body: data
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -235,7 +242,7 @@ const updateVisitMutation = useMutation({
   mutationFn: (data: VisitWithDetails) =>
     apiRequest(`/field-visits/${data.id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: data,
     }),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["/field-visits"] });

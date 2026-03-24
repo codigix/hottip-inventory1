@@ -1758,6 +1758,7 @@ export const fieldVisitCheckInSchema = z.object({
   longitude: z.number().optional(),
   location: z.string().optional(),
   photoPath: z.string().optional(),
+  purpose: z.string().optional(),
   notes: z.string().optional(),
 });
 

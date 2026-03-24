@@ -119,7 +119,7 @@ export default function VisitTable({
 
   // Fetch purpose logs for the selected visit
   const { data: purposeLogs = [] } = useQuery<any[]>({
-    queryKey: [selectedVisit ? `/api/field-visits/${selectedVisit.id}/purpose-logs` : null],
+    queryKey: [selectedVisit ? `/api/field-visits/${selectedVisit.id}/purpose-logs` : ""],
     enabled: !!selectedVisit?.id && reportOpen,
   });
 
@@ -183,7 +183,9 @@ export default function VisitTable({
 
   const canCheckIn = useCallback((visit: VisitWithDetails) => {
     const status = visit.status?.toLowerCase()?.trim();
-    return status === "scheduled" && !visit.actualStartTime;
+    // Allow check-in for anything that isn't cancelled
+    // Matching user requirement: "only check in here" and "sheduled and complted here cant see check in"
+    return status !== "cancelled";
   }, []);
 
   const canCheckOut = useCallback((visit: VisitWithDetails) => {
@@ -371,13 +373,6 @@ export default function VisitTable({
                 </DropdownMenuItem>
               )}
 
-              {canCheckOut(visit) && (
-                <DropdownMenuItem onClick={() => onCheckOut(visit)}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Check Out
-                </DropdownMenuItem>
-              )}
-
               <DropdownMenuItem
                 onClick={() => openStatusUpdate(visit)}
               >
@@ -526,13 +521,6 @@ export default function VisitTable({
                         </DropdownMenuItem>
                       )}
 
-                      {canCheckOut(visit) && (
-                        <DropdownMenuItem onClick={() => onCheckOut(visit)}>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Check Out
-                        </DropdownMenuItem>
-                      )}
-
                       <DropdownMenuItem onClick={() => openStatusUpdate(visit)}>
                         <Timer className="h-4 w-4 mr-2" />
                         Update Status
@@ -621,17 +609,6 @@ export default function VisitTable({
                     >
                       <Navigation className="h-4 w-4 mr-1" />
                       Check In
-                    </Button>
-                  )}
-
-                  {canCheckOut(visit) && (
-                    <Button
-                      size="sm"
-                      onClick={() => onCheckOut(visit)}
-                      className="flex-1"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Check Out
                     </Button>
                   )}
                 </div>

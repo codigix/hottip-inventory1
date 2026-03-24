@@ -211,7 +211,7 @@ export default function TaskForm({
   }, [existingTask, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/marketing-tasks', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest('/api/marketing-tasks', { method: 'POST', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/marketing-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/marketing-tasks/metrics'] });

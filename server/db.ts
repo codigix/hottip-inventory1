@@ -227,6 +227,19 @@ export const db = drizzle(pool, { schema });
       END $$;
     `);
 
+    // ✅ Ensure visit_purpose_logs table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "visit_purpose_logs" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "visitId" uuid NOT NULL REFERENCES field_visits(id) ON DELETE CASCADE,
+        "purpose" varchar(100) NOT NULL,
+        "visitDate" timestamp NOT NULL DEFAULT now(),
+        "visitTime" timestamp NOT NULL DEFAULT now(),
+        "status" varchar(20) DEFAULT 'DONE',
+        "createdAt" timestamp NOT NULL DEFAULT now()
+      )
+    `);
+
     // ✅ Ensure material_request_items table exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS "material_request_items" (
