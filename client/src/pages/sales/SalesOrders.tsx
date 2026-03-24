@@ -379,6 +379,14 @@ export default function SalesOrders() {
       ),
     },
     {
+      key: "purchaseOrder.poNumber",
+      header: "PO #",
+      sortable: true,
+      cell: (order: any) => (
+        <div className="text-xs text-slate-600">{order.purchaseOrder?.poNumber || "N/A"}</div>
+      ),
+    },
+    {
       key: "customer.name",
       header: "Customer",
       sortable: true,

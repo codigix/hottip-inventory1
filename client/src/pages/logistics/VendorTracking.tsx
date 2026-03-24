@@ -83,6 +83,7 @@ const vendorStages = [
 
 const customerStages = [
   { id: 'created', label: 'Order Created', icon: ShoppingCart, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-slate-100 text-slate-500', description: 'Shipment order created' },
+  { id: 'planned', label: 'Planned', icon: CalendarIcon, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-slate-100 text-slate-500', description: 'Shipment plan created' },
   { id: 'packed', label: 'Packed', icon: Package, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
   { id: 'dispatched', label: 'Dispatched', icon: Truck, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-blue-100 text-blue-600', description: 'Shipment left warehouse' },
   { id: 'in_transit', label: 'In Transit', icon: Ship, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-indigo-100 text-indigo-600', description: 'Shipment in transit' },

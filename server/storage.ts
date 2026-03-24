@@ -2218,12 +2218,12 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
         order: salesOrders,
         customer: customers,
         quotation: outboundQuotations,
-        purchaseOrder: purchaseOrders,
+        purchaseOrder: customerPurchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
-      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
+      .leftJoin(customerPurchaseOrders, eq(salesOrders.purchaseOrderId, customerPurchaseOrders.id))
       .orderBy(desc(salesOrders.createdAt));
 
     const ordersWithItems = await Promise.all(
@@ -2252,12 +2252,12 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
         order: salesOrders,
         customer: customers,
         quotation: outboundQuotations,
-        purchaseOrder: purchaseOrders,
+        purchaseOrder: customerPurchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
-      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
+      .leftJoin(customerPurchaseOrders, eq(salesOrders.purchaseOrderId, customerPurchaseOrders.id))
       .where(eq(salesOrders.id, id));
 
     if (!row) return undefined;
@@ -2316,11 +2316,11 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
 
       // Update Purchase Order status if linked
       if (orderData.purchaseOrderId) {
-        console.log(`🔄 [STORAGE] Updating linked PO ${orderData.purchaseOrderId} status to 'po approved'`);
+        console.log(`🔄 [STORAGE] Updating linked Customer PO ${orderData.purchaseOrderId} status to 'po approved'`);
         await tx
-          .update(purchaseOrders)
+          .update(customerPurchaseOrders)
           .set({ status: "po approved", updatedAt: new Date() })
-          .where(eq(purchaseOrders.id, orderData.purchaseOrderId));
+          .where(eq(customerPurchaseOrders.id, orderData.purchaseOrderId));
       }
 
       return {
@@ -2390,9 +2390,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
           clientId: updatedOrder.customerId,
           dispatchDate: new Date().toISOString(),
           currentStatus: 'packed',
-          isApproved: true,
-          approvalDate: new Date(),
-          approvalNotes: 'Auto-approved for Sales Order fulfillment',
+          isApproved: false,
           notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
           createdBy: userId || updatedOrder.userId,
           assignedTo: userId || updatedOrder.userId,

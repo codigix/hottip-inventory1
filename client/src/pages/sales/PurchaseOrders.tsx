@@ -167,9 +167,12 @@ export default function PurchaseOrders() {
     return [
       ...inboundQuotations
         .filter((q: any) => q.status === 'approved')
-        .map((q: any) => ({ ...q, type: 'Inbound' }))
+        .map((q: any) => ({ ...q, type: 'Inbound' })),
+      ...outboundQuotations
+        .filter((q: any) => q.status === 'approved')
+        .map((q: any) => ({ ...q, type: 'Outbound' }))
     ];
-  }, [inboundQuotations]);
+  }, [inboundQuotations, outboundQuotations]);
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderFormSchema),
@@ -309,10 +312,9 @@ export default function PurchaseOrders() {
 
   const allEntities = useMemo(() => {
     return [
-      ...suppliers.map((s: any) => ({ ...s, type: 'Supplier' })),
       ...customers.map((c: any) => ({ ...c, type: 'Customer' }))
     ];
-  }, [suppliers, customers]);
+  }, [customers]);
 
   // Handle Quotation Selection
   useEffect(() => {
@@ -759,7 +761,7 @@ export default function PurchaseOrders() {
                   />
                   <FormField
                     control={form.control}
-                    name="supplierId"
+                    name="customerId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
