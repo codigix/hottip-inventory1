@@ -184,14 +184,18 @@ export default function ShipmentTracking() {
         const hasVendor = item.vendorId !== null && item.vendorId !== undefined;
         const consignmentNo = item.consignmentNumber || "";
         const plan = item.plan || {};
+        const planId = plan.planId || "";
         
-        const isCustomerOrder = consignmentNo.startsWith("SO-");
-        const isVendorOrder = consignmentNo.startsWith("PO-");
+        // Only show shipments that have an associated plan
+        if (!planId) return false;
+        
+        const isCustomerOrder = consignmentNo.startsWith("SHP-SO-") || consignmentNo.startsWith("SO-") || planId.includes("-SO-");
+        const isVendorOrder = consignmentNo.startsWith("SHIP-") || planId.startsWith("PLAN-SHIP-") || consignmentNo.startsWith("PO-");
         const isImport = plan.shipmentMode === "Import";
         const isExport = plan.shipmentMode === "Export";
 
         if (activeTab === "customer") {
-          // Priority 1: Prefix
+          // Priority 1: Prefix match
           if (isCustomerOrder) return true;
           if (isVendorOrder) return false;
           
@@ -204,7 +208,7 @@ export default function ShipmentTracking() {
         }
 
         if (activeTab === "vendor") {
-          // Priority 1: Prefix
+          // Priority 1: Prefix match
           if (isVendorOrder) return true;
           if (isCustomerOrder) return false;
           
@@ -262,7 +266,7 @@ export default function ShipmentTracking() {
           original: item
         };
       });
-  }, [shipments]);
+  }, [shipments, activeTab]);
 
   const finalData = useMemo(() => {
     if (!statusFilter) return processedData;

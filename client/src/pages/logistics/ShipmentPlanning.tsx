@@ -60,6 +60,7 @@ interface LogisticsShipment {
   vendor?: any;
   supplier?: any;
   items?: any[];
+  plan?: LogisticsShipmentPlan;
 }
 
 interface LogisticsShipmentPlan {
@@ -328,53 +329,71 @@ export default function ShipmentPlanning() {
     {
       key: "actions",
       header: <div className="text-right">Actions</div>,
-      cell: (shipment) => (
-        <div className="flex items-center justify-end space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            onClick={() => handleOpenPlanning(shipment, true)}
-            title="View Plan"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            onClick={() => handleOpenPlanning(shipment, false)}
-            title="Edit Plan"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white h-8"
-            onClick={() => handleOpenPlanning(shipment, false)}
-          >
-            <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to delete this shipment order?")) {
-                deleteShipmentMutation.mutate(shipment.id);
-              }
-            }}
-            disabled={deleteShipmentMutation.isPending}
-          >
-            {deleteShipmentMutation.isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
+      cell: (shipment) => {
+        const hasPlan = !!shipment.plan;
+        
+        return (
+          <div className="flex items-center justify-end space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              onClick={() => handleOpenPlanning(shipment, true)}
+              title="View Plan"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              onClick={() => handleOpenPlanning(shipment, false)}
+              title="Edit Plan"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            
+            {!hasPlan ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white h-8"
+                onClick={() => handleOpenPlanning(shipment, false)}
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
+              </Button>
             ) : (
-              <Trash2 className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 text-emerald-600 border-emerald-100 bg-emerald-50 hover:bg-emerald-100"
+                onClick={() => setLocation("/logistics/shipment-tracking")}
+                title="View Tracking"
+              >
+                <MapPin className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
-        </div>
-      ),
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                  deleteShipmentMutation.mutate(shipment.id);
+                }
+              }}
+              disabled={deleteShipmentMutation.isPending}
+            >
+              {deleteShipmentMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
