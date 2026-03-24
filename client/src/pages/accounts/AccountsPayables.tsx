@@ -773,8 +773,9 @@ export default function AccountsPayables() {
                     const supplier = payable.supplier || suppliers.find(
                       (s: any) => s.id === payable.supplierId
                     );
+                    const customer = payable.customer;
                     const user = payable.user;
-                    const displayName = supplier?.name || (user ? `${user.firstName} ${user.lastName}` : "Unknown Supplier");
+                    const displayName = supplier?.name || customer?.name || (user ? `${user.firstName} ${user.lastName}` : "Unknown Supplier");
 
                     const po = payable.purchaseOrder || purchaseOrders.find(
                       (po: any) => po.id === payable.poId
@@ -786,6 +787,11 @@ export default function AccountsPayables() {
                       parseFloat(payable.amountDue) -
                       parseFloat(payable.amountPaid);
 
+                    const isCustomer = !!customer && !supplier;
+                    const detailHref = isCustomer 
+                      ? `/sales/clients/${payable.supplierId}` 
+                      : `/sales/suppliers/${payable.supplierId}`;
+
                     return (
                       <TableRow
                         key={payable.id}
@@ -793,7 +799,7 @@ export default function AccountsPayables() {
                       >
                         <TableCell className="font-light">
                           <Link
-                            href={`/sales/suppliers/${payable.supplierId}`}
+                            href={detailHref}
                             className="hover:underline flex items-center"
                           >
                             {displayName}

@@ -354,13 +354,14 @@ export default function ShipmentPlanning() {
             </Button>
             
             {!hasPlan ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white h-8"
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 text-blue-600 border-blue-100 bg-blue-50 hover:bg-blue-100"
                 onClick={() => handleOpenPlanning(shipment, false)}
+                title="Shipment Planning"
               >
-                <CalendarIcon className="h-4 w-4 mr-2" /> Shipment Planning
+                <Plus className="h-4 w-4" />
               </Button>
             ) : (
               <Button

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Factory, 
@@ -273,8 +273,23 @@ export default function ShipmentTracking() {
     return processedData.filter(item => item.status === statusFilter);
   }, [processedData, statusFilter]);
 
-  const getStatusBadge = (status: string) => {
-    const stage = trackingStages.find(s => s.id === status);
+  const getShipmentStages = (shipment: any) => {
+    if (!shipment) return vendorStages;
+    
+    const consignmentNo = shipment.id || "";
+    const plan = shipment.original?.plan || {};
+    const planId = plan.planId || "";
+    
+    const isCustomerOrder = consignmentNo.startsWith("SHP-SO-") || consignmentNo.startsWith("SO-") || planId.includes("-SO-");
+    
+    return isCustomerOrder ? customerStages : vendorStages;
+  };
+
+  const currentShipmentStages = useMemo(() => getShipmentStages(selectedShipment), [selectedShipment]);
+
+  const getStatusBadge = (status: string, shipment?: any) => {
+    const stages = shipment ? getShipmentStages(shipment) : trackingStages;
+    const stage = stages.find(s => s.id === status);
     if (!stage) return <Badge variant="outline" className="text-xs">{(status || "").replace(/_/g, ' ')}</Badge>;
     
     return (
@@ -286,6 +301,18 @@ export default function ShipmentTracking() {
 
   const getStatusCount = (statusId: string) => {
     return processedData.filter(item => item.status === statusId).length;
+  };
+
+  const getWorkflowNextStatus = (currentStatus: string, stages = trackingStages) => {
+    const idx = stages.findIndex(s => s.id === currentStatus);
+    if (idx === -1 || idx === stages.length - 1) return null;
+    return stages[idx + 1].id;
+  };
+
+  const getWorkflowPreviousStatus = (currentStatus: string, stages = trackingStages) => {
+    const idx = stages.findIndex(s => s.id === currentStatus);
+    if (idx <= 0) return null;
+    return stages[idx - 1].id;
   };
 
   const getStageIcon = (stage: any, isSelected: boolean, isActive: boolean) => {
@@ -374,44 +401,76 @@ export default function ShipmentTracking() {
     {
       key: "status",
       header: "Status",
-      cell: (item) => getStatusBadge(item.status),
+      cell: (item) => getStatusBadge(item.status, item),
       sortable: true,
     },
     {
       key: "actions",
       header: <div className="text-right">Actions</div>,
-      cell: (item) => (
-        <div className="flex justify-end gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
-            onClick={() => {
-              setSelectedShipment(item);
-              setIsDetailsOpen(true);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to delete this shipment order?")) {
-                deleteShipmentMutation.mutate(item.dbId);
-              }
-            }}
-            disabled={deleteShipmentMutation.isPending}
-          >
-            {deleteShipmentMutation.isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      ),
+      cell: (item) => {
+        const stages = getShipmentStages(item);
+        const nextStatus = getWorkflowNextStatus(item.status, stages);
+        const prevStatus = getWorkflowPreviousStatus(item.status, stages);
+        
+        return (
+          <div className="flex justify-end gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-blue-600 hover:bg-blue-50 transition-colors"
+              onClick={() => {
+                if (prevStatus) handleStatusUpdate(item.dbId, prevStatus);
+              }}
+              disabled={!prevStatus || updateStatusMutation.isPending}
+              title="Previous Status"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 transition-colors"
+              onClick={() => {
+                if (nextStatus) handleStatusUpdate(item.dbId, nextStatus);
+              }}
+              disabled={!nextStatus || updateStatusMutation.isPending}
+              title="Next Status"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+              onClick={() => {
+                setSelectedShipment(item);
+                setIsDetailsOpen(true);
+              }}
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                  deleteShipmentMutation.mutate(item.dbId);
+                }
+              }}
+              disabled={deleteShipmentMutation.isPending}
+              title="Delete"
+            >
+              {deleteShipmentMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -662,6 +721,39 @@ export default function ShipmentTracking() {
                     </div>
                   </div>
 
+                  {/* Items List Section */}
+                  <div className="space-y-3 bg-white p-4 rounded border border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-800 flex items-center">
+                      <Package className="mr-2 h-4 w-4 text-primary" /> Shipment Items
+                    </h3>
+                    <div className="border rounded-md overflow-hidden mt-2">
+                      <Table>
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="text-[10px] uppercase font-bold h-8">Item Name</TableHead>
+                            <TableHead className="text-[10px] uppercase font-bold h-8 text-right">Qty</TableHead>
+                            <TableHead className="text-[10px] uppercase font-bold h-8">Unit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedShipment.original?.items && selectedShipment.original.items.length > 0 ? (
+                            selectedShipment.original.items.map((item: any, idx: number) => (
+                              <TableRow key={idx} className="h-8">
+                                <TableCell className="text-xs py-1 font-medium">{item.itemName || item.materialName || item.name || 'N/A'}</TableCell>
+                                <TableCell className="text-xs py-1 text-right">{item.quantity || item.qty || 0}</TableCell>
+                                <TableCell className="text-xs py-1">{item.unit || 'NOS'}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center text-xs text-slate-400 py-4">No items listed</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
                   {/* Status and Timeline */}
                   <div className="space-y-4 bg-white p-4 rounded border border-slate-100">
                     <h3 className="text-sm text-slate-500 flex items-center">
@@ -670,22 +762,31 @@ export default function ShipmentTracking() {
                     <div className="relative pt-2">
                       <div className="absolute left-0 top-1/2 h-0.5 w-full bg-slate-100 -translate-y-1/2"></div>
                       <div className="flex justify-between items-center relative">
-                        {trackingStages.map((stage, idx) => {
+                        {currentShipmentStages.map((stage, idx) => {
                           const isActive = stage.id === selectedShipment.status;
-                          const isCompleted = trackingStages.findIndex(s => s.id === selectedShipment.status) > idx;
+                          const isCompleted = currentShipmentStages.findIndex(s => s.id === selectedShipment.status) > idx;
                           const Icon = stage.icon;
                           
                           return (
-                            <div key={stage.id} className="flex flex-col items-center group">
+                            <div 
+                              key={stage.id} 
+                              className="flex flex-col items-center group cursor-pointer"
+                              onClick={() => {
+                                if (isActive) return;
+                                if (window.confirm(`Update shipment status to ${stage.label}?`)) {
+                                  handleStatusUpdate(selectedShipment.dbId, stage.id);
+                                }
+                              }}
+                            >
                               <div className={`z-10 w-8 h-8 rounded border-2 flex items-center justify-center transition-all ${
-                                isActive ? 'bg-primary border-primary text-white scale-110' : 
-                                isCompleted ? 'bg-green-500 border-green-500 text-white' : 
-                                'bg-white border-slate-200 text-slate-400'
+                                isActive ? 'bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20' : 
+                                isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 
+                                'bg-white border-slate-200 text-slate-400 group-hover:border-primary/50 group-hover:text-primary/70'
                               }`}>
                                 <Icon className="h-4 w-4" />
                               </div>
-                              <p className={`mt-2 text-[8px] text-center w-12 ${
-                                isActive ? 'text-primary' : isCompleted ? 'text-green-600' : 'text-slate-400'
+                              <p className={`mt-2 text-[8px] font-medium text-center w-12 transition-colors ${
+                                isActive ? 'text-primary' : isCompleted ? 'text-emerald-600' : 'text-slate-400 group-hover:text-primary/70'
                               }`}>
                                 {stage.label}
                               </p>
@@ -839,16 +940,16 @@ export default function ShipmentTracking() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getPreviousStatus(selectedShipment.status))}
-                      disabled={selectedShipment.status === trackingStages[0].id || updateStatusMutation.isPending}
+                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getWorkflowPreviousStatus(selectedShipment.status, currentShipmentStages)!)}
+                      disabled={!getWorkflowPreviousStatus(selectedShipment.status, currentShipmentStages) || updateStatusMutation.isPending}
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                     </Button>
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getNextStatus(selectedShipment.status))}
-                      disabled={selectedShipment.status === trackingStages[trackingStages.length - 1].id || updateStatusMutation.isPending}
+                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getWorkflowNextStatus(selectedShipment.status, currentShipmentStages)!)}
+                      disabled={!getWorkflowNextStatus(selectedShipment.status, currentShipmentStages) || updateStatusMutation.isPending}
                     >
                       Next Step <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
