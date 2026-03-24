@@ -119,6 +119,8 @@ export default function FieldVisits() {
       let matchesStatus = statusFilter === "all";
       if (statusFilter === "upcoming") {
         matchesStatus = normalizedStatus === "upcoming" || normalizedStatus === "in_progress";
+      } else if (statusFilter === "completed") {
+        matchesStatus = normalizedStatus === "completed";
       } else if (statusFilter !== "all") {
         matchesStatus = normalizedStatus === statusFilter;
       }

@@ -158,7 +158,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
       purpose: data.purpose,
       preVisitNotes: data.preVisitNotes,
       travelExpense: data.travelExpense,
-      status: 'scheduled',
+      status: visit ? visit.status : 'scheduled',
     };
 
     onSubmit(submitData);

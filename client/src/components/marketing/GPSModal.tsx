@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { FieldVisit } from "@shared/schema";
 
@@ -36,7 +37,7 @@ interface GPSModalProps {
   onOpenChange: (open: boolean) => void;
   visit: VisitWithDetails | null;
   action: 'check-in' | 'check-out';
-  onCheckIn: (location: { latitude: number; longitude: number; location?: string; photoPath?: string }) => void;
+  onCheckIn: (location: { latitude: number; longitude: number; location?: string; photoPath?: string; purpose?: string; notes?: string }) => void;
   onCheckOut: (data: { 
     latitude: number; 
     longitude: number; 
@@ -57,6 +58,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
   const [visitNotes, setVisitNotes] = useState('');
   const [outcome, setOutcome] = useState('');
   const [nextAction, setNextAction] = useState('');
+  const [purpose, setPurpose] = useState('');
   const [uploadedPhoto, setUploadedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
@@ -70,6 +72,7 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
       setVisitNotes('');
       setOutcome('');
       setNextAction('');
+      setPurpose(visit?.purpose || '');
       setUploadedPhoto(null);
       setPhotoPreview('');
       getCurrentLocation();
@@ -253,7 +256,9 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
         latitude: currentLocation?.latitude || 0,
         longitude: currentLocation?.longitude || 0,
         location: address || (currentLocation ? `${currentLocation.latitude}, ${currentLocation.longitude}` : 'Manual check-in'),
-        photoPath
+        photoPath,
+        purpose: action === 'check-in' ? (purpose || undefined) : undefined,
+        notes: action === 'check-in' ? (visitNotes || undefined) : undefined,
       };
 
       if (action === 'check-in') {
@@ -415,6 +420,47 @@ export default function GPSModal({ open, onOpenChange, visit, action, onCheckIn,
               </Button>
             </CardContent>
           </Card>
+
+          {/* Check-in Purpose Section */}
+          {action === 'check-in' && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center space-x-2">
+                  <Navigation className="h-4 w-4" />
+                  <span>Current Purpose</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="check-in-purpose">Select Purpose for this Check-in</Label>
+                  <Select value={purpose} onValueChange={setPurpose}>
+                    <SelectTrigger id="check-in-purpose">
+                      <SelectValue placeholder="Select purpose" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="initial_meeting">Initial Meeting</SelectItem>
+                      <SelectItem value="demo">Product Demo</SelectItem>
+                      <SelectItem value="follow_up">Follow Up</SelectItem>
+                      <SelectItem value="quotation_discussion">Quotation Discussion</SelectItem>
+                      <SelectItem value="negotiation">Negotiation</SelectItem>
+                      <SelectItem value="closing">Closing</SelectItem>
+                      <SelectItem value="support">Support</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="check-in-notes">Notes for this Purpose</Label>
+                  <Textarea
+                    id="check-in-notes"
+                    placeholder="Add any specific notes for this check-in purpose..."
+                    value={visitNotes}
+                    onChange={(e) => setVisitNotes(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Photo Upload Section */}
           <Card>

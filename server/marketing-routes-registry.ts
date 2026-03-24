@@ -806,7 +806,7 @@ export const checkInFieldVisit = async (
       checkInLocation: checkInData.location,
       checkInPhotoPath: checkInData.photoPath,
       actualStartTime: existingVisit.actualStartTime || new Date(),
-      status: "in_progress",
+      status: existingVisit.status?.toLowerCase() === "completed" ? "Completed" : "in_progress",
       purpose: checkInData.purpose || existingVisit.purpose,
     });
 

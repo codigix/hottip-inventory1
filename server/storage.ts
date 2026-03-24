@@ -1960,7 +1960,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       .update(fieldVisits)
       .set({
         ...update,
-        status: "in_progress",
+        status: update.status || "in_progress",
       })
       .where(eq(fieldVisits.id, id))
       .returning();
@@ -1975,7 +1975,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       .update(fieldVisits)
       .set({
         ...update,
-        status: "completed",
+        status: "Completed",
       })
       .where(eq(fieldVisits.id, id))
       .returning();
