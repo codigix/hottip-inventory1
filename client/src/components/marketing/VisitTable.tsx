@@ -311,7 +311,13 @@ export default function VisitTable({
             className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
           >
             <StatusIcon className="h-3 w-3" />
-            <span>{visit.status.toLowerCase().replace("_", " ") === "in progress" ? "Upcoming" : visit.status.replace("_", " ")}</span>
+            <span>
+              {visit.status.toLowerCase() === "scheduled" 
+                ? `Scheduled for ${getPurposeText(visit.purpose)}` 
+                : (["in progress", "upcoming", "in_progress"].includes(visit.status.toLowerCase().replace("_", " ")) 
+                   ? "Upcoming" 
+                   : visit.status.replace("_", " "))}
+            </span>
           </Badge>
         );
       },
@@ -484,7 +490,13 @@ export default function VisitTable({
                       className={`${statusInfo.bgColor} ${statusInfo.color} capitalize flex items-center space-x-1 w-fit`}
                     >
                       <StatusIcon className="h-3 w-3" />
-                      <span>{visit.status.toLowerCase().replace("_", " ") === "in progress" ? "Upcoming" : visit.status.replace("_", " ")}</span>
+                      <span>
+              {visit.status.toLowerCase() === "scheduled" 
+                ? `Scheduled for ${getPurposeText(visit.purpose)}` 
+                : (["in progress", "upcoming", "in_progress"].includes(visit.status.toLowerCase().replace("_", " ")) 
+                   ? "Upcoming" 
+                   : visit.status.replace("_", " "))}
+            </span>
                     </Badge>
                   </div>
 
