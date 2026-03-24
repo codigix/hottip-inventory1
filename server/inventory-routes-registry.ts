@@ -1501,7 +1501,11 @@ export function registerInventoryRoutes(
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
     try {
       const rows = await db
-        .select()
+        .select({
+          ...purchaseOrders,
+          hasInvoice: sql`EXISTS (SELECT 1 FROM accounts_payables WHERE "poId" = ${purchaseOrders.id})`,
+          hasShipment: sql`EXISTS (SELECT 1 FROM logistics_shipments WHERE "poNumber" = ${purchaseOrders.poNumber})`
+        })
         .from(purchaseOrders)
         .orderBy(sql`${purchaseOrders.createdAt} DESC`);
       res.json(rows);
@@ -1516,7 +1520,11 @@ export function registerInventoryRoutes(
     try {
       const { id } = req.params;
       const [order] = await db
-        .select()
+        .select({
+          ...purchaseOrders,
+          hasInvoice: sql`EXISTS (SELECT 1 FROM accounts_payables WHERE "poId" = ${purchaseOrders.id})`,
+          hasShipment: sql`EXISTS (SELECT 1 FROM logistics_shipments WHERE "poNumber" = ${purchaseOrders.poNumber})`
+        })
         .from(purchaseOrders)
         .where(eq(purchaseOrders.id, id));
 

@@ -232,16 +232,14 @@ export default function InboundQuotations({
   };
 
   useEffect(() => {
-    if (defaultOpen) {
-      setIsModalOpen(true);
-    }
+    setIsModalOpen(defaultOpen);
   }, [defaultOpen]);
 
   const [lastPreFilledNumber, setLastPreFilledNumber] = useState<string | null>(null);
 
   // Handle pre-filling when prop changes
   useEffect(() => {
-    if (preFillNumber && outboundQuotations.length > 0 && isModalOpen && preFillNumber !== lastPreFilledNumber) {
+    if (preFillNumber && outboundQuotations.length > 0 && preFillNumber !== lastPreFilledNumber) {
       const selected = outboundQuotations.find(q => q.quotationNumber === preFillNumber);
       if (selected) {
         console.log("🎯 [INBOUND QUOTATIONS] Pre-filling from prop:", selected.quotationNumber);
@@ -251,9 +249,12 @@ export default function InboundQuotations({
         form.setValue("totalAmount", String(selected.totalAmount));
         form.setValue("senderType", "client");
         setLastPreFilledNumber(preFillNumber);
+        
+        // CRITICAL: Ensure modal opens when pre-filling from outside
+        setIsModalOpen(true);
       }
     }
-  }, [preFillNumber, outboundQuotations, isModalOpen, lastPreFilledNumber]);
+  }, [preFillNumber, outboundQuotations, lastPreFilledNumber]);
 
   // Update editable items when selected outbound quotation changes
   useEffect(() => {
@@ -300,6 +301,7 @@ export default function InboundQuotations({
   useEffect(() => {
     if (!isModalOpen) {
       setSelectedOutboundQuotation(null);
+      setLastPreFilledNumber(null); // Reset pre-fill state so it can re-trigger if same PO is clicked again
     }
   }, [isModalOpen]);
 
@@ -585,9 +587,9 @@ export default function InboundQuotations({
   ];
 
   return (
-    <div className={isEmbedded ? "" : "p-4"}>
-      {!isEmbedded && (
-        <div className="flex justify-between items-center mb-8">
+    <div className={cn(isEmbedded ? "" : "p-4", "space-y-4")}>
+      <div className="flex justify-between items-center mb-8">
+        {!isEmbedded && (
           <div>
             <h1
               className="text-xl text-black"
@@ -599,14 +601,17 @@ export default function InboundQuotations({
               Manage quotations received from clients and vendors
             </p>
           </div>
-          <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
+        )}
+        <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
+          {!isEmbedded && (
             <DialogTrigger asChild>
               <Button data-testid="button-upload-inbound-quotation">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Quotation
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          )}
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Upload received Quotation</DialogTitle>
                 <DialogDescription>
@@ -951,412 +956,7 @@ export default function InboundQuotations({
               </Form>
             </DialogContent>
           </Dialog>
-        </div>
-      )}
-
-      {isEmbedded && (
-        <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
-          {/* We don't need a DialogTrigger here because QuotationsPage handles it via ref/click */}
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Upload received Quotation</DialogTitle>
-              <DialogDescription>
-                Upload a quotation received from a client or vendor along with
-                quotation details.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-2"
-              >
-                {/* FORM FIELDS SAME AS ABOVE */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="quotationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quotation Number</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            const selected = outboundQuotations.find(q => q.quotationNumber === value);
-                            if (selected) {
-                              setSelectedOutboundQuotation(selected);
-                              if (selected.customerId) form.setValue("senderId", selected.customerId);
-                              form.setValue("totalAmount", String(selected.totalAmount));
-                              form.setValue("senderType", "client");
-                            } else {
-                              setSelectedOutboundQuotation(null);
-                            }
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-quotation-number-embedded">
-                              <SelectValue placeholder="Select quotation" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {outboundQuotations.map((q) => (
-                              <SelectItem key={q.id} value={q.quotationNumber}>
-                                {q.quotationNumber}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="senderId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-customer-embedded">
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Select a customer</SelectItem>
-                            {customers.map((customer: Customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="senderType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sender Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-sender-type">
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="client">Client</SelectItem>
-                            <SelectItem value="vendor">Vendor</SelectItem>
-                            <SelectItem value="supplier">Supplier</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="totalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder=""
-                            {...field}
-                            data-testid="input-total-amount"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="quotationDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quotation Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            data-testid="input-quotation-date"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="validUntil"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valid Until</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            data-testid="input-valid-until"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., Q1 Material Supply"
-                          {...field}
-                          data-testid="input-subject"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Any additional notes about this quotation..."
-                          {...field}
-                          data-testid="textarea-notes"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Live Preview of Selected Quotation Details */}
-                {selectedOutboundQuotation && (
-                  <div className="border border-slate-200 bg-slate-50/50 rounded-xl p-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500 ">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-lg">
-                          <LayoutGrid className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs  text-slate-900">
-                            Linked Quotation: {selectedOutboundQuotation.quotationNumber}
-                          </h4>
-                          <p className="text-xs text-gray-500">Previewing items and technical specifications</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700   px-3">
-                        {selectedOutboundQuotation.status?.toUpperCase()}
-                      </Badge>
-                    </div>
-
-                    {selectedOutboundQuotation.moldDetails && selectedOutboundQuotation.moldDetails.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h5 className="text-[11px]   text-slate-500">Mold Specifications</h5>
-                          <div className="h-px flex-1 bg-slate-200"></div>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-[11px]">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Part Name</th>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Mold No</th>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Material</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter">Cavity</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {selectedOutboundQuotation.moldDetails.map((mold: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-2.5  text-slate-800">{mold.partName}</td>
-                                  <td className="p-2.5 text-slate-600 font-mono">{mold.mouldNo}</td>
-                                  <td className="p-2.5 text-slate-600">{mold.plasticMaterial}</td>
-                                  <td className="p-2.5 text-right  text-slate-900">{mold.noOfCavity}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {editableItems && editableItems.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 flex-1">
-                            <h5 className="text-[11px]   text-slate-500">Itemized Table (Define Rates)</h5>
-                            <div className="h-px flex-1 bg-slate-200"></div>
-                          </div>
-                          <span className="text-[9px] bg-blue-50 text-blue-600  px-2 py-0.5 rounded border border-blue-100">
-                            Auto-Syncs Grand Total
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-[11px]">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Description</th>
-                                <th className="p-2.5 text-center  text-slate-600  tracking-tighter w-16">Qty</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Received Rate</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {editableItems.map((item: any, idx: number) => (
-                                <tr key={item.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-2.5">
-                                    <div className=" text-slate-800 leading-tight">{item.displayDescription}</div>
-                                    <div className="text-[9px] text-gray-500 italic mt-0.5 flex items-center gap-1">
-                                      <span className="w-1 h-1 bg-slate-300 rounded"></span>
-                                      Mold: {item.mouldNo || item.partName || "N/A"}
-                                    </div>
-                                  </td>
-                                  <td className="p-2.5 text-center text-slate-600 font-mono bg-slate-50/30 ">{item.displayQty}</td>
-                                  <td className="p-2.5 text-right">
-                                    <div className="flex items-center justify-end group">
-                                      <span className="text-slate-400  mr-1 group-focus-within:text-primary transition-colors">₹</span>
-                                      <input 
-                                        type="number" 
-                                        value={item.displayRate}
-                                        onChange={(e) => updateItemRate(item.id, e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                          }
-                                        }}
-                                        className="w-20 p-1 border border-slate-200 rounded focus:border-primary focus:ring-2 focus:ring-primary/10 focus:outline-none text-right  text-primary bg-slate-50/50 focus:bg-white transition-all shadow-inner"
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="p-2.5 text-right  text-slate-900 bg-slate-50/30">
-                                    ₹{parseFloat(String(item.displayAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot className="bg-primary text-white divide-y divide-slate-800">
-                              {(() => {
-                                const subtotal = editableItems.reduce((sum, item) => sum + (parseFloat(String(item.displayAmount)) || 0), 0);
-                                const gstRate = 0.18;
-                                const gstAmount = subtotal * gstRate;
-                                const discount = 0;
-                                const total = subtotal + gstAmount - discount;
-                                
-                                return (
-                                  <>
-                                    <tr className="border-t border-slate-700">
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">Subtotal</td>
-                                      <td className="p-2 text-right  text-xs">
-                                        ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">GST (18%)</td>
-                                      <td className="p-2 text-right  text-xs">
-                                        ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest text-red-400 opacity-90">Discount</td>
-                                      <td className="p-2 text-right  text-xs text-red-400">
-                                        -₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr className="bg-slate-950">
-                                      <td colSpan={3} className="p-3 text-right text-xs font-black  tracking-widest">Total Amount</td>
-                                      <td className="p-3 text-right font-black text-sm">
-                                        ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                  </>
-                                );
-                              })()}
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-light mb-3">Upload Quotation File</h4>
-                  <FileUploader
-                    onUploadComplete={handleFileUpload}
-                    acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    className="w-full"
-                  />
-                  {uploadedFile && (
-                    <div
-                      className="mt-2 text-sm text-green-600"
-                      data-testid="text-upload-success"
-                    >
-                      ✓ File uploaded: {uploadedFile.fileName}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      handleOpenChange(false);
-                      form.reset();
-                      setUploadedFile(null);
-                    }}
-                    data-testid="button-cancel"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createQuotationMutation.isPending}
-                    data-testid="button-create-quotation"
-                  >
-                    {createQuotationMutation.isPending
-                      ? "Creating..."
-                      : "Create Quotation"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      )}
+      </div>
 
       <Card className="">
         {!isEmbedded && (
@@ -1561,3 +1161,4 @@ export default function InboundQuotations({
     </div>
   );
 }
+ 

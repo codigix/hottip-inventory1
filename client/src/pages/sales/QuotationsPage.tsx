@@ -12,34 +12,42 @@ export default function QuotationsPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [preFillNumber, setPreFillNumber] = useState<string | null>(null);
 
+  // Sync activeTab with location changes
   useEffect(() => {
     if (location.includes("inbound-quotations")) {
       setActiveTab("received");
     } else if (location.includes("outbound-quotations") || location.endsWith("/quotations")) {
       setActiveTab("sent");
     }
+  }, [location]);
 
-    // Check for quotationNumber in URL
+  useEffect(() => {
+    // Check for quotationNumber in URL using window.location.search
     const queryParams = new URLSearchParams(window.location.search);
     const qNum = queryParams.get("quotationNumber");
     
     if (qNum) {
       console.log("🎯 [QUOTATIONS PAGE] Detected quotationNumber in URL:", qNum);
       
-      // Clear the query parameter FIRST to avoid re-triggering this effect
-      const searchParams = new URLSearchParams(window.location.search);
-      searchParams.delete("quotationNumber");
-      const newSearch = searchParams.toString();
-      const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+      // Clear the query parameter using window.history.replaceState to avoid re-triggering this effect
+      // and to ensure the URL looks clean as requested by the user
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
       
-      // Use replace: true and do NOT update state until AFTER location change if possible
-      // or do them together
       setPreFillNumber(qNum);
       setActiveTab("received");
       setIsUploadModalOpen(true);
-      setLocation(newPath, { replace: true });
     }
-  }, [location]); // Removed setLocation from dependencies as it's stable and can cause loops in some routers
+  }, [location]); // Run whenever location changes to detect query param even if component stays mounted
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "received") {
+      setLocation("/sales/inbound-quotations");
+    } else {
+      setLocation("/sales/quotations");
+    }
+  };
 
   const handleModalClose = (open: boolean) => {
     setIsUploadModalOpen(open);
@@ -75,7 +83,7 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-2">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-2">
         <TabsList className="bg-white border border-slate-200 p-1 h-11  inline-flex w-auto">
           <TabsTrigger 
             value="sent" 

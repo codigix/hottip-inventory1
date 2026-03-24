@@ -56,7 +56,7 @@ function BackupRecovery() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, error: queryError, isError } = useQuery({
     queryKey: ["/admin/backups"],
     queryFn: fetchBackups,
   });
@@ -163,12 +163,12 @@ function BackupRecovery() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="p-8 text-center text-red-600">
         <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
         <h2 className="text-lg font-semibold">Failed to load backups</h2>
-        <p>{(error as Error).message}</p>
+        <p>{(queryError as Error)?.message || "An unknown error occurred"}</p>
       </div>
     );
   }

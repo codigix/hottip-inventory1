@@ -186,7 +186,7 @@ export default function VendorPO() {
             className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
             title="Create Shipment"
             onClick={() => createShipmentMutation.mutate(po.id)}
-            disabled={createShipmentMutation.isPending || po.status === 'shipped' || po.status === 'delivered'}
+            disabled={createShipmentMutation.isPending || po.hasShipment || po.status === 'shipped' || po.status === 'delivered' || po.status === 'cancelled'}
           >
             <Truck className="h-4 w-4" />
           </Button>
@@ -196,7 +196,7 @@ export default function VendorPO() {
             className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
             title="Create Invoice"
             onClick={() => createInvoiceMutation.mutate(po.id)}
-            disabled={createInvoiceMutation.isPending || po.status === 'processing' || po.status === 'shipped' || po.status === 'delivered'}
+            disabled={createInvoiceMutation.isPending || po.hasInvoice || po.status === 'cancelled'}
           >
             <FileText className="h-4 w-4" />
           </Button>
