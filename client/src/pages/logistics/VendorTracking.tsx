@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Factory, 
@@ -9,6 +9,7 @@ import {
   Anchor, 
   ShieldCheck, 
   CheckCircle2, 
+  ShoppingCart,
   Search, 
   Filter, 
   Download,
@@ -52,6 +53,12 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent 
+} from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getNextStatus, getPreviousStatus } from "@shared/schema";
@@ -59,7 +66,7 @@ import { openAuthenticatedPdf } from "@/lib/utils";
 
 import { DataTable, Column } from "@/components/ui/data-table";
 
-const trackingStages = [
+const vendorStages = [
   { id: 'planned', label: 'Planned', icon: CalendarIcon, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-slate-100 text-slate-500', description: 'Shipment plan created' },
   { id: 'packed', label: 'Packed', icon: Package, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
   { id: 'dispatched', label: 'Dispatched', icon: Truck, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-blue-100 text-blue-600', description: 'Shipment left warehouse' },
@@ -74,24 +81,45 @@ const trackingStages = [
   { id: 'closed', label: 'Closed', icon: CheckCircle2, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-primary text-white', description: 'Shipment completed' },
 ];
 
-export default function VendorTracking() {
+const customerStages = [
+  { id: 'created', label: 'Order Created', icon: ShoppingCart, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-slate-100 text-slate-500', description: 'Shipment order created' },
+  { id: 'planned', label: 'Planned', icon: CalendarIcon, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-slate-100 text-slate-500', description: 'Shipment plan created' },
+  { id: 'packed', label: 'Packed', icon: Package, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-emerald-100 text-emerald-600', description: 'Goods packed for shipment' },
+  { id: 'dispatched', label: 'Dispatched', icon: Truck, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-blue-100 text-blue-600', description: 'Shipment left warehouse' },
+  { id: 'in_transit', label: 'In Transit', icon: Ship, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-indigo-100 text-indigo-600', description: 'Shipment in transit' },
+  { id: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-amber-100 text-amber-600', description: 'Shipment out for delivery' },
+  { id: 'delivered', label: 'Delivered', icon: CheckCircle2, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-green-100 text-green-600', description: 'Goods received by customer' },
+  { id: 'closed', label: 'Closed', icon: CheckCircle2, color: 'bg-slate-50 text-slate-400', activeColor: 'bg-primary text-white', description: 'Shipment completed' },
+];
+
+export default function ShipmentTracking() {
   const { toast } = useToast();
   const [selectedShipment, setSelectedShipment] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"vendor" | "customer">("vendor");
+
+  const trackingStages = activeTab === "vendor" ? vendorStages : customerStages;
 
   const { data: shipments = [], isLoading } = useQuery<any[]>({
     queryKey: ['/logistics/shipments']
   });
 
+  // Debug logic to check for data issues (records with both IDs)
+  console.log("📦 All Shipments Data:", shipments);
+
   const getVendorName = (shipment: any) => {
     if (!shipment) return "N/A";
-    const vName = shipment.vendorName || shipment.supplier?.name || shipment.vendor?.name;
-    const cName = shipment.clientName || shipment.client?.name;
     
-    if (vName) return vName;
-    if (cName) return `Client: ${cName}`;
-    return "N/A";
+    // Fallback between client and vendor names to handle miscategorized data gracefully
+    const clientName = shipment.client?.name || shipment.clientName;
+    const vendorName = shipment.vendor?.name || shipment.vendorName;
+
+    if (activeTab === "customer") {
+      return clientName || vendorName || "N/A";
+    } else {
+      return vendorName || clientName || "N/A";
+    }
   };
 
   const updateStatusMutation = useMutation({
@@ -135,6 +163,7 @@ export default function VendorTracking() {
         description: "Shipment order deleted successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["/logistics/dashboard"] });
     },
     onError: (error: any) => {
       toast({
@@ -152,10 +181,47 @@ export default function VendorTracking() {
   const processedData = useMemo(() => {
     return shipments
       .filter(item => {
+        const hasClient = item.clientId !== null && item.clientId !== undefined;
+        const hasVendor = item.vendorId !== null && item.vendorId !== undefined;
+        const consignmentNo = item.consignmentNumber || "";
         const plan = item.plan || {};
-        const vName = item.vendorName || item.supplier?.name || item.vendor?.name;
-        if (!item.vendorId && !vName && !item.plan) return false;
-        return true;
+        const planId = plan.planId || "";
+        
+        // Only show shipments that have an associated plan
+        if (!planId) return false;
+        
+        const isCustomerOrder = consignmentNo.startsWith("SHP-SO-") || consignmentNo.startsWith("SO-") || planId.includes("-SO-");
+        const isVendorOrder = consignmentNo.startsWith("SHIP-") || planId.startsWith("PLAN-SHIP-") || consignmentNo.startsWith("PO-");
+        const isImport = plan.shipmentMode === "Import";
+        const isExport = plan.shipmentMode === "Export";
+
+        if (activeTab === "customer") {
+          // Priority 1: Prefix match
+          if (isCustomerOrder) return true;
+          if (isVendorOrder) return false;
+          
+          // Priority 2: Shipment Mode
+          if (isExport) return true;
+          if (isImport) return false;
+          
+          // Priority 3: Fallback to ID presence
+          return hasClient;
+        }
+
+        if (activeTab === "vendor") {
+          // Priority 1: Prefix match
+          if (isVendorOrder) return true;
+          if (isCustomerOrder) return false;
+          
+          // Priority 2: Shipment Mode
+          if (isImport) return true;
+          if (isExport) return false;
+          
+          // Priority 3: Fallback to ID presence
+          return hasVendor && !hasClient;
+        }
+
+        return false;
       })
       .map(item => {
         const plan = item.plan || {};
@@ -201,15 +267,30 @@ export default function VendorTracking() {
           original: item
         };
       });
-  }, [shipments]);
+  }, [shipments, activeTab]);
 
   const finalData = useMemo(() => {
     if (!statusFilter) return processedData;
     return processedData.filter(item => item.status === statusFilter);
   }, [processedData, statusFilter]);
 
-  const getStatusBadge = (status: string) => {
-    const stage = trackingStages.find(s => s.id === status);
+  const getShipmentStages = (shipment: any) => {
+    if (!shipment) return vendorStages;
+    
+    const consignmentNo = shipment.id || "";
+    const plan = shipment.original?.plan || {};
+    const planId = plan.planId || "";
+    
+    const isCustomerOrder = consignmentNo.startsWith("SHP-SO-") || consignmentNo.startsWith("SO-") || planId.includes("-SO-");
+    
+    return isCustomerOrder ? customerStages : vendorStages;
+  };
+
+  const currentShipmentStages = useMemo(() => getShipmentStages(selectedShipment), [selectedShipment]);
+
+  const getStatusBadge = (status: string, shipment?: any) => {
+    const stages = shipment ? getShipmentStages(shipment) : trackingStages;
+    const stage = stages.find(s => s.id === status);
     if (!stage) return <Badge variant="outline" className="text-xs">{(status || "").replace(/_/g, ' ')}</Badge>;
     
     return (
@@ -221,6 +302,18 @@ export default function VendorTracking() {
 
   const getStatusCount = (statusId: string) => {
     return processedData.filter(item => item.status === statusId).length;
+  };
+
+  const getWorkflowNextStatus = (currentStatus: string, stages = trackingStages) => {
+    const idx = stages.findIndex(s => s.id === currentStatus);
+    if (idx === -1 || idx === stages.length - 1) return null;
+    return stages[idx + 1].id;
+  };
+
+  const getWorkflowPreviousStatus = (currentStatus: string, stages = trackingStages) => {
+    const idx = stages.findIndex(s => s.id === currentStatus);
+    if (idx <= 0) return null;
+    return stages[idx - 1].id;
   };
 
   const getStageIcon = (stage: any, isSelected: boolean, isActive: boolean) => {
@@ -248,7 +341,7 @@ export default function VendorTracking() {
     },
     {
       key: "vendor",
-      header: "Vendor",
+      header: activeTab === "vendor" ? "Vendor" : "Client",
       cell: (item) => (
         <div className="max-w-[200px]">
           <div className="text-slate-900 text-xs">{item.vendor}</div>
@@ -309,44 +402,76 @@ export default function VendorTracking() {
     {
       key: "status",
       header: "Status",
-      cell: (item) => getStatusBadge(item.status),
+      cell: (item) => getStatusBadge(item.status, item),
       sortable: true,
     },
     {
       key: "actions",
       header: <div className="text-right">Actions</div>,
-      cell: (item) => (
-        <div className="flex justify-end gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
-            onClick={() => {
-              setSelectedShipment(item);
-              setIsDetailsOpen(true);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to delete this shipment order?")) {
-                deleteShipmentMutation.mutate(item.dbId);
-              }
-            }}
-            disabled={deleteShipmentMutation.isPending}
-          >
-            {deleteShipmentMutation.isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      ),
+      cell: (item) => {
+        const stages = getShipmentStages(item);
+        const nextStatus = getWorkflowNextStatus(item.status, stages);
+        const prevStatus = getWorkflowPreviousStatus(item.status, stages);
+        
+        return (
+          <div className="flex justify-end gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-blue-600 hover:bg-blue-50 transition-colors"
+              onClick={() => {
+                if (prevStatus) handleStatusUpdate(item.dbId, prevStatus);
+              }}
+              disabled={!prevStatus || updateStatusMutation.isPending}
+              title="Previous Status"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 transition-colors"
+              onClick={() => {
+                if (nextStatus) handleStatusUpdate(item.dbId, nextStatus);
+              }}
+              disabled={!nextStatus || updateStatusMutation.isPending}
+              title="Next Status"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+              onClick={() => {
+                setSelectedShipment(item);
+                setIsDetailsOpen(true);
+              }}
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this shipment order?")) {
+                  deleteShipmentMutation.mutate(item.dbId);
+                }
+              }}
+              disabled={deleteShipmentMutation.isPending}
+              title="Delete"
+            >
+              {deleteShipmentMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -366,9 +491,9 @@ export default function VendorTracking() {
     <div className="p-4 space-y-2 animate-in fade-in duration-500 bg-slate-50/30 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl text-slate-900">Vendor Transport Tracking</h1>
+          <h1 className="text-xl text-slate-900 font-semibold tracking-tight">Shipment Tracking</h1>
           <p className="text-slate-500 text-xs mt-1">
-            Monitor international import shipments from vendors to warehouse
+            Monitor vendor imports and customer deliveries in one unified view
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -381,11 +506,26 @@ export default function VendorTracking() {
         </div>
       </div>
 
+      {/* Unified Tracking Tabs */}
+      <Tabs defaultValue="vendor" value={activeTab} onValueChange={(v) => {
+        setActiveTab(v as any);
+        setStatusFilter(null);
+      }} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-4 bg-slate-100/50 p-1">
+          <TabsTrigger value="vendor" className="text-xs font-medium py-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            Vendor Shipments
+          </TabsTrigger>
+          <TabsTrigger value="customer" className="text-xs font-medium py-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            Customer Shipments
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Tracking Workflow Stepper */}
-      <div className="space-y-2 p-2">
+      <div className="space-y-2 p-2 bg-white/50 rounded-xl border border-slate-100/50 shadow-sm mb-4">
         <div className="relative">
-          <div className="absolute top-[15px] left-[4%] right-[4%] h-[1px] bg-primary hidden lg:block" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2 relative z-10">
+          <div className="absolute top-[15px] left-[4%] right-[4%] h-[1px] bg-slate-100 hidden lg:block" />
+          <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-${Math.min(trackingStages.length, 10)} gap-2 relative z-10`}>
             {trackingStages.slice(0, 10).map((stage, idx) => {
               const count = getStatusCount(stage.id);
               const isActive = count > 0;
@@ -398,8 +538,8 @@ export default function VendorTracking() {
                   onClick={() => setStatusFilter(isSelected ? null : stage.id)}
                 >
                   <div className={`w-7 h-7 rounded flex items-center justify-center transition-all duration-300 border dotted ${
-                    isSelected ? 'bg-[#3399FF] border-[#3399FF] text-white scale-110 shadow-blue-100' :
-                    isActive ? 'bg-white border-[#3399FF] text-[#3399FF]' :
+                    isSelected ? 'bg-primary border-primary text-white scale-110 shadow-blue-100' :
+                    isActive ? 'bg-white border-primary text-primary' :
                     'bg-white border-slate-200 text-slate-300'
                   }`}>
                     {isSelected ? (
@@ -413,7 +553,7 @@ export default function VendorTracking() {
 
                   <div className="mt-3 text-center">
                     <p className={`text-[11px] transition-colors ${
-                      isSelected ? 'text-[#3399FF]' : isActive ? 'text-slate-800' : 'text-slate-900'
+                      isSelected ? 'text-primary' : isActive ? 'text-slate-800' : 'text-slate-900'
                     }`}>
                       {stage.label}
                     </p>
@@ -429,37 +569,39 @@ export default function VendorTracking() {
           </div>
         </div>
         
-        <div className="flex gap-12 border-t border-slate-50 pt-4">
-          {trackingStages.slice(10).map((stage, idx) => {
-            const count = getStatusCount(stage.id);
-            const isActive = count > 0;
-            const isSelected = statusFilter === stage.id;
-            
-            return (
-              <div 
-                key={stage.id} 
-                className="flex items-center gap-4 cursor-pointer group"
-                onClick={() => setStatusFilter(isSelected ? null : stage.id)}
-              >
-                <div className={`w-5 h-5 rounded flex items-center justify-center transition-all border-2 ${
-                  isSelected ? 'bg-[#3399FF] border-[#3399FF] text-white' :
-                  isActive ? 'bg-white border-[#3399FF] text-[#3399FF]' :
-                  'bg-white border-slate-200 text-slate-300'
-                }`}>
-                  {isActive ? <CheckCircle2 className="h-5 w-5" /> : <span className="text-xs">{11 + idx}</span>}
-                </div>
-                <div>
-                  <p className={`text-[10px]  ${
-                    isSelected ? 'text-[#3399FF]' : 'text-slate-400'
+        {trackingStages.length > 10 && (
+          <div className="flex gap-12 border-t border-slate-50 pt-4">
+            {trackingStages.slice(10).map((stage, idx) => {
+              const count = getStatusCount(stage.id);
+              const isActive = count > 0;
+              const isSelected = statusFilter === stage.id;
+              
+              return (
+                <div 
+                  key={stage.id} 
+                  className="flex items-center gap-4 cursor-pointer group"
+                  onClick={() => setStatusFilter(isSelected ? null : stage.id)}
+                >
+                  <div className={`w-5 h-5 rounded flex items-center justify-center transition-all border-2 ${
+                    isSelected ? 'bg-primary border-primary text-white' :
+                    isActive ? 'bg-white border-primary text-primary' :
+                    'bg-white border-slate-200 text-slate-300'
                   }`}>
-                    {stage.label}
-                  </p>
-                  <p className="text-xl font-black text-slate-900 leading-none">{count}</p>
+                    {isActive ? <CheckCircle2 className="h-5 w-5" /> : <span className="text-xs">{11 + idx}</span>}
+                  </div>
+                  <div>
+                    <p className={`text-[10px]  ${
+                      isSelected ? 'text-primary' : 'text-slate-400'
+                    }`}>
+                      {stage.label}
+                    </p>
+                    <p className="text-xl font-black text-slate-900 leading-none">{count}</p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <DataTable
@@ -580,6 +722,39 @@ export default function VendorTracking() {
                     </div>
                   </div>
 
+                  {/* Items List Section */}
+                  <div className="space-y-3 bg-white p-4 rounded border border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-800 flex items-center">
+                      <Package className="mr-2 h-4 w-4 text-primary" /> Shipment Items
+                    </h3>
+                    <div className="border rounded-md overflow-hidden mt-2">
+                      <Table>
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="text-[10px] uppercase font-bold h-8">Item Name</TableHead>
+                            <TableHead className="text-[10px] uppercase font-bold h-8 text-right">Qty</TableHead>
+                            <TableHead className="text-[10px] uppercase font-bold h-8">Unit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedShipment.original?.items && selectedShipment.original.items.length > 0 ? (
+                            selectedShipment.original.items.map((item: any, idx: number) => (
+                              <TableRow key={idx} className="h-8">
+                                <TableCell className="text-xs py-1 font-medium">{item.itemName || item.materialName || item.name || 'N/A'}</TableCell>
+                                <TableCell className="text-xs py-1 text-right">{item.quantity || item.qty || 0}</TableCell>
+                                <TableCell className="text-xs py-1">{item.unit || 'NOS'}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center text-xs text-slate-400 py-4">No items listed</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
                   {/* Status and Timeline */}
                   <div className="space-y-4 bg-white p-4 rounded border border-slate-100">
                     <h3 className="text-sm text-slate-500 flex items-center">
@@ -588,22 +763,31 @@ export default function VendorTracking() {
                     <div className="relative pt-2">
                       <div className="absolute left-0 top-1/2 h-0.5 w-full bg-slate-100 -translate-y-1/2"></div>
                       <div className="flex justify-between items-center relative">
-                        {trackingStages.slice(0, 9).map((stage, idx) => {
+                        {currentShipmentStages.map((stage, idx) => {
                           const isActive = stage.id === selectedShipment.status;
-                          const isCompleted = trackingStages.findIndex(s => s.id === selectedShipment.status) > idx;
+                          const isCompleted = currentShipmentStages.findIndex(s => s.id === selectedShipment.status) > idx;
                           const Icon = stage.icon;
                           
                           return (
-                            <div key={stage.id} className="flex flex-col items-center group">
+                            <div 
+                              key={stage.id} 
+                              className="flex flex-col items-center group cursor-pointer"
+                              onClick={() => {
+                                if (isActive) return;
+                                if (window.confirm(`Update shipment status to ${stage.label}?`)) {
+                                  handleStatusUpdate(selectedShipment.dbId, stage.id);
+                                }
+                              }}
+                            >
                               <div className={`z-10 w-8 h-8 rounded border-2 flex items-center justify-center transition-all ${
-                                isActive ? 'bg-primary border-primary text-white scale-110' : 
-                                isCompleted ? 'bg-green-500 border-green-500 text-white' : 
-                                'bg-white border-slate-200 text-slate-400'
+                                isActive ? 'bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20' : 
+                                isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 
+                                'bg-white border-slate-200 text-slate-400 group-hover:border-primary/50 group-hover:text-primary/70'
                               }`}>
                                 <Icon className="h-4 w-4" />
                               </div>
-                              <p className={`mt-2 text-[8px] text-center w-12 ${
-                                isActive ? 'text-primary' : isCompleted ? 'text-green-600' : 'text-slate-400'
+                              <p className={`mt-2 text-[8px] font-medium text-center w-12 transition-colors ${
+                                isActive ? 'text-primary' : isCompleted ? 'text-emerald-600' : 'text-slate-400 group-hover:text-primary/70'
                               }`}>
                                 {stage.label}
                               </p>
@@ -757,16 +941,16 @@ export default function VendorTracking() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getPreviousStatus(selectedShipment.status))}
-                      disabled={selectedShipment.status === trackingStages[0].id || updateStatusMutation.isPending}
+                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getWorkflowPreviousStatus(selectedShipment.status, currentShipmentStages)!)}
+                      disabled={!getWorkflowPreviousStatus(selectedShipment.status, currentShipmentStages) || updateStatusMutation.isPending}
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                     </Button>
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getNextStatus(selectedShipment.status))}
-                      disabled={selectedShipment.status === trackingStages[trackingStages.length - 1].id || updateStatusMutation.isPending}
+                      onClick={() => handleStatusUpdate(selectedShipment.dbId, getWorkflowNextStatus(selectedShipment.status, currentShipmentStages)!)}
+                      disabled={!getWorkflowNextStatus(selectedShipment.status, currentShipmentStages) || updateStatusMutation.isPending}
                     >
                       Next Step <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>

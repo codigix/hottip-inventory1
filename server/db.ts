@@ -163,7 +163,7 @@ export const db = drizzle(pool, { schema });
       )
     `);
 
-    // Ensure missing columns are added to material_requests if it already existed
+    // ✅ Ensure missing columns are added to material_requests if it already existed
     await client.query(`
       DO $$ 
       BEGIN 
@@ -171,6 +171,73 @@ export const db = drizzle(pool, { schema });
           ALTER TABLE "material_requests" ADD COLUMN "quotationId" uuid REFERENCES outbound_quotations(id);
         END IF;
       END $$;
+    `);
+
+    // ✅ Ensure field_visits has missing columns
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'field_visits') THEN
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'createdAt') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "createdAt" timestamp DEFAULT now();
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'updatedAt') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "updatedAt" timestamp DEFAULT now();
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkInLatitude') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkInLatitude" numeric(10, 7);
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkInLongitude') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkInLongitude" numeric(10, 7);
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkInLocation') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkInLocation" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkInPhotoPath') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkInPhotoPath" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkOutLatitude') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkOutLatitude" numeric(10, 7);
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkOutLongitude') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkOutLongitude" numeric(10, 7);
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkOutLocation') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkOutLocation" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'checkOutPhotoPath') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "checkOutPhotoPath" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'actualStartTime') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "actualStartTime" timestamp;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'actualEndTime') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "actualEndTime" timestamp;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'visitNotes') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "visitNotes" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'outcome') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "outcome" text;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'nextAction') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "nextAction" text;
+          END IF;
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure visit_purpose_logs table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "visit_purpose_logs" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "visitId" uuid NOT NULL REFERENCES field_visits(id) ON DELETE CASCADE,
+        "purpose" varchar(100) NOT NULL,
+        "visitDate" timestamp NOT NULL DEFAULT now(),
+        "visitTime" timestamp NOT NULL DEFAULT now(),
+        "status" varchar(20) DEFAULT 'DONE',
+        "createdAt" timestamp NOT NULL DEFAULT now()
+      )
     `);
 
     // ✅ Ensure material_request_items table exists

@@ -528,6 +528,21 @@ export const fieldVisits = pgTable("field_visits", {
   purpose: varchar("purpose", { length: 100 }),
   travelExpense: numeric("travelExpense", { precision: 12, scale: 2 }),
   status: varchar("status", { length: 20 }).default("Scheduled"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+  checkInLatitude: numeric("checkInLatitude", { precision: 10, scale: 7 }),
+  checkInLongitude: numeric("checkInLongitude", { precision: 10, scale: 7 }),
+  checkInLocation: text("checkInLocation"),
+  checkInPhotoPath: text("checkInPhotoPath"),
+  checkOutLatitude: numeric("checkOutLatitude", { precision: 10, scale: 7 }),
+  checkOutLongitude: numeric("checkOutLongitude", { precision: 10, scale: 7 }),
+  checkOutLocation: text("checkOutLocation"),
+  checkOutPhotoPath: text("checkOutPhotoPath"),
+  actualStartTime: timestamp("actualStartTime"),
+  actualEndTime: timestamp("actualEndTime"),
+  visitNotes: text("visitNotes"),
+  outcome: text("outcome"),
+  nextAction: text("nextAction"),
 });
 
 // =====================
@@ -927,6 +942,7 @@ export const orderStatus = pgEnum("order_status", [
   "shipped",
   "delivered",
   "cancelled",
+  "po approved",
 ]);
 
 export const purchaseOrders = pgTable("purchase_orders", {
@@ -940,7 +956,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
     .references(() => users.id),
   orderDate: timestamp("orderDate").notNull().defaultNow(),
   deliveryPeriod: text("deliveryPeriod"),
-  status: orderStatus("status").notNull().default("pending"),
+  status: text("status").notNull().default("pending"),
   subtotalAmount: numeric("subtotalAmount", { precision: 12, scale: 2 }),
   gstType: gstTypeEnum("gstType").default("IGST"),
   gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default("18"),
@@ -1002,7 +1018,7 @@ export const insertPurchaseOrderSchema = z.object({
   ),
   deliveryPeriod: z.string().optional().nullable(),
   status: z
-    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled", "po approved"])
     .optional()
     .default("pending"),
   subtotalAmount: z.coerce.number().min(0),
@@ -1445,6 +1461,105 @@ export const invoiceItemRelations = relations(invoiceItems, ({ one }) => ({
 }));
 
 // =====================
+// CUSTOMER PURCHASE ORDERS
+// =====================
+export const customerPurchaseOrders = pgTable("customer_purchase_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  poNumber: text("poNumber").notNull().unique(),
+  customerId: uuid("customerId").references(() => customers.id).notNull(),
+  quotationId: uuid("quotationId"),
+  userId: uuid("userId").references(() => users.id).notNull(),
+  orderDate: timestamp("orderDate").notNull().defaultNow(),
+  deliveryPeriod: text("deliveryPeriod"),
+  status: text("status").notNull().default("pending"),
+  subtotalAmount: numeric("subtotalAmount", { precision: 12, scale: 2 }),
+  gstType: gstTypeEnum("gstType").default("IGST"),
+  gstPercentage: numeric("gstPercentage", { precision: 5, scale: 2 }).default("18"),
+  gstAmount: numeric("gstAmount", { precision: 12, scale: 2 }),
+  totalAmount: numeric("totalAmount", { precision: 12, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export const customerPurchaseOrderItems = pgTable("customer_purchase_order_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  customerPurchaseOrderId: uuid("customer_purchase_order_id")
+    .notNull()
+    .references(() => customerPurchaseOrders.id, { onDelete: "cascade" }),
+  productId: uuid("productId").references(() => products.id),
+  itemName: text("itemName").notNull(),
+  description: text("description"),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").default("pcs"),
+  unitPrice: numeric("unitPrice", { precision: 12, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
+});
+
+export const customerPurchaseOrderRelations = relations(customerPurchaseOrders, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [customerPurchaseOrders.customerId],
+    references: [customers.id],
+  }),
+  user: one(users, {
+    fields: [customerPurchaseOrders.userId],
+    references: [users.id],
+  }),
+  items: many(customerPurchaseOrderItems),
+}));
+
+export const customerPurchaseOrderItemRelations = relations(customerPurchaseOrderItems, ({ one }) => ({
+  purchaseOrder: one(customerPurchaseOrders, {
+    fields: [customerPurchaseOrderItems.customerPurchaseOrderId],
+    references: [customerPurchaseOrders.id],
+  }),
+  product: one(products, {
+    fields: [customerPurchaseOrderItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export type CustomerPurchaseOrder = typeof customerPurchaseOrders.$inferSelect;
+export type InsertCustomerPurchaseOrder = typeof customerPurchaseOrders.$inferInsert;
+export type CustomerPurchaseOrderItem = typeof customerPurchaseOrderItems.$inferSelect;
+export type InsertCustomerPurchaseOrderItem = typeof customerPurchaseOrderItems.$inferInsert;
+
+export const insertCustomerPurchaseOrderSchema = z.object({
+  poNumber: z.string().min(1, "PO number is required"),
+  customerId: z.string().uuid("Customer is required"),
+  quotationId: z.string().uuid().optional().nullable(),
+  userId: z.string().uuid("User is required"),
+  orderDate: z.preprocess(
+    (val) => (val ? new Date(val as string) : undefined),
+    z.date()
+  ),
+  deliveryPeriod: z.string().optional().nullable(),
+  status: z
+    .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
+    .optional()
+    .default("pending"),
+  subtotalAmount: z.coerce.number().min(0),
+  gstType: z.enum(["IGST", "CGST_SGST"]).default("IGST"),
+  gstPercentage: z.coerce.number().default(18),
+  gstAmount: z.coerce.number().min(0),
+  totalAmount: z.coerce.number().min(0),
+  notes: z.string().optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().uuid().optional().nullable(),
+        itemName: z.string().min(1, "Item name is required"),
+        description: z.string().optional().nullable(),
+        quantity: z.coerce.number().min(1),
+        unit: z.string().optional().default("pcs"),
+        unitPrice: z.coerce.number().min(0),
+        amount: z.coerce.number().optional(),
+      })
+    )
+    .min(1, "At least one item is required"),
+});
+
+// =====================
 // SALES ORDERS
 // =====================
 export const salesOrderStatus = pgEnum("sales_order_status", [
@@ -1461,7 +1576,7 @@ export const salesOrders = pgTable("sales_orders", {
   orderNumber: text("orderNumber").notNull().unique(),
   customerId: uuid("customerId").references(() => customers.id).notNull(),
   quotationId: uuid("quotationId").references(() => outboundQuotations.id),
-  purchaseOrderId: uuid("purchaseOrderId").references(() => purchaseOrders.id),
+  purchaseOrderId: uuid("purchaseOrderId").references(() => customerPurchaseOrders.id),
   userId: uuid("userId").references(() => users.id).notNull(),
   orderDate: timestamp("orderDate").notNull().defaultNow(),
   expectedDeliveryDate: timestamp("expectedDeliveryDate"),
@@ -1508,9 +1623,9 @@ export const salesOrderRelations = relations(salesOrders, ({ one, many }) => ({
     fields: [salesOrders.quotationId],
     references: [outboundQuotations.id],
   }),
-  purchaseOrder: one(purchaseOrders, {
+  purchaseOrder: one(customerPurchaseOrders, {
     fields: [salesOrders.purchaseOrderId],
-    references: [purchaseOrders.id],
+    references: [customerPurchaseOrders.id],
   }),
   items: many(salesOrderItems),
 }));
@@ -1742,6 +1857,7 @@ export const fieldVisitCheckInSchema = z.object({
   longitude: z.number().optional(),
   location: z.string().optional(),
   photoPath: z.string().optional(),
+  purpose: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -2346,55 +2462,55 @@ export const insertMoldDetailSchema = z.object({
 export const insertLogisticsShipmentPlanSchema = z.object({
   shipmentId: z.string().uuid(),
   planId: z.string(),
-  shipmentType: z.enum(["Air", "Sea", "Road"]).optional(),
-  shipmentMode: z.enum(["Import", "Export"]).optional(),
-  incoterms: z.enum(["FOB", "CIF", "EXW"]).optional(),
-  forwarderAgent: z.string().optional(),
-  plannedDispatch: z.string().or(z.date()).optional(),
-  expectedArrival: z.string().or(z.date()).optional(),
-  status: z.string().optional().default("Planned"),
+  shipmentType: z.enum(["Air", "Sea", "Road"]).optional().nullable(),
+  shipmentMode: z.enum(["Import", "Export"]).optional().nullable(),
+  incoterms: z.enum(["FOB", "CIF", "EXW"]).optional().nullable(),
+  forwarderAgent: z.string().optional().nullable(),
+  plannedDispatch: z.string().or(z.date()).optional().nullable(),
+  expectedArrival: z.string().or(z.date()).optional().nullable(),
+  status: z.string().optional().default("Planned").nullable(),
 
   // Sea Freight Details
-  shippingLine: z.string().optional(),
-  vesselName: z.string().optional(),
-  voyageNumber: z.string().optional(),
-  containerNumber: z.string().optional(),
-  containerType: z.enum(["20FT", "40FT"]).optional(),
-  sealNumber: z.string().optional(),
-  blNumber: z.string().optional(),
-  portOfLoading: z.string().optional(),
-  portOfDestination: z.string().optional(),
-  departureDate: z.string().or(z.date()).optional(),
-  etaArrival: z.string().or(z.date()).optional(),
+  shippingLine: z.string().optional().nullable(),
+  vesselName: z.string().optional().nullable(),
+  voyageNumber: z.string().optional().nullable(),
+  containerNumber: z.string().optional().nullable(),
+  containerType: z.enum(["20FT", "40FT"]).optional().nullable(),
+  sealNumber: z.string().optional().nullable(),
+  blNumber: z.string().optional().nullable(),
+  portOfLoading: z.string().optional().nullable(),
+  portOfDestination: z.string().optional().nullable(),
+  departureDate: z.string().or(z.date()).optional().nullable(),
+  etaArrival: z.string().or(z.date()).optional().nullable(),
 
   // Air Freight Details
-  airlineName: z.string().optional(),
-  flightNumber: z.string().optional(),
-  awbNumber: z.string().optional(),
-  departureAirport: z.string().optional(),
-  arrivalAirport: z.string().optional(),
-  flightDeparture: z.string().or(z.date()).optional(),
-  etaArrivalAir: z.string().or(z.date()).optional(),
-  cargoWeight: z.coerce.number().optional(),
-  cargoVolume: z.coerce.number().optional(),
+  airlineName: z.string().optional().nullable(),
+  flightNumber: z.string().optional().nullable(),
+  awbNumber: z.string().optional().nullable(),
+  departureAirport: z.string().optional().nullable(),
+  arrivalAirport: z.string().optional().nullable(),
+  flightDeparture: z.string().or(z.date()).optional().nullable(),
+  etaArrivalAir: z.string().or(z.date()).optional().nullable(),
+  cargoWeight: z.coerce.number().optional().nullable(),
+  cargoVolume: z.coerce.number().optional().nullable(),
 
   // Truck Transport Details
-  transportCompany: z.string().optional(),
-  truckNumber: z.string().optional(),
-  driverName: z.string().optional(),
-  driverPhone: z.string().optional(),
-  pickupLocation: z.string().optional(),
-  deliveryLocation: z.string().optional(),
-  dispatchDateRoad: z.string().or(z.date()).optional(),
-  deliveryDateRoad: z.string().or(z.date()).optional(),
+  transportCompany: z.string().optional().nullable(),
+  truckNumber: z.string().optional().nullable(),
+  driverName: z.string().optional().nullable(),
+  driverPhone: z.string().optional().nullable(),
+  pickupLocation: z.string().optional().nullable(),
+  deliveryLocation: z.string().optional().nullable(),
+  dispatchDateRoad: z.string().or(z.date()).optional().nullable(),
+  deliveryDateRoad: z.string().or(z.date()).optional().nullable(),
 
   // Custom Clearance
-  clearingAgent: z.string().optional(),
-  billOfEntry: z.string().optional(),
-  importDuty: z.coerce.number().optional(),
-  gstPaid: z.coerce.number().optional(),
-  customStatus: z.enum(["Pending", "Cleared"]).optional(),
-  clearanceDate: z.string().or(z.date()).optional(),
+  clearingAgent: z.string().optional().nullable(),
+  billOfEntry: z.string().optional().nullable(),
+  importDuty: z.coerce.number().optional().nullable(),
+  gstPaid: z.coerce.number().optional().nullable(),
+  customStatus: z.enum(["Pending", "Cleared"]).optional().nullable(),
+  clearanceDate: z.string().or(z.date()).optional().nullable(),
 });
 
 export const updateLogisticsShipmentPlanSchema = insertLogisticsShipmentPlanSchema.partial();

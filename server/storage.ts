@@ -61,6 +61,8 @@ import {
   invoiceItems,
   purchaseOrders,
   purchaseOrderItems,
+  customerPurchaseOrders,
+  customerPurchaseOrderItems,
   salesOrders,
   salesOrderItems,
   accountsPayables,
@@ -80,6 +82,8 @@ export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type CustomerPurchaseOrder = typeof customerPurchaseOrders.$inferSelect;
+export type InsertCustomerPurchaseOrder = typeof customerPurchaseOrders.$inferInsert;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type InsertSalesOrder = typeof salesOrders.$inferInsert;
 export type LogisticsShipmentPlan = typeof logisticsShipmentPlans.$inferSelect;
@@ -717,6 +721,175 @@ class Storage {
     
     // 4. Finally delete the purchase order itself
     await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+  }
+
+  // Customer Purchase Orders CRUD
+  async getCustomerPurchaseOrders(): Promise<any[]> {
+    const orders = await db
+      .select({
+        id: customerPurchaseOrders.id,
+        poNumber: customerPurchaseOrders.poNumber,
+        customerId: customerPurchaseOrders.customerId,
+        quotationId: customerPurchaseOrders.quotationId,
+        userId: customerPurchaseOrders.userId,
+        orderDate: customerPurchaseOrders.orderDate,
+        deliveryPeriod: customerPurchaseOrders.deliveryPeriod,
+        status: customerPurchaseOrders.status,
+        subtotalAmount: customerPurchaseOrders.subtotalAmount,
+        gstType: customerPurchaseOrders.gstType,
+        gstPercentage: customerPurchaseOrders.gstPercentage,
+        gstAmount: customerPurchaseOrders.gstAmount,
+        totalAmount: customerPurchaseOrders.totalAmount,
+        notes: customerPurchaseOrders.notes,
+        createdAt: customerPurchaseOrders.createdAt,
+        updatedAt: customerPurchaseOrders.updatedAt,
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+        },
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(customerPurchaseOrders)
+      .leftJoin(customers, eq(customerPurchaseOrders.customerId, customers.id))
+      .leftJoin(users, eq(customerPurchaseOrders.userId, users.id))
+      .orderBy(desc(customerPurchaseOrders.createdAt));
+
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await db
+          .select()
+          .from(customerPurchaseOrderItems)
+          .where(eq(customerPurchaseOrderItems.customerPurchaseOrderId, order.id));
+        
+        return { 
+          ...order, 
+          items
+        };
+      })
+    );
+
+    return ordersWithItems;
+  }
+
+  async getCustomerPurchaseOrder(id: string): Promise<any | undefined> {
+    const [order] = await db
+      .select({
+        id: customerPurchaseOrders.id,
+        poNumber: customerPurchaseOrders.poNumber,
+        customerId: customerPurchaseOrders.customerId,
+        quotationId: customerPurchaseOrders.quotationId,
+        userId: customerPurchaseOrders.userId,
+        orderDate: customerPurchaseOrders.orderDate,
+        deliveryPeriod: customerPurchaseOrders.deliveryPeriod,
+        status: customerPurchaseOrders.status,
+        subtotalAmount: customerPurchaseOrders.subtotalAmount,
+        gstType: customerPurchaseOrders.gstType,
+        gstPercentage: customerPurchaseOrders.gstPercentage,
+        gstAmount: customerPurchaseOrders.gstAmount,
+        totalAmount: customerPurchaseOrders.totalAmount,
+        notes: customerPurchaseOrders.notes,
+        createdAt: customerPurchaseOrders.createdAt,
+        updatedAt: customerPurchaseOrders.updatedAt,
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          address: customers.address,
+        },
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(customerPurchaseOrders)
+      .leftJoin(customers, eq(customerPurchaseOrders.customerId, customers.id))
+      .leftJoin(users, eq(customerPurchaseOrders.userId, users.id))
+      .where(eq(customerPurchaseOrders.id, id));
+
+    if (!order) return undefined;
+
+    const items = await db
+      .select()
+      .from(customerPurchaseOrderItems)
+      .where(eq(customerPurchaseOrderItems.customerPurchaseOrderId, order.id));
+    
+    return { ...order, items };
+  }
+
+  async createCustomerPurchaseOrder(
+    insertPO: any
+  ): Promise<any> {
+    try {
+      console.log("💾 [STORAGE] createCustomerPurchaseOrder - Input:", JSON.stringify(insertPO, null, 2));
+      const { items, ...poData } = insertPO;
+      
+      const [row] = await db.insert(customerPurchaseOrders).values(poData).returning();
+      console.log("💾 [STORAGE] createCustomerPurchaseOrder - Row created:", row.id);
+      
+      if (items && items.length > 0) {
+        const itemsToInsert = items.map((item: any) => ({
+          ...item,
+          customerPurchaseOrderId: row.id,
+        }));
+        await db.insert(customerPurchaseOrderItems).values(itemsToInsert);
+        console.log(`💾 [STORAGE] createCustomerPurchaseOrder - ${items.length} items created`);
+      }
+      
+      return await this.getCustomerPurchaseOrder(row.id);
+    } catch (error) {
+      console.error("💥 [STORAGE] createCustomerPurchaseOrder - Error:", error);
+      throw error;
+    }
+  }
+
+  async updateCustomerPurchaseOrder(
+    id: string,
+    update: any
+  ): Promise<any> {
+    try {
+      console.log(`💾 [STORAGE] Updating customer PO ${id}:`, update);
+      const { items, ...poData } = update;
+      
+      if (Object.keys(poData).length > 0) {
+        await db
+          .update(customerPurchaseOrders)
+          .set({ ...poData, updatedAt: new Date() })
+          .where(eq(customerPurchaseOrders.id, id));
+      }
+      
+      if (items) {
+        await db
+          .delete(customerPurchaseOrderItems)
+          .where(eq(customerPurchaseOrderItems.customerPurchaseOrderId, id));
+          
+        if (items.length > 0) {
+          const itemsToInsert = items.map((item: any) => ({
+            ...item,
+            customerPurchaseOrderId: id,
+          }));
+          await db.insert(customerPurchaseOrderItems).values(itemsToInsert);
+        }
+      }
+      
+      return await this.getCustomerPurchaseOrder(id);
+    } catch (error) {
+      console.error("💥 [STORAGE] updateCustomerPurchaseOrder Error:", error);
+      throw error;
+    }
+  }
+
+  async deleteCustomerPurchaseOrder(id: string): Promise<void> {
+    await db.delete(customerPurchaseOrders).where(eq(customerPurchaseOrders.id, id));
   }
 
   // Users
@@ -1696,6 +1869,22 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
       throw new Error(`Lead with ID '${leadId}' not found for conversion.`);
     }
 
+    const existingCustomers = await this.getCustomers();
+    
+    // Check if customer already exists by email, phone, or name
+    const existing = existingCustomers.find(c => 
+      (c.email === lead.email && lead.email !== null && lead.email !== "") || 
+      (c.phone === lead.phone && lead.phone !== null && lead.phone !== "") ||
+      c.name === `${lead.firstName} ${lead.lastName}`
+    );
+
+    if (existing) {
+      if (lead.status !== "converted") {
+        await this.updateLead(leadId, { status: "converted" });
+      }
+      return existing;
+    }
+
     const insertCustomer: InsertCustomer = {
       name: `${lead.firstName} ${lead.lastName}`,
       company: lead.companyName,
@@ -1960,7 +2149,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       .update(fieldVisits)
       .set({
         ...update,
-        status: "in_progress",
+        status: update.status || "in_progress",
       })
       .where(eq(fieldVisits.id, id))
       .returning();
@@ -1975,7 +2164,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       .update(fieldVisits)
       .set({
         ...update,
-        status: "completed",
+        status: "Completed",
       })
       .where(eq(fieldVisits.id, id))
       .returning();
@@ -2002,18 +2191,39 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
   }
 
   // Sales Order Methods
+  async generateSalesOrderNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `SO-${year}-`;
+    
+    const latestOrder = await db
+      .select({ orderNumber: salesOrders.orderNumber })
+      .from(salesOrders)
+      .where(sql`${salesOrders.orderNumber} LIKE ${prefix + "%"}`)
+      .orderBy(desc(salesOrders.orderNumber))
+      .limit(1);
+
+    let nextCount = 1;
+    if (latestOrder.length > 0 && latestOrder[0].orderNumber) {
+      const parts = latestOrder[0].orderNumber.split("-");
+      const lastPart = parts[parts.length - 1];
+      nextCount = parseInt(lastPart) + 1;
+    }
+
+    return `${prefix}${String(nextCount).padStart(3, "0")}`;
+  }
+
   async getSalesOrders(): Promise<any[]> {
     const result = await db
       .select({
         order: salesOrders,
         customer: customers,
         quotation: outboundQuotations,
-        purchaseOrder: purchaseOrders,
+        purchaseOrder: customerPurchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
-      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
+      .leftJoin(customerPurchaseOrders, eq(salesOrders.purchaseOrderId, customerPurchaseOrders.id))
       .orderBy(desc(salesOrders.createdAt));
 
     const ordersWithItems = await Promise.all(
@@ -2042,12 +2252,12 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
         order: salesOrders,
         customer: customers,
         quotation: outboundQuotations,
-        purchaseOrder: purchaseOrders,
+        purchaseOrder: customerPurchaseOrders,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .leftJoin(outboundQuotations, eq(salesOrders.quotationId, outboundQuotations.id))
-      .leftJoin(purchaseOrders, eq(salesOrders.purchaseOrderId, purchaseOrders.id))
+      .leftJoin(customerPurchaseOrders, eq(salesOrders.purchaseOrderId, customerPurchaseOrders.id))
       .where(eq(salesOrders.id, id));
 
     if (!row) return undefined;
@@ -2070,9 +2280,28 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     const { items, ...orderData } = order;
 
     return await db.transaction(async (tx) => {
+      // Robust order number check/generation
+      let finalOrderNumber = orderData.orderNumber;
+      
+      // Check if orderNumber already exists
+      const existing = await tx
+        .select({ id: salesOrders.id })
+        .from(salesOrders)
+        .where(eq(salesOrders.orderNumber, finalOrderNumber))
+        .limit(1);
+
+      if (existing.length > 0) {
+        console.log(`⚠️ [STORAGE] Order number ${finalOrderNumber} already exists. Generating new one.`);
+        finalOrderNumber = await this.generateSalesOrderNumber();
+        console.log(`✅ [STORAGE] New order number generated: ${finalOrderNumber}`);
+      }
+
       const [newOrder] = await tx
         .insert(salesOrders)
-        .values(orderData)
+        .values({
+          ...orderData,
+          orderNumber: finalOrderNumber
+        })
         .returning();
 
       let createdItems = [];
@@ -2083,6 +2312,15 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
             salesOrderId: newOrder.id,
           }))
         ).returning();
+      }
+
+      // Update Purchase Order status if linked
+      if (orderData.purchaseOrderId) {
+        console.log(`🔄 [STORAGE] Updating linked Customer PO ${orderData.purchaseOrderId} status to 'po approved'`);
+        await tx
+          .update(customerPurchaseOrders)
+          .set({ status: "po approved", updatedAt: new Date() })
+          .where(eq(customerPurchaseOrders.id, orderData.purchaseOrderId));
       }
 
       return {
@@ -2152,9 +2390,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
           clientId: updatedOrder.customerId,
           dispatchDate: new Date().toISOString(),
           currentStatus: 'packed',
-          isApproved: true,
-          approvalDate: new Date(),
-          approvalNotes: 'Auto-approved for Sales Order fulfillment',
+          isApproved: false,
           notes: `Auto-created for Sales Order: ${updatedOrder.orderNumber}`,
           createdBy: userId || updatedOrder.userId,
           assignedTo: userId || updatedOrder.userId,
@@ -2524,6 +2760,11 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
   async deleteLogisticsShipment(id: string): Promise<void> {
     try {
       console.log(`📦 [STORAGE] Deleting shipment ${id}`);
+      // Manually handle tables that don't have cascade delete
+      await db.update(logisticsTasks)
+        .set({ shipmentId: null })
+        .where(eq(logisticsTasks.shipmentId, id));
+        
       await db.delete(logisticsShipments).where(eq(logisticsShipments.id, id));
     } catch (error) {
       console.error(`❌ [STORAGE] Error deleting shipment:`, error);

@@ -89,9 +89,23 @@ const buildAttachmentUrl = (path: string) => {
   return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 };
 
-export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?: boolean }) {
-  const [, setLocation] = useLocation();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function InboundQuotations({ 
+  isEmbedded = false,
+  defaultOpen = false,
+  onOpenChange,
+  preFillNumber = null
+}: { 
+  isEmbedded?: boolean,
+  defaultOpen?: boolean,
+  onOpenChange?: (open: boolean) => void,
+  preFillNumber?: string | null
+}) {
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // 1. Basic UI State
+  const [isModalOpen, setIsModalOpen] = useState(defaultOpen);
   const [uploadedFile, setUploadedFile] = useState<{
     uploadURL: string;
     fileName: string;
@@ -104,15 +118,10 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
   const [actionInProgressId, setActionInProgressId] = useState<
     string | number | null
   >(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const [selectedOutboundQuotation, setSelectedOutboundQuotation] = useState<OutboundQuotation | null>(null);
+  const [editableItems, setEditableItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!isModalOpen) {
-      setSelectedOutboundQuotation(null);
-    }
-  }, [isModalOpen]);
-
+  // 2. Data Queries
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["/inbound-quotations"],
   });
@@ -125,8 +134,127 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     queryKey: ["/customers"],
   });
 
-  const [selectedOutboundQuotation, setSelectedOutboundQuotation] = useState<OutboundQuotation | null>(null);
-  const [editableItems, setEditableItems] = useState<any[]>([]);
+  // 3. Form Setup
+  const quotationFormSchema = z.object({
+    senderId: z.string().uuid("Sender ID must be a valid UUID"),
+    quotationNumber: z.string().min(1, "Quotation number is required"),
+    quotationDate: z.string().min(1, "Quotation date is required"), // Keep as string for form handling
+    validUntil: z.string().optional(), // Keep as string for form handling
+    subject: z.string().optional(),
+    totalAmount: z.string().min(1, "Total amount is required"),
+    status: z
+      .enum(["received", "under_review", "approved", "rejected"])
+      .default("received"),
+    notes: z.string().optional(),
+    senderType: z.enum(["client", "vendor", "supplier"]).default("client"),
+    attachmentPath: z.string().nullable().optional(),
+    attachmentName: z.string().nullable().optional(),
+    quotationRef: z.string().optional(),
+  });
+
+  const form = useForm<z.infer<typeof quotationFormSchema>>({
+    resolver: zodResolver(quotationFormSchema),
+    defaultValues: {
+      senderId: "",
+      quotationNumber: "",
+      quotationDate: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0], // 30 days from now
+      subject: "",
+      totalAmount: "",
+      status: "received",
+      senderType: "client",
+      notes: "",
+      quotationRef: "",
+    },
+  });
+
+  // 4. Mutation
+  const createQuotationMutation = useMutation({
+    mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
+      const subtotal = editableItems.reduce((sum, item) => sum + (parseFloat(String(item.displayAmount)) || 0), 0);
+      const gstRate = 0.18;
+      const gstAmount = subtotal * gstRate;
+      const discount = 0;
+      const total = subtotal + gstAmount - discount;
+
+      const formattedData = {
+        ...data,
+        userId: user?.id || "00000000-0000-0000-0000-000000000001",
+        quotationDate: new Date(data.quotationDate),
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        attachmentPath: normalizeAttachmentPath(uploadedFile?.uploadURL),
+        attachmentName: uploadedFile ? uploadedFile.fileName : null,
+        quotationRef: selectedOutboundQuotation?.id || null,
+        quotationItems: editableItems,
+        moldDetails: selectedOutboundQuotation?.moldDetails || [],
+        financialBreakdown: {
+          subtotal,
+          gstRate: 18,
+          gstAmount,
+          discountAmount: discount,
+          totalAmount: total
+        }
+      };
+
+      return apiRequest("POST", "/api/inbound-quotations", formattedData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
+      toast({
+        title: "Success",
+        description: "Inbound quotation uploaded successfully",
+      });
+      setIsModalOpen(false);
+      form.reset();
+      setSelectedOutboundQuotation(null);
+      setUploadedFile(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload quotation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // 5. Handlers & Side Effects
+  const handleOpenChange = (open: boolean) => {
+    setIsModalOpen(open);
+    if (!open) {
+      form.reset();
+      setSelectedOutboundQuotation(null);
+      setUploadedFile(null);
+    }
+    if (onOpenChange) onOpenChange(open);
+  };
+
+  useEffect(() => {
+    setIsModalOpen(defaultOpen);
+  }, [defaultOpen]);
+
+  const [lastPreFilledNumber, setLastPreFilledNumber] = useState<string | null>(null);
+
+  // Handle pre-filling when prop changes
+  useEffect(() => {
+    if (preFillNumber && outboundQuotations.length > 0 && preFillNumber !== lastPreFilledNumber) {
+      const selected = outboundQuotations.find(q => q.quotationNumber === preFillNumber);
+      if (selected) {
+        console.log("🎯 [INBOUND QUOTATIONS] Pre-filling from prop:", selected.quotationNumber);
+        setSelectedOutboundQuotation(selected);
+        form.setValue("quotationNumber", selected.quotationNumber);
+        if (selected.customerId) form.setValue("senderId", selected.customerId);
+        form.setValue("totalAmount", String(selected.totalAmount));
+        form.setValue("senderType", "client");
+        setLastPreFilledNumber(preFillNumber);
+        
+        // CRITICAL: Ensure modal opens when pre-filling from outside
+        setIsModalOpen(true);
+      }
+    }
+  }, [preFillNumber, outboundQuotations, lastPreFilledNumber]);
 
   // Update editable items when selected outbound quotation changes
   useEffect(() => {
@@ -170,100 +298,12 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     }, 0);
   };
 
-  // Define the form schema based on the corrected Zod schema
-  const quotationFormSchema = z.object({
-    senderId: z.string().uuid("Sender ID must be a valid UUID"),
-    quotationNumber: z.string().min(1, "Quotation number is required"),
-    quotationDate: z.string().min(1, "Quotation date is required"), // Keep as string for form handling
-    validUntil: z.string().optional(), // Keep as string for form handling
-    subject: z.string().optional(),
-    totalAmount: z.string().min(1, "Total amount is required"),
-    status: z
-      .enum(["received", "under_review", "approved", "rejected"])
-      .default("received"),
-    notes: z.string().optional(),
-    senderType: z.enum(["client", "vendor", "supplier"]).default("client"),
-    attachmentPath: z.string().nullable().optional(),
-    attachmentName: z.string().nullable().optional(),
-    quotationRef: z.string().optional(),
-  });
-
-  const form = useForm<z.infer<typeof quotationFormSchema>>({
-    resolver: zodResolver(quotationFormSchema),
-    defaultValues: {
-      senderId: "",
-      quotationNumber: "",
-      quotationDate: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0], // 30 days from now
-      subject: "",
-      totalAmount: "",
-      status: "received",
-      senderType: "client",
-      notes: "",
-      quotationRef: "",
-    },
-  });
-
-  const createQuotationMutation = useMutation({
-    mutationFn: (data: z.infer<typeof quotationFormSchema>) => {
-      const subtotal = editableItems.reduce((sum, item) => sum + (parseFloat(String(item.displayAmount)) || 0), 0);
-      const gstRate = 0.18;
-      const gstAmount = subtotal * gstRate;
-      const discount = 0;
-      const total = subtotal + gstAmount - discount;
-
-      const formattedData = {
-        ...data,
-        userId: user?.id || "00000000-0000-0000-0000-000000000001",
-        quotationDate: new Date(data.quotationDate),
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        attachmentPath: normalizeAttachmentPath(uploadedFile?.uploadURL),
-        attachmentName: uploadedFile ? uploadedFile.fileName : null,
-        quotationRef: selectedOutboundQuotation?.id || null,
-        quotationItems: editableItems,
-        moldDetails: selectedOutboundQuotation?.moldDetails || [],
-        financialBreakdown: {
-          subtotal,
-          gstRate: 18,
-          gstAmount,
-          discount,
-          total
-        }
-      };
-
-      return apiRequest("POST", "/inbound-quotations", formattedData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/inbound-quotations"] });
-      toast({
-        title: "Success",
-        description: "Inbound quotation created successfully.",
-      });
-      setIsModalOpen(false);
-      form.reset();
-      setUploadedFile(null);
-    },
-    onError: (error: any) => {
-      console.error("Failed to create quotation:", error);
-      if (error?.data?.details) {
-        toast({
-          title: "Validation Error",
-          description: "Please check the form fields for errors.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description:
-            error?.data?.error ||
-            "Failed to create quotation. Please try again.",
-          variant: "destructive",
-        });
-      }
-    },
-  });
+  useEffect(() => {
+    if (!isModalOpen) {
+      setSelectedOutboundQuotation(null);
+      setLastPreFilledNumber(null); // Reset pre-fill state so it can re-trigger if same PO is clicked again
+    }
+  }, [isModalOpen]);
 
   const onSubmit = (values: z.infer<typeof quotationFormSchema>) => {
     createQuotationMutation.mutate(values);
@@ -547,9 +587,9 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
   ];
 
   return (
-    <div className={isEmbedded ? "" : "p-4"}>
-      {!isEmbedded && (
-        <div className="flex justify-between items-center mb-8">
+    <div className={cn(isEmbedded ? "" : "p-4", "space-y-4")}>
+      <div className="flex justify-between items-center mb-8">
+        {!isEmbedded && (
           <div>
             <h1
               className="text-xl text-black"
@@ -561,14 +601,17 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
               Manage quotations received from clients and vendors
             </p>
           </div>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        )}
+        <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
+          {!isEmbedded && (
             <DialogTrigger asChild>
               <Button data-testid="button-upload-inbound-quotation">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Quotation
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          )}
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Upload received Quotation</DialogTitle>
                 <DialogDescription>
@@ -593,11 +636,13 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                             onValueChange={(value) => {
                               field.onChange(value);
                               const selected = outboundQuotations.find(q => q.quotationNumber === value);
-                              setSelectedOutboundQuotation(selected || null);
                               if (selected) {
+                                setSelectedOutboundQuotation(selected);
                                 if (selected.customerId) form.setValue("senderId", selected.customerId);
                                 form.setValue("totalAmount", String(selected.totalAmount));
                                 form.setValue("senderType", "client");
+                              } else {
+                                setSelectedOutboundQuotation(null);
                               }
                             }}
                             value={field.value}
@@ -653,89 +698,97 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                   {selectedOutboundQuotation && (
                     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                        <h4 className="text-sm  text-blue-900 flex items-center">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Reference Details: {selectedOutboundQuotation.quotationNumber}
-                        </h4>
-                        <Badge variant="outline" className="bg-white text-blue-700 border-blue-200">
-                          Original Quotation
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <LayoutGrid className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-blue-900">
+                              Linked Quotation: {selectedOutboundQuotation.quotationNumber}
+                            </h4>
+                            <p className="text-[10px] text-blue-600">Previewing items and technical specifications</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-white text-blue-700 border-blue-200 hover:bg-white px-3 py-1">
+                          {selectedOutboundQuotation.status?.toUpperCase() || "DRAFT"}
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Part Number</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
-                          </div>
-                        )}
-                        {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Job Card #</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
-                          </div>
-                        )}
-                        {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Project Incharge</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <h5 className="text-[11px]  text-slate-500 ">Quotation Items Implementation</h5>
-                        <div className="rounded border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-xs">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-700">Item Description</th>
-                                <th className="p-2.5 text-center  text-slate-700">Qty</th>
-                                <th className="p-2.5 text-right  text-slate-700">Rate</th>
-                                <th className="p-2.5 text-right  text-slate-700">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
-                                selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
-                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-2.5  text-slate-800">{item.itemName}</td>
-                                    <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
-                                    <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
-                                    <td className="p-2.5 text-right  text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={4} className="p-4 text-center text-gray-500 italic">No items found in reference</td>
-                                </tr>
-                              )}
-                            </tbody>
-                            <tfoot className="bg-blue-50/30  border-t border-slate-200">
-                              <tr>
-                                <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
-                                <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                      
-                      {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
+                      {/* Mold Specifications */}
+                      {selectedOutboundQuotation.moldDetails && Array.isArray(selectedOutboundQuotation.moldDetails) && selectedOutboundQuotation.moldDetails.length > 0 && (
                         <div className="space-y-2">
-                          <h5 className="text-[11px]  text-slate-500 ">Mold & Technical Specifications</h5>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 ">
-                            {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
-                              value && (
-                                <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
-                                  <span className="text-gray-500  capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                  <span className=" text-slate-800">{String(value)}</span>
-                                </div>
-                              )
-                            ))}
+                          <h5 className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Mold Specifications</h5>
+                          <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                            <table className="w-full text-[11px]">
+                              <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                  <th className="p-2 text-left text-slate-600">Part Name</th>
+                                  <th className="p-2 text-left text-slate-600">Mold No</th>
+                                  <th className="p-2 text-left text-slate-600">Material</th>
+                                  <th className="p-2 text-right text-slate-600">Cavity</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {selectedOutboundQuotation.moldDetails.map((mold: any, idx: number) => (
+                                  <tr key={idx}>
+                                    <td className="p-2 text-slate-800 font-medium">{mold.partName}</td>
+                                    <td className="p-2 text-slate-600">{mold.mouldNo}</td>
+                                    <td className="p-2 text-slate-600">{mold.plasticMaterial}</td>
+                                    <td className="p-2 text-right text-slate-900 font-mono">{mold.noOfCavity}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
+
+                      {/* Editable Items Table */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Itemized Table (Define Rates)</h5>
+                          <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-100">
+                            Auto-Syncs Grand Total
+                          </Badge>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                          <table className="w-full text-[11px]">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="p-2 text-left text-slate-600">Description</th>
+                                <th className="p-2 text-center text-slate-600">Qty</th>
+                                <th className="p-2 text-right text-slate-600">Received Rate</th>
+                                <th className="p-2 text-right text-slate-600">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {editableItems.map((item) => (
+                                <tr key={item.id}>
+                                  <td className="p-2">
+                                    <div className="text-slate-800 font-medium">{item.displayDescription}</div>
+                                    <div className="text-[9px] text-slate-400 font-mono italic">Mold: {item.mouldNo || "N/A"}</div>
+                                  </td>
+                                  <td className="p-2 text-center text-slate-600">{item.displayQty}</td>
+                                  <td className="p-2 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <span className="text-slate-400">₹</span>
+                                      <Input 
+                                        type="number" 
+                                        className="h-7 w-20 text-right text-[11px] p-1 border-blue-100 focus:border-blue-300"
+                                        value={item.displayRate}
+                                        onChange={(e) => updateItemRate(item.id, e.target.value)}
+                                      />
+                                    </div>
+                                  </td>
+                                  <td className="p-2 text-right text-slate-900 font-semibold bg-slate-50/50">
+                                    ₹{(parseFloat(String(item.displayAmount)) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -784,95 +837,6 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       )}
                     />
                   </div>
-
-                  {selectedOutboundQuotation && (
-                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                        <h4 className="text-sm  text-blue-900 flex items-center">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Reference Details: {selectedOutboundQuotation.quotationNumber}
-                        </h4>
-                        <Badge variant="outline" className="bg-white text-blue-700 border-blue-200">
-                          Original Quotation
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {selectedOutboundQuotation.partNumber && selectedOutboundQuotation.partNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Part Number</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.partNumber}</p>
-                          </div>
-                        )}
-                        {selectedOutboundQuotation.jobCardNumber && selectedOutboundQuotation.jobCardNumber !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Job Card #</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.jobCardNumber}</p>
-                          </div>
-                        )}
-                        {selectedOutboundQuotation.projectIncharge && selectedOutboundQuotation.projectIncharge !== "N/A" && (
-                          <div className="bg-white p-2 rounded border border-blue-50 ">
-                            <p className="text-xs text-gray-500  ">Project Incharge</p>
-                            <p className="text-xs  text-slate-900">{selectedOutboundQuotation.projectIncharge}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <h5 className="text-[11px]  text-slate-500 ">Quotation Items Implementation</h5>
-                        <div className="rounded border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-xs">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-700">Item Description</th>
-                                <th className="p-2.5 text-center  text-slate-700">Qty</th>
-                                <th className="p-2.5 text-right  text-slate-700">Rate</th>
-                                <th className="p-2.5 text-right  text-slate-700">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Array.isArray(selectedOutboundQuotation.quotationItems) ? (
-                                selectedOutboundQuotation.quotationItems.map((item: any, i: number) => (
-                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-2.5  text-slate-800">{item.itemName}</td>
-                                    <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
-                                    <td className="p-2.5 text-right text-slate-600">₹{parseFloat(item.unitPrice).toLocaleString()}</td>
-                                    <td className="p-2.5 text-right  text-slate-900">₹{parseFloat(item.amount).toLocaleString()}</td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={4} className="p-4 text-center text-gray-500 italic">No items found in reference</td>
-                                </tr>
-                              )}
-                            </tbody>
-                            <tfoot className="bg-blue-50/30  border-t border-slate-200">
-                              <tr>
-                                <td colSpan={3} className="p-2.5 text-right text-slate-700">Quotation Total Value:</td>
-                                <td className="p-2.5 text-right text-blue-700 text-sm">₹{parseFloat(String(selectedOutboundQuotation.totalAmount)).toLocaleString()}</td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                      
-                      {selectedOutboundQuotation.moldDetails && Object.keys(selectedOutboundQuotation.moldDetails).length > 0 && (
-                        <div className="space-y-2">
-                          <h5 className="text-[11px]  text-slate-500 ">Mold & Technical Specifications</h5>
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] bg-white p-3 rounded-lg border border-slate-200 ">
-                            {Object.entries(selectedOutboundQuotation.moldDetails as Record<string, any>).map(([key, value]) => (
-                              value && (
-                                <div key={key} className="flex justify-between border-b border-slate-50 pb-1.5">
-                                  <span className="text-gray-500  capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                  <span className=" text-slate-800">{String(value)}</span>
-                                </div>
-                              )
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -970,7 +934,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        setIsModalOpen(false);
+                        handleOpenChange(false);
                         form.reset();
                         setUploadedFile(null);
                       }}
@@ -992,410 +956,7 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
               </Form>
             </DialogContent>
           </Dialog>
-        </div>
-      )}
-
-      {isEmbedded && (
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          {/* We don't need a DialogTrigger here because QuotationsPage handles it via ref/click */}
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Upload received Quotation</DialogTitle>
-              <DialogDescription>
-                Upload a quotation received from a client or vendor along with
-                quotation details.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-2"
-              >
-                {/* FORM FIELDS SAME AS ABOVE */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="quotationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quotation Number</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            const selected = outboundQuotations.find(q => q.quotationNumber === value);
-                            setSelectedOutboundQuotation(selected || null);
-                            if (selected) {
-                              if (selected.customerId) form.setValue("senderId", selected.customerId);
-                              form.setValue("totalAmount", String(selected.totalAmount));
-                              form.setValue("senderType", "client");
-                            }
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-quotation-number-embedded">
-                              <SelectValue placeholder="Select quotation" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {outboundQuotations.map((q) => (
-                              <SelectItem key={q.id} value={q.quotationNumber}>
-                                {q.quotationNumber}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="senderId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-customer-embedded">
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Select a customer</SelectItem>
-                            {customers.map((customer: Customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="senderType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sender Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-sender-type">
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="client">Client</SelectItem>
-                            <SelectItem value="vendor">Vendor</SelectItem>
-                            <SelectItem value="supplier">Supplier</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="totalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder=""
-                            {...field}
-                            data-testid="input-total-amount"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="quotationDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quotation Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            data-testid="input-quotation-date"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="validUntil"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valid Until</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            data-testid="input-valid-until"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., Q1 Material Supply"
-                          {...field}
-                          data-testid="input-subject"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Any additional notes about this quotation..."
-                          {...field}
-                          data-testid="textarea-notes"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Live Preview of Selected Quotation Details */}
-                {selectedOutboundQuotation && (
-                  <div className="border border-slate-200 bg-slate-50/50 rounded-xl p-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500 ">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-lg">
-                          <LayoutGrid className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs  text-slate-900">
-                            Linked Quotation: {selectedOutboundQuotation.quotationNumber}
-                          </h4>
-                          <p className="text-xs text-gray-500">Previewing items and technical specifications</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="bg-white border-slate-200 text-slate-700   px-3">
-                        {selectedOutboundQuotation.status?.toUpperCase()}
-                      </Badge>
-                    </div>
-
-                    {selectedOutboundQuotation.moldDetails && selectedOutboundQuotation.moldDetails.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h5 className="text-[11px]   text-slate-500">Mold Specifications</h5>
-                          <div className="h-px flex-1 bg-slate-200"></div>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-[11px]">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Part Name</th>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Mold No</th>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Material</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter">Cavity</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {selectedOutboundQuotation.moldDetails.map((mold: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-2.5  text-slate-800">{mold.partName}</td>
-                                  <td className="p-2.5 text-slate-600 font-mono">{mold.mouldNo}</td>
-                                  <td className="p-2.5 text-slate-600">{mold.plasticMaterial}</td>
-                                  <td className="p-2.5 text-right  text-slate-900">{mold.noOfCavity}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {editableItems && editableItems.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 flex-1">
-                            <h5 className="text-[11px]   text-slate-500">Itemized Table (Define Rates)</h5>
-                            <div className="h-px flex-1 bg-slate-200"></div>
-                          </div>
-                          <span className="text-[9px] bg-blue-50 text-blue-600  px-2 py-0.5 rounded border border-blue-100">
-                            Auto-Syncs Grand Total
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden ">
-                          <table className="w-full text-[11px]">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5 text-left  text-slate-600  tracking-tighter">Description</th>
-                                <th className="p-2.5 text-center  text-slate-600  tracking-tighter w-16">Qty</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Received Rate</th>
-                                <th className="p-2.5 text-right  text-slate-600  tracking-tighter w-28">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {editableItems.map((item: any, idx: number) => (
-                                <tr key={item.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-2.5">
-                                    <div className=" text-slate-800 leading-tight">{item.displayDescription}</div>
-                                    <div className="text-[9px] text-gray-500 italic mt-0.5 flex items-center gap-1">
-                                      <span className="w-1 h-1 bg-slate-300 rounded"></span>
-                                      Mold: {item.mouldNo || item.partName || "N/A"}
-                                    </div>
-                                  </td>
-                                  <td className="p-2.5 text-center text-slate-600 font-mono bg-slate-50/30 ">{item.displayQty}</td>
-                                  <td className="p-2.5 text-right">
-                                    <div className="flex items-center justify-end group">
-                                      <span className="text-slate-400  mr-1 group-focus-within:text-primary transition-colors">₹</span>
-                                      <input 
-                                        type="number" 
-                                        value={item.displayRate}
-                                        onChange={(e) => updateItemRate(item.id, e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                          }
-                                        }}
-                                        className="w-20 p-1 border border-slate-200 rounded focus:border-primary focus:ring-2 focus:ring-primary/10 focus:outline-none text-right  text-primary bg-slate-50/50 focus:bg-white transition-all shadow-inner"
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="p-2.5 text-right  text-slate-900 bg-slate-50/30">
-                                    ₹{parseFloat(String(item.displayAmount || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot className="bg-primary text-white divide-y divide-slate-800">
-                              {(() => {
-                                const subtotal = editableItems.reduce((sum, item) => sum + (parseFloat(String(item.displayAmount)) || 0), 0);
-                                const gstRate = 0.18;
-                                const gstAmount = subtotal * gstRate;
-                                const discount = 0;
-                                const total = subtotal + gstAmount - discount;
-                                
-                                return (
-                                  <>
-                                    <tr className="border-t border-slate-700">
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">Subtotal</td>
-                                      <td className="p-2 text-right  text-xs">
-                                        ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest opacity-70">GST (18%)</td>
-                                      <td className="p-2 text-right  text-xs">
-                                        ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td colSpan={3} className="p-2 text-right text-xs   tracking-widest text-red-400 opacity-90">Discount</td>
-                                      <td className="p-2 text-right  text-xs text-red-400">
-                                        -₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                    <tr className="bg-slate-950">
-                                      <td colSpan={3} className="p-3 text-right text-xs font-black  tracking-widest">Total Amount</td>
-                                      <td className="p-3 text-right font-black text-sm">
-                                        ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                      </td>
-                                    </tr>
-                                  </>
-                                );
-                              })()}
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-light mb-3">Upload Quotation File</h4>
-                  <FileUploader
-                    onUploadComplete={handleFileUpload}
-                    acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    className="w-full"
-                  />
-                  {uploadedFile && (
-                    <div
-                      className="mt-2 text-sm text-green-600"
-                      data-testid="text-upload-success"
-                    >
-                      ✓ File uploaded: {uploadedFile.fileName}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      form.reset();
-                      setUploadedFile(null);
-                    }}
-                    data-testid="button-cancel"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createQuotationMutation.isPending}
-                    data-testid="button-create-quotation"
-                  >
-                    {createQuotationMutation.isPending
-                      ? "Creating..."
-                      : "Create Quotation"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      )}
+      </div>
 
       <Card className="">
         {!isEmbedded && (
@@ -1600,3 +1161,4 @@ export default function InboundQuotations({ isEmbedded = false }: { isEmbedded?:
     </div>
   );
 }
+ 

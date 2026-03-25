@@ -8,7 +8,7 @@ import { products } from "@shared/schema"; // make sure this path is correct
 import { stockTransactions } from "@shared/schema";
 import { users } from "@shared/schema"; // adjust the path
 import { suppliers } from "@shared/schema";
-import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables } from "@shared/schema";
+import { materialRequests, materialRequestItems, spareParts, vendorQuotations, insertVendorQuotationSchema, purchaseOrders, purchaseOrderItems, insertPurchaseOrderSchema, accountsPayables, logisticsShipments } from "@shared/schema";
 
 import { v4 as uuidv4 } from "uuid";
 import { sql, eq, lte, desc, and, or, isNull, like } from "drizzle-orm";
@@ -1037,6 +1037,76 @@ export function registerInventoryRoutes(
     }
   });
 
+  // Retry linking for material request items
+  app.post("/api/material-requests/:id/retry-linking", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`🔄 Retrying linking for MR ${id}...`);
+
+      const items = await db.select().from(materialRequestItems).where(eq(materialRequestItems.requestId, id));
+      if (items.length === 0) {
+        return res.status(404).json({ error: "No items found for this material request" });
+      }
+
+      // Fetch all products and spares for in-memory matching
+      const [allProducts, allSpares] = await Promise.all([
+        db.select({ id: products.id, name: products.name, sku: products.sku }).from(products),
+        db.select({ id: spareParts.id, name: spareParts.name, partNumber: spareParts.partNumber }).from(spareParts)
+      ]);
+
+      let linkedCount = 0;
+      for (const item of items) {
+        // Skip if already linked
+        if (item.productId || item.sparePartId) continue;
+
+        const sName = (item.notes || "").trim().toLowerCase();
+        // Try to extract pure name if it's in format "Name (Desc)"
+        const sPureName = sName.includes('(') ? sName.split('(')[0].trim() : sName;
+        
+        console.log(`   Searching for: "${sName}" (Pure: "${sPureName}")`);
+
+        // Try to find product
+        const foundProduct = allProducts.find(p => p.name.toLowerCase() === sName) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sName) ||
+                             allProducts.find(p => p.name.toLowerCase() === sPureName) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sPureName) ||
+                             allProducts.find(p => sName.includes(p.name.toLowerCase()) && p.name.length > 3) ||
+                             allProducts.find(p => p.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+        
+        if (foundProduct) {
+          console.log(`   ✅ Found Product: ${foundProduct.name} (${foundProduct.id})`);
+          await db.update(materialRequestItems)
+            .set({ productId: foundProduct.id })
+            .where(eq(materialRequestItems.id, item.id));
+          linkedCount++;
+        } else {
+          // Try spare parts
+          const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sName) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
+                             allSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sPureName) ||
+                             allSpares.find(sp => sName.includes(sp.name.toLowerCase()) && sp.name.length > 3) ||
+                             allSpares.find(sp => sp.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+          
+          if (foundSpare) {
+            console.log(`   ✅ Found Spare: ${foundSpare.name} (${foundSpare.id})`);
+            await db.update(materialRequestItems)
+              .set({ sparePartId: foundSpare.id })
+              .where(eq(materialRequestItems.id, item.id));
+            linkedCount++;
+          } else {
+             console.log(`   ❌ No match for: "${sName}"`);
+          }
+        }
+      }
+
+      res.json({ message: `Successfully linked ${linkedCount} items`, linkedCount });
+    } catch (e) {
+      console.error("Error retrying material request linking:", e);
+      res.status(500).json({ error: "Failed to retry linking" });
+    }
+  });
+
   // POST create material request
   app.post("/api/material-requests", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -1089,10 +1159,15 @@ export function registerInventoryRoutes(
   app.post("/api/material-requests/:id/generate-rfq", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params;
+      const { vendorIds } = req.body; // Array of supplier IDs
       const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      if (!vendorIds || !Array.isArray(vendorIds) || vendorIds.length === 0) {
+        return res.status(400).json({ error: "No vendors selected" });
       }
 
       // Fetch the material request and its items
@@ -1108,6 +1183,7 @@ export function registerInventoryRoutes(
           sparePartId: materialRequestItems.sparePartId,
           quantity: materialRequestItems.quantity,
           unit: materialRequestItems.unit,
+          notes: materialRequestItems.notes,
           productName: products.name,
           sparePartName: spareParts.name,
         })
@@ -1120,45 +1196,46 @@ export function registerInventoryRoutes(
         return res.status(400).json({ error: "No items found in material request" });
       }
 
-      // Find first available supplier as a placeholder
-      const [firstSupplier] = await db.select().from(suppliers).limit(1);
-      if (!firstSupplier) {
-        return res.status(400).json({ error: "No suppliers found. Please add a supplier first." });
-      }
-
-      const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}`;
-      
       const quotationItems = items.map(item => ({
         id: Math.random().toString(36).substr(2, 9),
-        materialName: item.productName || item.sparePartName || "Unknown Item",
-        type: item.productId ? "Product" : "Spare Part",
+        materialName: item.productName || item.sparePartName || item.notes || "Unknown Item",
+        type: item.productId ? "Product" : (item.sparePartId ? "Spare Part" : "Manual"),
         designQty: Number(item.quantity),
         rate: 0,
         amount: 0,
       }));
 
-      const [newQuotation] = await db.insert(vendorQuotations).values({
-        quotationNumber,
-        quotationDate: new Date(),
-        status: "rfq",
-        senderId: firstSupplier.id,
-        userId: userId,
-        quotationItems: quotationItems,
-        totalAmount: "0",
-        financialBreakdown: {
-          subtotal: 0,
-          gst: 0,
-          total: 0
-        },
-        notes: `Auto-generated from Material Request ${request.requestNumber}`,
-      }).returning();
+      const createdQuotations = [];
+
+      for (const vendorId of vendorIds) {
+        const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        const [newQuotation] = await db.insert(vendorQuotations).values({
+          quotationNumber,
+          quotationDate: new Date(),
+          status: "rfq",
+          senderId: vendorId,
+          userId: userId,
+          quotationItems: quotationItems,
+          totalAmount: "0",
+          financialBreakdown: {
+            subtotal: 0,
+            gst: 0,
+            total: 0
+          },
+          materialRequestId: id,
+          notes: `Auto-generated from Material Request ${request.requestNumber}`,
+        }).returning();
+
+        createdQuotations.push(newQuotation);
+      }
 
       // Update material request status to PROCESSING
       await db.update(materialRequests)
         .set({ status: "PROCESSING", updatedAt: new Date() })
         .where(eq(materialRequests.id, id));
 
-      res.status(201).json(newQuotation);
+      res.status(201).json(createdQuotations[0]);
     } catch (e) {
       console.error("Error generating RFQ:", e);
       res.status(500).json({ error: "Failed to generate RFQ" });
@@ -1430,7 +1507,11 @@ export function registerInventoryRoutes(
   app.get("/api/purchase-orders", requireAuth, async (_req, res) => {
     try {
       const rows = await db
-        .select()
+        .select({
+          ...purchaseOrders,
+          hasInvoice: sql`EXISTS (SELECT 1 FROM accounts_payables WHERE "poId" = ${purchaseOrders.id})`,
+          hasShipment: sql`EXISTS (SELECT 1 FROM logistics_shipments WHERE "poNumber" = ${purchaseOrders.poNumber})`
+        })
         .from(purchaseOrders)
         .orderBy(sql`${purchaseOrders.createdAt} DESC`);
       res.json(rows);
@@ -1445,7 +1526,11 @@ export function registerInventoryRoutes(
     try {
       const { id } = req.params;
       const [order] = await db
-        .select()
+        .select({
+          ...purchaseOrders,
+          hasInvoice: sql`EXISTS (SELECT 1 FROM accounts_payables WHERE "poId" = ${purchaseOrders.id})`,
+          hasShipment: sql`EXISTS (SELECT 1 FROM logistics_shipments WHERE "poNumber" = ${purchaseOrders.poNumber})`
+        })
         .from(purchaseOrders)
         .where(eq(purchaseOrders.id, id));
 
@@ -1642,7 +1727,7 @@ export function registerInventoryRoutes(
         poId: order.id,
         amountDue: order.totalAmount,
         amountPaid: "0",
-        dueDate: order.expectedDelivery ? new Date() : new Date(), // Use delivery date or current
+        dueDate: new Date(), // Use current as default
         status: "pending",
         notes: `Auto-generated from PO: ${order.poNumber}`,
       });
@@ -1657,6 +1742,56 @@ export function registerInventoryRoutes(
     } catch (error) {
       console.error("Error sending to accounts:", error);
       res.status(500).json({ error: "Failed to send to accounts" });
+    }
+  });
+
+  // POST - create shipment for purchase order
+  app.post("/api/purchase-orders/:id/create-shipment", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      const [order] = await db
+        .select()
+        .from(purchaseOrders)
+        .where(eq(purchaseOrders.id, id));
+
+      if (!order) {
+        return res.status(404).json({ error: "Purchase order not found" });
+      }
+
+      // Check if already has a shipment
+      const [existing] = await db
+        .select()
+        .from(logisticsShipments)
+        .where(eq(logisticsShipments.poNumber, order.poNumber));
+
+      if (existing) {
+        return res.status(400).json({ error: "Shipment already exists for this PO" });
+      }
+
+      // Create shipment record
+      const [newShipment] = await db.insert(logisticsShipments).values({
+        consignmentNumber: `SHIP-${Math.floor(100000 + Math.random() * 900000)}`,
+        poNumber: order.poNumber,
+        source: "Vendor Warehouse",
+        destination: "Main Warehouse",
+        vendorId: order.supplierId,
+        currentStatus: "created",
+        createdBy: req.user?.id,
+        items: [], // Could be populated from PO items
+        notes: `Auto-generated from PO: ${order.poNumber}`,
+      }).returning();
+
+      // Update PO status
+      await db
+        .update(purchaseOrders)
+        .set({ status: "shipped" })
+        .where(eq(purchaseOrders.id, id));
+
+      res.json({ success: true, shipment: newShipment });
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      res.status(500).json({ error: "Failed to create shipment" });
     }
   });
 

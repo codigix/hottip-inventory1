@@ -57,8 +57,8 @@ export default function DeliveryChallans() {
       const totalAmount = importDuty + gstPaid;
 
       // In a real scenario, we'd need a valid supplier ID from the database
-      // For now, use the vendorId if present, or a fallback for demo
-      const supplierId = shipment.vendorId || shipment.supplierId || "00000000-0000-0000-0000-000000000001";
+      // Prioritize vendorId, then fallback to clientId for customer-related costs
+      const supplierId = shipment.vendorId || shipment.clientId || shipment.supplierId || "00000000-0000-0000-0000-000000000001";
 
       return apiRequest("POST", "/accounts-payables", {
         supplierId,

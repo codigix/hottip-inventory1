@@ -98,14 +98,21 @@ export default function ShipmentOrders() {
     mutationFn: async ({ id, isApproved, notes }: { id: string, isApproved: boolean, notes: string }) => {
       return apiRequest("POST", `/logistics/shipments/${id}/approve`, { isApproved, notes });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast({
         title: "Success",
-        description: "Shipment approval status updated.",
+        description: variables.isApproved ? "Shipment approved successfully." : "Shipment rejected.",
       });
       setIsApproveDialogOpen(false);
       setApprovalNotes("");
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
+      
+      // If approved, open planning dialog automatically
+      if (variables.isApproved) {
+        setTimeout(() => {
+          setIsPlanningDialogOpen(true);
+        }, 100);
+      }
     },
   });
 
@@ -120,8 +127,8 @@ export default function ShipmentOrders() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking
+      setLocation("/logistics/shipment-tracking");
     },
   });
 
@@ -136,8 +143,8 @@ export default function ShipmentOrders() {
       });
       setIsPlanningDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/logistics/shipments"] });
-      // Redirect to Vendor Tracking
-      setLocation("/logistics/vendor-tracking");
+      // Redirect to Shipment Tracking
+      setLocation("/logistics/shipment-tracking");
     },
   });
 
@@ -333,7 +340,7 @@ export default function ShipmentOrders() {
       header: <div className="text-right">Actions</div>,
       cell: (shipment) => (
         <div className="flex justify-end space-x-1">
-          {(!shipment.isApproved || ['created', 'packed', 'planned'].includes(shipment.currentStatus?.toLowerCase())) && (
+          {shipment.isApproved !== true && (
             <Button 
               variant="ghost" 
               size="icon" 
@@ -345,6 +352,20 @@ export default function ShipmentOrders() {
               title="Approve Shipment"
             >
               <CheckCircle2 className="h-4 w-4" />
+            </Button>
+          )}
+          {shipment.isApproved === true && ['created', 'packed', 'planned'].includes(shipment.currentStatus?.toLowerCase()) && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+              onClick={() => {
+                setSelectedShipment(shipment);
+                setIsPlanningDialogOpen(true);
+              }}
+              title="Plan Shipment"
+            >
+              <Route className="h-4 w-4" />
             </Button>
           )}
           <Button 
@@ -1071,10 +1092,33 @@ export default function ShipmentOrders() {
             </Button>
             <Button 
               onClick={() => {
+                // Sanitize shipmentPlan to remove nulls or empty strings for optional fields
+                // and remove extra fields that shouldn't be sent to backend
+                const sanitizedPlan = Object.entries(shipmentPlan).reduce((acc, [key, value]) => {
+                  // Keep shipmentId and planId as they are required
+                  if (key === "shipmentId" || key === "planId") {
+                    acc[key] = value;
+                    return acc;
+                  }
+
+                  // Remove internal/backend fields
+                  if (key === "id" || key === "createdAt" || key === "updatedAt" || key === "shipment" || key === "vendor" || key === "client") {
+                    return acc;
+                  }
+
+                  // Remove null or empty string values for optional fields
+                  if (value === null || value === "") {
+                    return acc;
+                  }
+
+                  acc[key] = value;
+                  return acc;
+                }, {} as any);
+
                 if (shipmentPlan.id) {
-                  updatePlanMutation.mutate({ id: shipmentPlan.id, plan: shipmentPlan });
+                  updatePlanMutation.mutate({ id: shipmentPlan.id, plan: sanitizedPlan });
                 } else {
-                  createPlanMutation.mutate(shipmentPlan);
+                  createPlanMutation.mutate(sanitizedPlan);
                 }
               }}
               disabled={createPlanMutation.isPending || updatePlanMutation.isPending}

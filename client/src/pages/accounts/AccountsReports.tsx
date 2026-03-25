@@ -85,6 +85,7 @@ import {
   Activity,
   Target,
   TrendingDown,
+  Trash2,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -730,7 +731,7 @@ export default function AccountsReports() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <div
-                className="text-2xl "
+                className="text-2xl font-light"
                 data-testid="text-reports-generated"
               >
                 {reportsThisMonth}
@@ -749,7 +750,7 @@ export default function AccountsReports() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl "
+              className="text-2xl font-light"
               data-testid="text-total-downloads"
             >
               {totalDownloads}
@@ -771,7 +772,7 @@ export default function AccountsReports() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl  ${
+              className={`text-2xl font-light ${
                 collectionRate >= 85 ? "text-green-600" : "text-orange-600"
               }`}
               data-testid="text-collection-rate"
@@ -793,7 +794,7 @@ export default function AccountsReports() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl  text-blue-600"
+              className="text-2xl font-light text-blue-600"
               data-testid="text-gst-reports"
             >
               {gstReportsCurrent}
@@ -803,56 +804,55 @@ export default function AccountsReports() {
         </Card>
       </div>
 
-      {/* Report Types Quick Access */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileBarChart className="h-5 w-5" />
-            Quick Report Generation
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reportTypes.map((type) => (
-              <Card
-                key={type.id}
-                className="border-2 hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => {
-                  generateForm.setValue("reportType", type.id as any);
-                  setIsGenerateOpen(true);
-                }}
-                data-testid={`card-report-${type.id}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <type.icon className={`h-8 w-8 ${type.color} mt-1`} />
-                    <div>
-                      <h3 className=" text-sm">{type.name}</h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {type.description}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Quick Report Generation */}
+      <div className="space-y-4 pt-4">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-gray-400" />
+          <h2 className="text-xl font-light">Quick Report Generation</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {reportTypes.map((type) => (
+            <Card
+              key={type.id}
+              className="cursor-pointer hover:border-primary/50 transition-colors group"
+              onClick={() => {
+                generateForm.setValue("reportType", type.id as any);
+                setIsGenerateOpen(true);
+              }}
+              data-testid={`card-report-${type.id}`}
+            >
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className={`p-3 rounded-lg bg-gray-50 group-hover:bg-primary/5`}>
+                  <type.icon className={`h-8 w-8 ${type.color}`} strokeWidth={1.5} />
+                </div>
+                <div>
+                  <h3 className="font-medium text-lg">{type.name}</h3>
+                  <p className="text-sm text-gray-500 line-clamp-1">
+                    {type.description}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
 
       {/* Reports List */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>Generated Reports</CardTitle>
+            <CardTitle className="flex items-center gap-2 font-light">
+              <FileText className="h-5 w-5 text-gray-400" />
+              Generated Reports
+            </CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   placeholder="Search reports..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
+                  className="pl-10 w-full sm:w-64 bg-gray-50/50 border-gray-200"
                   data-testid="input-search-reports"
                 />
               </div>
@@ -861,10 +861,10 @@ export default function AccountsReports() {
                 onValueChange={setReportTypeFilter}
               >
                 <SelectTrigger
-                  className="w-full sm:w-48"
+                  className="w-full sm:w-48 bg-gray-50/50 border-gray-200"
                   data-testid="select-filter-type"
                 >
-                  <SelectValue placeholder="Filter by type" />
+                  <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
@@ -879,8 +879,8 @@ export default function AccountsReports() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="all" data-testid="tab-all">
                 All Reports
               </TabsTrigger>
@@ -896,7 +896,7 @@ export default function AccountsReports() {
             </TabsList>
 
             {["all", "recent", "completed", "pending"].map((tab) => (
-              <TabsContent key={tab} value={tab}>
+              <TabsContent key={tab} value={tab} className="mt-0">
                 {reportsLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -910,12 +910,14 @@ export default function AccountsReports() {
                     ))}
                   </div>
                 ) : filteredReports.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                    <h3 className="text-lg  mb-2">
+                  <div className="text-center py-20 flex flex-col items-center justify-center">
+                    <div className="bg-gray-50 p-6 rounded-full mb-4">
+                      <FileText className="h-12 w-12 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">
                       No Reports Found
                     </h3>
-                    <p className="text-gray-500 mb-4">
+                    <p className="text-gray-500 max-w-xs mx-auto mb-6">
                       {searchTerm
                         ? "No reports match your search criteria."
                         : "Generate your first financial report to get started."}
@@ -923,6 +925,7 @@ export default function AccountsReports() {
                     {!searchTerm && (
                       <Button
                         onClick={() => setIsGenerateOpen(true)}
+                        variant="outline"
                         data-testid="button-generate-first-report"
                       >
                         <Plus className="mr-2 h-4 w-4" />
@@ -931,15 +934,15 @@ export default function AccountsReports() {
                     )}
                   </div>
                 ) : (
-                  <div className="border">
+                  <div className="rounded-md border">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Report Type</TableHead>
-                          <TableHead>Date Range</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Generated</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                        <TableRow className="bg-gray-50/50">
+                          <TableHead className="font-medium">Report Type</TableHead>
+                          <TableHead className="font-medium">Date Range</TableHead>
+                          <TableHead className="font-medium">Status</TableHead>
+                          <TableHead className="font-medium">Generated</TableHead>
+                          <TableHead className="text-right font-medium pr-6">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -950,24 +953,26 @@ export default function AccountsReports() {
                           return (
                             <TableRow
                               key={report.id}
+                              className="hover:bg-gray-50/50 transition-colors"
                               data-testid={`row-report-${report.id}`}
                             >
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {reportType && (
-                                    <reportType.icon
-                                      className={`h-4 w-4 ${reportType.color}`}
-                                    />
-                                  )}
-                                  <span className="font-light">
+                              <TableCell className="py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md bg-gray-50`}>
+                                    {reportType && (
+                                      <reportType.icon
+                                        className={`h-4 w-4 ${reportType.color}`}
+                                      />
+                                    )}
+                                  </div>
+                                  <span className="font-light text-gray-900">
                                     {reportType?.name || report.reportType}
                                   </span>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="text-sm">
-                                  {format(new Date(report.startDate), "MMM dd")}{" "}
-                                  -{" "}
+                                <div className="text-sm text-gray-600">
+                                  {format(new Date(report.startDate), "MMM dd")} -{" "}
                                   {format(
                                     new Date(report.endDate),
                                     "MMM dd, yyyy"
@@ -981,12 +986,17 @@ export default function AccountsReports() {
                                       ? "default"
                                       : "secondary"
                                   }
+                                  className={`rounded-full px-3 font-normal ${
+                                    report.status === "generated"
+                                      ? "bg-green-50 text-green-700 hover:bg-green-50 border-green-200"
+                                      : "bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-200"
+                                  }`}
                                   data-testid={`badge-status-${report.id}`}
                                 >
                                   {report.status === "generated" ? (
-                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                    <CheckCircle2 className="mr-1.5 h-3 w-3" />
                                   ) : (
-                                    <Clock className="mr-1 h-3 w-3" />
+                                    <Clock className="mr-1.5 h-3 w-3" />
                                   )}
                                   {report.status === "generated"
                                     ? "Ready"
@@ -994,55 +1004,46 @@ export default function AccountsReports() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-gray-500 font-light">
                                   {format(
                                     new Date(report.generatedAt),
                                     "MMM dd, yyyy h:mm a"
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center gap-2 justify-end">
+                              <TableCell className="text-right pr-6">
+                                <div className="flex items-center gap-1 justify-end">
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => handleView(report)}
+                                    className="h-8 w-8 text-gray-400 hover:text-primary"
                                     data-testid={`button-view-${report.id}`}
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                   {report.status === "generated" && (
-                                    <>
-                                      {exportFormats.map((format, index) => (
-                                        <Button
-                                          key={format.value}
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() =>
-                                            handleExport(
-                                              report.id,
-                                              format.value
-                                            )
-                                          }
-                                          disabled={
-                                            exportReportMutation.isPending
-                                          }
-                                          data-testid={`button-export-${format.value}-${report.id}`}
-                                          data-tour={index === 0 ? "accounts-reports-export-button" : undefined}
-                                        >
-                                          <format.icon className="h-4 w-4" />
-                                        </Button>
-                                      ))}
-                                    </>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        handleExport(report.id, "pdf")
+                                      }
+                                      disabled={exportReportMutation.isPending}
+                                      className="h-8 w-8 text-gray-400 hover:text-primary"
+                                      data-testid={`button-export-pdf-${report.id}`}
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
                                   )}
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => handleDeleteClick(report)}
-                                    className="text-destructive hover:text-destructive"
+                                    className="h-8 w-8 text-gray-400 hover:text-destructive"
                                     data-testid={`button-delete-${report.id}`}
                                   >
-                                    <FileText className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </TableCell>

@@ -638,7 +638,9 @@ export const createFieldVisit = async (
       await storage.createVisitPurposeLog({
         visitId: visit.id,
         purpose: visit.purpose,
-        status: "DONE"
+        status: "DONE",
+        visitDate: visit.plannedDate,
+        visitTime: visit.plannedStartTime || visit.plannedDate
       });
     }
 
@@ -715,7 +717,9 @@ export const updateFieldVisit = async (
       await storage.createVisitPurposeLog({
         visitId: visit.id,
         purpose: visitData.purpose,
-        status: "DONE"
+        status: "DONE",
+        visitDate: visit.plannedDate,
+        visitTime: visit.plannedStartTime || visit.plannedDate
       });
     }
 
@@ -796,29 +800,26 @@ export const checkInFieldVisit = async (
 
     const checkInData = fieldVisitCheckInSchema.parse(req.body);
 
-    if (existingVisit.actualStartTime) {
-      res.status(400).json({ error: "Already checked in to this field visit" });
-      return;
-    }
-
-    if (
-      existingVisit.assignedTo !== req.user!.id &&
-      req.user!.role !== "admin" &&
-      req.user!.role !== "manager"
-    ) {
-      res
-        .status(403)
-        .json({ error: "You are not assigned to this field visit" });
-      return;
-    }
-
     const visit = await storage.checkInFieldVisit(req.params.id, {
       checkInLatitude: checkInData.latitude,
       checkInLongitude: checkInData.longitude,
       checkInLocation: checkInData.location,
       checkInPhotoPath: checkInData.photoPath,
-      actualStartTime: new Date(),
+      actualStartTime: existingVisit.actualStartTime || new Date(),
+      status: existingVisit.status?.toLowerCase() === "completed" ? "Completed" : "in_progress",
+      purpose: checkInData.purpose || existingVisit.purpose,
     });
+
+    if (checkInData.purpose) {
+      await storage.createVisitPurposeLog({
+        visitId: visit.id,
+        purpose: checkInData.purpose,
+        visitDate: new Date(),
+        visitTime: new Date(),
+        status: "DONE",
+        notes: checkInData.notes || "",
+      });
+    }
 
     await storage.createActivity({
       userId: req.user!.id,
@@ -848,8 +849,27 @@ export const getVisitPurposeLogs = async (
 ): Promise<void> => {
   try {
     const logs = await storage.getVisitPurposeLogs(req.params.id);
+    
+    // If no logs found in the table, synthesize the initial log from the visit's current purpose
+    if (logs.length === 0) {
+      const visit = await storage.getFieldVisit(req.params.id);
+      if (visit && visit.purpose) {
+        // Return a virtual log entry for existing visits that don't have history records yet
+        return res.json([{
+          id: "virtual-initial-" + visit.id,
+          visitId: visit.id,
+          purpose: visit.purpose,
+          visitDate: visit.plannedDate,
+          visitTime: visit.plannedStartTime || visit.plannedDate,
+          status: "DONE",
+          createdAt: visit.createdAt || new Date()
+        }]);
+      }
+    }
+    
     res.json(logs);
   } catch (error) {
+    console.error("Error fetching purpose logs:", error);
     res.status(500).json({ error: "Failed to fetch visit purpose logs" });
   }
 };

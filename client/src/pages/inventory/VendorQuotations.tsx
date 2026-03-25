@@ -189,6 +189,20 @@ export default function VendorQuotations() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          {q.status === 'approved' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+              title="Create PO"
+              onClick={() => {
+                localStorage.setItem("create_po_from_quote", q.id);
+                setLocation("/inventory/vendor-po");
+              }}
+            >
+              <Package className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -270,7 +284,7 @@ export default function VendorQuotations() {
     { title: "Under Review", status: "under_review", icon: Clock },
     { title: "Responded", status: "responded", icon: RefreshCw },
     { title: "Approved", status: "approved", icon: CheckCircle2 },
-    { title: "Received", status: "received", icon: FileUp },
+    { title: "Receive", status: "received", icon: FileUp },
     { title: "Total Volume", status: "ALL", icon: FileText },
   ];
 
@@ -300,6 +314,15 @@ export default function VendorQuotations() {
       header: "Actions",
       cell: (q: any) => (
         <div className="flex items-center gap-1 justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" 
+            title="Log Received Quote"
+            onClick={() => handleLogReceivedQuote(q)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleViewDetails(q)}>
             <Eye className="h-4 w-4 text-slate-400" />
           </Button>
@@ -365,7 +388,7 @@ export default function VendorQuotations() {
               statusColors[q.status] || "bg-slate-100 text-slate-600"
             )}
           >
-            {q.status}
+            {q.status === 'received' ? 'receive' : q.status}
           </Badge>
         );
       },
@@ -399,11 +422,14 @@ export default function VendorQuotations() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-xs    border-blue-100 text-blue-700 hover:bg-blue-50"
-              onClick={() => createShipmentMutation.mutate(q)}
+              className="h-8 text-xs border-blue-100 text-blue-700 hover:bg-blue-50"
+              onClick={() => {
+                localStorage.setItem("create_po_from_quote", q.id);
+                setLocation("/inventory/vendor-po");
+              }}
             >
-              <Truck className="h-3.5 w-3.5 mr-1.5" />
-              Logistics
+              <Package className="h-3.5 w-3.5 mr-1.5" />
+              Create PO
             </Button>
           )}
         </div>
@@ -560,7 +586,7 @@ export default function VendorQuotations() {
           statusColors[status] || "bg-slate-100 text-slate-600"
         )}
       >
-        {status?.replace("_", " ") || "RECEIVED"}
+        {status === 'received' ? 'receive' : (status?.replace("_", " ") || "RECEIVED")}
       </Badge>
     );
   };
@@ -578,6 +604,21 @@ export default function VendorQuotations() {
       deleteQuotationMutation.mutate(id);
     }
   }
+
+  const handleLogReceivedQuote = (q: any) => {
+    resetForm();
+    setRfqVendor(q.senderId);
+    if (q.quotationItems && Array.isArray(q.quotationItems)) {
+      setRfqItems(q.quotationItems.map((item: any) => ({
+        ...item,
+        id: Math.random().toString(36).substr(2, 9),
+        rate: item.rate || 0,
+        amount: item.amount || 0
+      })));
+    }
+    setRfqProject(q.quotationNumber);
+    setIsReceivedQuoteDialogOpen(true);
+  };
 
   return (
     <div className="p-2 space-y-3 bg-slate-50 min-h-screen animate-in fade-in duration-500">
@@ -610,7 +651,7 @@ export default function VendorQuotations() {
               setIsReceivedQuoteDialogOpen(true);
             }}
           >
-            <FileUp className="mr-2 h-4 w-4 text-slate-400" /> Log Received Quote
+            <Plus className="mr-2 h-4 w-4 text-slate-400" /> Add Received Quotation
           </Button>
         </div>
       </div>
@@ -703,20 +744,17 @@ export default function VendorQuotations() {
 
       {/* Received Quote Dialog */}
       <Dialog open={isReceivedQuoteDialogOpen} onOpenChange={setIsReceivedQuoteDialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
-          <DialogHeader className="px-5 py-3 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl flex flex-col max-h-[95vh]">
+          <DialogHeader className="px-5 py-3 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0 shrink-0">
             <div className="space-y-0.5">
               <DialogTitle className="text-base  text-slate-800">Add Received Quotation</DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
                 Log a quotation received from a vendor
               </DialogDescription>
             </div>
-            {/* <Button variant="ghost" size="icon" className="h-8 w-8 rounded" onClick={() => setIsReceivedQuoteDialogOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button> */}
           </DialogHeader>
           
-          <div className="p-2 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div className="p-4 space-y-5 overflow-y-auto flex-1">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-xs  text-slate-700">MR to Load Requirements</label>
@@ -904,12 +942,12 @@ export default function VendorQuotations() {
             </div>
           </div>
 
-          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2">
+          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2 shrink-0">
             <Button variant="outline" onClick={() => setIsReceivedQuoteDialogOpen(false)} className="border-slate-200 text-slate-600 px-4 h-9 text-sm">
               Cancel
             </Button>
             <Button onClick={handleCreateReceivedQuote} className="bg-primary hover:bg-primary text-white px-6 h-9 text-sm  shadow-sm">
-              Log Quotation
+              <Plus className="mr-2 h-4 w-4" /> Add Received Quotation
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -917,20 +955,17 @@ export default function VendorQuotations() {
 
       {/* RFQ Dialog */}
       <Dialog open={isRFQDialogOpen} onOpenChange={setIsRFQDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none  rounded-xl">
-          <DialogHeader className="p-2 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none  rounded-xl flex flex-col max-h-[95vh]">
+          <DialogHeader className="p-4 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0 shrink-0">
             <div className="space-y-0.5">
               <DialogTitle className="text-base  text-slate-800">Create Quote Request (RFQ)</DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
                 Send a new request for quotation to a vendor
               </DialogDescription>
             </div>
-            {/* <Button variant="ghost" size="icon" className="h-8 w-8 rounded" onClick={() => setIsRFQDialogOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button> */}
           </DialogHeader>
           
-          <div className="p-2 max-h-[75vh] overflow-y-auto">
+          <div className="p-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <div className="space-y-1.5">
                 <label className="text-xs  text-slate-700">MR to Load Requirements</label>
@@ -1087,7 +1122,7 @@ export default function VendorQuotations() {
             </div>
           </div>
 
-          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2">
+          <DialogFooter className="px-5 py-3 bg-slate-50 border-t flex flex-row justify-end space-x-2 shrink-0">
             <Button variant="outline" onClick={() => setIsRFQDialogOpen(false)} className="border-slate-200 text-slate-600 p-2 text-xs">
               Cancel
             </Button>
@@ -1099,8 +1134,8 @@ export default function VendorQuotations() {
       </Dialog>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl">
-          <DialogHeader className="px-6 py-4 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-xl flex flex-col max-h-[95vh]">
+          <DialogHeader className="px-6 py-4 bg-slate-50 border-b flex flex-row items-center justify-between space-y-0 shrink-0">
             <div className="space-y-1">
               <DialogTitle className="text-xl  text-slate-800">Quotation Details</DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
@@ -1112,7 +1147,7 @@ export default function VendorQuotations() {
             </Button>
           </DialogHeader>
 
-          <div className="p-6 space-y-3 max-h-[80vh] overflow-y-auto">
+          <div className="p-6 space-y-3 overflow-y-auto flex-1">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <h3 className="text-sm  text-slate-400  tracking-widest">Quotation Information</h3>
@@ -1215,7 +1250,7 @@ export default function VendorQuotations() {
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex flex-row justify-end space-x-3">
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex flex-row justify-end space-x-3 shrink-0">
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="border-slate-200 text-slate-600   text-xs tracking-widest">
               Close
             </Button>

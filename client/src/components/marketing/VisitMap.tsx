@@ -366,7 +366,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                 View Details
               </Button>
               
-              {selectedVisit.status === 'scheduled' && !selectedVisit.actualStartTime && (
+              {selectedVisit.status?.toLowerCase() === 'scheduled' && !selectedVisit.actualStartTime && (
                 <Button
                   size="sm"
                   onClick={() => onCheckIn(selectedVisit)}
@@ -377,7 +377,7 @@ export default function VisitMap({ visits, isLoading, onVisitSelect, onCheckIn, 
                 </Button>
               )}
               
-              {(selectedVisit.status === 'in_progress' || selectedVisit.status === 'upcoming' || selectedVisit.status === 'Upcoming') && selectedVisit.actualStartTime && !selectedVisit.actualEndTime && (
+              {['in_progress', 'upcoming'].includes(selectedVisit.status?.toLowerCase() || '') && selectedVisit.actualStartTime && !selectedVisit.actualEndTime && (
                 <Button
                   size="sm"
                   onClick={() => onCheckOut(selectedVisit)}

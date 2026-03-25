@@ -516,6 +516,10 @@ export function registerAccountsRoutes(app: Express) {
             id: suppliers.id,
             name: suppliers.name,
           },
+          customer: {
+            id: customers.id,
+            name: customers.name,
+          },
           user: {
             id: users.id,
             firstName: users.firstName,
@@ -533,6 +537,7 @@ export function registerAccountsRoutes(app: Express) {
         })
         .from(accountsPayables)
         .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+        .leftJoin(customers, eq(accountsPayables.supplierId, customers.id))
         .leftJoin(users, eq(accountsPayables.supplierId, users.id))
         .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
         .leftJoin(
@@ -699,14 +704,21 @@ export function registerAccountsRoutes(app: Express) {
           createdAt: accountsPayables.createdAt,
           paymentMode: accountsPayables.paymentMode,
           status: accountsPayables.status,
-          partyName: suppliers.name,
-          partyType: sql`'Supplier'`,
+          partyName: sql`COALESCE(${suppliers.name}, ${customers.name}, ${users.firstName} || ' ' || ${users.lastName})`,
+          partyType: sql`CASE 
+            WHEN ${suppliers.id} IS NOT NULL THEN 'Supplier' 
+            WHEN ${customers.id} IS NOT NULL THEN 'Customer'
+            WHEN ${users.id} IS NOT NULL THEN 'User'
+            ELSE 'Unknown'
+          END`,
           type: sql`'Payable'`,
           refType: sql`CASE WHEN ${accountsPayables.poId} IS NOT NULL THEN 'PO' ELSE 'Quotation' END`,
           refNumber: sql`COALESCE(${purchaseOrders.poNumber}, ${inboundQuotations.quotationNumber})`,
         })
         .from(accountsPayables)
         .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+        .leftJoin(customers, eq(accountsPayables.supplierId, customers.id))
+        .leftJoin(users, eq(accountsPayables.supplierId, users.id))
         .leftJoin(purchaseOrders, eq(accountsPayables.poId, purchaseOrders.id))
         .leftJoin(inboundQuotations, eq(accountsPayables.inboundQuotationId, inboundQuotations.id))
         .where(sql`${accountsPayables.amountPaid} > 0 OR ${accountsPayables.status} = 'paid'`);

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,7 +39,6 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   sku: z.string().min(1, "SKU is required"),
   category: z.string().min(1, "Category is required"),
-  price: z.string().min(1, "Price is required"),
   costPrice: z.string().min(1, "Cost price is required"),
   stock: z.number().min(0, "Stock cannot be negative"),
   lowStockThreshold: z.number().min(0, "Threshold cannot be negative"),
@@ -66,13 +66,52 @@ export default function InventoryDashboard() {
       description: "",
       sku: "",
       category: "",
-      price: "",
       costPrice: "",
       stock: 0,
       lowStockThreshold: 10,
       unit: "pcs",
     },
   });
+
+  const createProductMutation = useMutation({
+    mutationFn: async (data: ProductForm) => {
+      return await apiRequest("POST", "/api/products", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setIsAddDialogOpen(false);
+      form.reset();
+      toast({ title: "Success", description: "Product created successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create product", variant: "destructive" });
+    },
+  });
+
+  const onAddProductSubmit = (data: ProductForm) => {
+    createProductMutation.mutate(data);
+  };
+
+  const productName = form.watch("name");
+  useEffect(() => {
+    const currentSku = form.getValues("sku");
+    if (isAddDialogOpen && productName && !currentSku && products) {
+      let nextNumber = 1;
+      if (products.length > 0) {
+        const skuNumbers = products
+          .map((p: any) => {
+            const match = p.sku?.match(/SKU-(\d+)/i);
+            return match ? parseInt(match[1]) : 0;
+          })
+          .filter((n: number) => n > 0);
+        if (skuNumbers.length > 0) {
+          nextNumber = Math.max(...skuNumbers) + 1;
+        }
+      }
+      const generatedSku = `SKU-${nextNumber.toString().padStart(3, '0')}`;
+      form.setValue("sku", generatedSku, { shouldValidate: true });
+    }
+  }, [productName, products, form, isAddDialogOpen]);
 
   const productColumns = [
     {
@@ -120,8 +159,8 @@ export default function InventoryDashboard() {
       header: "Pricing",
       cell: (product: any) => (
         <div className="flex flex-col">
-          <span className="text-xs  text-slate-900">₹{parseFloat(product.price).toLocaleString()}</span>
-          <span className="text-xs text-slate-400 ">Cost: ₹{parseFloat(product.costPrice).toLocaleString()}</span>
+          <span className="text-xs  text-slate-900">₹{parseFloat(product.costPrice || 0).toLocaleString()}</span>
+          <span className="text-xs text-slate-400 ">Cost Price</span>
         </div>
       ),
     },
@@ -145,7 +184,7 @@ export default function InventoryDashboard() {
     },
   ];
 
-  const totalValue = products.reduce((sum: number, p: any) => sum + (parseFloat(p.price) * parseInt(p.stock)), 0);
+  const totalValue = products.reduce((sum: number, p: any) => sum + (parseFloat(p.costPrice || 0) * (parseInt(p.stock) || 0)), 0);
   const lowStockCount = products.filter((p: any) => p.stock <= p.lowStockThreshold).length;
 
   const metrics = [
@@ -163,10 +202,12 @@ export default function InventoryDashboard() {
           <p className="text-xs text-slate-500">Real-time monitoring of stock levels, procurement cycles, and logistics health.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
-            <History className="h-4 w-4 mr-1 text-slate-400" />
-            Stock Ledger
-          </Button>
+          <Link href="/inventory/stock">
+            <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
+              <History className="h-4 w-4 mr-1 text-slate-400" />
+              Stock Ledger
+            </Button>
+          </Link>
           <Button className="bg-primary hover:bg-primary text-white" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             New Product
@@ -256,6 +297,142 @@ export default function InventoryDashboard() {
           </Card>
         </div>
       </div>
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-2xl border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-xs text-slate-900">New Asset Registration</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onAddProductSubmit)} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Product Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Main Rotor Assembly" {...field} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="sku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU / ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Auto-generated" {...field} className="border-slate-200 font-mono" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="border-slate-200">
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Spare Part">Spare Part</SelectItem>
+                          <SelectItem value="Fabrication">Fabrication</SelectItem>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Mechanical Spares">Mechanical Spares</SelectItem>
+                          <SelectItem value="Electrical Spares">Electrical Spares</SelectItem>
+                          <SelectItem value="Consumable">Consumable</SelectItem>
+                          <SelectItem value="Raw Material">Raw Material</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="unit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit of Measure</FormLabel>
+                      <FormControl>
+                        <Input placeholder="PCS, KGS, MTRS" {...field} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="costPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit Cost (₹)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="0.00" {...field} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Stock</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lowStockThreshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Low Stock Alert Level</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Technical specifications or storage instructions..." {...field} className="border-slate-200 min-h-[100px]" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="pt-4 border-t border-slate-100 gap-2">
+                <Button type="button" variant="ghost" onClick={() => setIsAddDialogOpen(false)} className="text-slate-600">Cancel</Button>
+                <Button type="submit" className="bg-primary hover:bg-primary text-white text-xs px-8" disabled={createProductMutation.isPending}>
+                  {createProductMutation.isPending ? "Saving..." : "Register Product"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

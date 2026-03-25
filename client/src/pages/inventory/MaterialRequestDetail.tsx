@@ -39,6 +39,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -53,6 +62,8 @@ export default function MaterialRequestDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState("Main Warehouse");
+  const [isRFQDialogOpen, setIsRFQDialogOpen] = useState(false);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
 
   const { data: requestResponse, isLoading, refetch, isRefetching } = useQuery({
     queryKey: [`/api/material-requests/${id}`],
@@ -61,6 +72,11 @@ export default function MaterialRequestDetail() {
   });
 
   const request = requestResponse?.data || requestResponse;
+
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["/api/suppliers"],
+    queryFn: async () => apiRequest("GET", "/api/suppliers"),
+  });
 
   const { data: purchaseOrders } = useQuery({
     queryKey: ["/api/purchase-orders"],
@@ -78,11 +94,13 @@ export default function MaterialRequestDetail() {
   });
 
   const generateRFQMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", `/api/material-requests/${id}/generate-rfq`);
+    mutationFn: async (vendorIds: string[]) => {
+      return apiRequest("POST", `/api/material-requests/${id}/generate-rfq`, { vendorIds });
     },
     onSuccess: () => {
-      toast({ title: "RFQ Generated", description: "Request for Quotation has been created successfully." });
+      toast({ title: "RFQ Generated", description: "Request for Quotation has been created successfully for selected vendors." });
+      setIsRFQDialogOpen(false);
+      setSelectedVendors([]);
       queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
       setLocation("/inventory/vendor-quotations");
     },
@@ -109,6 +127,22 @@ export default function MaterialRequestDetail() {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const retryLinkingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/material-requests/${id}/retry-linking`);
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Linking Complete", 
+        description: `Successfully linked ${data.linkedCount || 0} items to stock.` 
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-requests/${id}`] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Linking Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -213,9 +247,10 @@ export default function MaterialRequestDetail() {
     }
   ];
 
-  return (
-    <div className="p-2 space-y-4 bg-slate-50/30 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  const renderMainContent = () => {
+    return (
+      <>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/inventory/material-requests">
             <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 text-slate-600 bg-white hover:bg-slate-50 shadow-sm">
@@ -236,17 +271,18 @@ export default function MaterialRequestDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50"
+            onClick={() => retryLinkingMutation.mutate()}
+            disabled={retryLinkingMutation.isPending}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", retryLinkingMutation.isPending && "animate-spin")} />
+            Retry Linking
+          </Button>
           <Button variant="outline" className="border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
             <Printer className="h-4 w-4 mr-2 text-slate-400" />
             Print Request
-          </Button>
-          <Button 
-            className="bg-primary hover:bg-primary text-white shadow-sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-          >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isRefetching && "animate-spin")} />
-            Update Stock
           </Button>
         </div>
       </div>
@@ -339,7 +375,7 @@ export default function MaterialRequestDetail() {
                     <Button 
                       variant="outline" 
                       className="w-full border-white/20 text-white bg-white/5 hover:bg-white/10 hover:text-white"
-                      onClick={() => generateRFQMutation.mutate()}
+                      onClick={() => setIsRFQDialogOpen(true)}
                       disabled={generateRFQMutation.isPending}
                     >
                       <Send className="h-4 w-4 mr-2" />
@@ -375,6 +411,62 @@ export default function MaterialRequestDetail() {
           </Card>
         </div>
       </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="p-2 space-y-4 bg-slate-50/30 min-h-screen">
+      {renderMainContent()}
+
+      <Dialog open={isRFQDialogOpen} onOpenChange={setIsRFQDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Select Vendors for RFQ</DialogTitle>
+            <DialogDescription>
+              Choose multiple vendors to send this Request for Quotation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 max-h-[300px] overflow-y-auto pr-2">
+            {suppliers.length === 0 ? (
+              <p className="text-sm text-slate-500">No vendors found. Please add vendors first.</p>
+            ) : (
+              suppliers.map((supplier: any) => (
+                <div key={supplier.id} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`vendor-${supplier.id}`} 
+                    checked={selectedVendors.includes(supplier.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedVendors([...selectedVendors, supplier.id]);
+                      } else {
+                        setSelectedVendors(selectedVendors.filter(id => id !== supplier.id));
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor={`vendor-${supplier.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    {supplier.name}
+                  </label>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRFQDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => generateRFQMutation.mutate(selectedVendors)}
+              disabled={selectedVendors.length === 0 || generateRFQMutation.isPending}
+            >
+              {generateRFQMutation.isPending ? "Generating..." : `Generate ${selectedVendors.length} RFQ(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

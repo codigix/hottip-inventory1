@@ -78,7 +78,7 @@ export default function FieldVisits() {
   /** ===== Mutations ===== **/
   const createVisitMutation = useMutation({
     mutationFn: (data: InsertFieldVisit) =>
-      apiRequest("/field-visits", { method: "POST", body: JSON.stringify(data) }),
+      apiRequest("/field-visits", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
       queryClient.invalidateQueries({ queryKey: ["/marketing-tasks"] });
@@ -115,7 +115,16 @@ export default function FieldVisits() {
   const filteredVisits = useMemo(() => {
     return safeVisits.filter((v) => {
       const normalizedStatus = v.status?.toLowerCase().replace(" ", "_");
-      const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
+      
+      let matchesStatus = statusFilter === "all";
+      if (statusFilter === "upcoming") {
+        matchesStatus = normalizedStatus === "upcoming" || normalizedStatus === "in_progress";
+      } else if (statusFilter === "completed") {
+        matchesStatus = normalizedStatus === "completed";
+      } else if (statusFilter !== "all") {
+        matchesStatus = normalizedStatus === statusFilter;
+      }
+
       const matchesAssignee = assigneeFilter === "all" || v.assignedTo === assigneeFilter;
       const matchesSearch = !searchTerm || v.visitNumber?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStatus && matchesAssignee && matchesSearch;
@@ -163,7 +172,7 @@ export default function FieldVisits() {
     mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string }) =>
       apiRequest(`/field-visits/${id}/status`, { 
         method: "PUT",
-        body: JSON.stringify({ status, notes })
+        body: { status, notes }
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -204,7 +213,7 @@ export default function FieldVisits() {
     mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
       apiRequest(`/field-visits/${visitId}/check-in`, { 
         method: "POST",
-        body: JSON.stringify(data)
+        body: data
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -220,7 +229,7 @@ export default function FieldVisits() {
     mutationFn: ({ visitId, data }: { visitId: string; data: any }) =>
       apiRequest(`/field-visits/${visitId}/check-out`, { 
         method: "POST",
-        body: JSON.stringify(data)
+        body: data
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -235,7 +244,7 @@ const updateVisitMutation = useMutation({
   mutationFn: (data: VisitWithDetails) =>
     apiRequest(`/field-visits/${data.id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: data,
     }),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
@@ -323,13 +332,13 @@ const updateVisitMutation = useMutation({
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
-              In Progress
+              Upcoming
               <MapPin className="h-4 w-4 text-blue-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl text-slate-900" data-testid="metric-in-progress-visits">
-              {statusCounts.in_progress}
+            <div className="text-xl " data-testid="metric-upcoming-visits">
+              {statusCounts.upcoming}
             </div>
           </CardContent>
         </Card>
@@ -408,29 +417,26 @@ const updateVisitMutation = useMutation({
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="">
-        <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')} className="w-full">
-          <div className="p-2 border-b border-slate-100">
-            <TabsList className="bg-slate-100/50 p-1 my-2 w-full justify-start  gap-1">
-              <TabsTrigger value="all" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                All <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.all}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="scheduled" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Scheduled <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.scheduled}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="in_progress" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                In Progress <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.in_progress}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="completed" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Completed <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.completed}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="cancelled" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Cancelled <Badge variant="secondary" className="ml-2 bg-gray-600">{statusCounts.cancelled}</Badge>
-              </TabsTrigger>
-            </TabsList>
-          </div>
+      <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')}>
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-5">
+          <TabsTrigger value="all" data-testid="tab-all-visits">
+            All ({statusCounts.all})
+          </TabsTrigger>
+          <TabsTrigger value="scheduled" data-testid="tab-scheduled-visits">
+            Scheduled ({statusCounts.scheduled})
+          </TabsTrigger>
+          <TabsTrigger value="upcoming" data-testid="tab-upcoming-visits">
+            Upcoming ({statusCounts.upcoming})
+          </TabsTrigger>
+          <TabsTrigger value="completed" data-testid="tab-completed-visits">
+            Completed ({statusCounts.completed})
+          </TabsTrigger>
+          <TabsTrigger value="cancelled" data-testid="tab-cancelled-visits">
+            Cancelled ({statusCounts.cancelled})
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value={statusFilter} className="mt-0 p-0">
+        <TabsContent value={statusFilter} className="mt-0 p-0">
             {viewMode === 'table' ? (
               <VisitTable
                 visits={filteredVisits}
@@ -455,7 +461,6 @@ const updateVisitMutation = useMutation({
             )}
           </TabsContent>
         </Tabs>
-      </div>
 
       {/* Visit Form Modal */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

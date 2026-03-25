@@ -58,10 +58,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Define a comprehensive schema for Purchase Orders
+// Define a comprehensive schema for Customer Purchase Orders
 const purchaseOrderFormSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
-  supplierId: z.string().uuid("Supplier is required"),
+  customerId: z.string().uuid("Customer is required"),
   quotationId: z.string().optional(),
   userId: z.string().uuid("User is required"),
   orderDate: z.preprocess(
@@ -106,16 +106,16 @@ export default function PurchaseOrders() {
 
   const [, setLocation] = useLocation();
 
-  const { data: purchaseOrders = [], isLoading } = useQuery({
-    queryKey: ["/purchase-orders"],
+  const { data: customerPurchaseOrders = [], isLoading } = useQuery({
+    queryKey: ["/customer-purchase-orders"],
   });
 
   const filteredPurchaseOrders = useMemo(() => {
-    if (!searchTerm) return purchaseOrders;
-    return purchaseOrders.filter((po: any) =>
+    if (!searchTerm) return customerPurchaseOrders;
+    return customerPurchaseOrders.filter((po: any) =>
       po.poNumber?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [purchaseOrders, searchTerm]);
+  }, [customerPurchaseOrders, searchTerm]);
 
   const handleOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -126,8 +126,8 @@ export default function PurchaseOrders() {
       // Auto-generate PO Number when opening for new order
       const year = new Date().getFullYear();
       let nextCount = 1;
-      if (purchaseOrders && purchaseOrders.length > 0) {
-        const poNumbers = purchaseOrders
+      if (customerPurchaseOrders && customerPurchaseOrders.length > 0) {
+        const poNumbers = customerPurchaseOrders
           .map((po: any) => po.poNumber)
           .filter((num: string) => num && typeof num === 'string' && num.startsWith(`PO-${year}-`));
         
@@ -167,15 +167,18 @@ export default function PurchaseOrders() {
     return [
       ...inboundQuotations
         .filter((q: any) => q.status === 'approved')
-        .map((q: any) => ({ ...q, type: 'Inbound' }))
+        .map((q: any) => ({ ...q, type: 'Inbound' })),
+      ...outboundQuotations
+        .filter((q: any) => q.status === 'approved')
+        .map((q: any) => ({ ...q, type: 'Outbound' }))
     ];
-  }, [inboundQuotations]);
+  }, [inboundQuotations, outboundQuotations]);
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderFormSchema),
     defaultValues: {
       poNumber: "",
-      supplierId: "",
+      customerId: "",
       quotationId: undefined,
       userId: user?.id || "",
       orderDate: new Date(),
@@ -208,8 +211,8 @@ export default function PurchaseOrders() {
         if (!form.getValues("poNumber")) {
           const year = new Date().getFullYear();
           let nextCount = 1;
-          if (purchaseOrders && purchaseOrders.length > 0) {
-            const poNumbers = purchaseOrders
+          if (customerPurchaseOrders && customerPurchaseOrders.length > 0) {
+            const poNumbers = customerPurchaseOrders
               .map((po: any) => po.poNumber)
               .filter((num: string) => num && typeof num === 'string' && num.startsWith(`PO-${year}-`));
             
@@ -231,7 +234,7 @@ export default function PurchaseOrders() {
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-  }, [allQuotations, isDialogOpen, editingPoId, form, purchaseOrders]);
+  }, [allQuotations, isDialogOpen, editingPoId, form, customerPurchaseOrders]);
 
   // Auto-generate PO Number
   useEffect(() => {
@@ -255,12 +258,12 @@ export default function PurchaseOrders() {
         return selectedQuotation.customer?.name || "N/A";
       }
     }
-    const currentSupplierId = form.watch("supplierId");
-    if (currentSupplierId) {
-      return suppliers.find((s: any) => s.id === currentSupplierId)?.name || "N/A";
+    const currentCustomerId = form.watch("customerId");
+    if (currentCustomerId) {
+      return customers.find((c: any) => c.id === currentCustomerId)?.name || "N/A";
     }
     return null;
-  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+  }, [selectedQuotation, form.watch("customerId"), customers]);
 
   const selectedSupplierEmail = useMemo(() => {
     if (selectedQuotation) {
@@ -270,12 +273,12 @@ export default function PurchaseOrders() {
         return selectedQuotation.customer?.email;
       }
     }
-    const currentSupplierId = form.watch("supplierId");
-    if (currentSupplierId) {
-      return suppliers.find((s: any) => s.id === currentSupplierId)?.email;
+    const currentCustomerId = form.watch("customerId");
+    if (currentCustomerId) {
+      return customers.find((c: any) => c.id === currentCustomerId)?.email;
     }
     return null;
-  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+  }, [selectedQuotation, form.watch("customerId"), customers]);
 
   const selectedSupplierAddress = useMemo(() => {
     if (selectedQuotation) {
@@ -285,12 +288,12 @@ export default function PurchaseOrders() {
         return selectedQuotation.customer?.address;
       }
     }
-    const currentSupplierId = form.watch("supplierId");
-    if (currentSupplierId) {
-      return suppliers.find((s: any) => s.id === currentSupplierId)?.address;
+    const currentCustomerId = form.watch("customerId");
+    if (currentCustomerId) {
+      return customers.find((c: any) => c.id === currentCustomerId)?.address;
     }
     return null;
-  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+  }, [selectedQuotation, form.watch("customerId"), customers]);
 
   const selectedSupplierGst = useMemo(() => {
     if (selectedQuotation) {
@@ -300,19 +303,18 @@ export default function PurchaseOrders() {
         return selectedQuotation.customer?.gstNumber;
       }
     }
-    const currentSupplierId = form.watch("supplierId");
-    if (currentSupplierId) {
-      return suppliers.find((s: any) => s.id === currentSupplierId)?.gstNumber;
+    const currentCustomerId = form.watch("customerId");
+    if (currentCustomerId) {
+      return customers.find((c: any) => c.id === currentCustomerId)?.gstNumber;
     }
     return null;
-  }, [selectedQuotation, form.watch("supplierId"), suppliers]);
+  }, [selectedQuotation, form.watch("customerId"), customers]);
 
   const allEntities = useMemo(() => {
     return [
-      ...suppliers.map((s: any) => ({ ...s, type: 'Supplier' })),
       ...customers.map((c: any) => ({ ...c, type: 'Customer' }))
     ];
-  }, [suppliers, customers]);
+  }, [customers]);
 
   // Handle Quotation Selection
   useEffect(() => {
@@ -332,27 +334,18 @@ export default function PurchaseOrders() {
           form.setValue("gstPercentage", parseFloat(quotation.gstPercentage) || 18);
         }
         
-        // Map Supplier ID
+        // Map Customer ID
         if (quotation.type === 'Inbound' && quotation.senderId) {
-          // If it's an inbound quotation, the sender is the supplier
-          // Check if it's in the suppliers list
-          const supplierMatch = suppliers.find((s: any) => s.id === quotation.senderId);
-          if (supplierMatch) {
-            form.setValue("supplierId", quotation.senderId);
+          // Check if this sender also exists as a customer
+          const customerMatch = customers.find((c: any) => c.id === quotation.senderId);
+          if (customerMatch) {
+            form.setValue("customerId", quotation.senderId);
           } else {
-            // If not found in suppliers, we might be using a customer as a supplier
-            // This could fail FK if not handled in DB, but for UI we show the name
-            form.setValue("supplierId", quotation.senderId);
+            // Reset customerId if no match found
+            form.setValue("customerId", "");
           }
         } else if (quotation.type === 'Outbound' && quotation.customerId) {
-          // Check if this customer also exists as a supplier
-          const supplierMatch = suppliers.find((s: any) => s.id === quotation.customerId);
-          if (supplierMatch) {
-            form.setValue("supplierId", quotation.customerId);
-          } else {
-            // Reset supplierId if no match found to avoid FK errors
-            form.setValue("supplierId", "");
-          }
+          form.setValue("customerId", quotation.customerId);
         }
         
         // Map items if available
@@ -407,13 +400,13 @@ export default function PurchaseOrders() {
 
   const createPoMutation = useMutation({
     mutationFn: (data: PurchaseOrderFormValues) => {
-      return apiRequest("POST", "/purchase-orders", data);
+      return apiRequest("POST", "/customer-purchase-orders", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/customer-purchase-orders"] });
       toast({
         title: "Success",
-        description: "Purchase order created successfully.",
+        description: "Customer Purchase order created successfully.",
       });
       setIsDialogOpen(false);
       form.reset();
@@ -429,10 +422,10 @@ export default function PurchaseOrders() {
 
   const editPoMutation = useMutation({
     mutationFn: (data: PurchaseOrderFormValues) => {
-      return apiRequest("PUT", `/purchase-orders/${editingPoId}`, data);
+      return apiRequest("PUT", `/customer-purchase-orders/${editingPoId}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/customer-purchase-orders"] });
       toast({
         title: "Success",
         description: "Purchase order updated successfully.",
@@ -452,10 +445,10 @@ export default function PurchaseOrders() {
 
   const deletePoMutation = useMutation({
     mutationFn: (id: string) => {
-      return apiRequest("DELETE", `/purchase-orders/${id}`);
+      return apiRequest("DELETE", `/customer-purchase-orders/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/customer-purchase-orders"] });
       toast({
         title: "Deleted",
         description: "Purchase order deleted successfully.",
@@ -472,10 +465,10 @@ export default function PurchaseOrders() {
 
   const onSubmit = (data: PurchaseOrderFormValues) => {
     // Basic validation to avoid foreign key errors
-    if (!data.supplierId || data.supplierId === "") {
+    if (!data.customerId || data.customerId === "") {
       toast({
         title: "Validation Error",
-        description: "Please select a valid supplier.",
+        description: "Please select a valid customer.",
         variant: "destructive",
       });
       return;
@@ -498,7 +491,7 @@ export default function PurchaseOrders() {
     setEditingPoId(po.id);
     form.reset({
       poNumber: po.poNumber,
-      supplierId: po.supplierId,
+      customerId: po.customerId,
       quotationId: po.quotationId || "none",
       userId: po.userId,
       orderDate: new Date(po.orderDate),
@@ -536,10 +529,10 @@ export default function PurchaseOrders() {
 
   // Analysis Stats
   const analysisStats = useMemo(() => {
-    const total = purchaseOrders.length;
-    const pending = purchaseOrders.filter((po: any) => po.status === 'pending').length;
-    const processing = purchaseOrders.filter((po: any) => po.status === 'processing').length;
-    const totalValue = purchaseOrders.reduce((acc: number, po: any) => acc + (parseFloat(po.totalAmount) || 0), 0);
+    const total = customerPurchaseOrders.length;
+    const pending = customerPurchaseOrders.filter((po: any) => po.status === 'pending').length;
+    const processing = customerPurchaseOrders.filter((po: any) => po.status === 'processing').length;
+    const totalValue = customerPurchaseOrders.reduce((acc: number, po: any) => acc + (parseFloat(po.totalAmount) || 0), 0);
 
     return [
       { 
@@ -571,7 +564,7 @@ export default function PurchaseOrders() {
         bg: "bg-slate-100 border-slate-200 " 
       }
     ];
-  }, [purchaseOrders]);
+  }, [customerPurchaseOrders]);
 
   const columns = [
     { 
@@ -583,16 +576,16 @@ export default function PurchaseOrders() {
       )
     },
     {
-      key: "supplier.name",
-      header: "Supplier",
+      key: "customer.name",
+      header: "Customer",
       sortable: true,
       cell: (po: any) => {
-        const supplierName = po.supplier?.name || allEntities.find((e: any) => e.id === po.supplierId)?.name || "N/A";
+        const customerName = po.customer?.name || allEntities.find((e: any) => e.id === po.customerId)?.name || "N/A";
         return (
           <div>
-            <div className="font-medium text-slate-700">{supplierName}</div>
+            <div className="font-medium text-slate-700">{customerName}</div>
             <div className="text-xs text-slate-400  ">
-              {po.supplier?.type || "VENDOR"}
+              {"CUSTOMER"}
             </div>
           </div>
         );
@@ -687,7 +680,7 @@ export default function PurchaseOrders() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl  text-slate-900 tracking-tight">Purchase Orders</h1>
-          <p className="text-slate-500 text-sm">Manage procurement and vendor purchase orders</p>
+          <p className="text-slate-500 text-sm">Manage procurement and customer purchase orders</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
@@ -699,7 +692,7 @@ export default function PurchaseOrders() {
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPoId ? "Edit Purchase Order" : "Create Purchase Order"}</DialogTitle>
-              <DialogDescription>{editingPoId ? "Update purchase order details" : "Create a new purchase order for a vendor"}</DialogDescription>
+              <DialogDescription>{editingPoId ? "Update purchase order details" : "Create a new purchase order for a customer"}</DialogDescription>
             </DialogHeader>
 
             <Form {...form}>
@@ -768,7 +761,7 @@ export default function PurchaseOrders() {
                   />
                   <FormField
                     control={form.control}
-                    name="supplierId"
+                    name="customerId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
@@ -1004,7 +997,7 @@ export default function PurchaseOrders() {
         <div className="p-0">
           <DataTable 
             columns={columns} 
-            data={purchaseOrders} 
+            data={customerPurchaseOrders} 
             isLoading={isLoading} 
             searchKey="poNumber"
             searchPlaceholder="Search purchase orders..."
@@ -1025,8 +1018,8 @@ export default function PurchaseOrders() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
                   <p className="text-gray-500   text-xs">Customer Details</p>
-                  <p className=" text-lg">{selectedPo.supplier?.name || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.name || "N/A"}</p>
-                  <p>{selectedPo.supplier?.address || allEntities.find((e:any) => e.id === selectedPo.supplierId)?.address || "N/A"}</p>
+                  <p className=" text-lg">{selectedPo.customer?.name || allEntities.find((e:any) => e.id === selectedPo.customerId)?.name || "N/A"}</p>
+                  <p>{selectedPo.customer?.address || allEntities.find((e:any) => e.id === selectedPo.customerId)?.address || "N/A"}</p>
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-gray-500   text-xs">Order Info</p>

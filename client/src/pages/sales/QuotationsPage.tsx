@@ -1,13 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OutboundQuotations from "./OutboundQuotations";
 import InboundQuotations from "./InboundQuotations";
 import { FileUp, FileDown, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function QuotationsPage() {
-  const [activeTab, setActiveTab] = useState("sent");
+  const [location, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState(location.includes("inbound") ? "received" : "sent");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [preFillNumber, setPreFillNumber] = useState<string | null>(null);
+
+  // Sync activeTab with location changes
+  useEffect(() => {
+    if (location.includes("inbound-quotations")) {
+      setActiveTab("received");
+    } else if (location.includes("outbound-quotations") || location.endsWith("/quotations")) {
+      setActiveTab("sent");
+    }
+  }, [location]);
+
+  useEffect(() => {
+    // Check for quotationNumber in URL using window.location.search
+    const queryParams = new URLSearchParams(window.location.search);
+    const qNum = queryParams.get("quotationNumber");
+    
+    if (qNum) {
+      console.log("🎯 [QUOTATIONS PAGE] Detected quotationNumber in URL:", qNum);
+      
+      // Clear the query parameter using window.history.replaceState to avoid re-triggering this effect
+      // and to ensure the URL looks clean as requested by the user
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
+      
+      setPreFillNumber(qNum);
+      setActiveTab("received");
+      setIsUploadModalOpen(true);
+    }
+  }, [location]); // Run whenever location changes to detect query param even if component stays mounted
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "received") {
+      setLocation("/sales/inbound-quotations");
+    } else {
+      setLocation("/sales/quotations");
+    }
+  };
+
+  const handleModalClose = (open: boolean) => {
+    setIsUploadModalOpen(open);
+    if (!open) {
+      setPreFillNumber(null);
+    }
+  };
 
   return (
     <div className="p-4 space-y-2 bg-slate-50 min-h-screen">
@@ -28,10 +75,7 @@ export default function QuotationsPage() {
               </Button>
             </Link>
           ) : (
-            <Button className="bg-primary hover:bg-primary text-white border-none " onClick={() => {
-              const uploadBtn = document.querySelector('[data-testid="button-upload-inbound-quotation"]') as HTMLButtonElement;
-              if (uploadBtn) uploadBtn.click();
-            }}>
+            <Button className="bg-primary hover:bg-primary text-white border-none " onClick={() => setIsUploadModalOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Upload Received Quotation
             </Button>
@@ -39,7 +83,7 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-2">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-2">
         <TabsList className="bg-white border border-slate-200 p-1 h-11  inline-flex w-auto">
           <TabsTrigger 
             value="sent" 
@@ -63,7 +107,12 @@ export default function QuotationsPage() {
           </TabsContent>
 
           <TabsContent value="received" className="border-none p-0 outline-none animate-in fade-in-50 duration-300">
-            <InboundQuotations isEmbedded={true} />
+            <InboundQuotations 
+              isEmbedded={true} 
+              defaultOpen={isUploadModalOpen} 
+              onOpenChange={handleModalClose}
+              preFillNumber={preFillNumber}
+            />
           </TabsContent>
         </div>
       </Tabs>

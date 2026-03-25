@@ -721,9 +721,22 @@ export default function StockManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Mechanical Spares" {...field} className="border-slate-200" />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="border-slate-200">
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Spare Part">Spare Part</SelectItem>
+                          <SelectItem value="Fabrication">Fabrication</SelectItem>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Mechanical Spares">Mechanical Spares</SelectItem>
+                          <SelectItem value="Electrical Spares">Electrical Spares</SelectItem>
+                          <SelectItem value="Consumable">Consumable</SelectItem>
+                          <SelectItem value="Raw Material">Raw Material</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -756,12 +769,25 @@ export default function StockManagement() {
                 />
                 <FormField
                   control={productForm.control}
+                  name="stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Stock</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="border-slate-200" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={productForm.control}
                   name="lowStockThreshold"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Low Stock Alert Level</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} className="border-slate-200" />
+                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="border-slate-200" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
