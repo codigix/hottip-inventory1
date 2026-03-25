@@ -325,20 +325,11 @@ const updateVisitMutation = useMutation({
             <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
               In Progress
               <MapPin className="h-4 w-4 text-blue-500" />
-<<<<<<< Updated upstream
-              <span>Upcoming</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl " data-testid="metric-upcoming-visits">
-              {statusCounts.upcoming}
-=======
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl text-slate-900" data-testid="metric-in-progress-visits">
               {statusCounts.in_progress}
->>>>>>> Stashed changes
             </div>
           </CardContent>
         </Card>
@@ -417,26 +408,6 @@ const updateVisitMutation = useMutation({
       </div>
 
       {/* Status Filter Tabs */}
-<<<<<<< Updated upstream
-      <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')}>
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-5">
-          <TabsTrigger value="all" data-testid="tab-all-visits">
-            All ({statusCounts.all})
-          </TabsTrigger>
-          <TabsTrigger value="scheduled" data-testid="tab-scheduled-visits">
-            Scheduled ({statusCounts.scheduled})
-          </TabsTrigger>
-          <TabsTrigger value="upcoming" data-testid="tab-upcoming-visits">
-            Upcoming ({statusCounts.upcoming})
-          </TabsTrigger>
-          <TabsTrigger value="completed" data-testid="tab-completed-visits">
-            Completed ({statusCounts.completed})
-          </TabsTrigger>
-          <TabsTrigger value="cancelled" data-testid="tab-cancelled-visits">
-            Cancelled ({statusCounts.cancelled})
-          </TabsTrigger>
-        </TabsList>
-=======
       <div className="">
         <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as VisitStatus | 'all')} className="w-full">
           <div className="p-2 border-b border-slate-100">
@@ -458,7 +429,6 @@ const updateVisitMutation = useMutation({
               </TabsTrigger>
             </TabsList>
           </div>
->>>>>>> Stashed changes
 
           <TabsContent value={statusFilter} className="mt-0 p-0">
             {viewMode === 'table' ? (
