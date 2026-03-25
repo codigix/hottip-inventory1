@@ -226,6 +226,21 @@ export default function MaterialRequestDetail() {
       }
     },
     {
+      key: "shortage",
+      header: "Shortage",
+      cell: (item: any) => {
+        const stockValue = item.productId ? item.productStock : (item.sparePartId ? item.sparePartStock : 0);
+        const shortage = Math.max(0, Number(item.quantity) - Number(stockValue || 0));
+        return (
+          <div className="text-center text-xs font-medium">
+            <span className={cn(shortage > 0 ? "text-red-600" : "text-slate-400")}>
+              {shortage > 0 ? `${shortage} ${item.unit || 'pcs'}` : "-"}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
       key: "status",
       header: "Line Status",
       cell: (item: any) => {
@@ -317,7 +332,7 @@ export default function MaterialRequestDetail() {
                 data={lineItems}
                 columns={columns}
                 searchable={true}
-                searchKey="itemName"
+                searchKey="productName"
                 isLoading={isLoading}
               />
             </div>

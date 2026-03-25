@@ -1196,7 +1196,9 @@ export function registerInventoryRoutes(
           unit: materialRequestItems.unit,
           notes: materialRequestItems.notes,
           productName: products.name,
+          productStock: products.stock,
           sparePartName: spareParts.name,
+          sparePartStock: spareParts.stock,
         })
         .from(materialRequestItems)
         .leftJoin(products, eq(materialRequestItems.productId, products.id))
@@ -1207,14 +1209,33 @@ export function registerInventoryRoutes(
         return res.status(400).json({ error: "No items found in material request" });
       }
 
-      const quotationItems = items.map(item => ({
-        id: Math.random().toString(36).substr(2, 9),
-        materialName: item.productName || item.sparePartName || item.notes || "Unknown Item",
-        type: item.productId ? "Product" : (item.sparePartId ? "Spare Part" : "Manual"),
-        designQty: Number(item.quantity),
-        rate: 0,
-        amount: 0,
-      }));
+      // Filter only items with shortage and calculate shortage quantity
+      const rfqItems = items.filter(item => {
+        const stock = item.productId 
+          ? (item.productStock ?? 0) 
+          : (item.sparePartId ? (item.sparePartStock ?? 0) : 0);
+        return stock < Number(item.quantity);
+      });
+
+      if (rfqItems.length === 0) {
+        return res.status(400).json({ error: "All items in this request are already available in stock." });
+      }
+
+      const quotationItems = rfqItems.map(item => {
+        const stock = item.productId 
+          ? (item.productStock ?? 0) 
+          : (item.sparePartId ? (item.sparePartStock ?? 0) : 0);
+        const shortageQty = Math.max(0, Number(item.quantity) - stock);
+
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          materialName: item.productName || item.sparePartName || item.notes || "Unknown Item",
+          type: item.productId ? "Product" : (item.sparePartId ? "Spare Part" : "Manual"),
+          designQty: shortageQty,
+          rate: 0,
+          amount: 0,
+        };
+      });
 
       const createdQuotations = [];
 
