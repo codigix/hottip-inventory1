@@ -158,8 +158,33 @@ export default function CreateInvoice() {
   useEffect(() => {
     if (invoices.length >= 0 && !form.getValues("invoiceNumber")) {
       const year = new Date().getFullYear();
-      const count = invoices.length + 1;
-      const nextNumber = `INV-${year}-${count.toString().padStart(3, "0")}`;
+      let nextCount = 1;
+      
+      const yearPrefix = `INV-${year}-`;
+      const yearInvoices = invoices.filter(inv => 
+        inv.invoiceNumber && 
+        typeof inv.invoiceNumber === 'string' && 
+        inv.invoiceNumber.startsWith(yearPrefix)
+      );
+
+      if (yearInvoices.length > 0) {
+        const counts = yearInvoices.map(inv => {
+          const parts = inv.invoiceNumber.split("-");
+          return parseInt(parts[parts.length - 1]) || 0;
+        });
+        nextCount = Math.max(...counts) + 1;
+      } else {
+        nextCount = invoices.length + 1;
+      }
+
+      // Double check this specific number isn't already in the full invoices list
+      // (in case of manual entries or mixed formats)
+      let nextNumber = `INV-${year}-${nextCount.toString().padStart(3, "0")}`;
+      while (invoices.some(inv => inv.invoiceNumber === nextNumber)) {
+        nextCount++;
+        nextNumber = `INV-${year}-${nextCount.toString().padStart(3, "0")}`;
+      }
+
       form.setValue("invoiceNumber", nextNumber);
     }
   }, [invoices, form]);
@@ -177,6 +202,26 @@ export default function CreateInvoice() {
         form.setValue("shippingAddress", order.shippingAddress || "");
         form.setValue("billingGstNumber", order.customer?.gstNumber || "");
         form.setValue("subtotalAmount", parseFloat(order.subtotalAmount) || 0);
+        
+        // Auto-generate invoice number based on sales order number if possible
+        if (order.orderNumber && typeof order.orderNumber === 'string') {
+          const parts = order.orderNumber.split("-");
+          const suffix = parts[parts.length - 1];
+          const year = parts.length > 2 ? parts[1] : new Date().getFullYear().toString();
+          let baseNumber = `INV-${year}-${suffix}`;
+          
+          // Check for collision and add suffix if needed
+          let finalNumber = baseNumber;
+          let counter = 1;
+          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          
+          while (invoices.some(inv => inv.invoiceNumber === finalNumber)) {
+            finalNumber = `${baseNumber}-${alphabet[counter-1] || counter}`;
+            counter++;
+          }
+          
+          form.setValue("invoiceNumber", finalNumber);
+        }
         
         if (order.gstType === "IGST") {
           form.setValue("igstRate", parseFloat(order.gstPercentage) || 18);
@@ -353,6 +398,26 @@ export default function CreateInvoice() {
                         form.setValue("billingGstNumber", order.customer?.gstNumber || "");
                         form.setValue("subtotalAmount", parseFloat(order.subtotalAmount) || 0);
                         
+                        // Auto-generate invoice number based on sales order number if possible
+                        if (order.orderNumber && typeof order.orderNumber === 'string') {
+                          const parts = order.orderNumber.split("-");
+                          const suffix = parts[parts.length - 1];
+                          const year = parts.length > 2 ? parts[1] : new Date().getFullYear().toString();
+                          let baseNumber = `INV-${year}-${suffix}`;
+                          
+                          // Check for collision and add suffix if needed
+                          let finalNumber = baseNumber;
+                          let counter = 1;
+                          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                          
+                          while (invoices.some(inv => inv.invoiceNumber === finalNumber)) {
+                            finalNumber = `${baseNumber}-${alphabet[counter-1] || counter}`;
+                            counter++;
+                          }
+                          
+                          form.setValue("invoiceNumber", finalNumber);
+                        }
+
                         if (order.gstType === "IGST") {
                           form.setValue("igstRate", parseFloat(order.gstPercentage) || 18);
                           form.setValue("igstAmount", parseFloat(order.gstAmount) || 0);

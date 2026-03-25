@@ -1472,13 +1472,19 @@ export function registerInventoryRoutes(
         return res.status(404).json({ error: "Quotation not found" });
       }
 
+      // Calculate totals
+      const subtotal = parseFloat(quotation.q.totalAmount || "0") / 1.18;
+      const gst = parseFloat(quotation.q.totalAmount || "0") - subtotal;
+      const grandTotal = parseFloat(quotation.q.totalAmount || "0");
+
       const pdfData = {
         company: {
-          name: "HOTTIP INVENTORY SYSTEM",
-          address: "Main Office, Industrial Area, Phase 1",
-          gstNo: "27AAACH1234A1Z1",
-          email: "procurement@hottip.com",
-          phone: "+91-9876543210"
+          name: "HOTTIP INDIA POLYMERS",
+          address: "Gat no 209, Office No 406, Swaraj Capital Borhadewadi, Chikhali Moshi Road, Pune 412105",
+          gstNo: "27AQYPM1029M1Z6",
+          email: "sales@hottipindia.com",
+          phone: "+91-9028018877",
+          website: "www.hottipindia.com"
         },
         supplier: {
           name: quotation.supplier?.name || "N/A",
@@ -1487,23 +1493,46 @@ export function registerInventoryRoutes(
           phone: quotation.supplier?.phone || "N/A",
           email: quotation.supplier?.email || "N/A"
         },
+        // For compatibility with quotation-hottip.ejs if we switch, or keeping RFQ
         rfq: {
           quotationNumber: quotation.q.quotationNumber,
-          date: quotation.q.quotationDate ? new Date(quotation.q.quotationDate).toLocaleDateString() : "N/A",
-          validUntil: quotation.q.validUntil ? new Date(quotation.q.validUntil).toLocaleDateString() : "N/A",
+          date: quotation.q.quotationDate ? new Date(quotation.q.quotationDate).toLocaleDateString("en-IN") : "N/A",
+          validUntil: quotation.q.validUntil ? new Date(quotation.q.validUntil).toLocaleDateString("en-IN") : "N/A",
           subject: quotation.q.subject || "Request for Quotation",
           notes: quotation.q.notes || "",
           items: (quotation.q.quotationItems as any[]) || []
+        },
+        // For direct quotation template use
+        quotation: {
+          ...quotation.q,
+          customerName: quotation.supplier?.name,
+          customerAddress: quotation.supplier?.address,
+          customerGstNo: quotation.supplier?.gstNumber,
+          customerPhone: quotation.supplier?.phone,
+          customerEmail: quotation.supplier?.email,
+          basicAmount: subtotal,
+          gst: gst,
+          grandTotal: grandTotal,
+          quotationItems: (quotation.q.quotationItems as any[])?.map(item => ({
+            ...item,
+            partDescription: item.materialName,
+            qty: item.designQty,
+            amount: item.amount || (item.designQty * item.rate)
+          }))
         }
       };
 
-      const pdfBuffer = await generateRFQPDF(pdfData as any);
+      // Use the professional template for Received/Approved quotes
+      const isRFQ = quotation.q.status === 'rfq';
+      const pdfBuffer = isRFQ 
+        ? await generateRFQPDF(pdfData as any)
+        : await generateRFQPDF(pdfData as any); // Default to RFQ for now, but with updated company info
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Length", pdfBuffer.length);
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename=RFQ-${quotation.q.quotationNumber}.pdf`
+        `attachment; filename=${quotation.q.status === 'rfq' ? 'RFQ' : 'QUO'}-${quotation.q.quotationNumber}.pdf`
       );
       res.end(pdfBuffer);
     } catch (error) {

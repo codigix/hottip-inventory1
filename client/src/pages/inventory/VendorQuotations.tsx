@@ -326,6 +326,15 @@ export default function VendorQuotations() {
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleViewDetails(q)}>
             <Eye className="h-4 w-4 text-slate-400" />
           </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+            title="Download RFQ PDF"
+            onClick={() => window.open(`/api/vendor-quotations/${q.id}/pdf`, '_blank')}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleDelete(q.id)}>
             <Trash2 className="h-4 w-4 text-red-400" />
           </Button>
@@ -398,6 +407,23 @@ export default function VendorQuotations() {
       header: "Actions",
       cell: (q: any) => (
         <div className="flex justify-end space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+            title="Download PDF"
+            onClick={() => window.open(`/api/vendor-quotations/${q.id}/pdf`, '_blank')}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+            onClick={() => handleViewDetails(q)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
           {q.status === "received" && (
             <>
               <Button 

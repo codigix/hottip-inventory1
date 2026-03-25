@@ -1360,6 +1360,18 @@ export function registerSalesRoutes(
   app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
       const invoiceData = req.body;
+      
+      // Check if invoice number already exists
+      const existingInvoices = await storage.getInvoices();
+      const duplicate = existingInvoices.find(inv => inv.invoiceNumber === invoiceData.invoiceNumber);
+      
+      if (duplicate) {
+        return res.status(409).json({ 
+          error: "Invoice number already exists", 
+          details: `Invoice number ${invoiceData.invoiceNumber} is already in use.` 
+        });
+      }
+
       const invoice = await storage.createInvoice(invoiceData);
       res.status(201).json(invoice);
     } catch (error: any) {
