@@ -1159,10 +1159,15 @@ export function registerInventoryRoutes(
   app.post("/api/material-requests/:id/generate-rfq", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params;
+      const { vendorIds } = req.body; // Array of supplier IDs
       const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      if (!vendorIds || !Array.isArray(vendorIds) || vendorIds.length === 0) {
+        return res.status(400).json({ error: "No vendors selected" });
       }
 
       // Fetch the material request and its items
@@ -1191,14 +1196,6 @@ export function registerInventoryRoutes(
         return res.status(400).json({ error: "No items found in material request" });
       }
 
-      // Find first available supplier as a placeholder
-      const [firstSupplier] = await db.select().from(suppliers).limit(1);
-      if (!firstSupplier) {
-        return res.status(400).json({ error: "No suppliers found. Please add a supplier first." });
-      }
-
-      const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}`;
-      
       const quotationItems = items.map(item => ({
         id: Math.random().toString(36).substr(2, 9),
         materialName: item.productName || item.sparePartName || item.notes || "Unknown Item",
@@ -1208,28 +1205,37 @@ export function registerInventoryRoutes(
         amount: 0,
       }));
 
-      const [newQuotation] = await db.insert(vendorQuotations).values({
-        quotationNumber,
-        quotationDate: new Date(),
-        status: "rfq",
-        senderId: firstSupplier.id,
-        userId: userId,
-        quotationItems: quotationItems,
-        totalAmount: "0",
-        financialBreakdown: {
-          subtotal: 0,
-          gst: 0,
-          total: 0
-        },
-        notes: `Auto-generated from Material Request ${request.requestNumber}`,
-      }).returning();
+      const createdQuotations = [];
+
+      for (const vendorId of vendorIds) {
+        const quotationNumber = `RFQ-${request.requestNumber.replace('MR-', '')}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        const [newQuotation] = await db.insert(vendorQuotations).values({
+          quotationNumber,
+          quotationDate: new Date(),
+          status: "rfq",
+          senderId: vendorId,
+          userId: userId,
+          quotationItems: quotationItems,
+          totalAmount: "0",
+          financialBreakdown: {
+            subtotal: 0,
+            gst: 0,
+            total: 0
+          },
+          materialRequestId: id,
+          notes: `Auto-generated from Material Request ${request.requestNumber}`,
+        }).returning();
+
+        createdQuotations.push(newQuotation);
+      }
 
       // Update material request status to PROCESSING
       await db.update(materialRequests)
         .set({ status: "PROCESSING", updatedAt: new Date() })
         .where(eq(materialRequests.id, id));
 
-      res.status(201).json(newQuotation);
+      res.status(201).json(createdQuotations[0]);
     } catch (e) {
       console.error("Error generating RFQ:", e);
       res.status(500).json({ error: "Failed to generate RFQ" });
