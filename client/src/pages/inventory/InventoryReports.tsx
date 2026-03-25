@@ -22,19 +22,19 @@ import { cn } from "@/lib/utils";
 export default function InventoryReports() {
   // Fetch reports data
   const { data: stockBalance, isLoading: stockBalanceLoading } = useQuery({
-    queryKey: ["/api/reports/stock-balance"],
+    queryKey: ["/reports/stock-balance"],
   });
 
   const { data: vendorHistory, isLoading: vendorHistoryLoading } = useQuery({
-    queryKey: ["/api/reports/vendor-history"],
+    queryKey: ["/reports/vendor-history"],
   });
 
   const { data: reorderForecast, isLoading: reorderForecastLoading } = useQuery({
-    queryKey: ["/api/reports/reorder-forecast"],
+    queryKey: ["/reports/reorder-forecast"],
   });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["/api/reports/analytics"],
+    queryKey: ["/reports/analytics"],
   });
 
   const stockColumns = [

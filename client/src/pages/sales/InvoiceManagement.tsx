@@ -255,15 +255,16 @@ export default function InvoiceManagement() {
       header: "Actions",
       cell: (invoice: any) => (
         <div className="flex items-center space-x-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0"
-            onClick={() => handleViewInvoice(invoice.id)}
-            data-testid={`button-view-invoice-${invoice.id}`}
-          >
-            <Eye className="h-4 w-4 text-slate-400" />
-          </Button>
+          <Link href={`/sales/invoices/${invoice.id}`}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              data-testid={`button-view-invoice-${invoice.id}`}
+            >
+              <Eye className="h-4 w-4 text-slate-400" />
+            </Button>
+          </Link>
           <Button
             size="sm"
             variant="ghost"

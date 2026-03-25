@@ -299,6 +299,17 @@ export function registerSalesRoutes(
           console.log("ℹ️ No line items provided, skipping insert");
         }
 
+        // AUTO-CREATE accounts receivable entry for the new invoice
+        await tx.insert(accountsReceivables).values({
+          invoiceId: invoiceRow.id,
+          customerId: invoiceRow.customerId,
+          amountDue: invoiceRow.totalAmount,
+          amountPaid: "0",
+          dueDate: invoiceRow.dueDate,
+          status: "pending",
+        });
+        console.log(`✅ Auto-created accounts receivable for invoice ${invoiceRow.invoiceNumber}`);
+
         return invoiceRow.id;
       });
 

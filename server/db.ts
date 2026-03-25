@@ -31,6 +31,101 @@ export const db = drizzle(pool, { schema });
     const client = await pool.connect();
     console.log("✅ Successfully connected to PostgreSQL");
 
+    // ✅ Ensure account_reports table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "account_reports" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "reportType" text NOT NULL,
+        "title" text NOT NULL,
+        "startDate" timestamp NOT NULL,
+        "endDate" timestamp NOT NULL,
+        "status" text DEFAULT 'COMPLETED' NOT NULL,
+        "fileUrl" text,
+        "fileName" text,
+        "fileSize" integer,
+        "generatedBy" uuid REFERENCES users(id),
+        "downloadCount" integer DEFAULT 0 NOT NULL,
+        "parameters" text,
+        "summary" text,
+        "generatedAt" timestamp DEFAULT now() NOT NULL,
+        "expiresAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    // ✅ FORCE status to be text to avoid enum mismatch issues
+    try {
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          IF EXISTS (
+            SELECT 1 
+            FROM information_schema.columns 
+            WHERE table_name = 'account_reports' 
+            AND column_name = 'status' 
+            AND data_type != 'text'
+          ) THEN
+            ALTER TABLE "account_reports" ALTER COLUMN "status" TYPE text;
+          END IF;
+        END $$;
+      `);
+    } catch (err) {
+      console.error("⚠️ Error ensuring status is text:", err.message);
+    }
+
+    // ✅ Ensure missing columns are added to invoices
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'invoices') THEN
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'createdAt') THEN
+            ALTER TABLE "invoices" ADD COLUMN "createdAt" timestamp DEFAULT now() NOT NULL;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'updatedAt') THEN
+            ALTER TABLE "invoices" ADD COLUMN "updatedAt" timestamp DEFAULT now() NOT NULL;
+          END IF;
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure missing columns are added to gst_returns
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'gst_returns') THEN
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'gst_returns' AND column_name = 'status') THEN
+            ALTER TABLE "gst_returns" ADD COLUMN "status" text DEFAULT 'draft' NOT NULL;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'gst_returns' AND column_name = 'filedAt') THEN
+            ALTER TABLE "gst_returns" ADD COLUMN "filedAt" timestamp;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'gst_returns' AND column_name = 'createdAt') THEN
+            ALTER TABLE "gst_returns" ADD COLUMN "createdAt" timestamp DEFAULT now() NOT NULL;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'gst_returns' AND column_name = 'updatedAt') THEN
+            ALTER TABLE "gst_returns" ADD COLUMN "updatedAt" timestamp DEFAULT now() NOT NULL;
+          END IF;
+        END IF;
+      END $$;
+    `);
+
+    // ✅ Ensure missing columns are added to account_reports if it already existed
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'account_reports' AND column_name = 'downloadCount') THEN
+          ALTER TABLE "account_reports" ADD COLUMN "downloadCount" integer DEFAULT 0 NOT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'account_reports' AND column_name = 'parameters') THEN
+          ALTER TABLE "account_reports" ADD COLUMN "parameters" text;
+        END IF;
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'account_reports' AND column_name = 'summary') THEN
+          ALTER TABLE "account_reports" ADD COLUMN "summary" text;
+        END IF;
+      END $$;
+    `);
+
     // Ensure marketing_todays table exists with all required columns
     await client.query(`
       CREATE TABLE IF NOT EXISTS "marketing_todays" (

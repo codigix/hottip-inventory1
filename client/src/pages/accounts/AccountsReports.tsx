@@ -226,6 +226,10 @@ export default function AccountsReports() {
     queryKey: ["/accounts/dashboard-metrics"],
   });
 
+  const { data: reportMetrics } = useQuery({
+    queryKey: ["/reports/metrics"],
+  });
+
   const { data: cashFlowSummary } = useQuery({
     queryKey: ["/accounts/cash-flow-summary"],
   });
@@ -254,7 +258,7 @@ export default function AccountsReports() {
   const metrics = dashboardMetrics || {};
 
   const totalReports = reportsArray.length;
-  const reportsThisMonth = reportsArray.filter((r: any) => {
+  const reportsThisMonth = reportMetrics?.reportsGeneratedThisMonth ?? reportsArray.filter((r: any) => {
     const reportDate = new Date(r.generatedAt);
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -264,13 +268,13 @@ export default function AccountsReports() {
     );
   }).length;
 
-  const totalDownloads = reportsArray.reduce(
+  const totalDownloads = reportMetrics?.totalDownloads ?? reportsArray.reduce(
     (sum: number, r: any) => sum + (r.downloadCount || 0),
     0
   );
 
   // Calculate collection rate from cash flow data - with divide by zero protection
-  const collectionRate = (() => {
+  const collectionRate = reportMetrics?.collectionRate ?? (() => {
     if (!cashFlowSummary) return 0;
 
     const totalInflow = cashFlowSummary.totalInflow || 0;
@@ -282,7 +286,7 @@ export default function AccountsReports() {
   })();
 
   // GST returns filed this year
-  const gstReportsCurrent = reportsArray.filter(
+  const gstReportsCurrent = reportMetrics?.gstReportsFiledThisYear ?? reportsArray.filter(
     (r: any) =>
       r.reportType === "gst_filing" &&
       new Date(r.generatedAt).getFullYear() === new Date().getFullYear()
@@ -357,6 +361,7 @@ export default function AccountsReports() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/reports/metrics"] });
       toast({ title: "Success", description: "Report generated successfully" });
       setIsGenerateOpen(false);
       generateForm.reset();
@@ -455,8 +460,8 @@ export default function AccountsReports() {
       activeTab === "all" ||
       (activeTab === "recent" &&
         new Date(report.generatedAt) > subDays(new Date(), 7)) ||
-      (activeTab === "completed" && report.status === "generated") ||
-      (activeTab === "pending" && report.status === "generating");
+      (activeTab === "completed" && report.status === "COMPLETED") ||
+      (activeTab === "pending" && report.status === "GENERATING");
 
     return matchesSearch && matchesType && matchesTab;
   });
@@ -982,24 +987,32 @@ export default function AccountsReports() {
                               <TableCell>
                                 <Badge
                                   variant={
-                                    report.status === "generated"
+                                    report.status === "COMPLETED"
                                       ? "default"
+                                      : report.status === "FAILED"
+                                      ? "destructive"
                                       : "secondary"
                                   }
                                   className={`rounded-full px-3 font-normal ${
-                                    report.status === "generated"
+                                    report.status === "COMPLETED"
                                       ? "bg-green-50 text-green-700 hover:bg-green-50 border-green-200"
+                                      : report.status === "FAILED"
+                                      ? "bg-red-50 text-red-700 hover:bg-red-50 border-red-200"
                                       : "bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-200"
                                   }`}
                                   data-testid={`badge-status-${report.id}`}
                                 >
-                                  {report.status === "generated" ? (
+                                  {report.status === "COMPLETED" ? (
                                     <CheckCircle2 className="mr-1.5 h-3 w-3" />
+                                  ) : report.status === "FAILED" ? (
+                                    <AlertTriangle className="mr-1.5 h-3 w-3" />
                                   ) : (
                                     <Clock className="mr-1.5 h-3 w-3" />
                                   )}
-                                  {report.status === "generated"
+                                  {report.status === "COMPLETED"
                                     ? "Ready"
+                                    : report.status === "FAILED"
+                                    ? "Failed"
                                     : "Generating"}
                                 </Badge>
                               </TableCell>
@@ -1022,7 +1035,7 @@ export default function AccountsReports() {
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
-                                  {report.status === "generated" && (
+                                  {report.status === "COMPLETED" && (
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -1113,7 +1126,7 @@ export default function AccountsReports() {
                 </div>
               </div>
 
-              {selectedReport.status === "generated" && (
+              {selectedReport.status === "COMPLETED" && (
                 <div className="border-t pt-4">
                   <Label className="text-sm font-light">Export Options</Label>
                   <div className="flex gap-2 mt-2">

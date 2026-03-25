@@ -18,7 +18,7 @@ import {
   insertCustomerSchema,
   attendance,
 } from "../shared/schema";
-import { eq, sql, gte, lt } from "drizzle-orm";
+import { eq, sql, gte, lt, and } from "drizzle-orm";
 import {
   insertAccountsReceivableSchema,
   insertAccountsPayableSchema,
@@ -84,6 +84,7 @@ export function registerAccountsRoutes(app: Express) {
 
   // Generate financial reports
   app.post("/api/reports", requireAuth, async (req, res) => {
+    let reportId: string | undefined;
     try {
       const { reportType, dateRange, startDate, endDate } = req.body;
 
@@ -91,119 +92,8 @@ export function registerAccountsRoutes(app: Express) {
         return res.status(400).json({ message: "Report type is required" });
       }
 
-      let reportData: any = {};
+      // 1. Determine title and default dates
       let title = "";
-
-      // Determine date filter
-      const getDateFilter = (tableName: string) => {
-        if (dateRange === "custom" && startDate && endDate) {
-          return `AND ${tableName}."createdAt" >= '${startDate}' AND ${tableName}."createdAt" <= '${endDate}'`;
-        } else if (dateRange === "this_month") {
-          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW())`;
-        } else if (dateRange === "last_month") {
-          return `AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW() - INTERVAL '1 month') AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW() - INTERVAL '1 month')`;
-        }
-        return "";
-      };
-
-      if (
-        reportType === "receivables" ||
-        reportType === "Accounts Receivable"
-      ) {
-        title = "Accounts Receivable Report";
-
-        const receivables = await db
-          .select({
-            id: accountsReceivables.id,
-            invoiceId: accountsReceivables.invoiceId,
-            customerId: accountsReceivables.customerId,
-            amountDue: accountsReceivables.amountDue,
-            amountPaid: accountsReceivables.amountPaid,
-            dueDate: accountsReceivables.dueDate,
-            status: accountsReceivables.status,
-            createdAt: accountsReceivables.createdAt,
-            customer: {
-              id: customers.id,
-              name: customers.name,
-            },
-          })
-          .from(accountsReceivables)
-          .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
-          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_receivables"))}`)
-          .orderBy(accountsReceivables.createdAt);
-
-        const totalAmount = receivables.reduce(
-          (sum, r) => sum + parseFloat(r.amountDue),
-          0
-        );
-        const totalPaid = receivables.reduce(
-          (sum, r) => sum + parseFloat(r.amountPaid || 0),
-          0
-        );
-        const totalOutstanding = totalAmount - totalPaid;
-
-        reportData = {
-          receivables,
-          summary: {
-            totalAmount,
-            totalPaid,
-            totalOutstanding,
-            recordCount: receivables.length,
-          },
-        };
-      } else if (
-        reportType === "daily_collections" ||
-        reportType === "Daily Collections"
-      ) {
-        title = "Daily Collections Report";
-
-        // Get daily collections aggregated by date
-        const dailyCollections = await db
-          .select({
-            date: sql<string>`${accountsReceivables.updatedAt}::date`,
-            totalCollected: sql<number>`SUM(${accountsReceivables.amountPaid})`,
-            transactionCount: sql<number>`COUNT(*)`,
-          })
-          .from(accountsReceivables)
-          .where(
-            sql`${accountsReceivables.amountPaid} > 0 AND ${sql.raw(
-              getDateFilter("accounts_receivables")
-            )}`
-          )
-          .groupBy(sql`${accountsReceivables.updatedAt}::date`)
-          .orderBy(sql`${accountsReceivables.updatedAt}::date`);
-
-        const totalCollected = dailyCollections.reduce(
-          (sum, day) => sum + parseFloat(day.totalCollected.toString()),
-          0
-        );
-        const totalTransactions = dailyCollections.reduce(
-          (sum, day) => sum + day.transactionCount,
-          0
-        );
-
-        reportData = {
-          dailyCollections: dailyCollections.map((day) => ({
-            date: day.date,
-            totalCollected: parseFloat(day.totalCollected.toString()),
-            transactionCount: day.transactionCount,
-          })),
-          summary: {
-            totalCollected,
-            totalTransactions,
-            daysWithCollections: dailyCollections.length,
-            averageDaily:
-              dailyCollections.length > 0
-                ? totalCollected / dailyCollections.length
-                : 0,
-          },
-        };
-      } else {
-        return res.status(400).json({ message: "Invalid report type" });
-      }
-
-      // Save report to database
-      // Set default date range if not provided
       const now = new Date();
       const defaultStartDate =
         dateRange === "this_month"
@@ -223,34 +113,215 @@ export function registerAccountsRoutes(app: Express) {
           ? new Date(endDate)
           : new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      const savedReport = await db
+      // Set titles based on reportType
+      if (reportType === "receivables" || reportType === "Accounts Receivable") title = "Accounts Receivable Report";
+      else if (reportType === "daily_collections" || reportType === "Daily Collections") title = "Daily Collections Report";
+      else if (reportType === "payables" || reportType === "Accounts Payable") title = "Accounts Payable Report";
+      else if (reportType === "gst_filing" || reportType === "GST Filing") title = "GST Filing Report";
+      else if (reportType === "cash_flow" || reportType === "Cash Flow") title = "Cash Flow Report";
+      else if (reportType === "profit_loss" || reportType === "Profit & Loss") title = "Profit & Loss Statement";
+      else title = `${reportType} Report`;
+
+      // 2. Create record with GENERATING status
+      const [newReport] = await db
         .insert(accountReports)
         .values({
           reportType,
           title,
           startDate: defaultStartDate,
           endDate: defaultEndDate,
-          generatedBy:
-            process.env.NODE_ENV === "development" ? null : req.user?.id,
-          parameters: JSON.stringify({
-            dateRange,
-            startDate,
-            endDate,
-          }),
-          summary: JSON.stringify(reportData.summary),
+          status: "GENERATING",
+          generatedBy: process.env.NODE_ENV === "development" ? null : req.user?.id,
+          parameters: JSON.stringify({ dateRange, startDate, endDate }),
         })
         .returning();
 
+      reportId = newReport.id;
+
+      // 3. Process data (in-line for now, but following the flow)
+      let reportData: any = {};
+
+      const getDateFilter = (tableName: string) => {
+        if (dateRange === "custom" && startDate && endDate) {
+          return ` AND ${tableName}."createdAt" >= '${startDate}' AND ${tableName}."createdAt" <= '${endDate}'`;
+        } else if (dateRange === "this_month") {
+          return ` AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW()) AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW())`;
+        } else if (dateRange === "last_month") {
+          return ` AND EXTRACT(MONTH FROM ${tableName}."createdAt") = EXTRACT(MONTH FROM NOW() - INTERVAL '1 month') AND EXTRACT(YEAR FROM ${tableName}."createdAt") = EXTRACT(YEAR FROM NOW() - INTERVAL '1 month')`;
+        }
+        return "";
+      };
+
+      if (reportType === "receivables" || reportType === "Accounts Receivable") {
+        const receivables = await db
+          .select({
+            id: accountsReceivables.id,
+            invoiceId: accountsReceivables.invoiceId,
+            customerId: accountsReceivables.customerId,
+            amountDue: accountsReceivables.amountDue,
+            amountPaid: accountsReceivables.amountPaid,
+            dueDate: accountsReceivables.dueDate,
+            status: accountsReceivables.status,
+            createdAt: accountsReceivables.createdAt,
+            customer: { id: customers.id, name: customers.name },
+          })
+          .from(accountsReceivables)
+          .leftJoin(customers, eq(accountsReceivables.customerId, customers.id))
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_receivables"))}`)
+          .orderBy(accountsReceivables.createdAt);
+
+        const totalAmount = receivables.reduce((sum, r) => sum + parseFloat(r.amountDue), 0);
+        const totalPaid = receivables.reduce((sum, r) => sum + parseFloat(r.amountPaid || 0), 0);
+
+        reportData = {
+          receivables,
+          summary: { totalAmount, totalPaid, totalOutstanding: totalAmount - totalPaid, recordCount: receivables.length },
+        };
+      } else if (reportType === "daily_collections" || reportType === "Daily Collections") {
+        const dailyCollections = await db
+          .select({
+            date: sql<string>`${accountsReceivables.updatedAt}::date`,
+            totalCollected: sql<number>`SUM(${accountsReceivables.amountPaid})`,
+            transactionCount: sql<number>`COUNT(*)`,
+          })
+          .from(accountsReceivables)
+          .where(sql`${accountsReceivables.amountPaid} > 0 ${sql.raw(getDateFilter("accounts_receivables"))}`)
+          .groupBy(sql`${accountsReceivables.updatedAt}::date`)
+          .orderBy(sql`${accountsReceivables.updatedAt}::date`);
+
+        const totalCollected = dailyCollections.reduce((sum, day) => sum + parseFloat(day.totalCollected.toString()), 0);
+
+        reportData = {
+          dailyCollections: dailyCollections.map((day) => ({
+            date: day.date,
+            totalCollected: parseFloat(day.totalCollected.toString()),
+            transactionCount: day.transactionCount,
+          })),
+          summary: { totalCollected, totalTransactions: dailyCollections.reduce((sum, day) => sum + day.transactionCount, 0), daysWithCollections: dailyCollections.length },
+        };
+      } else if (reportType === "payables" || reportType === "Accounts Payable") {
+        const payables = await db
+          .select({
+            id: accountsPayables.id,
+            poId: accountsPayables.poId,
+            supplierId: accountsPayables.supplierId,
+            amountDue: accountsPayables.amountDue,
+            amountPaid: accountsPayables.amountPaid,
+            dueDate: accountsPayables.dueDate,
+            status: accountsPayables.status,
+            createdAt: accountsPayables.createdAt,
+            supplier: { id: suppliers.id, name: suppliers.name },
+          })
+          .from(accountsPayables)
+          .leftJoin(suppliers, eq(accountsPayables.supplierId, suppliers.id))
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`)
+          .orderBy(accountsPayables.createdAt);
+
+        const totalAmount = payables.reduce((sum, p) => sum + parseFloat(p.amountDue), 0);
+        const totalPaid = payables.reduce((sum, p) => sum + parseFloat(p.amountPaid || 0), 0);
+
+        reportData = {
+          payables,
+          summary: { totalAmount, totalPaid, totalOutstanding: totalAmount - totalPaid, recordCount: payables.length },
+        };
+      } else if (reportType === "gst_filing" || reportType === "GST Filing") {
+        const outputTax = await db
+          .select({
+            totalCGST: sql<number>`SUM(${invoices.cgstAmount})`,
+            totalSGST: sql<number>`SUM(${invoices.sgstAmount})`,
+            totalIGST: sql<number>`SUM(${invoices.igstAmount})`,
+          })
+          .from(invoices)
+          .where(sql`1=1 ${sql.raw(getDateFilter("invoices"))}`);
+
+        const inputTax = await db
+          .select({ totalGST: sql<number>`SUM(${purchaseOrders.gstAmount})` })
+          .from(purchaseOrders)
+          .where(sql`1=1 ${sql.raw(getDateFilter("purchase_orders"))}`);
+
+        const totalOutput =
+          parseFloat(outputTax[0]?.totalCGST?.toString() || "0") +
+          parseFloat(outputTax[0]?.totalSGST?.toString() || "0") +
+          parseFloat(outputTax[0]?.totalIGST?.toString() || "0");
+        const totalInput = parseFloat(inputTax[0]?.totalGST?.toString() || "0");
+
+        reportData = {
+          gstSummary: {
+            outputCGST: parseFloat(outputTax[0]?.totalCGST?.toString() || "0"),
+            outputSGST: parseFloat(outputTax[0]?.totalSGST?.toString() || "0"),
+            outputIGST: parseFloat(outputTax[0]?.totalIGST?.toString() || "0"),
+            totalOutput,
+            totalInput,
+            netLiability: totalOutput - totalInput,
+          },
+          summary: { totalOutput, totalInput, netLiability: totalOutput - totalInput },
+        };
+      } else if (reportType === "cash_flow" || reportType === "Cash Flow") {
+        const inflow = await db
+          .select({ total: sql<number>`SUM(${accountsReceivables.amountPaid})` })
+          .from(accountsReceivables)
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_receivables"))}`);
+
+        const outflow = await db
+          .select({ total: sql<number>`SUM(${accountsPayables.amountPaid})` })
+          .from(accountsPayables)
+          .where(sql`1=1 ${sql.raw(getDateFilter("accounts_payables"))}`);
+
+        const totalInflow = parseFloat(inflow[0]?.total?.toString() || "0");
+        const totalOutflow = parseFloat(outflow[0]?.total?.toString() || "0");
+
+        reportData = {
+          cashFlow: { inflow: totalInflow, outflow: totalOutflow, netCashFlow: totalInflow - totalOutflow },
+          summary: { totalInflow, totalOutflow, netCashFlow: totalInflow - totalOutflow },
+        };
+      } else if (reportType === "profit_loss" || reportType === "Profit & Loss") {
+        const income = await db
+          .select({ total: sql<number>`SUM(${invoices.totalAmount})` })
+          .from(invoices)
+          .where(sql`1=1 ${sql.raw(getDateFilter("invoices"))}`);
+
+        const expenses = await db
+          .select({ total: sql<number>`SUM(${purchaseOrders.totalAmount})` })
+          .from(purchaseOrders)
+          .where(sql`1=1 ${sql.raw(getDateFilter("purchase_orders"))}`);
+
+        const totalIncome = parseFloat(income[0]?.total?.toString() || "0");
+        const totalExpenses = parseFloat(expenses[0]?.total?.toString() || "0");
+
+        reportData = {
+          profitLoss: { income: totalIncome, expenses: totalExpenses, netProfit: totalIncome - totalExpenses },
+          summary: { totalIncome, totalExpenses, netProfit: totalIncome - totalExpenses },
+        };
+      } else {
+        await db.update(accountReports).set({ status: "FAILED" }).where(eq(accountReports.id, reportId!));
+        return res.status(400).json({ message: "Invalid report type" });
+      }
+
+      // 4. Update record to COMPLETED
+      const [updatedReport] = await db
+        .update(accountReports)
+        .set({
+          status: "COMPLETED",
+          summary: JSON.stringify(reportData.summary),
+          updatedAt: new Date(),
+        })
+        .where(eq(accountReports.id, reportId!))
+        .returning();
+
       res.json({
-        id: savedReport[0].id,
-        title,
+        id: updatedReport.id,
+        title: updatedReport.title,
         reportType,
         dateRange,
-        generatedAt: savedReport[0].generatedAt,
+        status: updatedReport.status,
+        generatedAt: updatedReport.generatedAt,
         data: reportData,
       });
     } catch (error) {
       console.error("Error generating report:", error);
+      if (reportId) {
+        await db.update(accountReports).set({ status: "FAILED" }).where(eq(accountReports.id, reportId));
+      }
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -283,6 +354,59 @@ export function registerAccountsRoutes(app: Express) {
       res.json(reports);
     } catch (error) {
       console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get reports dashboard metrics
+  app.get("/api/reports/metrics", requireAuth, async (req, res) => {
+    try {
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const firstDayOfYear = new Date(now.getFullYear(), 0, 1);
+
+      // 1. Reports Generated (this month)
+      const reportsThisMonth = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(accountReports)
+        .where(gte(accountReports.createdAt, firstDayOfMonth));
+
+      // 2. Total Downloads
+      const totalDownloads = await db
+        .select({ total: sql<number>`SUM(${accountReports.downloadCount})` })
+        .from(accountReports);
+
+      // 3. Collection Rate
+      const collections = await db
+        .select({
+          totalDue: sql<number>`SUM(${accountsReceivables.amountDue})`,
+          totalPaid: sql<number>`SUM(${accountsReceivables.amountPaid})`,
+        })
+        .from(accountsReceivables);
+
+      const totalDue = parseFloat(collections[0]?.totalDue?.toString() || "0");
+      const totalPaid = parseFloat(collections[0]?.totalPaid?.toString() || "0");
+      const collectionRate = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+
+      // 4. GST Reports Filed (this year)
+      const gstFiledThisYear = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(gstReturns)
+        .where(
+          and(
+            eq(gstReturns.status, "filed"),
+            gte(gstReturns.filedAt, firstDayOfYear)
+          )
+        );
+
+      res.json({
+        reportsGeneratedThisMonth: reportsThisMonth[0]?.count || 0,
+        totalDownloads: totalDownloads[0]?.total || 0,
+        collectionRate: Math.round(collectionRate),
+        gstReportsFiledThisYear: gstFiledThisYear[0]?.count || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching report metrics:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -40,6 +40,7 @@ import PurchaseOrders from "./PurchaseOrders";
 import SalesOrders from "./SalesOrders";
 import InvoiceManagement from "./InvoiceManagement";
 import CreateInvoice from "./CreateInvoice";
+import InvoiceDetails from "./InvoiceDetails";
 import ClientManagement from "./ClientManagement";
 import VendorManagement from "./VendorManagement";
 import SalesReports from "./SalesReports";
@@ -264,6 +265,7 @@ export default function SalesLayout() {
           <Route path="/sales/orders" component={SalesOrders} />
           <Route path="/sales/invoices" component={InvoiceManagement} />
           <Route path="/sales/invoices/new" component={CreateInvoice} />
+          <Route path="/sales/invoices/:id" component={InvoiceDetails} />
           <Route path="/sales/clients" component={ClientManagement} />
           <Route path="/sales/vendors" component={VendorManagement} />
           <Route path="/sales/reports" component={SalesReports} />

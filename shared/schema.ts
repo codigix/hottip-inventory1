@@ -724,6 +724,8 @@ export const invoices = pgTable("invoices", {
   packingFee: numeric("packingFee", { precision: 10, scale: 2 }).default("0"),
   shippingFee: numeric("shippingFee", { precision: 10, scale: 2 }).default("0"),
   otherCharges: numeric("otherCharges", { precision: 10, scale: 2 }).default("0"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 // =====================
@@ -2376,18 +2378,19 @@ export const insertActivitySchema = z.object({
 // ACCOUNT REPORTS
 // =====================
 export const reportStatus = pgEnum("report_status", [
-  "generated",
-  "processing",
-  "failed",
+  "GENERATING",
+  "COMPLETED",
+  "FAILED",
 ]);
 
+// Enums are better handled as strings with Zod validation if DB permissions prevent enum alteration
 export const accountReports = pgTable("account_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
   reportType: text("reportType").notNull(),
   title: text("title").notNull(),
   startDate: timestamp("startDate").notNull(),
   endDate: timestamp("endDate").notNull(),
-  status: reportStatus("status").default("generated").notNull(),
+  status: text("status").default("COMPLETED").notNull(), // Changed from reportStatus enum to text
   fileUrl: text("fileUrl"),
   fileName: text("fileName"),
   fileSize: integer("fileSize"),
@@ -2406,7 +2409,7 @@ export const insertAccountReportSchema = z.object({
   title: z.string(),
   startDate: z.string(),
   endDate: z.string(),
-  status: z.enum(["generated", "processing", "failed"]).optional(),
+  status: z.enum(["GENERATING", "COMPLETED", "FAILED"]).optional(),
   fileUrl: z.string().optional(),
   fileName: z.string().optional(),
   fileSize: z.number().optional(),
@@ -2563,3 +2566,6 @@ export type InsertActivity = typeof activities.$inferInsert;
 
 export type MoldDetail = typeof moldDetailsTable.$inferSelect;
 export type InsertMoldDetail = typeof moldDetailsTable.$inferInsert;
+
+export type AccountReport = typeof accountReports.$inferSelect;
+export type InsertAccountReport = typeof accountReports.$inferInsert;

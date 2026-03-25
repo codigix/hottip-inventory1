@@ -994,7 +994,7 @@ export default function AccountsPayables() {
 
       {/* Record Payment Dialog */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="max-w-5xl h-[90vh] max-h-[95vh] p-0 border-none shadow-2xl bg-slate-50 flex flex-col overflow-hidden">
+        <DialogContent className="max-w-6xl h-[90vh] max-h-[95vh] p-0 border-none shadow-2xl bg-slate-50 flex flex-col overflow-hidden rounded-[40px]">
           <DialogHeader className="sr-only">
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
@@ -1002,23 +1002,33 @@ export default function AccountsPayables() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-primary px-6 py-6 text-white sticky top-0 z-20 shadow-lg">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-md">
-                  <DollarSign className="h-8 w-8 text-white" />
+          {/* Premium Header Design */}
+          <div className="bg-[#6366f1] px-10 py-10 text-white sticky top-0 z-20 shadow-xl overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full -ml-32 -mb-32 blur-2xl pointer-events-none" />
+            
+            <div className="flex justify-between items-center relative z-10">
+              <div className="flex items-center gap-8">
+                <div className="bg-white/20 p-5 rounded-[28px] backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/10">
+                  <DollarSign className="h-12 w-12 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black tracking-tight leading-none mb-1">
+                  <h2 className="text-4xl font-black tracking-tighter leading-none mb-3">
                     Record Payment
                   </h2>
-                  <p className="opacity-70 text-xs   tracking-widest">Outbound Vendor Payment</p>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-none hover:bg-white/30 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                      Outbound Payment
+                    </Badge>
+                    <span className="h-1 w-1 bg-white/40 rounded-full" />
+                    <p className="opacity-60 text-xs font-bold tracking-widest uppercase">Accounts Payable</p>
+                  </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="bg-white/10 px-6 py-2 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner inline-block">
-                  <p className="text-xs  font-black opacity-60 tracking-[0.2em] mb-0.5">Outstanding Balance</p>
-                  <p className="text-2xl font-black tabular-nums">
+                <div className="bg-black/20 px-10 py-6 rounded-[32px] backdrop-blur-md border border-white/10 shadow-2xl shadow-inner group transition-all">
+                  <p className="text-[10px] font-black opacity-50 uppercase tracking-[0.3em] mb-2 group-hover:opacity-80 transition-opacity">Outstanding Balance</p>
+                  <p className="text-5xl font-black tabular-nums tracking-tighter">
                     ₹{selectedPayable ? (
                       parseFloat(selectedPayable.amountDue) -
                       parseFloat(selectedPayable.amountPaid)

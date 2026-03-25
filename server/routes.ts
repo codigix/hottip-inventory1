@@ -2620,11 +2620,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({});
   });
 
-  // Generic reports list
-  app.get("/api/reports", requireAuth, async (_req, res) => {
-    res.json([]);
-  });
-
   //
 
   // Lightweight marketing dashboard endpoints

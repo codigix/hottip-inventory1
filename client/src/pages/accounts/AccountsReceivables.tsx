@@ -759,7 +759,7 @@ export default function AccountsReceivables() {
                     const customerName =
                       receivable.customer?.name || "Unknown Customer";
                     const invoiceNumber =
-                      receivable.invoice?.number ||
+                      receivable.invoice?.invoiceNumber ||
                       receivable.invoiceId ||
                       "Unknown Invoice";
                     const remainingAmount =
@@ -785,7 +785,7 @@ export default function AccountsReceivables() {
                         </TableCell>
                         <TableCell>
                           <Link
-                            href={`/sales/invoices/${receivable.invoiceId}`}
+                            href={`/accounts/invoices/${receivable.invoiceId}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
                             data-testid={`link-invoice-${receivable.id}`}
                           >

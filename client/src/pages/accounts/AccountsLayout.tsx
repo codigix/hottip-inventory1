@@ -19,6 +19,7 @@ import AccountsReceivables from "./AccountsReceivables";
 import AccountsPayables from "./AccountsPayables";
 import AccountsReports from "./AccountsReports";
 import PaymentHistory from "./PaymentHistory";
+import InvoiceDetails from "../sales/InvoiceDetails";
 
 const sidebarItems = [
   {
@@ -180,6 +181,9 @@ export default function AccountsLayout() {
           </Route>
           <Route path="/accounts/reports">
             <AccountsReports />
+          </Route>
+          <Route path="/accounts/invoices/:id">
+            <InvoiceDetails />
           </Route>
           <Route>
             <div className="p-4">
