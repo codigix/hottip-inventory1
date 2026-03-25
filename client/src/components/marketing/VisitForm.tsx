@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, Calendar as LucideCalendar, AlertCircle } from "lucide-react";
+import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, Calendar as LucideCalendar, AlertCircle, Timer } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ const visitFormSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   purpose: z.enum(['initial_meeting', 'demo', 'follow_up', 'quotation_discussion', 'negotiation', 'closing', 'support', 'other']),
+  status: z.enum(['scheduled', 'upcoming', 'completed', 'cancelled', 'in_progress']).optional(),
   preVisitNotes: z.string().optional(),
   travelExpense: z.string().optional(),
 });
@@ -82,6 +83,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
     resolver: zodResolver(visitFormSchema),
     defaultValues: {
       purpose: "initial_meeting",
+      status: "scheduled",
       visitCity: "",
       visitState: "",
       preVisitNotes: "",
@@ -104,6 +106,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         latitude: visit.latitude ? parseFloat(visit.latitude) : undefined,
         longitude: visit.longitude ? parseFloat(visit.longitude) : undefined,
         purpose: visit.purpose,
+        status: visit.status.toLowerCase().replace(" ", "_"),
         preVisitNotes: visit.preVisitNotes || '',
         travelExpense: visit.travelExpense || '',
       };
@@ -143,6 +146,9 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
 
   // Handle form submission
   const handleSubmit = (data: VisitFormData) => {
+    // If purpose changed, force status back to Scheduled
+    const purposeChanged = visit && data.purpose !== visit.purpose;
+    
     const submitData: InsertFieldVisit = {
       leadId: data.leadId,
       plannedDate: data.plannedDate,
@@ -158,7 +164,9 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
       purpose: data.purpose,
       preVisitNotes: data.preVisitNotes,
       travelExpense: data.travelExpense,
-      status: visit ? visit.status : 'scheduled',
+      status: purposeChanged ? 'Scheduled' : (data.status ? 
+        (data.status.charAt(0).toUpperCase() + data.status.slice(1)).replace("_", " ") : 
+        'Scheduled'),
     };
 
     onSubmit(submitData);
@@ -357,6 +365,36 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                 </FormItem>
               )}
             />
+
+            {visit && (
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center space-x-2">
+                      <Timer className="h-4 w-4" />
+                      <span>Visit Status *</span>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="scheduled">Scheduled</SelectItem>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {visit && purposeLogs && purposeLogs.length > 0 && (
               <div className=" space-y-2 p-2 bg-slate-50 dark:bg-primary rounded-lg border-l-4 border-blue-500">

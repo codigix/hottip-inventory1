@@ -154,6 +154,10 @@ export default function FieldVisits() {
   };
 
   const handleEditVisit = (visit: VisitWithDetails) => {
+    if (visit.status?.toLowerCase() === "completed") {
+      toast({ title: "Cannot edit completed visit", variant: "destructive" });
+      return;
+    }
     setSelectedVisit(visit);
     setIsFormOpen(true);
   };
