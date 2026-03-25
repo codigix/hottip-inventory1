@@ -746,7 +746,12 @@ export function registerSalesRoutes(
 
             // Create Material Request Items
             const mrItems = await Promise.all(items.map(async (item) => {
-              const name = item.partName || item.itemName || "Item";
+              const partName = item.partName || "";
+              const itemName = item.itemName || "";
+              const name = (partName && itemName && partName !== itemName) 
+                ? `${partName} (${itemName})` 
+                : (partName || itemName || "Item");
+              
               const desc = item.partDescription || "";
               const fullNotes = desc ? `${name} (${desc})` : name;
 
@@ -755,10 +760,9 @@ export function registerSalesRoutes(
 
               // If not linked, try to find by name or sku
               if (!productId && !sparePartId) {
-                const sName = fullNotes.trim().toLowerCase();
-                const sPureName = name.trim().toLowerCase();
-                const sSku = name.includes('(') ? name.split('(')[0].trim().toLowerCase() : sPureName;
-                const sDesc = desc.trim().toLowerCase();
+                const sFullName = name.trim().toLowerCase();
+                const sItemOnly = itemName.trim().toLowerCase();
+                const sPartOnly = partName.trim().toLowerCase();
 
                 // Fetch all products and spares for in-memory matching (more robust than complex SQL for fuzzy matches)
                 const [allProducts, allSpares] = await Promise.all([
@@ -766,28 +770,20 @@ export function registerSalesRoutes(
                   db.select({ id: spareParts.id, name: spareParts.name, partNumber: spareParts.partNumber }).from(spareParts)
                 ]);
 
-                // Try to find product
-                const foundProduct = allProducts.find(p => p.name.toLowerCase() === sName) ||
-                                     allProducts.find(p => p.sku.toLowerCase() === sName) ||
-                                     allProducts.find(p => p.sku.toLowerCase() === sSku) ||
-                                     allProducts.find(p => p.name.toLowerCase() === sPureName) ||
-                                     allProducts.find(p => p.sku.toLowerCase() === sPureName) ||
-                                     allProducts.find(p => sName.includes(p.sku.toLowerCase()) && p.sku.length > 3) ||
-                                     allProducts.find(p => sName.includes(p.name.toLowerCase()) && p.name.length > 3) ||
-                                     allProducts.find(p => p.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+                // Try to find product - Prioritize exact matches
+                const foundProduct = allProducts.find(p => p.name.toLowerCase() === sFullName) ||
+                                     allProducts.find(p => p.sku.toLowerCase() === sFullName) ||
+                                     allProducts.find(p => p.name.toLowerCase() === sItemOnly) ||
+                                     allProducts.find(p => p.sku.toLowerCase() === sItemOnly);
                 
                 if (foundProduct) {
                   productId = foundProduct.id;
                 } else {
-                  // Try spare parts
-                  const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sName) ||
-                                     allSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
-                                     allSpares.find(sp => sp.partNumber.toLowerCase() === sSku) ||
-                                     allSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
-                                     allSpares.find(sp => sp.partNumber.toLowerCase() === sPureName) ||
-                                     allSpares.find(sp => sName.includes(sp.partNumber.toLowerCase()) && sp.partNumber.length > 3) ||
-                                     allSpares.find(sp => sName.includes(sp.name.toLowerCase()) && sp.name.length > 3) ||
-                                     allSpares.find(sp => sp.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+                  // Try spare parts - Prioritize exact matches
+                  const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sFullName) ||
+                                     allSpares.find(sp => sp.partNumber.toLowerCase() === sFullName) ||
+                                     allSpares.find(sp => sp.name.toLowerCase() === sItemOnly) ||
+                                     allSpares.find(sp => sp.partNumber.toLowerCase() === sItemOnly);
                   
                   if (foundSpare) {
                     sparePartId = foundSpare.id;
@@ -900,7 +896,12 @@ export function registerSalesRoutes(
 
       // Create Material Request Items
       const mrItems = await Promise.all(items.map(async (item) => {
-        const name = item.partName || item.itemName || "Item";
+        const partName = item.partName || "";
+        const itemName = item.itemName || "";
+        const name = (partName && itemName && partName !== itemName) 
+          ? `${partName} (${itemName})` 
+          : (partName || itemName || "Item");
+          
         const desc = item.partDescription || "";
         const fullNotes = desc ? `${name} (${desc})` : name;
 
@@ -909,33 +910,24 @@ export function registerSalesRoutes(
 
         // If not linked, try to find by name or sku
         if (!productId && !sparePartId) {
-          const sName = fullNotes.trim().toLowerCase();
-          const sPureName = name.trim().toLowerCase();
-          const sSku = name.includes('(') ? name.split('(')[0].trim().toLowerCase() : sPureName;
-          const sDesc = desc.trim().toLowerCase();
+          const sFullName = name.trim().toLowerCase();
+          const sItemOnly = itemName.trim().toLowerCase();
+          const sPartOnly = partName.trim().toLowerCase();
 
-          // Try to find product
-          const foundProduct = allProducts.find(p => p.name.toLowerCase() === sName) ||
-                               allProducts.find(p => p.sku.toLowerCase() === sName) ||
-                               allProducts.find(p => p.sku.toLowerCase() === sSku) ||
-                               allProducts.find(p => p.name.toLowerCase() === sPureName) ||
-                               allProducts.find(p => p.sku.toLowerCase() === sPureName) ||
-                               allProducts.find(p => sName.includes(p.sku.toLowerCase()) && p.sku.length > 3) ||
-                               allProducts.find(p => sName.includes(p.name.toLowerCase()) && p.name.length > 3) ||
-                               allProducts.find(p => p.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+          // Try to find product - Prioritize exact matches
+          const foundProduct = allProducts.find(p => p.name.toLowerCase() === sFullName) ||
+                               allProducts.find(p => p.sku.toLowerCase() === sFullName) ||
+                               allProducts.find(p => p.name.toLowerCase() === sItemOnly) ||
+                               allProducts.find(p => p.sku.toLowerCase() === sItemOnly);
           
           if (foundProduct) {
             productId = foundProduct.id;
           } else {
-            // Try spare parts
-            const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sName) ||
-                               allSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
-                               allSpares.find(sp => sp.partNumber.toLowerCase() === sSku) ||
-                               allSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
-                               allSpares.find(sp => sp.partNumber.toLowerCase() === sPureName) ||
-                               allSpares.find(sp => sName.includes(sp.partNumber.toLowerCase()) && sp.partNumber.length > 3) ||
-                               allSpares.find(sp => sName.includes(sp.name.toLowerCase()) && sp.name.length > 3) ||
-                               allSpares.find(sp => sp.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+            // Try spare parts - Prioritize exact matches
+            const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sFullName) ||
+                               allSpares.find(sp => sp.partNumber.toLowerCase() === sFullName) ||
+                               allSpares.find(sp => sp.name.toLowerCase() === sItemOnly) ||
+                               allSpares.find(sp => sp.partNumber.toLowerCase() === sItemOnly);
             
             if (foundSpare) {
               sparePartId = foundSpare.id;

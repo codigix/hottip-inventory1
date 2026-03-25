@@ -1060,18 +1060,29 @@ export function registerInventoryRoutes(
         if (item.productId || item.sparePartId) continue;
 
         const sName = (item.notes || "").trim().toLowerCase();
-        // Try to extract pure name if it's in format "Name (Desc)"
-        const sPureName = sName.includes('(') ? sName.split('(')[0].trim() : sName;
         
-        console.log(`   Searching for: "${sName}" (Pure: "${sPureName}")`);
+        // Extract names for matching: "PartName (ItemName)" -> full="partname (itemname)", item="itemname", part="partname"
+        const sFullName = sName;
+        let sItemOnly = "";
+        let sPartOnly = sName;
 
-        // Try to find product
-        const foundProduct = allProducts.find(p => p.name.toLowerCase() === sName) ||
-                             allProducts.find(p => p.sku.toLowerCase() === sName) ||
-                             allProducts.find(p => p.name.toLowerCase() === sPureName) ||
-                             allProducts.find(p => p.sku.toLowerCase() === sPureName) ||
-                             allProducts.find(p => sName.includes(p.name.toLowerCase()) && p.name.length > 3) ||
-                             allProducts.find(p => p.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+        if (sName.includes('(') && sName.includes(')')) {
+          const match = sName.match(/^(.*)\s*\((.*)\)/);
+          if (match) {
+            sPartOnly = match[1].trim();
+            sItemOnly = match[2].trim();
+          }
+        }
+        
+        console.log(`   Searching for: "${sFullName}" (Part: "${sPartOnly}", Item: "${sItemOnly}")`);
+
+        // Try to find product - Prioritize exact matches
+        const foundProduct = allProducts.find(p => p.name.toLowerCase() === sFullName) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sFullName) ||
+                             (sItemOnly && allProducts.find(p => p.name.toLowerCase() === sItemOnly)) ||
+                             (sItemOnly && allProducts.find(p => p.sku.toLowerCase() === sItemOnly)) ||
+                             allProducts.find(p => p.name.toLowerCase() === sPartOnly) ||
+                             allProducts.find(p => p.sku.toLowerCase() === sPartOnly);
         
         if (foundProduct) {
           console.log(`   ✅ Found Product: ${foundProduct.name} (${foundProduct.id})`);
@@ -1080,13 +1091,13 @@ export function registerInventoryRoutes(
             .where(eq(materialRequestItems.id, item.id));
           linkedCount++;
         } else {
-          // Try spare parts
-          const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sName) ||
-                             allSpares.find(sp => sp.partNumber.toLowerCase() === sName) ||
-                             allSpares.find(sp => sp.name.toLowerCase() === sPureName) ||
-                             allSpares.find(sp => sp.partNumber.toLowerCase() === sPureName) ||
-                             allSpares.find(sp => sName.includes(sp.name.toLowerCase()) && sp.name.length > 3) ||
-                             allSpares.find(sp => sp.name.toLowerCase().includes(sPureName) && sPureName.length > 3);
+          // Try spare parts - Prioritize exact matches
+          const foundSpare = allSpares.find(sp => sp.name.toLowerCase() === sFullName) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sFullName) ||
+                             (sItemOnly && allSpares.find(sp => sp.name.toLowerCase() === sItemOnly)) ||
+                             (sItemOnly && allSpares.find(sp => sp.partNumber.toLowerCase() === sItemOnly)) ||
+                             allSpares.find(sp => sp.name.toLowerCase() === sPartOnly) ||
+                             allSpares.find(sp => sp.partNumber.toLowerCase() === sPartOnly);
           
           if (foundSpare) {
             console.log(`   ✅ Found Spare: ${foundSpare.name} (${foundSpare.id})`);
