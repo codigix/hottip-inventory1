@@ -56,42 +56,77 @@ import { Separator } from "@/components/ui/separator";
 import type { LeadFormData, User } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const leadFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  companyName: z.string().optional(),
-  email: z.string().email("Invalid email format").optional().or(z.literal("")),
-  phone: z
-    .string()
-    .min(10, "Phone number must be at least 10 digits")
-    .optional()
-    .or(z.literal("")),
-  alternatePhone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  country: z.string().min(1, "Country is required").default("India"),
-  source: z.enum([
-    "website",
-    "referral",
-    "advertisement",
-    "social_media",
-    "trade_show",
-    "cold_call",
-    "email_campaign",
-    "other",
-  ]),
-  sourceDetails: z.string().optional(),
-  referredBy: z.string().optional(),
-  requirementDescription: z.string().optional(),
-  estimatedBudget: z.string().optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
-  assignedTo: z.string().optional(),
-  followUpDate: z.string().optional(),
-  expectedClosingDate: z.string().optional(),
-  notes: z.string().optional(),
-});
+const leadFormSchema = z
+  .object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    companyName: z.string().optional(),
+    email: z.string().email("Invalid email format").optional().or(z.literal("")),
+    phone: z
+      .string()
+      .min(10, "Phone number must be at least 10 digits")
+      .optional()
+      .or(z.literal("")),
+    alternatePhone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zipCode: z.string().optional(),
+    country: z.string().min(1, "Country is required").default("India"),
+    source: z.enum([
+      "website",
+      "referral",
+      "advertisement",
+      "social_media",
+      "trade_show",
+      "cold_call",
+      "email_campaign",
+      "other",
+    ]),
+    sourceDetails: z.string().optional(),
+    referredBy: z.string().optional(),
+    requirementDescription: z.string().optional(),
+    estimatedBudget: z.string().optional(),
+    priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+    assignedTo: z.string().optional(),
+    followUpDate: z.string().optional(),
+    expectedClosingDate: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.source === "website") {
+      if (!data.sourceDetails) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Website link is required",
+          path: ["sourceDetails"],
+        });
+      }
+    } else if (data.source === "referral") {
+      if (!data.referredBy) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Referral name is required",
+          path: ["referredBy"],
+        });
+      }
+      if (!data.sourceDetails) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Referral contact info is required",
+          path: ["sourceDetails"],
+        });
+      }
+    } else if (data.source !== "other") {
+      if (!data.sourceDetails) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Source details are required",
+          path: ["sourceDetails"],
+        });
+      }
+    }
+  });
 
 interface LeadFormProps {
   open: boolean;
@@ -203,6 +238,41 @@ export default function LeadForm({
 
   const isPending = createMutation.isLoading || updateMutation.isLoading;
 
+  const selectedSource = form.watch("source");
+
+  const getSourceDetailsLabel = () => {
+    switch (selectedSource) {
+      case "website":
+        return "Website Link";
+      case "referral":
+        return "Referral Contact";
+      case "advertisement":
+        return "Ad Details";
+      case "social_media":
+        return "Platform Name";
+      case "trade_show":
+        return "Show Name";
+      case "cold_call":
+        return "Caller Details";
+      case "email_campaign":
+        return "Campaign Name";
+      default:
+        return "Source Details";
+    }
+  };
+
+  const getReferredByLabel = () => {
+    switch (selectedSource) {
+      case "referral":
+        return "Referral Name";
+      default:
+        return "Referred By";
+    }
+  };
+
+  const isSourceDetailsRequired = selectedSource !== "other";
+  const isReferredByRequired = selectedSource === "referral";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -220,7 +290,7 @@ export default function LeadForm({
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <UserIcon className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Basic Information</h3>
+                  <h3 className="text-sm    text-muted-foreground">Basic Information</h3>
                 </div>
                 <Separator />
                 <div className="grid grid-cols-3 gap-4">
@@ -231,7 +301,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <UserIcon className="h-4 w-4" />
-                          <span>First Name *</span>
+                          <span className="text-gray-600">First Name *</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-first-name" />
@@ -248,7 +318,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <UserIcon className="h-4 w-4" />
-                          <span>Last Name *</span>
+                          <span className="text-gray-600">Last Name *</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-last-name" />
@@ -264,7 +334,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Building className="h-4 w-4" />
-                          <span>Company Name</span>
+                          <span className="text-gray-600" >Company Name</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-company-name" />
@@ -285,11 +355,11 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Search className="h-4 w-4" />
-                          <span>Lead Source *</span>
+                          <span className="text-gray-600">Lead Source *</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-source">
@@ -327,11 +397,11 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Flag className="h-4 w-4" />
-                          <span>Priority</span>
+                          <span className="text-gray-600">Priority</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-priority">
@@ -356,7 +426,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Info className="h-4 w-4" />
-                          <span>Source Details</span>
+                          <span className="text-gray-600">{getSourceDetailsLabel()} {isSourceDetailsRequired && "*"}</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -377,7 +447,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Users className="h-4 w-4" />
-                          <span>Referred By</span>
+                          <span className="text-gray-600">{getReferredByLabel()} {isReferredByRequired && "*"}</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -397,7 +467,7 @@ export default function LeadForm({
               <div className="space-y-4 pt-4">
                 <div className="flex items-center space-x-2">
                   <Mail className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
+                  <h3 className="text-sm    text-muted-foreground">Contact Details</h3>
                 </div>
                 <Separator />
                 <div className="grid grid-cols-4 gap-4">
@@ -408,7 +478,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Mail className="h-4 w-4" />
-                          <span>Email</span>
+                          <span className="text-gray-600">Email</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -429,7 +499,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Phone className="h-4 w-4" />
-                          <span>Phone</span>
+                          <span className="text-gray-600">Phone</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-phone" />
@@ -445,7 +515,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Phone className="h-4 w-4" />
-                          <span>Alternate Phone</span>
+                          <span className="text-gray-600">Alternate Phone</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-alternate-phone" />
@@ -464,7 +534,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <MapPin className="h-4 w-4" />
-                          <span>Address</span>
+                          <span className="text-gray-600">Address</span>
                         </FormLabel>
                         <FormControl>
                           <Textarea
@@ -484,7 +554,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Building className="h-4 w-4" />
-                          <span>City</span>
+                          <span className="text-gray-600">City</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-city" />
@@ -501,7 +571,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Map className="h-4 w-4" />
-                          <span>State</span>
+                          <span className="text-gray-600">State</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-state" />
@@ -518,7 +588,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Hash className="h-4 w-4" />
-                          <span>ZIP Code</span>
+                          <span className="text-gray-600">ZIP Code</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-zip-code" />
@@ -534,7 +604,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Globe className="h-4 w-4" />
-                          <span>Country</span>
+                          <span className="text-gray-600">Country</span>
                         </FormLabel>
                         <FormControl>
                           <Input {...field} data-testid="input-country" />
@@ -553,7 +623,7 @@ export default function LeadForm({
               <div className="space-y-4 pt-4">
                 <div className="flex items-center space-x-2">
                   <FileText className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Requirements</h3>
+                  <h3 className="text-sm    text-muted-foreground">Requirements</h3>
                 </div>
                 <Separator />
                 <FormField
@@ -563,7 +633,7 @@ export default function LeadForm({
                     <FormItem>
                       <FormLabel className="flex items-center space-x-2">
                         <FileText className="h-4 w-4" />
-                        <span>Requirement Description</span>
+                        <span className="text-gray-600">Requirement Description</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -585,7 +655,7 @@ export default function LeadForm({
                     <FormItem>
                       <FormLabel className="flex items-center space-x-2">
                         <IndianRupee className="h-4 w-4" />
-                        <span>Estimated Budget</span>
+                        <span className="text-gray-600">Estimated Budget</span>
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -607,7 +677,7 @@ export default function LeadForm({
                     <FormItem>
                       <FormLabel className="flex items-center space-x-2">
                         <NotebookPen className="h-4 w-4" />
-                        <span>Notes</span>
+                        <span className="text-gray-600"> Notes</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -627,7 +697,7 @@ export default function LeadForm({
               <div className="space-y-4 pt-4">
                 <div className="flex items-center space-x-2">
                   <NotebookPen className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Management</h3>
+                  <h3 className="text-sm    text-muted-foreground">Management</h3>
                 </div>
                 <Separator />
                 <FormField
@@ -637,7 +707,7 @@ export default function LeadForm({
                     <FormItem>
                       <FormLabel className="flex items-center space-x-2">
                         <UserIcon className="h-4 w-4" />
-                        <span>Assign To</span>
+                        <span className="text-gray-600">Assign To</span>
                       </FormLabel>
                       <Select
                         onValueChange={field.onChange}
@@ -670,7 +740,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4" />
-                          <span>Follow-up Date</span>
+                          <span className="text-gray-600">Follow-up Date</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -691,7 +761,7 @@ export default function LeadForm({
                       <FormItem>
                         <FormLabel className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4" />
-                          <span>Expected Closing Date</span>
+                          <span className="text-gray-600">Expected Closing Date</span>
                         </FormLabel>
                         <FormControl>
                           <Input
