@@ -734,3 +734,99 @@ export async function generateQuotationPDFLite(quotationData: QuotationData): Pr
   }
 }
 */
+
+export interface AccountReportPDFData {
+  company: {
+    name: string;
+    address: string;
+    gstNo: string;
+    email: string;
+    phone: string;
+    logo?: string;
+  };
+  report: {
+    title: string;
+    period: string;
+    generatedAt: string;
+    generatedBy: string;
+    summary: Record<string, any>;
+    headers: string[];
+    rows: any[][];
+  };
+}
+
+/**
+ * Generate PDF for account reports using EJS template
+ */
+export async function generateAccountReportPDF(
+  reportData: AccountReportPDFData
+): Promise<Buffer> {
+  try {
+    console.log(`📄 Rendering account report EJS template: ${reportData.report.title}`);
+
+    // Load company logo if not provided
+    if (!reportData.company.logo) {
+      reportData.company.logo = loadCompanyLogo() || undefined;
+    }
+
+    // Render EJS template
+    const templatePath = path.join(process.cwd(), "server", "templates", "account-report.ejs");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+
+    const html = await ejs.renderFile(templatePath, reportData);
+
+    console.log("🚀 Launching Puppeteer for account report...");
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set content and wait for it to load
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    console.log("📝 Generating account report PDF...");
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm",
+      },
+      preferCSSPageSize: false,
+    });
+
+    await browser.close();
+
+    console.log(`✅ Account Report PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error("❌ Error generating account report PDF:", error);
+    throw new Error(
+      `Failed to generate account report PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}

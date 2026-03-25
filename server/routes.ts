@@ -17,31 +17,24 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 // Removed unused schema imports from ../shared/schema to avoid runtime errors
 import { z } from "zod";
 import { db } from "./db";
-import { sql, eq, and, gte, lt, aliasedTable } from "drizzle-orm";
 import { validate as isUuid } from "uuid";
 import { v4 as uuidv4 } from "uuid";
-import { users } from "../shared/schema";
-import { tasks } from "../shared/schema";
-import { leaveRequests } from "../shared/schema";
-import { inventoryAttendance } from "../shared/schema";
-import { stockTransactions, suppliers } from "../shared/schema";
-// adjust path as needed
-import { desc } from "drizzle-orm";
-import { attendance } from "../shared/schema";
 import {
+  users,
+  tasks,
+  leaveRequests,
+  inventoryAttendance,
+  stockTransactions,
+  suppliers,
+  attendance,
   marketingAttendance,
   marketingTodays,
   marketingMetrics,
-} from "../shared/schema";
-
-// make sure users table is also imported
-import { products, spareParts } from "../shared/schema"; // adjust path
-import { vendorCommunications } from "../shared/schema";
-import { inventoryTasks } from "../shared/schema";
-import { fabricationOrders } from "../shared/schema"; // adjust path if needed
-// POST attendance (check-in / check-out)
-import {
-  users as usersTable,
+  products,
+  spareParts,
+  vendorCommunications,
+  inventoryTasks,
+  fabricationOrders,
   leads,
   visitNumber,
   marketingTasks,
@@ -49,21 +42,15 @@ import {
   logisticsShipments,
   logisticsTasks,
   deliveries,
-  suppliers,
   logisticsAttendance,
   logisticsLeaveRequests,
-  vendorCommunications,
   outboundQuotations,
   inboundQuotations,
   invoices,
-  leaveRequests as leaveRequestsTable,
-  //insertOutboundQuotationSchema,
   insertOutboundQuotationSchema,
   insertInboundQuotationSchema,
   insertInvoiceSchema,
   customers,
-} from "../shared/schema";
-import {
   bank_accounts,
   insertBankAccountSchema,
   bank_transactions,
@@ -71,7 +58,7 @@ import {
   account_reminders,
   insertAccountReminderSchema,
 } from "../shared/schema";
-import { sql, eq, and, gte, lt, aliasedTable } from "drizzle-orm";
+import { sql, eq, and, gte, lt, aliasedTable, desc } from "drizzle-orm";
 // Fabrication Orders API
 
 // Login schema
@@ -3553,6 +3540,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/tasks -> fetch all tasks
   app.get("/api/tasks", async (_req: Request, res: Response) => {
     try {
+      const assigneeAlias = aliasedTable(users, "assignee");
+      const assignerAlias = aliasedTable(users, "assigner");
+
       const rows = await db
         .select({
           id: tasks.id,
@@ -3563,11 +3553,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dueDate: tasks.dueDate,
           createdAt: tasks.createdAt,
           updatedAt: tasks.updatedAt,
-          assignedTo: users.username, // show username instead of id
-          assignedBy: users.username, // show username instead of id
+          assignee: {
+            id: assigneeAlias.id,
+            firstName: assigneeAlias.firstName,
+            lastName: assigneeAlias.lastName,
+            username: assigneeAlias.username,
+          },
+          assigner: {
+            id: assignerAlias.id,
+            firstName: assignerAlias.firstName,
+            lastName: assignerAlias.lastName,
+            username: assignerAlias.username,
+          },
         })
         .from(tasks)
-        .leftJoin(users, eq(tasks.assignedTo, users.id)); // join with assignedTo user
+        .leftJoin(assigneeAlias, eq(tasks.assignedTo, assigneeAlias.id))
+        .leftJoin(assignerAlias, eq(tasks.assignedBy, assignerAlias.id));
       res.json(rows);
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -3591,9 +3592,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Normalize enums
       const normalizedPriority = priority?.toLowerCase() || "medium";
-      const normalizedStatus = "open"; // default for tasks
+      const normalizedStatus = "new"; // default for tasks
 
-      const validPriorities = ["low", "medium", "high", "urgent"];
+      const validPriorities = ["low", "medium", "high"];
       if (!validPriorities.includes(normalizedPriority)) {
         return res.status(400).json({ error: "Invalid priority" });
       }
@@ -3629,6 +3630,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to create task",
         details: err.message,
       });
+    }
+  });
+
+  app.put("/api/tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { title, description, assignedTo, priority, status, dueDate } =
+        req.body;
+
+      const [updatedTask] = await db
+        .update(tasks)
+        .set({
+          title,
+          description,
+          assignedTo,
+          priority,
+          status,
+          dueDate: dueDate ? new Date(dueDate) : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, id))
+        .returning();
+
+      if (!updatedTask) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      res.json({ message: "Task updated", task: updatedTask });
+    } catch (err: any) {
+      console.error("Error updating task:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to update task", details: err.message });
     }
   });
 

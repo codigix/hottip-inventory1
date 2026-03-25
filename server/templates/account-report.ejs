@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= report.title %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 10px;
+            line-height: 1.4;
+            color: #333;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .company-info h1 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+        .company-info p {
+            margin: 2px 0;
+            color: #666;
+        }
+        .report-header {
+            text-align: right;
+        }
+        .report-header h2 {
+            font-size: 18px;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+        .report-header p {
+            margin: 2px 0;
+            font-weight: bold;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .summary-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .summary-card .label {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .summary-card .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: bold;
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+        table td {
+            padding: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 9px;
+        }
+        table tr:nth-child(even) {
+            background-color: #fcfdfe;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: 8px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .signature-box {
+            width: 200px;
+            text-align: center;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            <h1><%= company.name %></h1>
+            <p><%= company.address %></p>
+            <p>GSTIN: <%= company.gstNo %></p>
+            <p>Email: <%= company.email %> | Phone: <%= company.phone %></p>
+        </div>
+        <div class="report-header">
+            <h2><%= report.title %></h2>
+            <p>Period: <%= report.period %></p>
+            <p style="font-weight: normal; font-size: 9px; color: #666; margin-top: 10px;">
+                Generated on: <%= report.generatedAt %><br>
+                By: <%= report.generatedBy %>
+            </p>
+        </div>
+    </div>
+
+    <% if (Object.keys(report.summary).length > 0) { %>
+    <div class="summary-grid">
+        <% Object.entries(report.summary).forEach(([key, value]) => { %>
+            <div class="summary-card">
+                <span class="label"><%= key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()) %></span>
+                <span class="value">
+                    <% if (typeof value === 'number' && !key.toLowerCase().includes('count') && !key.toLowerCase().includes('rate')) { %>
+                        ₹ <%= value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                    <% } else if (key.toLowerCase().includes('rate')) { %>
+                        <%= value %>%
+                    <% } else { %>
+                        <%= value %>
+                    <% } %>
+                </span>
+            </div>
+        <% }) %>
+    </div>
+    <% } %>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40px;" class="text-center">Sr.</th>
+                <% report.headers.forEach(header => { %>
+                    <th><%= header %></th>
+                <% }) %>
+            </tr>
+        </thead>
+        <tbody>
+            <% report.rows.forEach((row, i) => { %>
+                <tr>
+                    <td class="text-center"><%= i + 1 %></td>
+                    <% row.forEach((cell, index) => { %>
+                        <td class="<%= typeof cell === 'number' ? 'text-right' : '' %>">
+                            <% if (typeof cell === 'number' && report.headers[index].toLowerCase().includes('amount')) { %>
+                                <%= cell.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                            <% } else if (cell instanceof Date) { %>
+                                <%= cell.toLocaleDateString() %>
+                            <% } else { %>
+                                <%= cell %>
+                            <% } %>
+                        </td>
+                    <% }) %>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p>Authorised Signatory</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div><%= report.title %> - Generated by BusinessOps ERP</div>
+        <div>Page 1 of 1</div>
+    </div>
+</body>
+</html>

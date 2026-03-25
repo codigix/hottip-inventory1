@@ -2232,13 +2232,13 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 ]);
 
 export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(), // use serial for auto-increment
+  id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),
   description: text("description"),
-  assignedTo: integer("assignedTo")
+  assignedTo: uuid("assignedTo")
     .notNull()
     .references(() => users.id),
-  assignedBy: integer("assignedBy")
+  assignedBy: uuid("assignedBy")
     .notNull()
     .references(() => users.id),
   status: taskStatusEnum("status").notNull().default("new"),

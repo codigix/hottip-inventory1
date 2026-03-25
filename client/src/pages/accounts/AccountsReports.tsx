@@ -189,7 +189,7 @@ const reportTypes = [
 // Export formats
 const exportFormats = [
   { label: "PDF", value: "pdf", icon: File },
-  { label: "Excel", value: "excel", icon: FileSpreadsheet },
+  { label: "Excel", value: "xlsx", icon: FileSpreadsheet },
   { label: "CSV", value: "csv", icon: FileBarChart },
 ];
 
@@ -387,19 +387,32 @@ export default function AccountsReports() {
         `/reports/${reportId}/export?format=${format}`,
         {
           method: "GET",
+          responseType: "blob",
         }
       );
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (blob, variables) => {
+      // Create a link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const extension =
+        variables.format === "xlsx"
+          ? "xlsx"
+          : variables.format === "csv"
+          ? "csv"
+          : "pdf";
+      link.setAttribute("download", `Report_${variables.reportId}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
       toast({
         title: "Success",
         description: `Report exported to ${variables.format.toUpperCase()} successfully`,
       });
-      // Trigger download
-      if (data.downloadUrl) {
-        window.open(data.downloadUrl, "_blank");
-      }
     },
     onError: () => {
       toast({
