@@ -180,7 +180,11 @@ export default function EmployeesDashboard() {
 
   const onUserSubmit = (data: UserForm) => {
     if (editingUser) {
-      updateUserMutation.mutate({ id: editingUser.id, data });
+      const updateData = { ...data };
+      if (!updateData.password) {
+        delete updateData.password;
+      }
+      updateUserMutation.mutate({ id: editingUser.id, data: updateData });
     } else {
       createUserMutation.mutate(data);
     }
