@@ -56,29 +56,71 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // File upload mutation (mock implementation)
+  const getAbsoluteUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    
+    // Combine and fix double /api/api
+    let finalUrl = `${baseUrl}${cleanPath}`;
+    return finalUrl.replace(/\/api\/api\//g, "/api/");
+  };
+
+  // File upload mutation
   const uploadFilesMutation = useMutation({
     mutationFn: async (uploadData: { visitId: string; files: UploadedFile[]; notes: string }) => {
-      // Simulate file upload process
       setIsUploading(true);
+      const uploadedPaths: string[] = [];
       
       for (let i = 0; i < uploadData.files.length; i++) {
-        const file = uploadData.files[i];
+        const fileObj = uploadData.files[i];
         
-        // Simulate upload progress
-        for (let progress = 0; progress <= 100; progress += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          // 1. Get upload URL
+          const { uploadURL } = await apiRequest<{ uploadURL: string }>("/api/objects/upload", {
+            method: "POST"
+          });
+
+          // 2. Upload file
+          const response = await fetch(uploadURL, {
+            method: "PUT",
+            body: fileObj.file,
+            headers: {
+              "Content-Type": fileObj.file.type,
+            },
+          });
+
+          if (!response.ok) throw new Error("Failed to upload file to storage");
+          
+          const { path } = await response.json();
+          uploadedPaths.push(path);
+
+          // Update progress
           setFiles(prev => prev.map(f => 
-            f.id === file.id ? { ...f, uploadProgress: progress } : f
+            f.id === fileObj.id ? { ...f, uploadProgress: 100, uploaded: true } : f
           ));
+        } catch (error: any) {
+          console.error(`Error uploading file ${fileObj.file.name}:`, error);
+          setFiles(prev => prev.map(f => 
+            f.id === fileObj.id ? { ...f, error: error.message } : f
+          ));
+          throw error;
         }
-        
-        // Mark as uploaded
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { ...f, uploaded: true } : f
-        ));
       }
       
+      // 3. Update field visit with attachment paths and notes
+      const existingPaths = (visit as any)?.attachmentPaths || [];
+      const allPaths = [...existingPaths, ...uploadedPaths];
+      
+      await apiRequest(`/api/marketing/field-visits/${uploadData.visitId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          attachmentPaths: allPaths,
+          visitNotes: uploadData.notes || (visit as any)?.visitNotes
+        }),
+      });
+
       setIsUploading(false);
       return { success: true };
     },
@@ -241,6 +283,14 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getIconFromPath = (path: string) => {
+    const ext = path.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '')) {
+      return <Camera className="h-4 w-4 text-blue-500" />;
+    }
+    return <FileText className="h-4 w-4 text-gray-500" />;
   };
 
   // Get existing attachments from visit
@@ -471,14 +521,29 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                   {existingAttachments.map((path, index) => (
                     <div key={index} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{path.split('/').pop()}</span>
+                        {getIconFromPath(path)}
+                        <span className="text-sm truncate max-w-[200px]">{path.split('/').pop()}</span>
                       </div>
                       <div className="flex space-x-1">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(getAbsoluteUrl(path), "_blank")}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const link = document.createElement("a");
+                            link.href = getAbsoluteUrl(path);
+                            link.download = path.split("/").pop() || "file";
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
                       </div>

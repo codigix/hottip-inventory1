@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Plus,
   Search,
@@ -9,6 +10,9 @@ import {
   TrendingUp,
   Target,
   UserCheck,
+  LayoutGrid,
+  List,
+  MoreHorizontal,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,10 +27,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 import { apiRequest } from "@/lib/queryClient";
 import LeadTable from "@/components/marketing/LeadTable";
 import LeadForm from "@/components/marketing/LeadForm";
+import LeadCard from "@/components/marketing/LeadCard";
+import ProofUpload from "@/components/marketing/ProofUpload";
 import type {
   LeadWithAssignee,
   LeadStatus,
@@ -35,31 +52,50 @@ import type {
   User,
   LeadMetrics,
 } from "@/types";
+import type { FieldVisit } from "@shared/schema";
+
+interface VisitWithDetails extends FieldVisit {
+  lead?: { 
+    id: string; 
+    firstName: string; 
+    lastName: string; 
+    companyName?: string;
+  };
+}
 
 export default function Leads() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<LeadWithAssignee | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<LeadStatus | "all">(
-    "all"
-  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<LeadPriority | "all">(
     "all"
   );
   const [assigneeFilter, setAssigneeFilter] = useState<string | "all">("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
+  const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
+    null
+  );
+  const [, setLocation] = useLocation();
+  const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [selectedVisitForProof, setSelectedVisitForProof] = useState<VisitWithDetails | null>(null);
+  const [isFetchingVisit, setIsFetchingVisit] = useState(false);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Build query parameters for server-side filtering
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
-    if (selectedStatus !== "all") params.set("status", selectedStatus);
     if (sourceFilter !== "all") params.set("source", sourceFilter);
     if (priorityFilter !== "all") params.set("priority", priorityFilter);
     if (assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
     if (searchQuery.trim()) params.set("search", searchQuery.trim());
     return params.toString();
   }, [
-    selectedStatus,
     sourceFilter,
     priorityFilter,
     assigneeFilter,
@@ -71,7 +107,6 @@ export default function Leads() {
     queryKey: [
       "/api/marketing/leads",
       {
-        status: selectedStatus,
         source: sourceFilter,
         priority: priorityFilter,
         assignedTo: assigneeFilter,
@@ -95,6 +130,80 @@ export default function Leads() {
     queryKey: ["/users"],
   });
 
+  // ✅ Delete lead mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      toast({ title: "Lead deleted successfully!" });
+      setDeleteLeadId(null);
+    },
+  });
+
+  // ✅ Update status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
+      apiRequest(`/api/marketing/leads/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      toast({
+        title:
+          variables.status === "converted"
+            ? "Lead confirmed for sales successfully!"
+            : "Lead status updated successfully!",
+      });
+      setStatusChangeLeadId(null);
+      setNewStatus(null);
+    },
+  });
+
+  // ✅ Convert lead mutation
+  const convertMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      toast({
+        title: "Lead confirmed for Sales and handed over!",
+      });
+    },
+  });
+
+  const handleDelete = () => {
+    if (deleteLeadId) deleteMutation.mutate(deleteLeadId);
+  };
+
+  const handleStatusChange = () => {
+    if (statusChangeLeadId && newStatus) {
+      if (newStatus === "converted") {
+        convertMutation.mutate(statusChangeLeadId);
+      } else {
+        updateStatusMutation.mutate({
+          id: statusChangeLeadId,
+          status: newStatus,
+        });
+      }
+    }
+  };
+
+  const handleStatusChangeAction = (id: string, status: LeadStatus) => {
+    if (status === "converted") {
+      setStatusChangeLeadId(id);
+      setNewStatus(status);
+    } else {
+      updateStatusMutation.mutate({
+        id,
+        status,
+      });
+    }
+  };
+
   // Use leads directly from server-side filtering (no client-side filtering needed)
   const filteredLeads = leads;
 
@@ -114,13 +223,72 @@ export default function Leads() {
   };
 
   const handleViewLead = (lead: LeadWithAssignee) => {
-    // This is handled by the LeadTable component
-    console.log("View lead:", lead);
+    setLocation(`/marketing/leads/${lead.id}`);
+  };
+
+  const handleUploadProof = async (lead: LeadWithAssignee) => {
+    try {
+      setIsFetchingVisit(true);
+      // Fetch visits for this specific lead
+      const visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      
+      if (Array.isArray(visits) && visits.length > 0) {
+        // Find the most recent visit or one that is 'Completed' or 'In Progress'
+        // For now, let's take the first one (most recent as per server default sorting)
+        const visit = visits[0];
+        setSelectedVisitForProof({
+          ...visit,
+          lead: {
+            id: lead.id,
+            firstName: lead.firstName,
+            lastName: lead.lastName,
+            companyName: lead.companyName
+          }
+        });
+        setIsProofModalOpen(true);
+      } else {
+        toast({
+          title: "No visits found",
+          description: "This lead has no field visits scheduled. Please schedule a deal/visit first to upload proof.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch visits for this lead",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingVisit(false);
+    }
   };
 
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingLead(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnter = (status: string) => {
+    setDragOverColumn(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, status: LeadStatus) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const leadId = e.dataTransfer.getData("leadId");
+    if (leadId) {
+      handleStatusChangeAction(leadId, status);
+    }
   };
 
   return (
@@ -137,6 +305,26 @@ export default function Leads() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex bg-white rounded-md border p-1 h-9 items-center mr-2">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setViewMode("list")}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setViewMode("grid")}
+              title="Grid View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
           <Button variant="outline" size="sm" className="bg-white">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -180,13 +368,13 @@ export default function Leads() {
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-slate-500 flex items-center justify-between">
-                In Progress
+                Qualified
                 <TrendingUp className="h-4 w-4 text-amber-500" />
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl text-slate-900">{metrics.inProgressLeads}</div>
-              <p className="text-[10px] text-slate-400 mt-1">Active opportunities</p>
+              <div className="text-xl text-slate-900">{metrics.qualifiedLeads}</div>
+              <p className="text-[10px] text-slate-400 mt-1">Qualified leads</p>
             </CardContent>
           </Card>
 
@@ -296,49 +484,133 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* Status Tabs and Lead Table */}
+      {/* Lead Table/Kanban */}
       <div className="" data-tour="marketing-leads-table">
-        <Tabs
-          value={selectedStatus}
-          onValueChange={(value) => setSelectedStatus(value as LeadStatus | "all")}
-          className="w-full"
-        >
-          <div className=" border-b border-slate-100">
-            <TabsList className="bg-slate-100/50 p-1  w-full justify-between  gap-1">
-              <TabsTrigger value="all" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                All <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{leads.length}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="new" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                New <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("new")}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="contacted" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Contacted <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("contacted")}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="analysis" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Analysis <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("analysis")}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="in_progress" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                In Progress <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("in_progress")}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="converted" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Confirmed <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("converted")}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="dropped" className=" data-[state=active]:shadow-sm p-1 border border-gray-200">
-                Dropped <Badge variant="secondary" className="ml-2 px-2 bg-gray-600 text-[10px]">{getStatusCount("dropped")}</Badge>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value={selectedStatus} className="mt-0">
+        {viewMode === "list" ? (
+          <div className="mt-4">
             <LeadTable
               leads={filteredLeads}
               isLoading={isLoading}
               onEdit={handleEditLead}
               onView={handleViewLead}
+              onUploadProof={handleUploadProof}
             />
-          </TabsContent>
-        </Tabs>
+          </div>
+        ) : (
+          <div className="mt-4 pb-4 h-[calc(100vh-280px)]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 h-full">
+              {/* Kanban Columns */}
+              {[
+                { id: "new", label: "Not Contacted", color: "bg-blue-500", border: "border-t-blue-500" },
+                { id: "contacted", label: "Contacted", color: "bg-yellow-500", border: "border-t-yellow-500" },
+                { id: "qualified", label: "Qualified", color: "bg-green-500", border: "border-t-green-500" },
+                { id: "lost", label: "Lost", color: "bg-red-500", border: "border-t-red-500" }
+              ].map((column) => {
+                const columnLeads = leads.filter(l => l.status === column.id);
+                const totalBudget = columnLeads.reduce((sum, l) => sum + (l.estimatedBudget ? parseFloat(l.estimatedBudget) : 0), 0);
+                
+                return (
+                  <div 
+                    key={column.id} 
+                    onDragOver={handleDragOver}
+                    onDragEnter={() => handleDragEnter(column.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, column.id as LeadStatus)}
+                    className={`flex flex-col bg-slate-50/80 rounded-lg border-t-4 ${column.border} shadow-sm overflow-hidden min-w-0 transition-all ${
+                      dragOverColumn === column.id ? "bg-slate-200/80 ring-2 ring-primary/20 scale-[1.01]" : ""
+                    }`}
+                  >
+                    <div className="p-2 border-b bg-white flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <div className={`h-2 w-2 rounded-full shrink-0 ${column.color}`} />
+                        <span className="font-bold text-[11px] text-slate-700 truncate">{column.label}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-5 w-5">
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-5 w-5">
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="px-2 py-1 bg-white/50 border-b flex items-center justify-between text-[9px] text-slate-500 shrink-0">
+                      <span>{columnLeads.length} Leads</span>
+                      <span className="font-medium">₹{totalBudget.toLocaleString("en-IN")}</span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-1.5 space-y-2 custom-scrollbar">
+                      {columnLeads.length === 0 ? (
+                        <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg py-12">
+                          <span className="text-[10px] text-slate-400">No Leads</span>
+                        </div>
+                      ) : (
+                        columnLeads.map((lead) => (
+                          <LeadCard
+                            key={lead.id}
+                            lead={lead}
+                            onEdit={handleEditLead}
+                            onView={handleViewLead}
+                            onDelete={setDeleteLeadId}
+                            onStatusChange={handleStatusChangeAction}
+                            onUploadProof={handleUploadProof}
+                            variant="kanban"
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ✅ Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteLeadId}
+        onOpenChange={() => setDeleteLeadId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the lead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ✅ Status Change Confirmation */}
+      <AlertDialog
+        open={!!statusChangeLeadId}
+        onOpenChange={() => {
+          setStatusChangeLeadId(null);
+          setNewStatus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              {newStatus === "converted"
+                ? "Confirming this lead for sales will create a Sales customer record."
+                : `Are you sure you want to mark as "${newStatus === "converted" ? "Converted to Deal" : (newStatus || "").charAt(0).toUpperCase() + (newStatus || "").slice(1)}"?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
+              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Lead Form Modal */}
       <LeadForm
@@ -382,6 +654,16 @@ export default function Leads() {
               }
             : undefined
         }
+      />
+
+      <ProofUpload
+        open={isProofModalOpen}
+        onOpenChange={setIsProofModalOpen}
+        visit={selectedVisitForProof}
+        onUploadComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+          setIsProofModalOpen(false);
+        }}
       />
     </div>
   );

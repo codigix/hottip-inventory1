@@ -92,8 +92,8 @@ export function registerFileUploadRoutes(
 
         await fs.writeFile(filePath, req.body);
 
-        // Return the local path
-        const localPath = `/objects/uploads/${uploadId}`;
+        // Return the local path with /api prefix for consistent serving
+        const localPath = `/api/objects/uploads/${uploadId}`;
         res.json({
           path: localPath,
           url: buildAbsoluteUrl(localPath),
@@ -108,7 +108,7 @@ export function registerFileUploadRoutes(
   );
 
   // Serve local uploaded files
-  app.get("/objects/uploads/:uploadId", async (req, res) => {
+  app.get("/api/objects/uploads/:uploadId", async (req, res) => {
     try {
       const fs = await import("fs/promises");
       const path = await import("path");

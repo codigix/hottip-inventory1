@@ -619,14 +619,19 @@ export function registerSalesRoutes(
       console.log(`📋 Total quotations in database: ${quotations.length}`);
 
       // Apply filters based on query parameters
-      // Filter by customer ID
-      if (req.query.customerId && req.query.customerId !== "") {
-        console.log(`🔍 Filtering by customerId: ${req.query.customerId}`);
-        quotations = quotations.filter(
-          (q) => q.customerId === req.query.customerId
-        );
+      // Filter by customer ID or company name
+      const customerId = req.query.customerId as string;
+      const companyName = req.query.companyName as string;
+
+      if ((customerId && customerId !== "") || (companyName && companyName !== "")) {
+        console.log(`🔍 Filtering by customerId: ${customerId}, companyName: ${companyName}`);
+        quotations = quotations.filter((q) => {
+          const matchCustomer = customerId ? q.customerId === customerId : false;
+          const matchCompany = companyName ? q.companyName?.toLowerCase() === companyName.toLowerCase() : false;
+          return matchCustomer || matchCompany;
+        });
         console.log(
-          `   After customer filter: ${quotations.length} quotations`
+          `   After customer/company filter: ${quotations.length} quotations`
         );
       }
 

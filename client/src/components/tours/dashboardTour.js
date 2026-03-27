@@ -2907,8 +2907,8 @@ export const marketingFlowTour = {
     },
     {
       element: "[data-tour='marketing-field-visits']",
-      title: "Field Visits",
-      text: "Schedule and track field visits to leads and customers with geo-location and follow-up management.",
+      title: "Deals",
+      text: "Schedule and track deals with leads and customers with geo-location and follow-up management.",
       position: "right",
     },
     {
@@ -2983,65 +2983,65 @@ export const marketingFlowTour = {
       text: "Convert qualified leads to customers and create sales opportunities.",
       position: "left",
     },
-    // Navigation to Field Visits
+    // Navigation to Deals
     {
       element: "[data-tour='marketing-leads-header']",
-      title: "Moving to Field Visits",
-      text: "Lead management covered! Click 'Next' to navigate to Field Visits.",
+      title: "Moving to Deals",
+      text: "Lead management covered! Click 'Next' to navigate to Deals.",
       position: "bottom",
       navigation: {
-        path: "/marketing/field-visits",
+        path: "/marketing/deals",
       },
     },
 
-    // ===== FIELD VISITS SECTION =====
+    // ===== DEALS SECTION =====
     {
       element: "[data-tour='marketing-field-visits-header']",
-      title: "Field Visits Management",
-      text: "Schedule, track, and manage field visits to leads and customers with geo-location and follow-up tracking.",
+      title: "Deals Management",
+      text: "Schedule, track, and manage deals with leads and customers with geo-location and follow-up tracking.",
       position: "bottom",
     },
     {
       element: "[data-tour='marketing-schedule-visit-button']",
-      title: "Schedule Field Visit",
-      text: "Schedule a new field visit with lead/customer details, location, and appointment time.",
+      title: "Schedule Deal Visit",
+      text: "Schedule a new deal visit with lead/customer details, location, and appointment time.",
       position: "left",
     },
     {
       element: "[data-tour='marketing-visits-calendar']",
-      title: "Visits Calendar",
-      text: "View scheduled field visits in calendar format with time slots and location details.",
+      title: "Deals Calendar",
+      text: "View scheduled deal visits in calendar format with time slots and location details.",
       position: "top",
     },
     {
       element: "[data-tour='marketing-visits-table']",
-      title: "Field Visits List",
-      text: "Track all field visits with status, outcomes, follow-up requirements, and performance metrics.",
+      title: "Deals List",
+      text: "Track all deals with status, outcomes, follow-up requirements, and performance metrics.",
       position: "top",
     },
     {
       element: "[data-tour='marketing-visit-status-tracking']",
-      title: "Visit Status Tracking",
-      text: "Monitor visit status: Scheduled → In Progress → Completed → Follow-up Required → Closed.",
+      title: "Deal Status Tracking",
+      text: "Monitor deal status: Scheduled → In Progress → Completed → Follow-up Required → Closed.",
       position: "right",
     },
     {
       element: "[data-tour='marketing-geo-tracking']",
       title: "Geo-Location Tracking",
-      text: "Track field representative locations and visit routes for efficiency monitoring.",
+      text: "Track field representative locations and deal routes for efficiency monitoring.",
       position: "right",
     },
     {
       element: "[data-tour='marketing-visit-actions']",
-      title: "Visit Actions",
-      text: "Update visit status, add visit notes, schedule follow-ups, or generate visit reports.",
+      title: "Deal Actions",
+      text: "Update deal status, add deal notes, schedule follow-ups, or generate deal reports.",
       position: "left",
     },
     // Navigation to Tasks
     {
       element: "[data-tour='marketing-field-visits-header']",
       title: "Moving to Marketing Tasks",
-      text: "Field visits covered! Click 'Next' to explore Marketing Tasks.",
+      text: "Deals covered! Click 'Next' to explore Marketing Tasks.",
       position: "bottom",
       navigation: {
         path: "/marketing/tasks",
@@ -4058,8 +4058,8 @@ export const marketingTour = {
     },
     {
       element: "[data-tour='field-visits']",
-      title: "Field Visits",
-      text: "Log and track field visits to leads and customers.",
+      title: "Deals",
+      text: "Log and track deals with leads and customers.",
       position: "right",
     },
     {

@@ -125,7 +125,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
       color: 'text-green-600'
     },
     {
-      label: 'Field Visits Completed',
+      label: 'Deals Completed',
       value: Array.isArray(fieldVisitsData)
         ? fieldVisitsData.filter((v: any) => v.status === 'completed').length
         : 0,
@@ -134,7 +134,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
       color: 'text-purple-600'
     },
     {
-      label: 'Visit Success Rate',
+      label: 'Deal Success Rate',
       value: visitsMetrics && typeof visitsMetrics === 'object' && 'successRate' in visitsMetrics
         ? `${visitsMetrics.successRate}%` : '0%',
       change: { value: 5.1, type: 'increase' },
@@ -221,7 +221,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
     },
     {
       key: 'visitDate',
-      header: 'Visit Date',
+      header: 'Deal Date',
       sortable: true,
       formatter: (value) => value ? format(new Date(value), 'MMM dd, yyyy HH:mm') : 'N/A'
     },
@@ -327,7 +327,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
       ['', '', '', ''],
       ['Summary Statistics', '', '', ''],
       ['Total Leads', Array.isArray(leadsData) ? leadsData.length : 0, '', ''],
-      ['Total Field Visits', Array.isArray(fieldVisitsData) ? fieldVisitsData.length : 0, '', ''],
+      ['Total Deals', Array.isArray(fieldVisitsData) ? fieldVisitsData.length : 0, '', ''],
       ['Total Marketing Tasks', Array.isArray(tasksData) ? tasksData.length : 0, '', ''],
       ['Date Range', dateRange.from ? format(dateRange.from, 'MMM dd, yyyy') : '',
         dateRange.to ? format(dateRange.to, 'MMM dd, yyyy') : '', '']
@@ -447,7 +447,7 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
                 Lead Analytics
               </TabsTrigger>
               <TabsTrigger value="visits" data-testid="tab-visits">
-                Field Visits
+                Deals
               </TabsTrigger>
               <TabsTrigger value="tasks" data-testid="tab-tasks">
                 Task Performance
@@ -475,15 +475,15 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
               />
             </TabsContent>
 
-            {/* Field Visits Tab */}
+            {/* Deals Tab */}
             <TabsContent value="visits" className="space-y-2">
               <ReportTable
                 data={Array.isArray(fieldVisitsData) ? fieldVisitsData : []}
                 columns={visitsColumns}
-                title="Field Visit Performance"
+                title="Deal Performance"
                 isLoading={loadingVisits}
-                emptyMessage="No field visits found for the selected period"
-                exportFilename={`field-visits-report-${format(new Date(), 'yyyy-MM-dd')}`}
+                emptyMessage="No deals found for the selected period"
+                exportFilename={`deals-report-${format(new Date(), 'yyyy-MM-dd')}`}
                 dateRange={dateRange}
               />
             </TabsContent>

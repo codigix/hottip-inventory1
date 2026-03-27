@@ -543,6 +543,7 @@ export const fieldVisits = pgTable("field_visits", {
   visitNotes: text("visitNotes"),
   outcome: text("outcome"),
   nextAction: text("nextAction"),
+  attachmentPaths: jsonb("attachmentPaths"),
 });
 
 // =====================
@@ -1846,7 +1847,7 @@ export const logisticsCheckInSchema = z.object({
 
 // Placeholder for marketing-routes-registry.ts
 export const convertLeadSchema = z.object({
-  leadId: z.number(),
+  leadId: z.string().uuid().optional(),
   convertedAt: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -1921,6 +1922,10 @@ export const insertFieldVisitSchema = z.object({
   preVisitNotes: z.string().optional().nullable(),
   status: z.string().optional().default("Scheduled"),
   travelExpense: z.coerce.string().optional().nullable(),
+  attachmentPaths: z.array(z.string()).optional().nullable(),
+  visitNotes: z.string().optional().nullable(),
+  outcome: z.string().optional().nullable(),
+  nextAction: z.string().optional().nullable(),
 });
 
 export const insertMarketingTaskSchema = z.object({

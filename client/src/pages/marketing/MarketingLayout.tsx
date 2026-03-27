@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Import marketing pages
 import MarketingDashboard from "@/pages/MarketingDashboard";
 import Leads from "./Leads";
+import LeadDetails from "./LeadDetails";
 import FieldVisits from "./FieldVisits";
 import MarketingTasks from "./MarketingTasks";
 import Reports from "./Reports";
@@ -45,10 +46,10 @@ const sidebarItems = [
     tourConfig: null,
   },
   {
-    id: 'field-visits',
-    label: 'Field Visits',
+    id: 'deals',
+    label: 'Deals',
     icon: MapPin,
-    path: '/marketing/field-visits',
+    path: '/marketing/deals',
     description: 'Scheduling and geo-tracking',
     tourConfig: null,
   },
@@ -110,7 +111,7 @@ export default function MarketingLayout() {
   const getActiveSidebarItem = () => {
     if (location === '/marketing') return 'dashboard';
     if (location.includes('/leads')) return 'leads';
-    if (location.includes('/field-visits')) return 'field-visits';
+    if (location.includes('/deals')) return 'deals';
     if (location.includes('/tasks')) return 'tasks';
     if (location.includes('/reports')) return 'reports';
     if (location.includes('/attendance')) return 'attendance';
@@ -185,7 +186,7 @@ export default function MarketingLayout() {
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Field Visits Today</span>
+                <span className="text-xs text-gray-500">Deals Today</span>
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-3 w-3 text-green-500" />
                   <span className="text-xs font-light">8</span>
@@ -216,7 +217,10 @@ export default function MarketingLayout() {
           <Route path="/marketing/leads">
             <Leads />
           </Route>
-          <Route path="/marketing/field-visits">
+          <Route path="/marketing/leads/:id">
+            <LeadDetails />
+          </Route>
+          <Route path="/marketing/deals">
             <FieldVisits />
           </Route>
           <Route path="/marketing/tasks">

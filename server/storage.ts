@@ -1007,15 +1007,32 @@ class Storage {
     if (idx >= 0) this.inMemoryProducts.splice(idx, 1);
   }
 
-  // Activity log (no-op minimal stub)
-  async createActivity(_activity: any): Promise<any> {
-    // No persistent activity log table is defined in the current schema.
-    // Return a minimal object to satisfy callers that do not rely on the result.
-    return {
-      id: "activity-stub",
-      createdAt: new Date().toISOString(),
-      ..._activity,
-    };
+  // Activity log
+  async createActivity(activityData: any): Promise<any> {
+    const [row] = await db
+      .insert(activities)
+      .values({
+        userId: activityData.userId,
+        action: activityData.action,
+        entityType: activityData.entityType,
+        entityId: activityData.entityId,
+        details: activityData.details,
+      })
+      .returning();
+    return row;
+  }
+
+  async getActivitiesByEntity(entityType: string, entityId: string): Promise<any[]> {
+    return db
+      .select()
+      .from(activities)
+      .where(
+        and(
+          eq(activities.entityType, entityType),
+          eq(activities.entityId, entityId)
+        )
+      )
+      .orderBy(desc(activities.createdAt));
   }
 
   // Marketing Attendance
@@ -1907,10 +1924,9 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     const totalLeads = allLeads.length;
     const newLeads = allLeads.filter((l) => l.status === "new").length;
     const contactedLeads = allLeads.filter((l) => l.status === "contacted").length;
-    const analysisLeads = allLeads.filter((l) => l.status === "analysis").length;
-    const inProgressLeads = allLeads.filter((l) => l.status === "in_progress").length;
+    const qualifiedLeads = allLeads.filter((l) => l.status === "qualified").length;
     const convertedLeads = allLeads.filter((l) => l.status === "converted").length;
-    const droppedLeads = allLeads.filter((l) => l.status === "dropped").length;
+    const lostLeads = allLeads.filter((l) => l.status === "lost").length;
 
     const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
@@ -1918,10 +1934,9 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
       totalLeads,
       newLeads,
       contactedLeads,
-      analysisLeads,
-      inProgressLeads,
+      qualifiedLeads,
       convertedLeads,
-      droppedLeads,
+      lostLeads,
       conversionRate,
       averageTimeToConversion: 0, // Placeholder
     };
@@ -1968,19 +1983,11 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   // =====================
   // ACTIVITIES CRUD
   // =====================
-  async createActivity(insertActivity: any): Promise<any> {
-    const [row] = await db
-      .insert(activities)
-      .values(insertActivity)
-      .returning();
-    return row;
-  }
-
   // =====================
   // FIELD VISITS CRUD
   // =====================
-  async getFieldVisits(): Promise<any[]> {
-    const rows = await db
+  async getFieldVisits(filters?: any): Promise<any[]> {
+    let query = db
       .select({
         visit: fieldVisits,
         assignedToUser: {
@@ -1994,18 +2001,61 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
           firstName: leads.firstName,
           lastName: leads.lastName,
           companyName: leads.companyName,
+          status: leads.status,
+          estimatedBudget: leads.estimatedBudget,
         }
       })
       .from(fieldVisits)
       .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
-      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
-      .orderBy(desc(fieldVisits.createdAt));
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id));
+
+    const conditions = [];
+
+    if (filters?.status && filters.status !== "all") {
+      conditions.push(eq(fieldVisits.status, filters.status));
+    }
+
+    if (filters?.assignedTo && filters.assignedTo !== "all") {
+      conditions.push(eq(fieldVisits.assignedTo, filters.assignedTo));
+    }
+
+    if (filters?.leadId) {
+      conditions.push(eq(fieldVisits.leadId, filters.leadId));
+    }
+
+    if (filters?.startDate && filters.endDate) {
+      conditions.push(
+        and(
+          gte(fieldVisits.plannedDate, new Date(filters.startDate)),
+          lte(fieldVisits.plannedDate, new Date(filters.endDate))
+        )
+      );
+    }
+
+    if (filters?.userScope?.showOnlyUserVisits) {
+      conditions.push(
+        or(
+          eq(fieldVisits.createdBy, filters.userScope.userId),
+          eq(fieldVisits.assignedTo, filters.userScope.userId)
+        )
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const rows = await query.orderBy(desc(fieldVisits.createdAt));
 
     return rows.map(r => ({
       ...r.visit,
       assignedToUser: r.assignedToUser,
       lead: r.lead
     }));
+  }
+
+  async getVisitsByLead(leadId: string): Promise<any[]> {
+    return this.getFieldVisits({ leadId });
   }
 
   async getFieldVisit(id: string): Promise<any | undefined> {
@@ -2023,6 +2073,8 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
           firstName: leads.firstName,
           lastName: leads.lastName,
           companyName: leads.companyName,
+          status: leads.status,
+          estimatedBudget: leads.estimatedBudget,
         }
       })
       .from(fieldVisits)
@@ -2115,6 +2167,11 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     if (!row) {
       throw new Error(`Field visit with ID '${id}' not found for update.`);
     }
+
+    if (update.status?.toLowerCase() === "completed") {
+      await this.handleVisitCompletion(row);
+    }
+
     return row;
   }
 
@@ -2130,15 +2187,8 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       );
     }
 
-    // Automatically convert lead to customer when a visit is marked as completed
-    if (status.toLowerCase() === "completed" && row.leadId) {
-      try {
-        await this.convertLeadToCustomer(row.leadId);
-      } catch (error) {
-        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
-        // Fallback to just updating status if conversion fails (e.g. already converted)
-        await this.updateLead(row.leadId, { status: "converted" });
-      }
+    if (status.toLowerCase() === "completed") {
+      await this.handleVisitCompletion(row);
     }
 
     return row;
@@ -2172,18 +2222,48 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       throw new Error(`Field visit with ID '${id}' not found for check-out.`);
     }
 
-    // Automatically convert lead to customer when a visit is completed
-    if (row.leadId) {
-      try {
-        await this.convertLeadToCustomer(row.leadId);
-      } catch (error) {
-        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
-        // Fallback to just updating status if conversion fails (e.g. already converted)
-        await this.updateLead(row.leadId, { status: "converted" });
-      }
-    }
+    await this.handleVisitCompletion(row);
 
     return row;
+  }
+
+  private async handleVisitCompletion(visit: FieldVisit): Promise<void> {
+    if (!visit.leadId) return;
+
+    // 1. Convert Lead to Customer
+    try {
+      await this.convertLeadToCustomer(visit.leadId);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
+      // Fallback to just updating status if conversion fails (e.g. already converted)
+      await this.updateLead(visit.leadId, { status: "converted" });
+    }
+
+    // 2. Complete associated Marketing Tasks
+    try {
+      await db
+        .update(marketingTasks)
+        .set({ status: "completed", completedDate: new Date() })
+        .where(eq(marketingTasks.fieldVisitId, visit.id));
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-complete marketing tasks:", error);
+    }
+
+    // 3. Update Attendance Metrics (visitcount and taskscompleted)
+    try {
+      const attendance = await this.getMarketingAttendanceForUserToday(visit.assignedTo);
+      if (attendance) {
+        await db
+          .update(marketingTodays)
+          .set({
+            visitcount: (attendance.visitcount || 0) + 1,
+            taskscompleted: (attendance.taskscompleted || 0) + 1,
+          })
+          .where(eq(marketingTodays.id, attendance.id));
+      }
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to update attendance metrics:", error);
+    }
   }
 
   async deleteFieldVisit(id: string): Promise<void> {
@@ -3201,14 +3281,6 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     }
   }
 
-  async createActivity(data: any): Promise<void> {
-    try {
-      // Placeholder for activity logging
-      console.log(`📋 [STORAGE] Activity: ${data.action} - ${data.details}`);
-    } catch (error) {
-      console.error(`❌ [STORAGE] Error creating activity:`, error);
-    }
-  }
   async getLogisticsDashboardMetrics(): Promise<any> {
     try {
       const shipments = await db.select().from(logisticsShipments);

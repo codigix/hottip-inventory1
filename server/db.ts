@@ -318,6 +318,9 @@ export const db = drizzle(pool, { schema });
           IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'nextAction') THEN
             ALTER TABLE "field_visits" ADD COLUMN "nextAction" text;
           END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'field_visits' AND column_name = 'attachmentPaths') THEN
+            ALTER TABLE "field_visits" ADD COLUMN "attachmentPaths" jsonb;
+          END IF;
         END IF;
       END $$;
     `);
