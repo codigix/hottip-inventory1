@@ -561,7 +561,7 @@ export default function TaskForm({
                     name="fieldVisitId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Related Field Visit</FormLabel>
+                        <FormLabel>Related Deal</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value || "none"}>
                           <FormControl>
                             <SelectTrigger data-testid="select-field-visit">

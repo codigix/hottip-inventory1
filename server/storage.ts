@@ -1007,15 +1007,32 @@ class Storage {
     if (idx >= 0) this.inMemoryProducts.splice(idx, 1);
   }
 
-  // Activity log (no-op minimal stub)
-  async createActivity(_activity: any): Promise<any> {
-    // No persistent activity log table is defined in the current schema.
-    // Return a minimal object to satisfy callers that do not rely on the result.
-    return {
-      id: "activity-stub",
-      createdAt: new Date().toISOString(),
-      ..._activity,
-    };
+  // Activity log
+  async createActivity(activityData: any): Promise<any> {
+    const [row] = await db
+      .insert(activities)
+      .values({
+        userId: activityData.userId,
+        action: activityData.action,
+        entityType: activityData.entityType,
+        entityId: activityData.entityId,
+        details: activityData.details,
+      })
+      .returning();
+    return row;
+  }
+
+  async getActivitiesByEntity(entityType: string, entityId: string): Promise<any[]> {
+    return db
+      .select()
+      .from(activities)
+      .where(
+        and(
+          eq(activities.entityType, entityType),
+          eq(activities.entityId, entityId)
+        )
+      )
+      .orderBy(desc(activities.createdAt));
   }
 
   // Marketing Attendance
@@ -1966,14 +1983,6 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   // =====================
   // ACTIVITIES CRUD
   // =====================
-  async createActivity(insertActivity: any): Promise<any> {
-    const [row] = await db
-      .insert(activities)
-      .values(insertActivity)
-      .returning();
-    return row;
-  }
-
   // =====================
   // FIELD VISITS CRUD
   // =====================
@@ -3231,14 +3240,6 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     }
   }
 
-  async createActivity(data: any): Promise<void> {
-    try {
-      // Placeholder for activity logging
-      console.log(`📋 [STORAGE] Activity: ${data.action} - ${data.details}`);
-    } catch (error) {
-      console.error(`❌ [STORAGE] Error creating activity:`, error);
-    }
-  }
   async getLogisticsDashboardMetrics(): Promise<any> {
     try {
       const shipments = await db.select().from(logisticsShipments);

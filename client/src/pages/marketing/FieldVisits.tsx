@@ -215,7 +215,7 @@ export default function FieldVisits() {
       apiRequest("/api/field-visits", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-      toast({ title: "Visit scheduled successfully!" });
+      toast({ title: "Deal scheduled successfully!" });
       setIsFormOpen(false);
     },
   });
@@ -225,7 +225,7 @@ export default function FieldVisits() {
       apiRequest(`/api/field-visits/${data.id}`, { method: "PUT", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-      toast({ title: "Visit updated successfully!" });
+      toast({ title: "Deal updated successfully!" });
       setIsFormOpen(false);
       setSelectedVisit(null);
     },
@@ -235,7 +235,7 @@ export default function FieldVisits() {
     mutationFn: (id: string) => apiRequest(`/api/field-visits/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-      toast({ title: "Visit deleted successfully" });
+      toast({ title: "Deal deleted successfully" });
     },
   });
 
@@ -247,7 +247,7 @@ export default function FieldVisits() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
-      toast({ title: "Visit status updated successfully!" });
+      toast({ title: "Deal status updated successfully!" });
     },
   });
 
@@ -365,13 +365,13 @@ export default function FieldVisits() {
           status: "Completed",
           actualEndTime: new Date().toISOString(),
         });
-        toast({ title: "Visit marked as Won and Completed" });
+        toast({ title: "Deal marked as Won and Completed" });
       } else if (columnId === "quotation") {
         updateVisitMutation.mutate({
           ...visit,
           purpose: "quotation_discussion",
         });
-        toast({ title: "Visit updated to Quotation Discussion" });
+        toast({ title: "Deal updated to Quotation Discussion" });
       } else if (columnId === "converted") {
         if (visit.leadId) {
           await apiRequest(`/api/marketing/leads/${visit.leadId}/convert`, {
@@ -397,10 +397,10 @@ export default function FieldVisits() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <MapPin className="h-6 w-6 text-primary" />
-            Field Visits
+            Deals
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Schedule, track, and manage field visits with GPS verification.
+            Schedule, track, and manage deals with GPS verification.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -441,7 +441,7 @@ export default function FieldVisits() {
             className="bg-primary hover:bg-primary/90 shadow-sm font-bold transition-all"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Schedule Visit
+            Schedule Deal
           </Button>
         </div>
       </div>
@@ -451,7 +451,7 @@ export default function FieldVisits() {
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-slate-500 flex items-center justify-between font-bold">
-              All Visits
+              All Deals
               <Users className="h-4 w-4 text-slate-400" />
             </CardTitle>
           </CardHeader>

@@ -202,7 +202,7 @@ export default function VisitTable({
   const columns = useMemo<Column<VisitWithDetails>[]>(() => [
     {
       key: "visitNumber",
-      header: "Visit Details",
+      header: "Deal Details",
       cell: (visit) => {
         return (
           <div className="space-y-1">

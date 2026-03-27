@@ -28,7 +28,7 @@ const demoUsers = [
   { name: "Sales", subtitle: "Sales Module", icon: TrendingUp, id: "sales", color: "text-green-600", bg: "bg-green-50" },
   { name: "Inventory", subtitle: "Stock & Production", icon: Package, id: "inventory", color: "text-orange-600", bg: "bg-orange-50" },
   { name: "Accounts", subtitle: "Finance & Billing", icon: Calculator, id: "accounts", color: "text-purple-600", bg: "bg-purple-50" },
-  { name: "Marketing", subtitle: "Leads & Field Visits", icon: Megaphone, id: "marketing", color: "text-pink-600", bg: "bg-pink-50" },
+  { name: "Marketing", subtitle: "Leads & Deals", icon: Megaphone, id: "marketing", color: "text-pink-600", bg: "bg-pink-50" },
   { name: "Logistics", subtitle: "Shipment & Dispatch", icon: Truck, id: "logistics", color: "text-cyan-600", bg: "bg-cyan-50" },
 ];
 

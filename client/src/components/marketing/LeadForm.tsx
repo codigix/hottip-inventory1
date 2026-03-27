@@ -168,9 +168,11 @@ export default function LeadForm({
 
   useEffect(() => {
     if (existingLead) {
-      const leadData = existingLead as any;
+      // The API returns { lead, activities }, so we need to extract the lead data
+      const leadData = (existingLead as any).lead || existingLead;
       form.reset({
-        ...existingLead,
+        ...leadData,
+        assignedTo: leadData.assignedTo || "null",
         followUpDate: leadData.followUpDate
           ? new Date(leadData.followUpDate).toISOString().split("T")[0]
           : "",
@@ -179,8 +181,25 @@ export default function LeadForm({
           : "",
         estimatedBudget: leadData.estimatedBudget?.toString() || "",
       });
+    } else if (open && defaultValues) {
+      // Immediate pre-fill from list data while waiting for full lead details
+      form.reset({
+        country: "India",
+        priority: "medium",
+        source: "other",
+        ...defaultValues,
+        assignedTo: (defaultValues as any).assignedTo || "null",
+      } as any);
+    } else if (open && !leadId) {
+      // Reset to empty for new leads
+      form.reset({
+        country: "India",
+        priority: "medium",
+        source: "other",
+        assignedTo: "null",
+      } as any);
     }
-  }, [existingLead, form]);
+  }, [existingLead, form, open, defaultValues, leadId]);
 
   const createMutation = useMutation({
     mutationFn: (data: LeadFormData) =>

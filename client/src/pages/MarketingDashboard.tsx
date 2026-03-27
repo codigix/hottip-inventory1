@@ -62,7 +62,7 @@ export default function MarketingDashboard() {
     select: (data: any[]) => data?.slice(0, 3) || [],
   });
 
-  // Upcoming field visits
+  // Upcoming deals
   const { data: upcomingVisits, isLoading: visitsLoading } = useQuery({
     queryKey: ["/api/field-visits"],
     queryFn: () => apiRequest("/api/field-visits"),
@@ -171,7 +171,7 @@ export default function MarketingDashboard() {
         <Card className="border-none shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-medium text-slate-500 uppercase tracking-tight">
-              Field Visits Today
+              Deals Today
             </CardTitle>
             <MapPin className="h-4 w-4 text-slate-400" />
           </CardHeader>
@@ -240,7 +240,7 @@ export default function MarketingDashboard() {
           <CardHeader className="border-b border-slate-50 bg-slate-50/30">
             <CardTitle className="flex items-center space-x-2 text-slate-800">
               <Calendar className="h-4 w-4 text-slate-400" />
-              <span className="text-sm font-semibold">Upcoming Field Visits</span>
+              <span className="text-sm font-semibold">Upcoming Deals</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -276,7 +276,7 @@ export default function MarketingDashboard() {
             ) : (
               <div className="text-center text-slate-400 py-12">
                 <Calendar className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">No upcoming visits scheduled</p>
+                <p className="text-sm">No upcoming deals scheduled</p>
               </div>
             )}
           </CardContent>

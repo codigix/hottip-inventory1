@@ -12,8 +12,11 @@ import {
   ArrowRight,
   MessageSquare,
   FileText as FileIcon,
+  Upload,
+  UploadCloud,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,6 +45,7 @@ interface LeadCardProps {
   onView: (lead: LeadWithAssignee) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: LeadStatus) => void;
+  onUploadProof?: (lead: LeadWithAssignee) => void;
   variant?: "default" | "kanban";
 }
 
@@ -51,8 +55,10 @@ export default function LeadCard({
   onView,
   onDelete,
   onStatusChange,
+  onUploadProof,
   variant = "default",
 }: LeadCardProps) {
+  const [, setLocation] = useLocation();
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData("leadId", lead.id);
     e.dataTransfer.effectAllowed = "move";
@@ -85,7 +91,7 @@ export default function LeadCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onView(lead)}>
+                <DropdownMenuItem onClick={() => setLocation(`/marketing/leads/${lead.id}`)}>
                   <Eye className="mr-2 h-4 w-4" /> View
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(lead)}>
@@ -105,6 +111,14 @@ export default function LeadCard({
                 <DropdownMenuItem onClick={() => onDelete(lead.id)} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </DropdownMenuItem>
+                {onUploadProof && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onUploadProof(lead)}>
+                      <Upload className="mr-2 h-4 w-4" /> Upload Proof
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -151,6 +165,17 @@ export default function LeadCard({
           <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-500 hover:bg-orange-50">
             <FileIcon className="h-3.5 w-3.5" />
           </Button>
+          {onUploadProof && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 text-indigo-500 hover:bg-indigo-50"
+              onClick={() => onUploadProof(lead)}
+              title="Upload Visit Proof"
+            >
+              <Upload className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </CardFooter>
       </Card>
     );
@@ -201,6 +226,14 @@ export default function LeadCard({
               >
                 <Trash2 className="mr-2 h-4 w-4" /> Delete
               </DropdownMenuItem>
+              {onUploadProof && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onUploadProof(lead)}>
+                    <Upload className="mr-2 h-4 w-4" /> Upload Proof
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -648,7 +648,7 @@ function AllDepartmentsSummary() {
       data: summary.marketing,
       items: [
         { label: "Total Leads", value: summary.usersAndContacts.breakdown.leads },
-        { label: "Field Visits", value: summary.marketing.breakdown.fieldVisits },
+        { label: "Deals", value: summary.marketing.breakdown.fieldVisits },
         { label: "Marketing Tasks", value: summary.marketing.breakdown.tasks },
         { label: "Active Customers", value: summary.usersAndContacts.breakdown.customers },
       ],

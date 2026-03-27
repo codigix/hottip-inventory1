@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Plus,
   Search,
@@ -42,6 +43,7 @@ import { apiRequest } from "@/lib/queryClient";
 import LeadTable from "@/components/marketing/LeadTable";
 import LeadForm from "@/components/marketing/LeadForm";
 import LeadCard from "@/components/marketing/LeadCard";
+import ProofUpload from "@/components/marketing/ProofUpload";
 import type {
   LeadWithAssignee,
   LeadStatus,
@@ -50,6 +52,16 @@ import type {
   User,
   LeadMetrics,
 } from "@/types";
+import type { FieldVisit } from "@shared/schema";
+
+interface VisitWithDetails extends FieldVisit {
+  lead?: { 
+    id: string; 
+    firstName: string; 
+    lastName: string; 
+    companyName?: string;
+  };
+}
 
 export default function Leads() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -65,8 +77,12 @@ export default function Leads() {
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
     null
   );
+  const [, setLocation] = useLocation();
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [selectedVisitForProof, setSelectedVisitForProof] = useState<VisitWithDetails | null>(null);
+  const [isFetchingVisit, setIsFetchingVisit] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -207,8 +223,45 @@ export default function Leads() {
   };
 
   const handleViewLead = (lead: LeadWithAssignee) => {
-    // This is handled by the LeadTable component
-    console.log("View lead:", lead);
+    setLocation(`/marketing/leads/${lead.id}`);
+  };
+
+  const handleUploadProof = async (lead: LeadWithAssignee) => {
+    try {
+      setIsFetchingVisit(true);
+      // Fetch visits for this specific lead
+      const visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      
+      if (Array.isArray(visits) && visits.length > 0) {
+        // Find the most recent visit or one that is 'Completed' or 'In Progress'
+        // For now, let's take the first one (most recent as per server default sorting)
+        const visit = visits[0];
+        setSelectedVisitForProof({
+          ...visit,
+          lead: {
+            id: lead.id,
+            firstName: lead.firstName,
+            lastName: lead.lastName,
+            companyName: lead.companyName
+          }
+        });
+        setIsProofModalOpen(true);
+      } else {
+        toast({
+          title: "No visits found",
+          description: "This lead has no field visits scheduled. Please schedule a deal/visit first to upload proof.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch visits for this lead",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingVisit(false);
+    }
   };
 
   const handleFormClose = () => {
@@ -440,6 +493,7 @@ export default function Leads() {
               isLoading={isLoading}
               onEdit={handleEditLead}
               onView={handleViewLead}
+              onUploadProof={handleUploadProof}
             />
           </div>
         ) : (
@@ -499,6 +553,7 @@ export default function Leads() {
                             onView={handleViewLead}
                             onDelete={setDeleteLeadId}
                             onStatusChange={handleStatusChangeAction}
+                            onUploadProof={handleUploadProof}
                             variant="kanban"
                           />
                         ))
@@ -599,6 +654,16 @@ export default function Leads() {
               }
             : undefined
         }
+      />
+
+      <ProofUpload
+        open={isProofModalOpen}
+        onOpenChange={setIsProofModalOpen}
+        visit={selectedVisitForProof}
+        onUploadComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+          setIsProofModalOpen(false);
+        }}
       />
     </div>
   );

@@ -21,7 +21,7 @@ import type { FieldVisit, InsertFieldVisit, User, Lead } from "@shared/schema";
 
 const visitFormSchema = z.object({
   leadId: z.string().min(1, "Lead is required"),
-  plannedDate: z.date({ required_error: "Visit date is required" }),
+  plannedDate: z.date({ required_error: "Deal date is required" }),
   plannedStartTime: z.string().optional(),
   assignedTo: z.string().optional(),
   visitAddress: z.string().min(1, "Visit address is required"),
@@ -276,7 +276,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center space-x-2">
                       <CalendarIcon className="h-4 w-4" />
-                      <span>Visit Date *</span>
+                      <span>Deal Date *</span>
                     </FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>

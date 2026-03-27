@@ -220,7 +220,7 @@ export default function VisitCard({
 
           <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
             <div className="space-y-0.5">
-              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">Visit Date</p>
+              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">Deal Date</p>
               <p className="text-[10px] text-slate-700 font-bold">
                 {format(new Date(visit.plannedDate), "MMM dd, yyyy")}
               </p>

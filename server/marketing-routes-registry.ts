@@ -132,9 +132,94 @@ export const getLead = async (
       }
     }
 
-    res.json(lead);
+    const activities = await storage.getActivitiesByEntity("lead", req.params.id);
+    res.json({ lead, activities });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch lead" });
+  }
+};
+
+export const createMarketingActivity = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { leadId, type, note, date } = req.body;
+    
+    if (!leadId) {
+      res.status(400).json({ error: "leadId is required" });
+      return;
+    }
+
+    const activity = await storage.createActivity({
+      userId: req.user!.id,
+      action: type,
+      entityType: "lead",
+      entityId: leadId,
+      details: note || `${type} action recorded`,
+    });
+
+    res.status(201).json(activity);
+  } catch (error) {
+    console.error("Error creating marketing activity:", error);
+    res.status(500).json({ error: "Failed to record activity" });
+  }
+};
+
+export const createFollowUpTask = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { 
+      leadId, 
+      subject, 
+      type, 
+      priority, 
+      date, 
+      time, 
+      assignedTo, 
+      link, 
+      location, 
+      message, 
+      amount, 
+      dueDate, 
+      description,
+      relatedType 
+    } = req.body;
+
+    if (!leadId) {
+      res.status(400).json({ error: "leadId is required" });
+      return;
+    }
+
+    // Build description with dynamic fields
+    let dynamicDescription = `Type: ${type}\n`;
+    if (link) dynamicDescription += `Link: ${link}\n`;
+    if (location) dynamicDescription += `Location: ${location}\n`;
+    if (message) dynamicDescription += `Message: ${message}\n`;
+    if (amount) dynamicDescription += `Amount: ₹${amount}\n`;
+    if (dueDate) dynamicDescription += `Due Date: ${dueDate}\n`;
+    if (description) dynamicDescription += `Notes: ${description}\n`;
+
+    const taskData = {
+      title: subject || `Follow-up: ${type}`,
+      description: dynamicDescription,
+      type: "follow_up",
+      assignedTo: assignedTo || req.user!.id,
+      assignedBy: req.user!.id,
+      createdBy: req.user!.id,
+      priority: (priority?.toLowerCase() as any) || "medium",
+      status: "pending",
+      leadId: leadId,
+      dueDate: date ? new Date(`${date}T${time || "00:00"}`) : null,
+    };
+
+    const task = await storage.createMarketingTask(taskData);
+    res.status(201).json(task);
+  } catch (error) {
+    console.error("Error creating follow-up task:", error);
+    res.status(500).json({ error: "Failed to create follow-up task" });
   }
 };
 
@@ -2615,6 +2700,12 @@ export function registerMarketingRoutes(
     },
     {
       method: "post",
+      path: "/api/activity", // For Lead details view actions
+      middlewares: ["requireAuth"],
+      handler: createMarketingActivity,
+    },
+    {
+      method: "post",
       path: "/api/marketing/leads",
       middlewares: ["requireAuth"],
       handler: createLead,
@@ -2910,6 +3001,18 @@ export function registerMarketingRoutes(
       handler: completeMarketingTask,
     },
     {
+      method: "post",
+      path: "/api/marketing/followups",
+      middlewares: ["requireAuth"],
+      handler: createFollowUpTask,
+    },
+    {
+      method: "post",
+      path: "/api/followups", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: createFollowUpTask,
+    },
+    {
       method: "get",
       path: "/api/marketing/marketing-tasks/today",
       middlewares: ["requireAuth"],
@@ -3175,8 +3278,8 @@ export function registerMarketingRoutes(
     });
   }
 
-  // Marketing route count verification - exactly 42 routes as specified (added photo upload)
-  const EXPECTED_MARKETING_ROUTE_COUNT = 42;
+  // Marketing route count verification - added followups (2 routes)
+  const EXPECTED_MARKETING_ROUTE_COUNT = 44;
   if (marketingRoutes.length !== EXPECTED_MARKETING_ROUTE_COUNT) {
     console.warn(
       `⚠️  Marketing route count mismatch: Expected ${EXPECTED_MARKETING_ROUTE_COUNT}, found ${marketingRoutes.length}`

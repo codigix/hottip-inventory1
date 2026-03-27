@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   MoreHorizontal,
   Eye,
@@ -12,6 +13,7 @@ import {
   Calendar,
   User,
   FileText,
+  Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -66,6 +68,7 @@ export default function LeadTable({
   onView,
   isSalesMode = false,
   onAddQuotation,
+  onUploadProof,
 }: {
   leads?: LeadWithAssignee[];
   isLoading?: boolean;
@@ -73,6 +76,7 @@ export default function LeadTable({
   onView: (lead: LeadWithAssignee) => void;
   isSalesMode?: boolean;
   onAddQuotation?: (lead: LeadWithAssignee) => void;
+  onUploadProof?: (lead: LeadWithAssignee) => void;
 }) {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
@@ -81,6 +85,7 @@ export default function LeadTable({
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
 
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -300,7 +305,7 @@ export default function LeadTable({
                 </DropdownMenuItem>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => setViewingLead(lead)}>
+                  <DropdownMenuItem onClick={() => setLocation(`/marketing/leads/${lead.id}`)}>
                     <Eye className="mr-2 h-4 w-4" /> View
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEdit(lead)}>
@@ -326,6 +331,14 @@ export default function LeadTable({
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </DropdownMenuItem>
+                  {onUploadProof && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onUploadProof(lead)}>
+                        <Upload className="mr-2 h-4 w-4" /> Upload Proof
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -333,7 +346,7 @@ export default function LeadTable({
         </div>
       ),
     }
-  ], [onEdit, getAvailableStatuses, isSalesMode, onAddQuotation]);
+  ], [onEdit, getAvailableStatuses, isSalesMode, onAddQuotation, onUploadProof]);
 
   return (
     <>
