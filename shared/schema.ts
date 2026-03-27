@@ -1846,7 +1846,7 @@ export const logisticsCheckInSchema = z.object({
 
 // Placeholder for marketing-routes-registry.ts
 export const convertLeadSchema = z.object({
-  leadId: z.number(),
+  leadId: z.string().uuid().optional(),
   convertedAt: z.string().optional(),
   notes: z.string().optional(),
 });

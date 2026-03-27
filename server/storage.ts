@@ -1907,10 +1907,9 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     const totalLeads = allLeads.length;
     const newLeads = allLeads.filter((l) => l.status === "new").length;
     const contactedLeads = allLeads.filter((l) => l.status === "contacted").length;
-    const analysisLeads = allLeads.filter((l) => l.status === "analysis").length;
-    const inProgressLeads = allLeads.filter((l) => l.status === "in_progress").length;
+    const qualifiedLeads = allLeads.filter((l) => l.status === "qualified").length;
     const convertedLeads = allLeads.filter((l) => l.status === "converted").length;
-    const droppedLeads = allLeads.filter((l) => l.status === "dropped").length;
+    const lostLeads = allLeads.filter((l) => l.status === "lost").length;
 
     const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
@@ -1918,10 +1917,9 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
       totalLeads,
       newLeads,
       contactedLeads,
-      analysisLeads,
-      inProgressLeads,
+      qualifiedLeads,
       convertedLeads,
-      droppedLeads,
+      lostLeads,
       conversionRate,
       averageTimeToConversion: 0, // Placeholder
     };
@@ -1994,6 +1992,8 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
           firstName: leads.firstName,
           lastName: leads.lastName,
           companyName: leads.companyName,
+          status: leads.status,
+          estimatedBudget: leads.estimatedBudget,
         }
       })
       .from(fieldVisits)
@@ -2023,6 +2023,8 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
           firstName: leads.firstName,
           lastName: leads.lastName,
           companyName: leads.companyName,
+          status: leads.status,
+          estimatedBudget: leads.estimatedBudget,
         }
       })
       .from(fieldVisits)
@@ -2115,6 +2117,11 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     if (!row) {
       throw new Error(`Field visit with ID '${id}' not found for update.`);
     }
+
+    if (update.status?.toLowerCase() === "completed") {
+      await this.handleVisitCompletion(row);
+    }
+
     return row;
   }
 
@@ -2130,15 +2137,8 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       );
     }
 
-    // Automatically convert lead to customer when a visit is marked as completed
-    if (status.toLowerCase() === "completed" && row.leadId) {
-      try {
-        await this.convertLeadToCustomer(row.leadId);
-      } catch (error) {
-        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
-        // Fallback to just updating status if conversion fails (e.g. already converted)
-        await this.updateLead(row.leadId, { status: "converted" });
-      }
+    if (status.toLowerCase() === "completed") {
+      await this.handleVisitCompletion(row);
     }
 
     return row;
@@ -2172,18 +2172,48 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
       throw new Error(`Field visit with ID '${id}' not found for check-out.`);
     }
 
-    // Automatically convert lead to customer when a visit is completed
-    if (row.leadId) {
-      try {
-        await this.convertLeadToCustomer(row.leadId);
-      } catch (error) {
-        console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
-        // Fallback to just updating status if conversion fails (e.g. already converted)
-        await this.updateLead(row.leadId, { status: "converted" });
-      }
-    }
+    await this.handleVisitCompletion(row);
 
     return row;
+  }
+
+  private async handleVisitCompletion(visit: FieldVisit): Promise<void> {
+    if (!visit.leadId) return;
+
+    // 1. Convert Lead to Customer
+    try {
+      await this.convertLeadToCustomer(visit.leadId);
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
+      // Fallback to just updating status if conversion fails (e.g. already converted)
+      await this.updateLead(visit.leadId, { status: "converted" });
+    }
+
+    // 2. Complete associated Marketing Tasks
+    try {
+      await db
+        .update(marketingTasks)
+        .set({ status: "completed", completedDate: new Date() })
+        .where(eq(marketingTasks.fieldVisitId, visit.id));
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to auto-complete marketing tasks:", error);
+    }
+
+    // 3. Update Attendance Metrics (visitcount and taskscompleted)
+    try {
+      const attendance = await this.getMarketingAttendanceForUserToday(visit.assignedTo);
+      if (attendance) {
+        await db
+          .update(marketingTodays)
+          .set({
+            visitcount: (attendance.visitcount || 0) + 1,
+            taskscompleted: (attendance.taskscompleted || 0) + 1,
+          })
+          .where(eq(marketingTodays.id, attendance.id));
+      }
+    } catch (error) {
+      console.error("❌ [STORAGE] Failed to update attendance metrics:", error);
+    }
   }
 
   async deleteFieldVisit(id: string): Promise<void> {

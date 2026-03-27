@@ -106,7 +106,9 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         latitude: visit.latitude ? parseFloat(visit.latitude) : undefined,
         longitude: visit.longitude ? parseFloat(visit.longitude) : undefined,
         purpose: visit.purpose,
-        status: visit.status.toLowerCase().replace(" ", "_"),
+        status: (["in progress", "upcoming", "in_progress"].includes(visit.status.toLowerCase().replace("_", " ")) 
+          ? "upcoming" 
+          : visit.status.toLowerCase().replace(" ", "_")) as any,
         preVisitNotes: visit.preVisitNotes || '',
         travelExpense: visit.travelExpense || '',
       };
@@ -216,7 +218,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                         field.onChange(value);
                         handleLeadChange(value);
                       }} 
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-lead">
@@ -344,7 +346,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                     <Target className="h-4 w-4" />
                     <span>Visit Purpose *</span>
                   </FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-purpose">
                         <SelectValue placeholder="Select visit purpose" />
@@ -376,7 +378,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                       <Timer className="h-4 w-4" />
                       <span>Visit Status *</span>
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-status">
                           <SelectValue placeholder="Select status" />
@@ -385,8 +387,9 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
                       <SelectContent>
                         <SelectItem value="scheduled">Scheduled</SelectItem>
                         <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        {form.watch("purpose") === "closing" && (
+                          <SelectItem value="completed">Completed</SelectItem>
+                        )}
                         <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>

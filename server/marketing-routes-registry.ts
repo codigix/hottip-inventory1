@@ -441,7 +441,7 @@ export const convertLead = async (
       }
     }
 
-    const conversionData = convertLeadSchema.parse(req.body);
+    const conversionData = convertLeadSchema.parse(req.body || {});
 
     const customer = await storage.convertLeadToCustomer(req.params.id);
     await storage.createActivity({

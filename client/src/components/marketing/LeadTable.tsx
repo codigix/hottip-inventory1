@@ -307,7 +307,7 @@ export default function LeadTable({
                     <Edit className="mr-2 h-4 w-4" /> Edit
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {getAvailableStatuses(lead.status).map((status) => (
+                  {getAvailableStatuses(lead.status).filter(s => s !== 'converted').map((status) => (
                     <DropdownMenuItem
                       key={status}
                       onClick={() => {
@@ -316,7 +316,7 @@ export default function LeadTable({
                       }}
                     >
                       <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
-                      {status.replace("_", " ")}
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
