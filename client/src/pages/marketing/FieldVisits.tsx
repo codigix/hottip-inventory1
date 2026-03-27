@@ -85,6 +85,7 @@ export default function FieldVisits() {
     queryFn: () => apiRequest("/api/field-visits"),
   });
   const safeVisits = Array.isArray(visitsData) ? visitsData : [];
+  console.log("DEBUG: safeVisits", safeVisits);
 
   const { data: usersData } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
@@ -117,7 +118,8 @@ export default function FieldVisits() {
           columns.won.push(v);
         } else if (v.purpose === "quotation_discussion") {
           columns.quotation.push(v);
-        } else if (v.lead?.status === "converted") {
+        } else {
+          // Default to converted for all other qualified/active deals
           columns.converted.push(v);
         }
       }
@@ -139,21 +141,18 @@ export default function FieldVisits() {
       metrics.all.count++;
       metrics.all.budget += budget;
       
-      if (v.lead?.status === "converted") {
-        metrics.converted.count++;
-        metrics.converted.budget += budget;
-      }
-      if (v.purpose === "quotation_discussion") {
-        metrics.quotation.count++;
-        metrics.quotation.budget += budget;
-      }
-      if (v.purpose === "closing" && v.status?.toLowerCase() === "completed") {
-        metrics.won.count++;
-        metrics.won.budget += budget;
-      }
       if (v.lead?.status === "lost") {
         metrics.lost.count++;
         metrics.lost.budget += budget;
+      } else if (v.purpose === "closing" && v.status?.toLowerCase() === "completed") {
+        metrics.won.count++;
+        metrics.won.budget += budget;
+      } else if (v.purpose === "quotation_discussion") {
+        metrics.quotation.count++;
+        metrics.quotation.budget += budget;
+      } else {
+        metrics.converted.count++;
+        metrics.converted.budget += budget;
       }
     });
     return metrics;
@@ -194,7 +193,7 @@ export default function FieldVisits() {
     return safeVisits.filter((v) => {
       let matchesCategory = categoryFilter === "all";
       if (categoryFilter === "converted") {
-        matchesCategory = v.lead?.status === "converted";
+        matchesCategory = v.lead?.status === "converted" || v.lead?.status === "qualified";
       } else if (categoryFilter === "quotation") {
         matchesCategory = v.purpose === "quotation_discussion";
       } else if (categoryFilter === "won") {
@@ -269,6 +268,24 @@ export default function FieldVisits() {
       toast({ title: "Checked out successfully!" });
       setGpsModalOpen(false);
     },
+  });
+
+  const syncQualifiedMutation = useMutation({
+    mutationFn: () => apiRequest("/api/marketing/leads/sync-qualified", { method: "POST" }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/field-visits"] });
+      toast({ 
+        title: "Sync complete", 
+        description: data.message || "Qualified leads synced to deals" 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Sync failed", 
+        description: "Failed to sync qualified leads", 
+        variant: "destructive" 
+      });
+    }
   });
 
   /** ===== Handlers ===== **/
@@ -433,12 +450,21 @@ export default function FieldVisits() {
               Map
             </Button>
           </div>
+          <Button
+            onClick={() => syncQualifiedMutation.mutate()}
+            variant="outline"
+            size="sm"
+            disabled={syncQualifiedMutation.isPending}
+            className="border-primary/20 text-primary hover:bg-primary/5 font-bold h-9"
+          >
+            {syncQualifiedMutation.isPending ? "Syncing..." : "Sync Qualified Leads"}
+          </Button>
           <Button 
             onClick={() => {
               setSelectedVisit(null);
               setIsFormOpen(true);
             }} 
-            className="bg-primary hover:bg-primary/90 shadow-sm font-bold transition-all"
+            className="bg-primary hover:bg-primary/90 shadow-sm font-bold transition-all h-9"
           >
             <Plus className="h-4 w-4 mr-2" />
             Schedule Deal

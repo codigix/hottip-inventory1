@@ -472,6 +472,41 @@ export const updateLeadStatus = async (
     const { status, notes } = updateLeadStatusSchema.parse(req.body);
 
     const lead = await storage.updateLead(req.params.id, { status });
+
+    // AUTO-CREATE DEAL (FIELD VISIT): If lead status becomes "qualified"
+    if (status === "qualified") {
+      console.log(`✨ Detected qualified status for lead ${lead.id}. Attempting auto-deal creation...`);
+      try {
+        // Check if a visit already exists for this lead to avoid duplicates
+        const existingVisits = await storage.getVisitsByLead(lead.id);
+        console.log(`🔎 Found ${existingVisits?.length || 0} existing visits for lead ${lead.id}`);
+        
+        if (!existingVisits || existingVisits.length === 0) {
+          const visitData = {
+            leadId: lead.id,
+            plannedDate: new Date(),
+            visitAddress: lead.address || lead.city || "Client Address",
+            visitCity: lead.city,
+            visitState: lead.state,
+            assignedTo: lead.assignedTo || req.user!.id,
+            assignedBy: req.user!.id,
+            createdBy: req.user!.id,
+            purpose: "initial_meeting",
+            status: "Scheduled",
+            preVisitNotes: `Auto-created from lead qualification. Budget: ${lead.estimatedBudget || 'N/A'}`
+          };
+          
+          console.log(`📦 Creating field visit with data:`, JSON.stringify(visitData, null, 2));
+          const visit = await storage.createFieldVisit(visitData);
+          console.log(`✅ Successfully auto-created field visit (Deal) ${visit.id} for qualified lead ${lead.id}`);
+        } else {
+          console.log(`⏭️ Skipping deal creation because visit already exists for lead ${lead.id}`);
+        }
+      } catch (dealError) {
+        console.error("❌ CRITICAL: Failed to auto-create field visit for qualified lead:", dealError);
+      }
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_LEAD_STATUS",
@@ -545,6 +580,42 @@ export const convertLead = async (
       return;
     }
     res.status(500).json({ error: "Failed to convert lead to customer" });
+  }
+};
+
+export const syncQualifiedLeadsToDeals = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    // SECURITY: Only admins/managers should sync all
+    const leads = await storage.getLeads({ status: "qualified" });
+    let createdCount = 0;
+
+    for (const lead of leads) {
+      const existingVisits = await storage.getVisitsByLead(lead.id);
+      if (!existingVisits || existingVisits.length === 0) {
+        await storage.createFieldVisit({
+          leadId: lead.id,
+          plannedDate: new Date(),
+          visitAddress: lead.address || lead.city || "Client Address",
+          visitCity: lead.city,
+          visitState: lead.state,
+          assignedTo: lead.assignedTo || req.user!.id,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          purpose: "initial_meeting",
+          status: "Scheduled",
+          preVisitNotes: `Auto-synced from lead qualification. Budget: ${lead.estimatedBudget || 'N/A'}`
+        });
+        createdCount++;
+      }
+    }
+
+    res.json({ message: `Successfully synced ${createdCount} qualified leads to deals`, createdCount });
+  } catch (error) {
+    console.error("Error syncing qualified leads:", error);
+    res.status(500).json({ error: "Failed to sync qualified leads to deals" });
   }
 };
 
@@ -2751,6 +2822,12 @@ export function registerMarketingRoutes(
       path: "/api/leads/:id/status", // Compatibility alias
       middlewares: ["requireAuth", "checkOwnership:lead"],
       handler: updateLeadStatus,
+    },
+    {
+      method: "post",
+      path: "/api/marketing/leads/sync-qualified",
+      middlewares: ["requireAuth"],
+      handler: syncQualifiedLeadsToDeals,
     },
     {
       method: "post",

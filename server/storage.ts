@@ -1986,8 +1986,8 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
   // =====================
   // FIELD VISITS CRUD
   // =====================
-  async getFieldVisits(): Promise<any[]> {
-    const rows = await db
+  async getFieldVisits(filters?: any): Promise<any[]> {
+    let query = db
       .select({
         visit: fieldVisits,
         assignedToUser: {
@@ -2007,14 +2007,55 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
       })
       .from(fieldVisits)
       .leftJoin(users, eq(fieldVisits.assignedTo, users.id))
-      .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
-      .orderBy(desc(fieldVisits.createdAt));
+      .leftJoin(leads, eq(fieldVisits.leadId, leads.id));
+
+    const conditions = [];
+
+    if (filters?.status && filters.status !== "all") {
+      conditions.push(eq(fieldVisits.status, filters.status));
+    }
+
+    if (filters?.assignedTo && filters.assignedTo !== "all") {
+      conditions.push(eq(fieldVisits.assignedTo, filters.assignedTo));
+    }
+
+    if (filters?.leadId) {
+      conditions.push(eq(fieldVisits.leadId, filters.leadId));
+    }
+
+    if (filters?.startDate && filters.endDate) {
+      conditions.push(
+        and(
+          gte(fieldVisits.plannedDate, new Date(filters.startDate)),
+          lte(fieldVisits.plannedDate, new Date(filters.endDate))
+        )
+      );
+    }
+
+    if (filters?.userScope?.showOnlyUserVisits) {
+      conditions.push(
+        or(
+          eq(fieldVisits.createdBy, filters.userScope.userId),
+          eq(fieldVisits.assignedTo, filters.userScope.userId)
+        )
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const rows = await query.orderBy(desc(fieldVisits.createdAt));
 
     return rows.map(r => ({
       ...r.visit,
       assignedToUser: r.assignedToUser,
       lead: r.lead
     }));
+  }
+
+  async getVisitsByLead(leadId: string): Promise<any[]> {
+    return this.getFieldVisits({ leadId });
   }
 
   async getFieldVisit(id: string): Promise<any | undefined> {

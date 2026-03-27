@@ -23,6 +23,11 @@ import {
   Info,
   Coins,
   MessageSquareQuote,
+  History,
+  Download,
+  Printer,
+  FileUp,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -50,6 +55,7 @@ import {
 import { StatusBadge } from "@/components/marketing/StatusBadge";
 import FollowUpForm from "@/components/marketing/FollowUpForm";
 import FollowupHierarchy from "@/components/marketing/FollowupHierarchy";
+import ProofUpload from "@/components/marketing/ProofUpload";
 
 interface Lead {
   id: string;
@@ -98,10 +104,43 @@ export default function LeadDetails() {
   const [activityNote, setActivityNote] = useState("");
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isProofUploadOpen, setIsProofUploadOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
 
   const { data, isLoading, error } = useQuery<{ lead: Lead; activities: Activity[] }>({
     queryKey: [`/api/marketing/leads/${leadId}`],
     enabled: !!leadId,
+  });
+
+  const { data: customers = [] } = useQuery<any[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const { data: visits = [] } = useQuery<any[]>({
+    queryKey: [`/api/field-visits`, { leadId: leadId }],
+    enabled: !!leadId,
+  });
+
+  // Find linked customer to fetch quotations
+  // Rules of Hooks: Define this before early returns
+  const leadData = data?.lead;
+  const fullNameData = leadData ? `${leadData.firstName} ${leadData.lastName}` : "";
+  const linkedCustomer = customers.find(
+    (c: any) =>
+      (leadData?.companyName && c.company === leadData.companyName) ||
+      (leadData?.email && c.email === leadData.email) ||
+      (fullNameData && c.name === fullNameData)
+  );
+
+  const { data: quotations = [] } = useQuery<any[]>({
+    queryKey: [
+      "/api/outbound-quotations",
+      { 
+        customerId: linkedCustomer?.id, 
+        companyName: leadData?.companyName 
+      },
+    ],
+    enabled: !!linkedCustomer?.id || !!leadData?.companyName,
   });
 
   const recordActivityMutation = useMutation({
@@ -209,10 +248,14 @@ export default function LeadDetails() {
       case "WHATSAPP": return "WhatsApp Sent";
       case "FOLLOW_UP": return "Follow-up Scheduled";
       case "DEAL_CREATED": return "Deal Created";
-      case "QUOTATION": return "Quotation Created";
+      case "QUOTATION": return "Quotation Sent";
       case "CREATE_LEAD": return "Lead Created";
-      case "UPDATE_LEAD": return "Lead Updated";
+      case "UPDATE_LEAD": return "Lead Details Updated";
       case "UPDATE_LEAD_STATUS": return "Status Changed";
+      case "MANUAL_LOG": return "Internal Note Added";
+      case "UPDATE_FIELD_VISIT": return "Visit Updated";
+      case "CHECK_IN": return "Checked In at Location";
+      case "CHECK_OUT": return "Checked Out from Location";
       default: return type.replace(/_/g, " ");
     }
   };
@@ -417,6 +460,10 @@ export default function LeadDetails() {
               <TabsList className="bg-slate-100 border p-1 rounded-lg">
                 <TabsTrigger value="activities" className="rounded-md px-4 py-2 text-sm">Activities</TabsTrigger>
                 <TabsTrigger value="hierarchy" className="rounded-md px-4 py-2 text-sm">Hierarchy</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-md px-4 py-2 text-sm">Notes</TabsTrigger>
+                <TabsTrigger value="calls" className="rounded-md px-4 py-2 text-sm">Calls</TabsTrigger>
+                <TabsTrigger value="files" className="rounded-md px-4 py-2 text-sm">Files</TabsTrigger>
+                <TabsTrigger value="email" className="rounded-md px-4 py-2 text-sm">Email</TabsTrigger>
               </TabsList>
               
               <Dialog open={isActivityModalOpen} onOpenChange={setIsActivityModalOpen}>
@@ -501,6 +548,215 @@ export default function LeadDetails() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="notes">
+              <Card className="border-none shadow-sm">
+                <CardHeader className="pb-0">
+                  <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    Notes & Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Requirement Analysis</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {lead.requirementDescription || "No requirement description provided."}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Internal Notes</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed italic">
+                        {lead.notes || "No internal notes added."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-50">
+                    <h4 className="text-sm font-bold text-slate-800 mb-4">Note History</h4>
+                    <div className="space-y-4">
+                      {activities.filter(a => a.action === "MANUAL_LOG" || a.action === "UPDATE_LEAD").map((activity) => (
+                        <div key={activity.id} className="flex gap-3 text-sm">
+                          <div className="h-8 w-8 rounded bg-blue-50 flex items-center justify-center shrink-0">
+                            <FileText className="h-4 w-4 text-blue-500" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-slate-900">{getActionLabel(activity.action)}</span>
+                              <span className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "dd MMM, hh:mm a")}</span>
+                            </div>
+                            <p className="text-slate-600 italic">"{activity.details || "No details provided"}"</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="calls">
+              <Card className="border-none shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-slate-800">Call Logs</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {activities.filter(a => a.action === "CALL").map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center">
+                            <Phone className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">Outgoing Call to Lead</p>
+                            <p className="text-xs text-slate-500">{activity.details || "Initial discussion regarding requirements"}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-semibold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
+                          <p className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "hh:mm a")}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {activities.filter(a => a.action === "CALL").length === 0 && (
+                      <div className="text-center py-12 text-slate-400 italic">No call logs found.</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="files">
+              <Card className="border-none shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-4">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-slate-800">Files & Quotations</CardTitle>
+                  </div>
+                  <Button size="sm" className="gap-2 bg-red-600 hover:bg-red-700 text-white border-none">
+                    <Plus className="h-4 w-4" /> Create Document
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-6 space-y-8">
+                  {/* Quotations Section */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">QUOTATIONS (PDF VERSIONS)</h4>
+                    <div className="space-y-3">
+                      {quotations.map((quotation, index) => (
+                        <div key={quotation.id} className="p-4 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-primary/30 transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-10 bg-red-50 rounded flex items-center justify-center border border-red-100 shadow-sm shrink-0">
+                              <FileText className="h-6 w-6 text-red-500" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900">{quotation.quotationNumber} - Version v{quotations.length - index}</p>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                                <span>INR {Number(quotation.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                                <span>·</span>
+                                <span className="capitalize text-emerald-600 font-bold">{quotation.status}</span>
+                                <span>·</span>
+                                <span>{format(new Date(quotation.quotationDate), "dd MMM, hh:mm:ss a")}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-primary"
+                              onClick={() => {
+                                const pdfUrl = `${import.meta.env.VITE_API_BASE_URL}/outbound-quotations/${quotation.id}/pdf`;
+                                window.open(pdfUrl.replace(/\/api\/api\//g, "/api/"), "_blank");
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-primary"
+                              onClick={() => {
+                                let printUrl = `${import.meta.env.VITE_API_BASE_URL}/outbound-quotations/${quotation.id}/pdf`;
+                                printUrl = printUrl.replace(/\/api\/api\//g, "/api/");
+                                const printWindow = window.open(printUrl, "_blank");
+                                if (printWindow) {
+                                  printWindow.onload = () => {
+                                    printWindow.print();
+                                  };
+                                }
+                              }}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {quotations.length === 0 && (
+                        <div className="p-6 text-center border-2 border-dashed border-slate-100 rounded-lg text-slate-400 text-sm">
+                          No quotations found for this lead/customer.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Other Documents Section */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">OTHER DOCUMENTS</h4>
+                    <div className="space-y-3">
+                      {visits.filter(v => v.checkInPhotoPath || v.checkOutPhotoPath || v.attachmentPaths?.length > 0).map((visit) => (
+                        <div key={visit.id} className="p-4 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-10 bg-blue-50 rounded flex items-center justify-center border border-blue-100 shadow-sm shrink-0">
+                              <FileUp className="h-6 w-6 text-blue-500" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900">Visit Proof - {visit.visitNumber}</p>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {visit.purpose || "Field Visit"} · {format(new Date(visit.plannedDate), "dd MMM, yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-bold"
+                              onClick={() => {
+                                setSelectedVisit(visit);
+                                setIsProofUploadOpen(true);
+                              }}
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" /> View Files
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {visits.length === 0 && (
+                        <div className="p-6 text-center border-2 border-dashed border-slate-100 rounded-lg text-slate-400 text-sm italic">
+                          No additional documents or visit proofs found.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="email">
+              <Card className="border-none shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-slate-800">Email Correspondence</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center justify-center py-16 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-400">
+                    <Mail className="h-12 w-12 mb-4 opacity-10" />
+                    <p className="text-sm font-medium">No email history found</p>
+                    <p className="text-xs mt-1">Emails sent through the platform will appear here.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -580,6 +836,15 @@ export default function LeadDetails() {
         open={isFollowUpModalOpen}
         onOpenChange={setIsFollowUpModalOpen}
         leadId={leadId!}
+      />
+
+      <ProofUpload
+        open={isProofUploadOpen}
+        onOpenChange={setIsProofUploadOpen}
+        visit={selectedVisit}
+        onUploadComplete={() => {
+          queryClient.invalidateQueries({ queryKey: [`/api/field-visits`, { leadId: leadId }] });
+        }}
       />
     </div>
   );
