@@ -473,14 +473,20 @@ export const updateLeadStatus = async (
 
     const lead = await storage.updateLead(req.params.id, { status });
 
-    // AUTO-CREATE DEAL (FIELD VISIT): If lead status becomes "qualified"
-    if (status === "qualified") {
-      console.log(`✨ Detected qualified status for lead ${lead.id}. Attempting auto-deal creation...`);
+    // AUTO-CREATE OR UPDATE DEAL (FIELD VISIT): If lead status becomes "contacted", "quotation", or "qualified"
+    const dealerStatuses = ["contacted", "quotation", "qualified"];
+    if (dealerStatuses.includes(status)) {
+      console.log(`✨ Detected deal-relevant status '${status}' for lead ${lead.id}. Attempting auto-deal sync...`);
       try {
-        // Check if a visit already exists for this lead to avoid duplicates
+        // Check if a visit already exists for this lead
         const existingVisits = await storage.getVisitsByLead(lead.id);
         console.log(`🔎 Found ${existingVisits?.length || 0} existing visits for lead ${lead.id}`);
         
+        let targetPurpose = "initial_meeting";
+        if (status === "quotation") {
+          targetPurpose = "quotation_discussion";
+        }
+
         if (!existingVisits || existingVisits.length === 0) {
           const visitData = {
             leadId: lead.id,
@@ -491,19 +497,27 @@ export const updateLeadStatus = async (
             assignedTo: lead.assignedTo || req.user!.id,
             assignedBy: req.user!.id,
             createdBy: req.user!.id,
-            purpose: "initial_meeting",
+            purpose: targetPurpose,
             status: "Scheduled",
-            preVisitNotes: `Auto-created from lead qualification. Budget: ${lead.estimatedBudget || 'N/A'}`
+            preVisitNotes: `Auto-created from lead status: ${status}. Budget: ${lead.estimatedBudget || 'N/A'}`
           };
           
           console.log(`📦 Creating field visit with data:`, JSON.stringify(visitData, null, 2));
           const visit = await storage.createFieldVisit(visitData);
-          console.log(`✅ Successfully auto-created field visit (Deal) ${visit.id} for qualified lead ${lead.id}`);
+          console.log(`✅ Successfully auto-created field visit (Deal) ${visit.id} for lead ${lead.id}`);
         } else {
-          console.log(`⏭️ Skipping deal creation because visit already exists for lead ${lead.id}`);
+          // If status is quotation, update existing visit purpose to quotation_discussion
+          if (status === "quotation") {
+            const latestVisit = existingVisits[0]; // Assuming we update the first/latest one
+            if (latestVisit.purpose !== "quotation_discussion") {
+              await storage.updateFieldVisit(latestVisit.id, { purpose: "quotation_discussion" });
+              console.log(`🔄 Updated existing visit ${latestVisit.id} purpose to quotation_discussion`);
+            }
+          }
+          console.log(`⏭️ Sync complete for lead ${lead.id}`);
         }
       } catch (dealError) {
-        console.error("❌ CRITICAL: Failed to auto-create field visit for qualified lead:", dealError);
+        console.error("❌ CRITICAL: Failed to auto-sync field visit for lead:", dealError);
       }
     }
 
@@ -583,17 +597,26 @@ export const convertLead = async (
   }
 };
 
-export const syncQualifiedLeadsToDeals = async (
+export const syncLeadsToDeals = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    // SECURITY: Only admins/managers should sync all
-    const leads = await storage.getLeads({ status: "qualified" });
+    const dealerStatuses = ["contacted", "quotation", "qualified"];
+    const allLeads = await storage.getLeads();
+    const leadsToSync = allLeads.filter(l => l.status && dealerStatuses.includes(l.status));
+    
     let createdCount = 0;
+    let updatedCount = 0;
 
-    for (const lead of leads) {
+    for (const lead of leadsToSync) {
       const existingVisits = await storage.getVisitsByLead(lead.id);
+      
+      let targetPurpose = "initial_meeting";
+      if (lead.status === "quotation") {
+        targetPurpose = "quotation_discussion";
+      }
+
       if (!existingVisits || existingVisits.length === 0) {
         await storage.createFieldVisit({
           leadId: lead.id,
@@ -604,18 +627,31 @@ export const syncQualifiedLeadsToDeals = async (
           assignedTo: lead.assignedTo || req.user!.id,
           assignedBy: req.user!.id,
           createdBy: req.user!.id,
-          purpose: "initial_meeting",
+          purpose: targetPurpose,
           status: "Scheduled",
-          preVisitNotes: `Auto-synced from lead qualification. Budget: ${lead.estimatedBudget || 'N/A'}`
+          preVisitNotes: `Auto-synced from lead status: ${lead.status}. Budget: ${lead.estimatedBudget || 'N/A'}`
         });
         createdCount++;
+      } else {
+        // Sync purpose for existing visits if lead is in quotation status
+        if (lead.status === "quotation") {
+          const latestVisit = existingVisits[0];
+          if (latestVisit.purpose !== "quotation_discussion") {
+            await storage.updateFieldVisit(latestVisit.id, { purpose: "quotation_discussion" });
+            updatedCount++;
+          }
+        }
       }
     }
 
-    res.json({ message: `Successfully synced ${createdCount} qualified leads to deals`, createdCount });
+    res.json({ 
+      message: `Successfully synced ${createdCount} leads to deals and updated ${updatedCount} existing deals.`, 
+      createdCount,
+      updatedCount 
+    });
   } catch (error) {
-    console.error("Error syncing qualified leads:", error);
-    res.status(500).json({ error: "Failed to sync qualified leads to deals" });
+    console.error("Error syncing leads:", error);
+    res.status(500).json({ error: "Failed to sync leads to deals" });
   }
 };
 
@@ -2827,7 +2863,7 @@ export function registerMarketingRoutes(
       method: "post",
       path: "/api/marketing/leads/sync-qualified",
       middlewares: ["requireAuth"],
-      handler: syncQualifiedLeadsToDeals,
+      handler: syncLeadsToDeals,
     },
     {
       method: "post",

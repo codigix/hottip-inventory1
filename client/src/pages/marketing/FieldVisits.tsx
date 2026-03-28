@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -193,7 +193,9 @@ export default function FieldVisits() {
     return safeVisits.filter((v) => {
       let matchesCategory = categoryFilter === "all";
       if (categoryFilter === "converted") {
-        matchesCategory = v.lead?.status === "converted" || v.lead?.status === "qualified";
+        matchesCategory = v.lead?.status !== "lost" && 
+                         !(v.purpose === "closing" && v.status?.toLowerCase() === "completed") &&
+                         v.purpose !== "quotation_discussion";
       } else if (categoryFilter === "quotation") {
         matchesCategory = v.purpose === "quotation_discussion";
       } else if (categoryFilter === "won") {
@@ -457,7 +459,7 @@ export default function FieldVisits() {
             disabled={syncQualifiedMutation.isPending}
             className="border-primary/20 text-primary hover:bg-primary/5 font-bold h-9"
           >
-            {syncQualifiedMutation.isPending ? "Syncing..." : "Sync Qualified Leads"}
+            {syncQualifiedMutation.isPending ? "Syncing..." : "Sync Leads to Deals"}
           </Button>
           <Button 
             onClick={() => {
