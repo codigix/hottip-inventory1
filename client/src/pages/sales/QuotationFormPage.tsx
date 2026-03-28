@@ -351,6 +351,18 @@ export default function QuotationFormPage() {
           <Button variant="outline" onClick={() => setLocation("/sales/outbound-quotations")}>
             Cancel
           </Button>
+          <Button 
+            variant="outline" 
+            type="button"
+            onClick={() => {
+              form.setValue("status", "draft");
+              form.handleSubmit((data) => mutation.mutate(data))();
+            }}
+            className="border-slate-300 text-slate-600 hover:bg-slate-50"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Save as Draft
+          </Button>
           <Button onClick={form.handleSubmit((data) => mutation.mutate(data))} className="shadow-md px-8">
             <Save className="h-4 w-4 mr-2" />
             {isEdit ? "Update" : "Save"} Quotation

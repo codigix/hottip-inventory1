@@ -14,6 +14,14 @@ import {
   User,
   FileText,
   Upload,
+  RefreshCw,
+  Download,
+  Calculator,
+  Check,
+  X,
+  FileEdit,
+  FileCheck,
+  FileX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -59,6 +67,7 @@ import {
 } from "@/components/ui/table";
 
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
+import FollowUpForm from "./FollowUpForm";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
 export default function LeadTable({
@@ -84,6 +93,8 @@ export default function LeadTable({
   );
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -164,7 +175,7 @@ export default function LeadTable({
     LEAD_STATUS_WORKFLOW[currentStatus] || [];
 
   const formatCurrency = (amount: string | undefined) =>
-    amount ? `₹${parseFloat(amount).toLocaleString("en-IN")}` : "Not specified";
+    (amount && parseFloat(amount) !== 0) ? `₹${parseFloat(amount).toLocaleString("en-IN")}` : "Not Set";
 
   const columns = useMemo<Column<LeadWithAssignee>[]>(() => [
     {
@@ -284,12 +295,44 @@ export default function LeadTable({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               {isSalesMode ? (
-                <DropdownMenuItem
-                  onClick={() => onAddQuotation?.(lead)}
-                  className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
-                >
-                  <FileText className="mr-2 h-4 w-4" /> Create Quotation
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setFollowUpLeadId(lead.id);
+                      setIsFollowUpModalOpen(true);
+                    }}
+                    className="font-medium"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" /> Follow-up
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onAddQuotation?.(lead)}
+                    className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Create Quotation
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <FileEdit className="mr-2 h-4 w-4" /> Revise Quotation
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Download className="mr-2 h-4 w-4" /> Download PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Calculator className="mr-2 h-4 w-4" /> View Estimation
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-emerald-600">
+                    <FileCheck className="mr-2 h-4 w-4" /> Mark as Accepted
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-slate-600">
+                    <FileText className="mr-2 h-4 w-4" /> Mark as Draft
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-600">
+                    <FileX className="mr-2 h-4 w-4" /> Mark as Declined
+                  </DropdownMenuItem>
+                </>
               ) : (
                 <>
                   <DropdownMenuItem onClick={() => setLocation(`/marketing/leads/${lead.id}`)}>
@@ -508,6 +551,14 @@ export default function LeadTable({
           )}
         </DialogContent>
       </Dialog>
+
+      {followUpLeadId && (
+        <FollowUpForm
+          open={isFollowUpModalOpen}
+          onOpenChange={setIsFollowUpModalOpen}
+          leadId={followUpLeadId}
+        />
+      )}
     </>
   );
 }

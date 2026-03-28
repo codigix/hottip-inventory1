@@ -610,6 +610,17 @@ export function registerSalesRoutes(
   });
 
   // Outbound Quotations CRUD
+  app.get("/api/outbound-quotations/versions/:groupId", requireAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      const versions = await storage.getQuotationVersions(groupId);
+      res.json(versions);
+    } catch (error: any) {
+      console.error("❌ Error in GET /api/outbound-quotations/versions/:groupId:", error);
+      res.status(500).json({ error: "Failed to fetch quotation versions" });
+    }
+  });
+
   app.get("/api/outbound-quotations", requireAuth, async (req, res) => {
     try {
       console.log("📋 Fetching outbound quotations with filters:", req.query);

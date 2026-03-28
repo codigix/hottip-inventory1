@@ -1,4 +1,5 @@
  import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -65,6 +66,7 @@ type AnalysisCategory = "all" | "converted" | "quotation" | "won" | "lost";
 type ViewMode = "list" | "kanban" | "map";
 
 export default function FieldVisits() {
+  const [, setLocation] = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<VisitWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
@@ -330,8 +332,12 @@ export default function FieldVisits() {
   };
 
   const handleViewReport = (visit: VisitWithDetails) => {
-    setSelectedVisit(visit);
-    setReportOpen(true);
+    if (visit.leadId) {
+      setLocation(`/marketing/leads/${visit.leadId}`);
+    } else {
+      setSelectedVisit(visit);
+      setReportOpen(true);
+    }
   };
 
   const handleCheckIn = (locationData: any) => {

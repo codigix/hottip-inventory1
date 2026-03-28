@@ -148,7 +148,7 @@ export default function VisitCard({
     !visit.actualEndTime;
 
   const formatCurrency = (amount: string | number | undefined | null) => {
-    if (amount === undefined || amount === null || amount === "") return "Not Set";
+    if (amount === undefined || amount === null || amount === "" || Number(amount) === 0) return "Not Set";
     const num = Number(amount);
     if (isNaN(num)) return "Not Set";
     return `₹${num.toLocaleString("en-IN")}`;

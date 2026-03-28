@@ -5,7 +5,6 @@ import {
   Calendar,
   Briefcase,
   FileText,
-  CheckCircle2,
   Clock,
   User,
   History,
@@ -110,21 +109,7 @@ export default function FollowupHierarchy({ activities, leadName }: FollowupHier
     );
   };
 
-  const getMilestoneIcon = (activity: Activity) => {
-    if (activity.action === "CREATE_LEAD") {
-      return <User className="h-5 w-5 text-white" />;
-    }
-    if (activity.action === "QUOTATION") {
-      return <History className="h-5 w-5 text-slate-500" />;
-    }
-    return <CheckCircle2 className="h-5 w-5 text-slate-500" />;
-  };
 
-  const getMilestoneColor = (activity: Activity) => {
-    if (activity.action === "CREATE_LEAD") return "bg-blue-500";
-    if (activity.action === "DEAL_CREATED") return "bg-purple-500";
-    return "bg-slate-200";
-  };
 
   if (activities.length === 0) {
     return (
@@ -136,66 +121,53 @@ export default function FollowupHierarchy({ activities, leadName }: FollowupHier
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-800">Followup Hierarchy</h3>
-        <button className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded shadow-sm hover:bg-slate-50">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-800">Followup Hierarchy</h3>
+        <button className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-slate-500 bg-white border border-slate-200 rounded shadow-sm hover:bg-slate-50 uppercase tracking-tight">
           Sort By <RotateCcw className="h-3 w-3" />
         </button>
       </div>
 
-      <div className="relative pl-4 space-y-0">
+      <div className="relative pl-2 space-y-0">
         {/* Main Vertical Line */}
-        <div className="absolute left-[19px] top-2 bottom-2 w-0.5 bg-slate-100" />
+        <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-slate-100" />
 
         {sortedActivities.map((activity, index) => {
-          const isMilestone = ["CREATE_LEAD", "DEAL_CREATED", "QUOTATION"].includes(activity.action);
-          
           return (
-            <div key={activity.id} className="relative mb-8 last:mb-0">
-              {/* Milestone Node */}
+            <div key={activity.id} className="relative mb-5 last:mb-0">
+              {/* Milestone/Activity Node */}
               <div className={cn(
-                "absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg shadow-sm z-10 transition-transform hover:scale-105",
-                getMilestoneColor(activity)
+                "absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-md border-2 border-white shadow-sm z-10 transition-transform hover:scale-105 bg-slate-50 text-slate-400",
+                activity.action === "CREATE_LEAD" && "bg-blue-500 text-white",
+                activity.action === "DEAL_CREATED" && "bg-purple-500 text-white",
+                activity.action === "QUOTATION" && "bg-red-500 text-white"
               )}>
-                {getMilestoneIcon(activity)}
+                {getActionIcon(activity.action)}
               </div>
 
               {/* Connector Lines */}
-              <div className="ml-14 pt-1">
+              <div className="ml-10 pt-0.5">
                 <div className="relative group">
                   {/* Horizontal Connector */}
-                  <div className="absolute -left-4 top-4 w-4 h-0.5 bg-slate-100 group-hover:bg-slate-200" />
+                  <div className="absolute -left-2 top-3.5 w-2 h-0.5 bg-slate-100 group-hover:bg-slate-200" />
                   
                   <div className="flex items-center gap-3">
                     {/* Content Box */}
-                    <div className="flex-1 flex items-center justify-between py-2 border-b border-slate-50 group-hover:border-slate-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-md bg-opacity-10",
-                          activity.action === "CREATE_LEAD" ? "bg-blue-500 text-blue-600" : 
-                          activity.action === "QUOTATION" ? "bg-purple-500 text-purple-600" : "bg-slate-500 text-slate-600"
-                        )}>
-                          {getActionIcon(activity.action)}
+                    <div className="flex-1 flex items-center justify-between py-1.5 border-b border-slate-50 group-hover:border-slate-100 transition-colors">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[11px] font-bold text-slate-800">
+                            {activity.action === "CREATE_LEAD" ? `Lead: ${leadName}` : getActionLabel(activity.action, activity.details)}
+                          </h4>
                         </div>
-                        
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-slate-800">
-                              {activity.action === "CREATE_LEAD" ? `Lead: ${leadName}` : getActionLabel(activity.action, activity.details)}
-                            </h4>
-                            {activity.action === "QUOTATION" && (
-                              <span className="text-[10px] text-slate-400 font-medium">Proposal</span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                            {activity.details || getActionLabel(activity.action)}
-                          </p>
-                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                          {activity.details || getActionLabel(activity.action)}
+                        </p>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className="text-[10px] font-semibold text-slate-400 tabular-nums">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[9px] font-bold text-slate-400 tabular-nums uppercase">
                           {format(new Date(activity.createdAt), "dd MMM, hh:mm:ss a")}
                         </span>
                         {getStatusBadge(activity)}

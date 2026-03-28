@@ -263,149 +263,152 @@ export default function LeadDetails() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50/30">
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50/20">
       {/* Main Content */}
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex-1 p-3 md:p-4 space-y-3">
         {/* Header Navigation */}
-        <div className="flex items-center gap-4 mb-2">
+        <div className="flex items-center gap-3 mb-1">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setLocation("/marketing/leads")}
-            className="rounded-full bg-white shadow-sm border"
+            className="h-8 w-8 rounded-full bg-white shadow-sm border"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
           </Button>
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Lead Details</h2>
         </div>
 
         {/* Lead Info Card */}
         <Card className="border-none shadow-sm overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row justify-between gap-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row justify-between gap-4">
               <div className="flex gap-4">
-                <Avatar className="h-16 w-16 border-2 border-slate-100">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+                <Avatar className="h-12 w-12 border-2 border-slate-100">
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
                     {lead.firstName[0]}{lead.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
-                <div className="space-y-1">
-                  <h1 className="text-2xl font-bold text-slate-900">{fullName}</h1>
+                <div className="space-y-0.5">
+                  <h1 className="text-lg font-bold text-slate-900 leading-tight">{fullName}</h1>
                   <div className="flex items-center gap-2 text-slate-500">
-                    <Building className="h-4 w-4" />
-                    <span className="text-base font-medium">{lead.companyName || "Independent"}</span>
+                    <Building className="h-3 w-3" />
+                    <span className="text-xs font-medium">{lead.companyName || "Independent"}</span>
                   </div>
-                  <div className="flex flex-wrap gap-4 mt-3">
-                    <div className="flex items-center gap-2 text-base text-slate-600">
-                      <Phone className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="flex flex-wrap gap-3 mt-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <Phone className="h-3 w-3 text-slate-400" />
                       <span>{lead.phone || "No phone"}</span>
-                      {lead.alternatePhone && <span className="text-slate-300 ml-1">/ {lead.alternatePhone}</span>}
                     </div>
-                    <div className="flex items-center gap-2 text-base text-slate-600">
-                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <Mail className="h-3 w-3 text-slate-400" />
                       <span>{lead.email || "No email"}</span>
                     </div>
                     {lead.assignedToUser && (
-                      <div className="flex items-center gap-2 text-base text-slate-600">
-                        <User className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="bg-slate-100 px-2 py-0.5 rounded text-sm font-medium">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                        <User className="h-3 w-3 text-slate-400" />
+                        <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-600">
                           {lead.assignedToUser.firstName} {lead.assignedToUser.lastName}
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
-                      <Clock className="h-3 w-3" />
+                    <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-tight">
+                      <Clock className="h-2.5 w-2.5" />
                       <span>Created {format(new Date(lead.createdAt), "dd MMM, yyyy")}</span>
+                      {lead.assignedToUser && (
+                        <>
+                          <span className="mx-1">·</span>
+                          <span>Assigned to {lead.assignedToUser.firstName}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="flex flex-wrap gap-2 items-start h-fit">
+              <div className="flex flex-wrap gap-1.5 items-start h-fit">
                 <Button 
                   onClick={() => handleAction("CALL", "Outgoing call to lead")}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2"
-                  size="sm"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 h-8 text-xs px-3"
                 >
-                  <Phone className="h-4 w-4" /> Call
+                  <Phone className="h-3.5 w-3.5" /> Call
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => handleAction("WHATSAPP", "WhatsApp message sent")}
-                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-2"
-                  size="sm"
+                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-1.5 h-8 text-xs px-3"
                 >
-                  <MessageSquare className="h-4 w-4" /> WhatsApp
+                  <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => setIsFollowUpModalOpen(true)}
-                  className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-2"
-                  size="sm"
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-1.5 h-8 text-xs px-3"
                 >
-                  <Calendar className="h-4 w-4" /> Follow-up
+                  <Calendar className="h-3.5 w-3.5" /> Follow-up
                 </Button>
               </div>
             </div>
 
-            <Separator className="my-6" />
+            <Separator className="my-4" />
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Button 
                 onClick={() => convertToDealMutation.mutate()}
-                className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+                className="bg-purple-600 hover:bg-purple-700 text-white gap-2 h-9 text-xs"
                 disabled={lead.status === "converted" || convertToDealMutation.isPending}
               >
-                <Briefcase className="h-4 w-4" /> 
+                <Briefcase className="h-3.5 w-3.5" /> 
                 {lead.status === "converted" ? "Lead is Deal" : "Create Deal"}
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => handleAction("QUOTATION", "Quotation shared with lead")}
-                className="gap-2"
+                className="gap-2 h-9 text-xs"
               >
-                <FileText className="h-4 w-4" /> Quotation
+                <FileText className="h-3.5 w-3.5" /> Quotation
               </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Requirements & Location Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="border-none shadow-sm h-full">
-            <CardHeader className="pb-3 border-b border-slate-50">
-              <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <MessageSquareQuote className="h-4 w-4 text-blue-500" />
+            <CardHeader className="p-3 pb-2 border-b border-slate-50">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <MessageSquareQuote className="h-3.5 w-3.5 text-blue-500" />
                 Requirements Analysis
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 space-y-4">
+            <CardContent className="p-3 space-y-3">
               <div>
-                <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Description</Label>
-                <div className="text-base text-slate-700 bg-slate-50/50 p-3 rounded-md border border-slate-100 min-h-[80px]">
+                <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Description</Label>
+                <div className="text-xs text-slate-700 bg-slate-50/50 p-2 rounded-md border border-slate-100 min-h-[60px]">
                   {lead.requirementDescription || "No specific requirements provided."}
                 </div>
               </div>
               {lead.notes && (
                 <div>
-                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Internal Notes</Label>
-                  <div className="text-base text-slate-600">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Internal Notes</Label>
+                  <div className="text-xs text-slate-600 leading-relaxed bg-blue-50/30 p-2 rounded border border-blue-50">
                     {lead.notes}
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Budget Range</Label>
-                  <div className="text-base font-medium flex items-center gap-1.5 text-slate-700">
-                    <Coins className="h-3.5 w-3.5 text-amber-500" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50/50 p-2 rounded border border-slate-100">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Budget Range</Label>
+                  <div className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                    <Coins className="h-3 w-3" />
                     {lead.budgetRange || "Not specified"}
                   </div>
                 </div>
-                <div>
-                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Exp. Closing</Label>
-                  <div className="text-base font-medium flex items-center gap-1.5 text-slate-700">
-                    <Calendar className="h-3.5 w-3.5 text-indigo-500" />
+                <div className="bg-slate-50/50 p-2 rounded border border-slate-100">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Exp. Closing</Label>
+                  <div className="text-xs font-bold flex items-center gap-1.5 text-indigo-600">
+                    <Calendar className="h-3 w-3" />
                     {lead.expectedClosingDate ? format(new Date(lead.expectedClosingDate), "dd MMM, yyyy") : "Not specified"}
                   </div>
                 </div>
@@ -414,43 +417,41 @@ export default function LeadDetails() {
           </Card>
 
           <Card className="border-none shadow-sm h-full">
-            <CardHeader className="pb-3 border-b border-slate-50">
-              <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-emerald-500" />
+            <CardHeader className="p-3 pb-2 border-b border-slate-50">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-emerald-500" />
                 Location & Origin
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div>
-                <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Full Address</Label>
-                <div className="text-base text-slate-700">
+            <CardContent className="p-3 space-y-3">
+              <div className="bg-slate-50/50 p-2 rounded border border-slate-100">
+                <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Full Address</Label>
+                <div className="text-xs text-slate-700">
                   {lead.address ? (
-                    <div className="space-y-1">
-                      <p>{lead.address}</p>
-                      <p className="font-medium text-base">{[lead.city, lead.state, lead.zipCode].filter(Boolean).join(", ")}</p>
-                      <p className="text-xs text-slate-500">{lead.country || "India"}</p>
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-slate-900">{lead.address}</p>
+                      <p className="text-slate-600 font-bold">{[lead.city, lead.state, lead.zipCode].filter(Boolean).join(", ")}</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">{lead.country || "India"}</p>
                     </div>
                   ) : (
-                    <span className="text-slate-400 italic">No address provided.</span>
+                    <span className="text-slate-400 italic text-[11px]">No address provided.</span>
                   )}
                 </div>
               </div>
               
-              <Separator className="bg-slate-50" />
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Lead Origin</Label>
-                  <div className="text-base font-medium capitalize text-slate-700">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50/50 p-2 rounded border border-slate-100">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Lead Origin</Label>
+                  <div className="text-xs font-bold capitalize text-slate-700">
                     {lead.source.replace(/_/g, " ")}
                   </div>
                   {lead.sourceDetails && (
-                    <p className="text-[12px] text-slate-500 mt-0.5">{lead.sourceDetails}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{lead.sourceDetails}</p>
                   )}
                 </div>
-                <div>
-                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Referred By</Label>
-                  <div className="text-base font-medium text-slate-700">
+                <div className="bg-slate-50/50 p-2 rounded border border-slate-100">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Referred By</Label>
+                  <div className="text-xs font-bold text-slate-700">
                     {lead.referredBy || "None"}
                   </div>
                 </div>
@@ -460,36 +461,37 @@ export default function LeadDetails() {
         </div>
 
         {/* Timeline Section */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Tabs defaultValue="activities" className="w-full">
-            <div className="flex items-center justify-between">
-              <TabsList className="bg-slate-100 border p-1 rounded-lg">
-                <TabsTrigger value="activities" className="rounded-md px-4 py-2 text-sm">Activities</TabsTrigger>
-                <TabsTrigger value="hierarchy" className="rounded-md px-4 py-2 text-sm">Hierarchy</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-md px-4 py-2 text-sm">Notes</TabsTrigger>
-                <TabsTrigger value="calls" className="rounded-md px-4 py-2 text-sm">Calls</TabsTrigger>
-                <TabsTrigger value="files" className="rounded-md px-4 py-2 text-sm">Files</TabsTrigger>
-                <TabsTrigger value="email" className="rounded-md px-4 py-2 text-sm">Email</TabsTrigger>
+            <div className="flex items-center justify-between mb-2">
+              <TabsList className="bg-slate-100 border p-0.5 rounded-lg h-9">
+                <TabsTrigger value="activities" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Activities</TabsTrigger>
+                <TabsTrigger value="hierarchy" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Hierarchy</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Notes</TabsTrigger>
+                <TabsTrigger value="calls" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Calls</TabsTrigger>
+                <TabsTrigger value="files" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Files</TabsTrigger>
+                <TabsTrigger value="email" className="rounded-md px-3 py-1 text-xs h-7 data-[state=active]:bg-primary data-[state=active]:text-white">Email</TabsTrigger>
               </TabsList>
               
               <Dialog open={isActivityModalOpen} onOpenChange={setIsActivityModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Plus className="h-4 w-4" /> Log Activity
+                  <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
+                    <Plus className="h-3.5 w-3.5" /> Log Activity
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-sm">
                   <DialogHeader>
-                    <DialogTitle>Log Manual Activity</DialogTitle>
+                    <DialogTitle className="text-base">Log Manual Activity</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 pt-4">
+                  <div className="space-y-4 pt-2">
                     <div className="space-y-2">
-                      <Label htmlFor="note">Activity Notes</Label>
+                      <Label htmlFor="note" className="text-xs font-bold text-slate-500 uppercase">Activity Notes</Label>
                       <Textarea 
                         id="note" 
                         placeholder="Enter details of the activity..." 
                         value={activityNote}
                         onChange={(e) => setActivityNote(e.target.value)}
+                        className="text-xs min-h-[100px]"
                       />
                     </div>
                     <Button 
@@ -506,30 +508,30 @@ export default function LeadDetails() {
 
             <TabsContent value="activities">
               <Card className="border-none shadow-sm">
-                <CardHeader className="pb-0">
-                  <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
                     Activity Timeline
-                    <Badge variant="secondary" className="font-normal">{activities.length}</Badge>
+                    <Badge variant="secondary" className="font-bold bg-slate-100 text-[10px] h-5">{activities.length}</Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
+                <CardContent className="p-4">
+                  <div className="relative space-y-3 before:absolute before:inset-0 before:ml-4 before:h-full before:w-0.5 before:bg-slate-100">
                     {activities.map((activity) => (
-                      <div key={activity.id} className="relative flex items-start gap-6 group">
-                        <div className="absolute left-0 mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-white border-2 border-slate-50 shadow-sm z-10 transition-colors group-hover:border-primary/20">
-                          <div className="text-slate-500 group-hover:text-primary">
+                      <div key={activity.id} className="relative flex items-start gap-4 group">
+                        <div className="absolute left-0 mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white border-2 border-slate-50 shadow-sm z-10 transition-colors group-hover:border-primary/20">
+                          <div className="text-slate-400 group-hover:text-primary scale-90">
                             {getActionIcon(activity.action)}
                           </div>
                         </div>
-                        <div className="ml-12 pt-1 flex-1">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 mb-1">
-                            <p className="font-semibold text-slate-900">{getActionLabel(activity.action)}</p>
-                            <p className="text-xs text-slate-400 font-medium">
+                        <div className="ml-10 pt-0.5 flex-1">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
+                            <p className="text-[13px] font-bold text-slate-800">{getActionLabel(activity.action)}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">
                               {format(new Date(activity.createdAt), "MMM dd, yyyy · hh:mm a")}
                             </p>
                           </div>
                           {activity.details && (
-                            <p className="text-sm text-slate-500 bg-slate-50 p-2 rounded-md mt-1 border border-slate-100/50">
+                            <p className="text-xs text-slate-500 bg-slate-50/50 p-2 rounded-md mt-1 border border-slate-100/50 leading-relaxed">
                               {activity.details}
                             </p>
                           )}
@@ -537,9 +539,9 @@ export default function LeadDetails() {
                       </div>
                     ))}
                     {activities.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                        <Clock className="h-12 w-12 mb-2 opacity-20" />
-                        <p>No activity recorded yet</p>
+                      <div className="flex flex-col items-center justify-center py-10 text-slate-300">
+                        <Clock className="h-10 w-10 mb-2 opacity-20" />
+                        <p className="text-xs font-bold uppercase tracking-wider">No activity recorded yet</p>
                       </div>
                     )}
                   </div>
@@ -549,7 +551,7 @@ export default function LeadDetails() {
 
             <TabsContent value="hierarchy">
               <Card className="border-none shadow-sm">
-                <CardContent className="p-6">
+                <CardContent className="p-4">
                   <FollowupHierarchy activities={activities} leadName={fullName} />
                 </CardContent>
               </Card>
@@ -557,40 +559,40 @@ export default function LeadDetails() {
 
             <TabsContent value="notes">
               <Card className="border-none shadow-sm">
-                <CardHeader className="pb-0">
-                  <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="text-base font-bold text-slate-800">
                     Notes & Requirements
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Requirement Analysis</h4>
-                      <p className="text-sm text-slate-700 leading-relaxed">
+                <CardContent className="p-4 space-y-4">
+                  <div className="space-y-3">
+                    <div className="bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Requirement Analysis</h4>
+                      <p className="text-xs text-slate-700 leading-relaxed">
                         {lead.requirementDescription || "No requirement description provided."}
                       </p>
                     </div>
                     
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Internal Notes</h4>
-                      <p className="text-sm text-slate-700 leading-relaxed italic">
+                    <div className="bg-blue-50/20 p-3 rounded-lg border border-blue-50">
+                      <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Internal Notes</h4>
+                      <p className="text-xs text-slate-700 leading-relaxed italic">
                         {lead.notes || "No internal notes added."}
                       </p>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-50">
-                    <h4 className="text-sm font-bold text-slate-800 mb-4">Note History</h4>
-                    <div className="space-y-4">
+                  <div className="pt-3 border-t border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-800 mb-3 uppercase tracking-tight">Note History</h4>
+                    <div className="space-y-3">
                       {activities.filter(a => a.action === "MANUAL_LOG" || a.action === "UPDATE_LEAD" || a.action === "FOLLOW_UP").map((activity) => (
-                        <div key={activity.id} className="flex gap-3 text-sm">
-                          <div className="h-8 w-8 rounded bg-blue-50 flex items-center justify-center shrink-0">
-                            <FileText className="h-4 w-4 text-blue-500" />
+                        <div key={activity.id} className="flex gap-3 text-xs">
+                          <div className="h-7 w-7 rounded bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                            <FileText className="h-3.5 w-3.5 text-blue-500" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-slate-900">{getActionLabel(activity.action)}</span>
-                              <span className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "dd MMM, hh:mm a")}</span>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="font-bold text-slate-800">{getActionLabel(activity.action)}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">{format(new Date(activity.createdAt), "dd MMM, hh:mm a")}</span>
                             </div>
                             <p className="text-slate-600 italic">"{activity.details || "No details provided"}"</p>
                           </div>
@@ -604,30 +606,30 @@ export default function LeadDetails() {
 
             <TabsContent value="calls">
               <Card className="border-none shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-slate-800">Call Logs</CardTitle>
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="text-base font-bold text-slate-800">Call Logs</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
                     {activities.filter(a => a.action === "CALL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("call"))).map((activity) => (
-                      <div key={activity.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center">
-                            <Phone className="h-5 w-5 text-green-600" />
+                      <div key={activity.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                            <Phone className="h-4 w-4 text-emerald-600" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{getActionLabel(activity.action)}</p>
-                            <p className="text-xs text-slate-500">{activity.details || "Call activity logged"}</p>
+                            <p className="text-xs font-bold text-slate-800">{getActionLabel(activity.action)}</p>
+                            <p className="text-[10px] text-slate-500 font-medium">{activity.details || "Call activity logged"}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
-                          <p className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "hh:mm a")}</p>
+                          <p className="text-[10px] font-bold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">{format(new Date(activity.createdAt), "hh:mm a")}</p>
                         </div>
                       </div>
                     ))}
                     {activities.filter(a => a.action === "CALL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("call"))).length === 0 && (
-                      <div className="text-center py-12 text-slate-400 italic">No call logs found.</div>
+                      <div className="text-center py-10 text-slate-400 italic text-xs">No call logs found.</div>
                     )}
                   </div>
                 </CardContent>
@@ -636,28 +638,28 @@ export default function LeadDetails() {
 
             <TabsContent value="files">
               <Card className="border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-4">
+                <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 p-4 pb-3">
                   <div>
-                    <CardTitle className="text-lg font-bold text-slate-800">Files & Quotations</CardTitle>
+                    <CardTitle className="text-base font-bold text-slate-800">Files & Quotations</CardTitle>
                   </div>
-                  <Button size="sm" className="gap-2 bg-red-600 hover:bg-red-700 text-white border-none">
-                    <Plus className="h-4 w-4" /> Create Document
+                  <Button size="sm" className="gap-1.5 bg-red-600 hover:bg-red-700 text-white border-none h-8 text-xs">
+                    <Plus className="h-3.5 w-3.5" /> Create Document
                   </Button>
                 </CardHeader>
-                <CardContent className="p-6 space-y-8">
+                <CardContent className="p-4 space-y-6">
                   {/* Quotations Section */}
                   <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">QUOTATIONS (PDF VERSIONS)</h4>
-                    <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">QUOTATIONS (PDF VERSIONS)</h4>
+                    <div className="space-y-2">
                       {quotations.map((quotation, index) => (
-                        <div key={quotation.id} className="p-4 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-primary/30 transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-10 bg-red-50 rounded flex items-center justify-center border border-red-100 shadow-sm shrink-0">
-                              <FileText className="h-6 w-6 text-red-500" />
+                        <div key={quotation.id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-primary/30 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-8 bg-red-50 rounded flex items-center justify-center border border-red-100 shadow-sm shrink-0">
+                              <FileText className="h-5 w-5 text-red-500" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900">{quotation.quotationNumber} - Version v{quotations.length - index}</p>
-                              <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                              <p className="text-xs font-bold text-slate-900">{quotation.quotationNumber} - Version v{quotations.length - index}</p>
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
                                 <span>INR {Number(quotation.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                                 <span>·</span>
                                 <span className="capitalize text-emerald-600 font-bold">{quotation.status}</span>
@@ -666,22 +668,22 @@ export default function LeadDetails() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-primary"
+                              className="h-7 w-7 text-slate-400 hover:text-primary"
                               onClick={() => {
                                 const pdfUrl = `${import.meta.env.VITE_API_BASE_URL}/outbound-quotations/${quotation.id}/pdf`;
                                 window.open(pdfUrl.replace(/\/api\/api\//g, "/api/"), "_blank");
                               }}
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className="h-3.5 w-3.5" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-primary"
+                              className="h-7 w-7 text-slate-400 hover:text-primary"
                               onClick={() => {
                                 let printUrl = `${import.meta.env.VITE_API_BASE_URL}/outbound-quotations/${quotation.id}/pdf`;
                                 printUrl = printUrl.replace(/\/api\/api\//g, "/api/");
@@ -693,14 +695,14 @@ export default function LeadDetails() {
                                 }
                               }}
                             >
-                              <Printer className="h-4 w-4" />
+                              <Printer className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
                       ))}
                       {quotations.length === 0 && (
-                        <div className="p-6 text-center border-2 border-dashed border-slate-100 rounded-lg text-slate-400 text-sm">
-                          No quotations found for this lead/customer.
+                        <div className="p-4 text-center border border-dashed border-slate-100 rounded-lg text-slate-400 text-xs">
+                          No quotations found.
                         </div>
                       )}
                     </div>
@@ -708,39 +710,39 @@ export default function LeadDetails() {
 
                   {/* Other Documents Section */}
                   <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">OTHER DOCUMENTS</h4>
-                    <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">OTHER DOCUMENTS</h4>
+                    <div className="space-y-2">
                       {visits.filter(v => v.checkInPhotoPath || v.checkOutPhotoPath || v.attachmentPaths?.length > 0).map((visit) => (
-                        <div key={visit.id} className="p-4 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-10 bg-blue-50 rounded flex items-center justify-center border border-blue-100 shadow-sm shrink-0">
-                              <FileUp className="h-6 w-6 text-blue-500" />
+                        <div key={visit.id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-8 bg-blue-50 rounded flex items-center justify-center border border-blue-100 shadow-sm shrink-0">
+                              <FileUp className="h-5 w-5 text-blue-500" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900">Visit Proof - {visit.visitNumber}</p>
-                              <p className="text-[11px] text-slate-500 font-medium">
+                              <p className="text-xs font-bold text-slate-900">Visit Proof - {visit.visitNumber}</p>
+                              <p className="text-[10px] text-slate-500 font-medium">
                                 {visit.purpose || "Field Visit"} · {format(new Date(visit.plannedDate), "dd MMM, yyyy")}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-bold"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-[10px] font-bold h-7 px-2"
                               onClick={() => {
                                 setSelectedVisit(visit);
                                 setIsProofUploadOpen(true);
                               }}
                             >
-                              <Eye className="h-3.5 w-3.5 mr-1" /> View Files
+                              <Eye className="h-3.5 w-3.5 mr-1" /> View
                             </Button>
                           </div>
                         </div>
                       ))}
-                      {visits.length === 0 && (
-                        <div className="p-6 text-center border-2 border-dashed border-slate-100 rounded-lg text-slate-400 text-sm italic">
-                          No additional documents or visit proofs found.
+                      {visits.filter(v => v.checkInPhotoPath || v.checkOutPhotoPath || v.attachmentPaths?.length > 0).length === 0 && (
+                        <div className="p-4 text-center border border-dashed border-slate-100 rounded-lg text-slate-400 text-xs">
+                          No visit documents found.
                         </div>
                       )}
                     </div>
@@ -751,34 +753,30 @@ export default function LeadDetails() {
 
             <TabsContent value="email">
               <Card className="border-none shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-slate-800">Email Correspondence</CardTitle>
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="text-base font-bold text-slate-800">Email History</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
                     {activities.filter(a => a.action === "EMAIL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("email"))).map((activity) => (
-                      <div key={activity.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
-                            <Mail className="h-5 w-5 text-blue-600" />
+                      <div key={activity.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
+                            <Mail className="h-4 w-4 text-blue-600" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{getActionLabel(activity.action)}</p>
-                            <p className="text-xs text-slate-500">{activity.details || "Email activity logged"}</p>
+                            <p className="text-xs font-bold text-slate-800">{getActionLabel(activity.action)}</p>
+                            <p className="text-[10px] text-slate-500 font-medium">{activity.details || "Email activity logged"}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
-                          <p className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "hh:mm a")}</p>
+                          <p className="text-[10px] font-bold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">{format(new Date(activity.createdAt), "hh:mm a")}</p>
                         </div>
                       </div>
                     ))}
                     {activities.filter(a => a.action === "EMAIL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("email"))).length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-16 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-400">
-                        <Mail className="h-12 w-12 mb-4 opacity-10" />
-                        <p className="text-sm font-medium">No email history found</p>
-                        <p className="text-xs mt-1">Emails sent through the platform will appear here.</p>
-                      </div>
+                      <div className="text-center py-10 text-slate-400 italic text-xs">No email logs found.</div>
                     )}
                   </div>
                 </CardContent>
@@ -789,50 +787,50 @@ export default function LeadDetails() {
       </div>
 
       {/* Right Sidebar Panel */}
-      <div className="w-full md:w-80 p-4 md:p-6 bg-white border-l border-slate-100 space-y-6">
+      <div className="w-full md:w-72 p-3 md:p-4 bg-white border-l border-slate-100 space-y-4">
         <Card className="border-slate-100 shadow-none bg-slate-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Deal Value</CardTitle>
+          <CardHeader className="p-3 pb-1">
+            <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deal Value</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
+          <CardContent className="p-3 pt-0">
+            <div className="text-2xl font-bold text-slate-900">
               ₹{Number(lead.estimatedBudget || 0).toLocaleString("en-IN")}
             </div>
-            <div className="mt-4 space-y-3">
-              <div className="flex justify-between text-base">
-                <span className="text-slate-500">Source</span>
-                <span className="font-medium text-slate-700 capitalize">{lead.source.replace(/_/g, " ")}</span>
+            <div className="mt-3 space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium">Source</span>
+                <span className="font-bold text-slate-700 capitalize">{lead.source.replace(/_/g, " ")}</span>
               </div>
-              <div className="flex justify-between text-base">
-                <span className="text-slate-500">Priority</span>
-                <span className="font-medium">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium">Priority</span>
+                <span className="font-bold">
                   <StatusBadge status={lead.priority} />
                 </span>
               </div>
-              <div className="flex justify-between text-base">
-                <span className="text-slate-500">Status</span>
-                <span className="font-medium capitalize">
-                  <StatusBadge status={lead.status} />
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium">Status</span>
+                <span className="font-bold capitalize text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
+                  {lead.status}
                 </span>
               </div>
             </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none rounded-full px-3">
-                <TrendingUp className="h-3 w-3 mr-1" /> Hot Lead
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none rounded-full px-2 py-0 h-5 text-[9px] font-bold">
+                <TrendingUp className="h-2.5 w-2.5 mr-1" /> Hot Lead
               </Badge>
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none rounded-full px-3">
-                <BadgeAlert className="h-3 w-3 mr-1" /> Important
+              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none rounded-full px-2 py-0 h-5 text-[9px] font-bold">
+                <Target className="h-2.5 w-2.5 mr-1" /> Important
               </Badge>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-slate-100 shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Requirements</CardTitle>
+          <CardHeader className="p-3 pb-1">
+            <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requirements</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-600 leading-relaxed">
+          <CardContent className="p-3 pt-0">
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
               {lead.requirementDescription || "No specific requirements mentioned for this lead."}
             </p>
           </CardContent>
@@ -840,20 +838,20 @@ export default function LeadDetails() {
 
         {/* Mini Timeline Widget */}
         <Card className="border-slate-100 shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Recent Milestone</CardTitle>
+          <CardHeader className="p-3 pb-1">
+            <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recent Milestone</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-3 pt-0 space-y-3">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-bold">Deal Initialized</p>
-                <p className="text-[10px] text-slate-400">Source: {lead.source}</p>
+                <p className="text-xs font-bold text-slate-800">Deal Initialized</p>
+                <p className="text-[9px] text-slate-400 font-medium">Source: {lead.source}</p>
               </div>
               <p className="text-xs font-bold text-slate-900">₹{Number(lead.estimatedBudget || 0).toLocaleString("en-IN")}</p>
             </div>
-            <div className="flex justify-end gap-2">
-              <FileText className="h-3.5 w-3.5 text-blue-400" />
-              <MessageSquare className="h-3.5 w-3.5 text-green-400" />
+            <div className="flex justify-end gap-1.5">
+              <FileText className="h-3 w-3 text-blue-400" />
+              <MessageSquare className="h-3 w-3 text-green-400" />
             </div>
           </CardContent>
         </Card>

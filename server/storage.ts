@@ -177,7 +177,25 @@ class Storage {
       .insert(outboundQuotations)
       .values(insertQuotation)
       .returning();
+
+    // If groupId is not set, it's the first version, set groupId to its own id
+    if (!row.groupId) {
+      const [updatedRow] = await db
+        .update(outboundQuotations)
+        .set({ groupId: row.id })
+        .where(eq(outboundQuotations.id, row.id))
+        .returning();
+      return updatedRow;
+    }
     return row;
+  }
+
+  async getQuotationVersions(groupId: string): Promise<OutboundQuotation[]> {
+    return await db
+      .select()
+      .from(outboundQuotations)
+      .where(eq(outboundQuotations.groupId, groupId))
+      .orderBy(desc(outboundQuotations.version));
   }
   async getOutboundQuotations(filters?: {
     customerId?: string;
