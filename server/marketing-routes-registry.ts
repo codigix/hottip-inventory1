@@ -826,6 +826,13 @@ export const createFieldVisit = async (
 
     const visit = await storage.createFieldVisit(visitData);
 
+    // Sync budget to lead if provided
+    if (req.body.estimatedBudget !== undefined && lead.id) {
+      await storage.updateLead(lead.id, { 
+        estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget 
+      });
+    }
+
     if (visit.purpose) {
       await storage.createVisitPurposeLog({
         visitId: visit.id,
@@ -903,6 +910,13 @@ export const updateFieldVisit = async (
     console.log(`Updating field visit ${req.params.id} with data:`, JSON.stringify(visitData, null, 2));
 
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
+
+    // Sync budget to lead if provided
+    if (req.body.estimatedBudget !== undefined && visit.leadId) {
+      await storage.updateLead(visit.leadId, { 
+        estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget 
+      });
+    }
 
     // If purpose was updated, log it in history
     if (visitData.purpose && visitData.purpose !== existingVisit.purpose) {
@@ -2916,6 +2930,18 @@ export function registerMarketingRoutes(
       path: "/api/field-visits", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: getFieldVisits,
+    },
+    {
+      method: "post",
+      path: "/api/marketing/field-visits",
+      middlewares: ["requireAuth"],
+      handler: createFieldVisit,
+    },
+    {
+      method: "post",
+      path: "/api/field-visits", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: createFieldVisit,
     },
     {
       method: "get",

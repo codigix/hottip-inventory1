@@ -76,7 +76,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
         method: "POST",
         body: {
           leadId,
-          type: "FOLLOW_UP",
+          type: data.type === "Phone Call" ? "CALL" : data.type === "Email" ? "EMAIL" : "FOLLOW_UP",
           note: data.subject || `Scheduled ${data.type}`,
         },
       });
@@ -239,7 +239,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
             <h4 className="text-sm font-semibold uppercase text-slate-500">Schedule & Details</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>Scheduled Type</Label>
                 <Select
                   value={form.type}
                   onValueChange={(v) => handleChange("type", v)}
@@ -326,7 +326,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
           <div className="space-y-4">
             <h4 className="text-sm font-semibold uppercase text-slate-500">Description</h4>
             <div className="space-y-2">
-              <Label>Notes / Comments</Label>
+              <Label>Notes</Label>
               <Textarea
                 placeholder="Enter notes..."
                 value={form.description}

@@ -1926,6 +1926,7 @@ export const insertFieldVisitSchema = z.object({
   visitNotes: z.string().optional().nullable(),
   outcome: z.string().optional().nullable(),
   nextAction: z.string().optional().nullable(),
+  estimatedBudget: z.string().optional().nullable(),
 });
 
 export const insertMarketingTaskSchema = z.object({

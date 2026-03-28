@@ -3205,12 +3205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/field-visits", requireAuth, async (_req, res) => {
+  app.get(["/api/field-visits", "/api/marketing/field-visits"], requireAuth, async (req, res) => {
     try {
+      const { leadId } = req.query;
       const assignedToAlias = aliasedTable(users, "assignedToUser");
       const assignedByAlias = aliasedTable(users, "assignedByUser");
 
-      const rows = await db
+      let query = db
         .select({
           visit: fieldVisits,
           lead: {
@@ -3218,6 +3219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: leads.firstName,
             lastName: leads.lastName,
             companyName: leads.companyName,
+            status: leads.status,
+            estimatedBudget: leads.estimatedBudget,
           },
           assignedToUser: {
             id: assignedToAlias.id,
@@ -3234,6 +3237,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
         .leftJoin(assignedToAlias, eq(fieldVisits.assignedTo, assignedToAlias.id))
         .leftJoin(assignedByAlias, eq(fieldVisits.assignedBy, assignedByAlias.id));
+
+      if (leadId && typeof leadId === "string") {
+        query = query.where(eq(fieldVisits.leadId, leadId)) as any;
+      }
+
+      const rows = await query.orderBy(desc(fieldVisits.createdAt));
 
       // Map status to lowercase/underscore for frontend compatibility
       const statusMap: Record<string, string> = {
@@ -3258,7 +3267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json([]);
     }
   });
-  app.post("/api/field-visits", requireAuth, async (req, res) => {
+  app.post(["/api/field-visits", "/api/marketing/field-visits"], requireAuth, async (req, res) => {
     try {
       const {
         leadId,
@@ -3308,6 +3317,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: status || "Scheduled",
         })
         .returning();
+
+      // Update lead budget if provided
+      if (req.body.estimatedBudget !== undefined && leadId) {
+        await db.update(leads)
+          .set({ estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget })
+          .where(eq(leads.id, leadId));
+      }
 
       res.status(201).json({ message: "Field visit created", visit: newVisit });
     } catch (err) {

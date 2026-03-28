@@ -230,7 +230,34 @@ export default function Leads() {
     try {
       setIsFetchingVisit(true);
       // Fetch visits for this specific lead
-      const visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      let visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      
+      // If no visits found, try to auto-sync or create one if the lead is in a relevant status
+      if ((!Array.isArray(visits) || visits.length === 0) && 
+          ["contacted", "quotation", "qualified"].includes(lead.status)) {
+        try {
+          // Attempt to create a visit automatically since it's in a status that should have one
+          const newVisit = await apiRequest("/api/marketing/field-visits", {
+            method: "POST",
+            body: JSON.stringify({
+              leadId: lead.id,
+              plannedDate: new Date(),
+              visitAddress: lead.address || lead.city || "Client Address",
+              visitCity: lead.city,
+              visitState: lead.state,
+              assignedTo: lead.assignedTo || undefined,
+              purpose: lead.status === "quotation" ? "quotation_discussion" : "initial_meeting",
+              status: "Scheduled"
+            })
+          });
+          
+          if (newVisit && newVisit.id) {
+            visits = [newVisit];
+          }
+        } catch (syncError) {
+          console.error("Failed to auto-create visit:", syncError);
+        }
+      }
       
       if (Array.isArray(visits) && visits.length > 0) {
         // Find the most recent visit or one that is 'Completed' or 'In Progress'

@@ -147,8 +147,12 @@ export default function VisitCard({
     visit.actualStartTime &&
     !visit.actualEndTime;
 
-  const formatCurrency = (amount: string | number | undefined) =>
-    amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "₹0";
+  const formatCurrency = (amount: string | number | undefined | null) => {
+    if (amount === undefined || amount === null || amount === "") return "Not Set";
+    const num = Number(amount);
+    if (isNaN(num)) return "Not Set";
+    return `₹${num.toLocaleString("en-IN")}`;
+  };
 
   if (variant === "kanban") {
     return (
@@ -208,12 +212,6 @@ export default function VisitCard({
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 text-[9px] py-0 px-1.5 h-4 capitalize border-none font-semibold">
                 {getPurposeText(visit.purpose)}
-              </Badge>
-              <Badge
-                variant={statusInfo.variant}
-                className={`${statusInfo.bgColor} ${statusInfo.color} capitalize text-[9px] h-4 py-0 px-1.5 border-none font-semibold`}
-              >
-                {visit.status.replace("_", " ")}
               </Badge>
             </div>
           </div>

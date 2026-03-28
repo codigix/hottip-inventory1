@@ -271,19 +271,6 @@ export default function LeadTable({
       },
     },
     {
-      key: "lastContactedDate",
-      header: "Last Contact",
-      cell: (lead) => lead.lastContactedDate ? (
-        <div className="flex items-center text-xs">
-          <Calendar className="h-3 w-3 mr-1 text-gray-500" />
-          {format(new Date(lead.lastContactedDate), "MMM dd")}
-        </div>
-      ) : (
-        <span className="text-xs text-gray-500">Never</span>
-      ),
-      sortable: true,
-    },
-    {
       key: "actions",
       header: "Actions",
       cell: (lead) => (

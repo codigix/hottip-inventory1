@@ -234,6 +234,7 @@ export default function LeadDetails() {
   const getActionIcon = (type: string) => {
     switch (type) {
       case "CALL": return <Phone className="h-4 w-4" />;
+      case "EMAIL": return <Mail className="h-4 w-4" />;
       case "WHATSAPP": return <MessageSquare className="h-4 w-4" />;
       case "FOLLOW_UP": return <Calendar className="h-4 w-4" />;
       case "DEAL_CREATED": return <Briefcase className="h-4 w-4" />;
@@ -244,7 +245,8 @@ export default function LeadDetails() {
 
   const getActionLabel = (type: string) => {
     switch (type) {
-      case "CALL": return "Call Done";
+      case "CALL": return "Call Logged";
+      case "EMAIL": return "Email Sent/Scheduled";
       case "WHATSAPP": return "WhatsApp Sent";
       case "FOLLOW_UP": return "Follow-up Scheduled";
       case "DEAL_CREATED": return "Deal Created";
@@ -290,26 +292,30 @@ export default function LeadDetails() {
                   <h1 className="text-2xl font-bold text-slate-900">{fullName}</h1>
                   <div className="flex items-center gap-2 text-slate-500">
                     <Building className="h-4 w-4" />
-                    <span className="text-sm">{lead.companyName || "Independent"}</span>
+                    <span className="text-base font-medium">{lead.companyName || "Independent"}</span>
                   </div>
                   <div className="flex flex-wrap gap-4 mt-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-2 text-base text-slate-600">
                       <Phone className="h-3.5 w-3.5 text-slate-400" />
                       <span>{lead.phone || "No phone"}</span>
                       {lead.alternatePhone && <span className="text-slate-300 ml-1">/ {lead.alternatePhone}</span>}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-2 text-base text-slate-600">
                       <Mail className="h-3.5 w-3.5 text-slate-400" />
                       <span>{lead.email || "No email"}</span>
                     </div>
                     {lead.assignedToUser && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-2 text-base text-slate-600">
                         <User className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-medium">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded text-sm font-medium">
                           {lead.assignedToUser.firstName} {lead.assignedToUser.lastName}
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
+                      <Clock className="h-3 w-3" />
+                      <span>Created {format(new Date(lead.createdAt), "dd MMM, yyyy")}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -368,37 +374,37 @@ export default function LeadDetails() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="border-none shadow-sm h-full">
             <CardHeader className="pb-3 border-b border-slate-50">
-              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <MessageSquareQuote className="h-4 w-4 text-blue-500" />
                 Requirements Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div>
-                <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Description</Label>
-                <div className="text-sm text-slate-700 bg-slate-50/50 p-3 rounded-md border border-slate-100 italic min-h-[80px]">
+                <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Description</Label>
+                <div className="text-base text-slate-700 bg-slate-50/50 p-3 rounded-md border border-slate-100 min-h-[80px]">
                   {lead.requirementDescription || "No specific requirements provided."}
                 </div>
               </div>
               {lead.notes && (
                 <div>
-                  <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Internal Notes</Label>
-                  <div className="text-sm text-slate-600">
+                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Internal Notes</Label>
+                  <div className="text-base text-slate-600">
                     {lead.notes}
                   </div>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Budget Range</Label>
-                  <div className="text-sm font-medium flex items-center gap-1.5 text-slate-700">
+                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Budget Range</Label>
+                  <div className="text-base font-medium flex items-center gap-1.5 text-slate-700">
                     <Coins className="h-3.5 w-3.5 text-amber-500" />
                     {lead.budgetRange || "Not specified"}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Exp. Closing</Label>
-                  <div className="text-sm font-medium flex items-center gap-1.5 text-slate-700">
+                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Exp. Closing</Label>
+                  <div className="text-base font-medium flex items-center gap-1.5 text-slate-700">
                     <Calendar className="h-3.5 w-3.5 text-indigo-500" />
                     {lead.expectedClosingDate ? format(new Date(lead.expectedClosingDate), "dd MMM, yyyy") : "Not specified"}
                   </div>
@@ -409,19 +415,19 @@ export default function LeadDetails() {
 
           <Card className="border-none shadow-sm h-full">
             <CardHeader className="pb-3 border-b border-slate-50">
-              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-emerald-500" />
                 Location & Origin
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div>
-                <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Full Address</Label>
-                <div className="text-sm text-slate-700">
+                <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Full Address</Label>
+                <div className="text-base text-slate-700">
                   {lead.address ? (
                     <div className="space-y-1">
                       <p>{lead.address}</p>
-                      <p className="font-medium">{[lead.city, lead.state, lead.zipCode].filter(Boolean).join(", ")}</p>
+                      <p className="font-medium text-base">{[lead.city, lead.state, lead.zipCode].filter(Boolean).join(", ")}</p>
                       <p className="text-xs text-slate-500">{lead.country || "India"}</p>
                     </div>
                   ) : (
@@ -434,17 +440,17 @@ export default function LeadDetails() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Lead Origin</Label>
-                  <div className="text-sm font-medium capitalize text-slate-700">
+                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Lead Origin</Label>
+                  <div className="text-base font-medium capitalize text-slate-700">
                     {lead.source.replace(/_/g, " ")}
                   </div>
                   {lead.sourceDetails && (
-                    <p className="text-[11px] text-slate-500 mt-0.5">{lead.sourceDetails}</p>
+                    <p className="text-[12px] text-slate-500 mt-0.5">{lead.sourceDetails}</p>
                   )}
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 block">Referred By</Label>
-                  <div className="text-sm font-medium text-slate-700">
+                  <Label className="text-sm text-slate-400 uppercase font-bold tracking-wider mb-1 block">Referred By</Label>
+                  <div className="text-base font-medium text-slate-700">
                     {lead.referredBy || "None"}
                   </div>
                 </div>
@@ -576,7 +582,7 @@ export default function LeadDetails() {
                   <div className="pt-4 border-t border-slate-50">
                     <h4 className="text-sm font-bold text-slate-800 mb-4">Note History</h4>
                     <div className="space-y-4">
-                      {activities.filter(a => a.action === "MANUAL_LOG" || a.action === "UPDATE_LEAD").map((activity) => (
+                      {activities.filter(a => a.action === "MANUAL_LOG" || a.action === "UPDATE_LEAD" || a.action === "FOLLOW_UP").map((activity) => (
                         <div key={activity.id} className="flex gap-3 text-sm">
                           <div className="h-8 w-8 rounded bg-blue-50 flex items-center justify-center shrink-0">
                             <FileText className="h-4 w-4 text-blue-500" />
@@ -603,15 +609,15 @@ export default function LeadDetails() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-4">
-                    {activities.filter(a => a.action === "CALL").map((activity) => (
+                    {activities.filter(a => a.action === "CALL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("call"))).map((activity) => (
                       <div key={activity.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center">
                             <Phone className="h-5 w-5 text-green-600" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">Outgoing Call to Lead</p>
-                            <p className="text-xs text-slate-500">{activity.details || "Initial discussion regarding requirements"}</p>
+                            <p className="font-bold text-slate-900">{getActionLabel(activity.action)}</p>
+                            <p className="text-xs text-slate-500">{activity.details || "Call activity logged"}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -620,7 +626,7 @@ export default function LeadDetails() {
                         </div>
                       </div>
                     ))}
-                    {activities.filter(a => a.action === "CALL").length === 0 && (
+                    {activities.filter(a => a.action === "CALL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("call"))).length === 0 && (
                       <div className="text-center py-12 text-slate-400 italic">No call logs found.</div>
                     )}
                   </div>
@@ -749,10 +755,31 @@ export default function LeadDetails() {
                   <CardTitle className="text-lg font-bold text-slate-800">Email Correspondence</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="flex flex-col items-center justify-center py-16 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-400">
-                    <Mail className="h-12 w-12 mb-4 opacity-10" />
-                    <p className="text-sm font-medium">No email history found</p>
-                    <p className="text-xs mt-1">Emails sent through the platform will appear here.</p>
+                  <div className="space-y-4">
+                    {activities.filter(a => a.action === "EMAIL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("email"))).map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                            <Mail className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{getActionLabel(activity.action)}</p>
+                            <p className="text-xs text-slate-500">{activity.details || "Email activity logged"}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-semibold text-slate-900">{format(new Date(activity.createdAt), "dd MMM, yyyy")}</p>
+                          <p className="text-[10px] text-slate-400">{format(new Date(activity.createdAt), "hh:mm a")}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {activities.filter(a => a.action === "EMAIL" || (a.action === "FOLLOW_UP" && a.details?.toLowerCase().includes("email"))).length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-16 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-400">
+                        <Mail className="h-12 w-12 mb-4 opacity-10" />
+                        <p className="text-sm font-medium">No email history found</p>
+                        <p className="text-xs mt-1">Emails sent through the platform will appear here.</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -772,17 +799,17 @@ export default function LeadDetails() {
               ₹{Number(lead.estimatedBudget || 0).toLocaleString("en-IN")}
             </div>
             <div className="mt-4 space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-base">
                 <span className="text-slate-500">Source</span>
                 <span className="font-medium text-slate-700 capitalize">{lead.source.replace(/_/g, " ")}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-base">
                 <span className="text-slate-500">Priority</span>
                 <span className="font-medium">
                   <StatusBadge status={lead.priority} />
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-base">
                 <span className="text-slate-500">Status</span>
                 <span className="font-medium capitalize">
                   <StatusBadge status={lead.status} />
