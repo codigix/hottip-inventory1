@@ -182,7 +182,7 @@ export default function VisitCard({
                     <Timer className="h-4 w-4 mr-2" /> Update Status
                   </DropdownMenuItem>
                 )}
-                {visit.status?.toLowerCase()?.trim() === "completed" && (
+                {["upcoming", "in_progress", "completed"].includes(visit.status?.toLowerCase()?.trim()) && (
                   <DropdownMenuItem onClick={() => onProofUpload(visit)}>
                     <Upload className="h-4 w-4 mr-2" /> Upload Proof
                   </DropdownMenuItem>
@@ -248,6 +248,9 @@ export default function VisitCard({
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-500 hover:bg-orange-50" onClick={() => onViewReport(visit)}>
               <FileText className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-500 hover:bg-purple-50" onClick={() => onProofUpload(visit)}>
+              <Upload className="h-3.5 w-3.5" />
             </Button>
           </div>
           <div className="ml-auto">
@@ -371,6 +374,9 @@ export default function VisitCard({
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500 hover:bg-green-100/50">
             <MessageSquare className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-500 hover:bg-purple-100/50" onClick={() => onProofUpload(visit)}>
+            <Upload className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex gap-2">
