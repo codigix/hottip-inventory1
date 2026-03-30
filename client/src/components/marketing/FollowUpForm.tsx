@@ -159,6 +159,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
       });
     },
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({ queryKey: [`/api/marketing/leads/${variables.relatedId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] });
       toast({ title: "Follow-up added successfully!" });

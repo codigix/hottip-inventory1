@@ -533,7 +533,21 @@ export default function Leads() {
                 { id: "qualified", label: "Qualified", color: "bg-green-500", border: "border-t-green-500" },
                 { id: "lost", label: "Lost", color: "bg-red-500", border: "border-t-red-500" }
               ].map((column) => {
-                const columnLeads = leads.filter(l => l.status === column.id);
+                const columnLeads = leads.filter(l => {
+                  if (column.id === "new") {
+                    return l.status === "new" || l.status === "NOT_CONTACTED";
+                  }
+                  if (column.id === "contacted") {
+                    return l.status === "contacted" || l.status === "CONTACTED";
+                  }
+                  if (column.id === "qualified") {
+                    return l.status === "qualified" || l.status === "QUALIFIED";
+                  }
+                  if (column.id === "lost") {
+                    return l.status === "lost" || l.status === "LOST";
+                  }
+                  return l.status === column.id;
+                });
                 const totalBudget = columnLeads.reduce((sum, l) => sum + (l.estimatedBudget ? parseFloat(l.estimatedBudget) : 0), 0);
                 
                 return (

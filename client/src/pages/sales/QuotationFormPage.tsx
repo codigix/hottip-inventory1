@@ -74,12 +74,16 @@ function VersionHistorySidebar({
   quotations, 
   currentQuotation, 
   reviseFromId,
-  onSave
+  onSave,
+  onApprove,
+  onReject
 }: { 
   quotations: OutboundQuotation[], 
   currentQuotation: any,
   reviseFromId: string | null;
   onSave: () => void;
+  onApprove: () => void;
+  onReject: () => void;
 }) {
   const sortedQuotations = [...quotations].sort((a, b) => 
     new Date(a.quotationDate).getTime() - new Date(b.quotationDate).getTime()
@@ -248,7 +252,27 @@ function VersionHistorySidebar({
       </div>
 
       {/* Action Bar */}
-      <div className="p-4 border-t bg-slate-50/50">
+      <div className="p-4 border-t bg-slate-50/50 space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Button 
+            type="button"
+            variant="outline"
+            onClick={onReject}
+            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-10 shadow-sm"
+          >
+            <MinusCircle className="h-4 w-4 mr-2" />
+            Reject
+          </Button>
+          <Button 
+            type="button"
+            variant="outline"
+            onClick={onApprove}
+            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold h-10 shadow-sm"
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Approve
+          </Button>
+        </div>
         <Button 
           type="button"
           onClick={onSave}
@@ -618,6 +642,34 @@ export default function QuotationFormPage() {
             <Button variant="outline" onClick={() => setLocation("/sales/outbound-quotations")}>
               Cancel
             </Button>
+            {isRevision && (
+              <>
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "rejected");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  <MinusCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "approved");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              </>
+            )}
             <Button 
               variant="outline" 
               type="button"
@@ -1179,6 +1231,14 @@ export default function QuotationFormPage() {
           }}
           reviseFromId={reviseFromId}
           onSave={() => form.handleSubmit((data) => mutation.mutate(data))()}
+          onApprove={() => {
+            form.setValue("status", "approved");
+            form.handleSubmit((data) => mutation.mutate(data))();
+          }}
+          onReject={() => {
+            form.setValue("status", "rejected");
+            form.handleSubmit((data) => mutation.mutate(data))();
+          }}
         />
       </div>
     )}
