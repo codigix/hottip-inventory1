@@ -117,9 +117,9 @@ export default function LeadTable({
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
+      apiRequest(`/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -128,13 +128,13 @@ export default function LeadTable({
   // ✅ Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/api/marketing/leads/${id}/status`, {
+      apiRequest(`/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
       toast({
         title:
           variables.status === "WON"
@@ -149,10 +149,10 @@ export default function LeadTable({
   // ✅ Convert lead mutation
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
+      apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
       toast({
         title: "Lead confirmed for Sales and handed over!",
       });
@@ -297,7 +297,7 @@ export default function LeadTable({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                onClick={() => setLocation(`/marketing/leads/${lead.id}`)}
+                onClick={() => setLocation(`/sales/leads/${lead.id}`)}
                 title="View"
               >
                 <Eye className="h-4 w-4" />
@@ -335,31 +335,6 @@ export default function LeadTable({
                 title="View Estimation"
               >
                 <Calculator className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                title="Mark as Accepted"
-              >
-                <FileCheck className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                title="Mark as Declined"
-              >
-                <FileX className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                onClick={() => onEdit(lead)}
-                title="Edit"
-              >
-                <Edit className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"

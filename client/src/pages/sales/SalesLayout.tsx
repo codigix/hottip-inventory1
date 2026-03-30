@@ -46,6 +46,7 @@ import VendorManagement from "./VendorManagement";
 import SalesReports from "./SalesReports";
 import SalesDashboard from "./SalesDashboard";
 import LeadReceived from "./LeadReceived";
+import LeadDetails from "../marketing/LeadDetails";
 
 const sidebarItems = [
   {
@@ -256,6 +257,7 @@ export default function SalesLayout() {
         <Switch>
           <Route path="/sales" component={SalesDashboard} />
           <Route path="/sales/leads" component={LeadReceived} />
+          <Route path="/sales/leads/:id" component={LeadDetails} />
           <Route path="/sales/quotations" component={QuotationsPage} />
           <Route path="/sales/outbound-quotations" component={QuotationsPage} />
           <Route path="/sales/outbound-quotations/new" component={QuotationFormPage} />

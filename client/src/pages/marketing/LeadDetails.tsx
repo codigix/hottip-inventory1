@@ -96,9 +96,11 @@ interface Activity {
 }
 
 export default function LeadDetails() {
-  const [, params] = useRoute("/marketing/leads/:id");
-  const [, setLocation] = useLocation();
-  const leadId = params?.id;
+  const [location, setLocation] = useLocation();
+  const isSales = location.startsWith("/sales");
+  const leadId = location.split("/").pop();
+  const backPath = isSales ? "/sales/leads" : "/marketing/leads";
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activityNote, setActivityNote] = useState("");
@@ -108,16 +110,16 @@ export default function LeadDetails() {
   const [selectedVisit, setSelectedVisit] = useState<any>(null);
 
   const { data, isLoading, error } = useQuery<{ lead: Lead; activities: Activity[] }>({
-    queryKey: [`/api/marketing/leads/${leadId}`],
+    queryKey: [`/marketing/leads/${leadId}`],
     enabled: !!leadId,
   });
 
   const { data: customers = [] } = useQuery<any[]>({
-    queryKey: ["/api/customers"],
+    queryKey: ["/customers"],
   });
 
   const { data: visits = [] } = useQuery<any[]>({
-    queryKey: [`/api/field-visits`, { leadId: leadId }],
+    queryKey: [`/field-visits`, { leadId: leadId }],
     enabled: !!leadId,
   });
 
@@ -134,7 +136,7 @@ export default function LeadDetails() {
 
   const { data: quotations = [] } = useQuery<any[]>({
     queryKey: [
-      "/api/outbound-quotations",
+      "/outbound-quotations",
       { 
         customerId: linkedCustomer?.id, 
         companyName: leadData?.companyName 
@@ -145,13 +147,13 @@ export default function LeadDetails() {
 
   const recordActivityMutation = useMutation({
     mutationFn: async ({ type, note }: { type: string; note?: string }) => {
-      return apiRequest("/api/activity", {
+      return apiRequest("/activity", {
         method: "POST",
         body: { leadId, type, note },
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/marketing/leads/${leadId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/marketing/leads/${leadId}`] });
       toast({ title: "Activity recorded successfully" });
       setIsActivityModalOpen(false);
       setActivityNote("");
@@ -160,13 +162,13 @@ export default function LeadDetails() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      return apiRequest(`/api/marketing/leads/${leadId}/status`, {
+      return apiRequest(`/marketing/leads/${leadId}/status`, {
         method: "PUT",
         body: { status },
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/marketing/leads/${leadId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/marketing/leads/${leadId}`] });
       toast({ title: "Status updated successfully" });
     },
   });
@@ -174,13 +176,13 @@ export default function LeadDetails() {
   const convertToDealMutation = useMutation({
     mutationFn: async () => {
       // 1. Log Activity as requested in snippet
-      await apiRequest("/api/activity", {
+      await apiRequest("/activity", {
         method: "POST",
         body: { leadId, type: "DEAL_CREATED", note: "Deal created from lead" },
       });
 
       // 2. Convert Lead
-      return apiRequest(`/api/marketing/leads/${leadId}/convert`, {
+      return apiRequest(`/marketing/leads/${leadId}/convert`, {
         method: "POST",
       });
     },
@@ -221,7 +223,7 @@ export default function LeadDetails() {
     return (
       <div className="p-8 text-center">
         <h2 className="text-xl font-bold text-destructive">Error loading lead</h2>
-        <Button variant="link" onClick={() => setLocation("/marketing/leads")}>
+        <Button variant="link" onClick={() => setLocation(backPath)}>
           Back to Leads
         </Button>
       </div>
@@ -271,7 +273,7 @@ export default function LeadDetails() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => setLocation("/marketing/leads")}
+            onClick={() => setLocation(backPath)}
             className="h-8 w-8 rounded-full bg-white shadow-sm border"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

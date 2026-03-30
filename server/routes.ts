@@ -656,10 +656,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        const { role } = req.user;
+        const { role, department } = req.user;
 
         // Admin and manager roles have full access
         if (role === "admin" || role === "manager") {
+          next();
+          return;
+        }
+
+        // Sales department users can view leads (to create quotations)
+        if (department?.toLowerCase() === "sales" && req.method === "GET" && entityType === "lead") {
           next();
           return;
         }

@@ -642,34 +642,7 @@ export default function QuotationFormPage() {
             <Button variant="outline" onClick={() => setLocation("/sales/outbound-quotations")}>
               Cancel
             </Button>
-            {isRevision && (
-              <>
-                <Button 
-                  variant="outline" 
-                  type="button"
-                  onClick={() => {
-                    form.setValue("status", "rejected");
-                    form.handleSubmit((data) => mutation.mutate(data))();
-                  }}
-                  className="border-red-200 text-red-600 hover:bg-red-50"
-                >
-                  <MinusCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button 
-                  variant="outline" 
-                  type="button"
-                  onClick={() => {
-                    form.setValue("status", "approved");
-                    form.handleSubmit((data) => mutation.mutate(data))();
-                  }}
-                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-              </>
-            )}
+            
             <Button 
               variant="outline" 
               type="button"

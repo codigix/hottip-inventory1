@@ -35,6 +35,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     username: string;
+    department?: string;
   };
 }
 
@@ -124,7 +125,8 @@ export const getLead = async (
 
     // SECURITY: Check if user has permission to view this lead
     if (req.user!.role !== "admin" && req.user!.role !== "manager") {
-      if (lead.createdBy !== req.user!.id && lead.assignedTo !== req.user!.id) {
+      const isSalesDept = req.user!.department?.toLowerCase() === "sales";
+      if (!isSalesDept && lead.createdBy !== req.user!.id && lead.assignedTo !== req.user!.id) {
         res
           .status(403)
           .json({ error: "You do not have permission to view this lead" });
@@ -763,8 +765,8 @@ export const getFieldVisits = async (
     }
 
     // SECURITY: Apply user-based scoping based on role
-    if (req.user!.role === "admin" || req.user!.role === "manager") {
-      // Admins and managers can see all field visits
+    if (req.user!.role === "admin" || req.user!.role === "manager" || req.user!.department?.toLowerCase() === "sales") {
+      // Admins, managers and Sales department can see all field visits (or scoped by filters)
     } else {
       // Regular employees can only see field visits they created or are assigned to
       filterObject.userScope = {
@@ -2671,10 +2673,15 @@ function checkOwnership(entityType: string) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { role } = req.user;
+      const { role, department } = req.user;
 
       // Admin and manager roles have full access
       if (role === "admin" || role === "manager") {
+        return next();
+      }
+
+      // Sales department users can view leads (to create quotations)
+      if (department?.toLowerCase() === "sales" && req.method === "GET" && entityType === "lead") {
         return next();
       }
 
