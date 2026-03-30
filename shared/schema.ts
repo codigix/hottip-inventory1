@@ -335,7 +335,7 @@ export const leads = pgTable("leads", {
   requirementDescription: text("requirementDescription"),
   estimatedBudget: numeric("estimatedBudget"),
   assignedTo: uuid("assignedTo").references(() => users.id),
-  status: text("status").default("new"),
+  status: text("status").default("NOT_CONTACTED"),
   priority: text("priority").default("medium"),
   createdAt: timestamp("createdAt").defaultNow(),
   followUpDate: timestamp("followUpDate"), // matches your DB exactly
@@ -651,6 +651,9 @@ export const outboundQuotations = pgTable("outbound_quotations", {
   companyEmail: text("companyEmail"),
   companyPhone: text("companyPhone"),
   companyWebsite: text("companyWebsite"),
+  groupId: uuid("groupId"),
+  version: integer("version").default(1),
+  revisionReasons: text("revisionReasons"),
 });
 
 // =====================
@@ -1278,7 +1281,7 @@ export const insertOutboundQuotationSchema = z.object({
   discountAmount: z.string().optional(),
   totalAmount: z.string().min(1, "Total amount is required"),
   status: z
-    .enum(["draft", "sent", "pending", "approved", "rejected"])
+    .enum(["draft", "sent", "pending", "approved", "rejected", "revised"])
     .optional()
     .default("draft"),
   deliveryTerms: z.string().optional(),
@@ -1343,6 +1346,9 @@ export const insertOutboundQuotationSchema = z.object({
       })
     )
     .optional(),
+  groupId: z.string().uuid().optional().nullable(),
+  version: z.number().optional().default(1),
+  revisionReasons: z.string().optional().nullable(),
 });
 export const insertInboundQuotationSchema = z.object({
   senderId: z.string().uuid("Sender ID must be a valid UUID").optional(),
@@ -2012,7 +2018,7 @@ export const updateMarketingTaskStatusSchema = z.object({
 });
 
 export const leadFilterSchema = z.object({
-  status: z.string().optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
   source: z.string().optional(),
   priority: z.string().optional(),
   assignedTo: z.string().optional(),
@@ -2020,7 +2026,7 @@ export const leadFilterSchema = z.object({
 });
 
 export const fieldVisitFilterSchema = z.object({
-  status: z.string().optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
   assignedTo: z.string().optional(),
   leadId: z.string().optional(),
   startDate: z.string().optional(),
@@ -2028,7 +2034,7 @@ export const fieldVisitFilterSchema = z.object({
 });
 
 export const marketingTaskFilterSchema = z.object({
-  status: z.string().optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
   type: z.string().optional(),
   priority: z.string().optional(),
   assignedTo: z.string().optional(),

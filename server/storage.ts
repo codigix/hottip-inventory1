@@ -1,6 +1,8 @@
 import { customers } from "@shared/schema";
+import { v4 as uuidv4 } from "uuid";
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
+import { inArray } from "drizzle-orm";
 // ...existing code...
 import { db } from "./db";
 import {
@@ -1659,7 +1661,11 @@ class Storage {
     console.log("🔍 [STORAGE] getMarketingTasks - Filters:", JSON.stringify(filters, null, 2));
 
     if (filters?.status && filters.status !== "all") {
-      conditions.push(eq(marketingTasks.status, filters.status));
+      if (Array.isArray(filters.status)) {
+        conditions.push(inArray(marketingTasks.status, filters.status));
+      } else {
+        conditions.push(eq(marketingTasks.status, filters.status));
+      }
     }
 
     if (filters?.type && filters.type !== "all") {
@@ -1767,7 +1773,11 @@ class Storage {
     const conditions = [];
 
     if (filters?.status) {
-      conditions.push(eq(leads.status, filters.status));
+      if (Array.isArray(filters.status)) {
+        conditions.push(inArray(leads.status, filters.status));
+      } else {
+        conditions.push(eq(leads.status, filters.status));
+      }
     }
 
     if (filters?.source) {
@@ -1914,8 +1924,8 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     );
 
     if (existing) {
-      if (lead.status !== "converted") {
-        await this.updateLead(leadId, { status: "converted" });
+      if (lead.status !== "WON" && lead.status !== "converted") {
+        await this.updateLead(leadId, { status: "WON" });
       }
       return existing;
     }
@@ -1933,7 +1943,7 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     };
 
     const customer = await this.createCustomer(insertCustomer);
-    await this.updateLead(leadId, { status: "converted" });
+    await this.updateLead(leadId, { status: "WON" });
     return customer;
   }
 
@@ -1943,7 +1953,7 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     const newLeads = allLeads.filter((l) => l.status === "new").length;
     const contactedLeads = allLeads.filter((l) => l.status === "contacted").length;
     const qualifiedLeads = allLeads.filter((l) => l.status === "qualified").length;
-    const convertedLeads = allLeads.filter((l) => l.status === "converted").length;
+    const convertedLeads = allLeads.filter((l) => l.status === "WON" || l.status === "converted").length;
     const lostLeads = allLeads.filter((l) => l.status === "lost").length;
 
     const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
@@ -2030,7 +2040,11 @@ Requirements: ${row.requirementDescription || "Not specified"}`;
     const conditions = [];
 
     if (filters?.status && filters.status !== "all") {
-      conditions.push(eq(fieldVisits.status, filters.status));
+      if (Array.isArray(filters.status)) {
+        conditions.push(inArray(fieldVisits.status, filters.status));
+      } else {
+        conditions.push(eq(fieldVisits.status, filters.status));
+      }
     }
 
     if (filters?.assignedTo && filters.assignedTo !== "all") {
@@ -2254,7 +2268,7 @@ Notes: ${row.preVisitNotes || "No pre-visit notes"}`;
     } catch (error) {
       console.error("❌ [STORAGE] Failed to auto-convert lead to customer:", error);
       // Fallback to just updating status if conversion fails (e.g. already converted)
-      await this.updateLead(visit.leadId, { status: "converted" });
+      await this.updateLead(visit.leadId, { status: "WON" });
     }
 
     // 2. Complete associated Marketing Tasks

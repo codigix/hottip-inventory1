@@ -153,7 +153,7 @@ export default function Leads() {
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title:
-          variables.status === "converted"
+          variables.status === "WON"
             ? "Lead confirmed for sales successfully!"
             : "Lead status updated successfully!",
       });
@@ -181,7 +181,7 @@ export default function Leads() {
 
   const handleStatusChange = () => {
     if (statusChangeLeadId && newStatus) {
-      if (newStatus === "converted") {
+      if (newStatus === "WON") {
         convertMutation.mutate(statusChangeLeadId);
       } else {
         updateStatusMutation.mutate({
@@ -193,7 +193,7 @@ export default function Leads() {
   };
 
   const handleStatusChangeAction = (id: string, status: LeadStatus) => {
-    if (status === "converted") {
+    if (status === "WON") {
       setStatusChangeLeadId(id);
       setNewStatus(status);
     } else {
@@ -625,15 +625,15 @@ export default function Leads() {
           <AlertDialogHeader>
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
-              {newStatus === "converted"
+              {newStatus === "WON"
                 ? "Confirming this lead for sales will create a Sales customer record."
-                : `Are you sure you want to mark as "${newStatus === "converted" ? "Converted to Deal" : (newStatus || "").charAt(0).toUpperCase() + (newStatus || "").slice(1)}"?`}
+                : `Are you sure you want to mark as "${newStatus === "WON" ? "WON" : (newStatus || "").charAt(0).toUpperCase() + (newStatus || "").slice(1)}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
-              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "WON" ? "marketing-lead-conversion-button" : undefined}>
+              {newStatus === "WON" ? "Confirm for Sales" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

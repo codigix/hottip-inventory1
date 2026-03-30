@@ -201,7 +201,7 @@ export default function LeadDetails() {
     }
 
     if (type === "DEAL_CREATED") {
-      updateStatusMutation.mutate("converted");
+      updateStatusMutation.mutate("WON");
     }
 
     if (type === "QUOTATION") {
@@ -357,10 +357,10 @@ export default function LeadDetails() {
               <Button 
                 onClick={() => convertToDealMutation.mutate()}
                 className="bg-purple-600 hover:bg-purple-700 text-white gap-2 h-9 text-xs"
-                disabled={lead.status === "converted" || convertToDealMutation.isPending}
+                disabled={lead.status === "WON" || lead.status === "converted" || convertToDealMutation.isPending}
               >
                 <Briefcase className="h-3.5 w-3.5" /> 
-                {lead.status === "converted" ? "Lead is Deal" : "Create Deal"}
+                {lead.status === "WON" || lead.status === "converted" ? "Lead is Deal" : "Create Deal"}
               </Button>
               <Button 
                 variant="outline"

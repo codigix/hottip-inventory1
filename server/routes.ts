@@ -58,7 +58,7 @@ import {
   account_reminders,
   insertAccountReminderSchema,
 } from "../shared/schema";
-import { sql, eq, and, gte, lt, aliasedTable, desc } from "drizzle-orm";
+import { sql, eq, and, gte, lt, aliasedTable, desc, inArray } from "drizzle-orm";
 // Fabrication Orders API
 
 // Login schema
@@ -2617,7 +2617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           total: sql`COUNT(*)::integer`,
           active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
-          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} IN ('converted', 'WON') THEN 1 END)::integer`,
           monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
         })
         .from(leads);
@@ -2688,7 +2688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           total: sql`COUNT(*)::integer`,
           active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
-          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} IN ('converted', 'WON') THEN 1 END)::integer`,
           monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
         })
         .from(leads);
@@ -2803,7 +2803,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Optional filters
       if (status && status !== "all") {
-        query = query.where(sql`${leads.status} ILIKE ${status as string}`);
+        if (Array.isArray(status)) {
+          query = query.where(inArray(leads.status, status as string[]));
+        } else {
+          query = query.where(sql`${leads.status} ILIKE ${status as string}`);
+        }
       }
       if (source && source !== "all") {
         query = query.where(eq(leads.source, source as string));
@@ -3107,7 +3111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
 
-      if (lead.status === "converted") {
+      if (lead.status === "WON" || lead.status === "converted") {
         return res.status(400).json({ error: "Lead is already converted" });
       }
 
@@ -3132,7 +3136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [updatedLead] = await db
         .update(leads)
         .set({
-          status: "converted",
+          status: "WON",
           updatedAt: new Date(),
         })
         .where(eq(leads.id, id))

@@ -471,7 +471,17 @@ export const updateLeadStatus = async (
 
     const { status, notes } = updateLeadStatusSchema.parse(req.body);
 
-    const lead = await storage.updateLead(req.params.id, { status });
+    const updateData: any = { status };
+    if (status === "WON" || status === "QUALIFIED") {
+      // Set expected closing date to 30 days from now if not already set
+      if (!existingLead.expectedClosingDate) {
+        const date = new Date();
+        date.setDate(date.getDate() + 30);
+        updateData.expectedClosingDate = date;
+      }
+    }
+
+    const lead = await storage.updateLead(req.params.id, updateData);
 
     // AUTO-CREATE OR UPDATE DEAL (FIELD VISIT): If lead status becomes "contacted", "quotation", or "qualified"
     const dealerStatuses = ["contacted", "quotation", "qualified"];

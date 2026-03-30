@@ -13,24 +13,32 @@ interface PriorityBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const colorClass = LEAD_STATUS_COLORS[status];
+  const colorClass = LEAD_STATUS_COLORS[status] || "bg-gray-100 text-gray-800";
   
-  const statusLabels: Record<LeadStatus, string> = {
-    new: 'New',
+  const statusLabels: Record<string, string> = {
+    NOT_CONTACTED: 'Not Contacted',
+    CONTACTED: 'Contacted',
+    Contacted: 'Contacted',
     contacted: 'Contacted',
+    QUALIFIED: 'Qualified',
+    WON: 'WON',
+    LOST: 'Lost',
+    // Add lowercase versions just in case
+    not_contacted: 'Not Contacted',
     qualified: 'Qualified',
-    converted: 'Converted to Deal',
-    lost: 'Lost'
+    won: 'WON',
+    lost: 'Lost',
+    new: 'New Lead',
+    converted: 'WON'
   };
 
+  const label = statusLabels[status] || status || 'Unknown';
+
   return (
-    <Badge 
-      variant="secondary" 
-      className={`${colorClass} ${className}`}
-      data-testid={`status-badge-${status}`}
-    >
-      {statusLabels[status]}
-    </Badge>
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 rounded-full ${colorClass.split(' ')[0]}`} />
+      <span className="text-xs font-medium text-slate-700">{label}</span>
+    </div>
   );
 }
 

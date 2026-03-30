@@ -74,6 +74,24 @@ export const db = drizzle(pool, { schema });
       console.error("⚠️ Error ensuring status is text:", err.message);
     }
 
+    // ✅ Ensure missing columns are added to outbound_quotations
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'outbound_quotations') THEN
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'outbound_quotations' AND column_name = 'groupId') THEN
+            ALTER TABLE "outbound_quotations" ADD COLUMN "groupId" uuid;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'outbound_quotations' AND column_name = 'version') THEN
+            ALTER TABLE "outbound_quotations" ADD COLUMN "version" integer DEFAULT 1;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'outbound_quotations' AND column_name = 'revisionReasons') THEN
+            ALTER TABLE "outbound_quotations" ADD COLUMN "revisionReasons" text;
+          END IF;
+        END IF;
+      END $$;
+    `);
+
     // ✅ Ensure missing columns are added to invoices
     await client.query(`
       DO $$ 
