@@ -211,10 +211,6 @@ export default function LeadReceived() {
             <Download className="mr-2 h-4 w-4" />
             Export Data
           </Button>
-          <Button onClick={handleAddLead} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Manual Lead Entry
-          </Button>
         </div>
       </div>
 

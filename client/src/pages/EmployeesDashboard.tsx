@@ -37,7 +37,9 @@ import {
 const userFormSchema = z.object({
   username: z.string().min(1, "Username is required"),
   email: z.string().email("Valid email is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().optional().refine((val) => !val || val.length >= 6, {
+    message: "Password must be at least 6 characters",
+  }),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   department: z.string().min(1, "Department is required"),
@@ -113,6 +115,25 @@ export default function EmployeesDashboard() {
     },
   });
 
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<UserForm> }) => 
+      apiRequest(`/users/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+      setIsUserDialogOpen(false);
+      setEditingUser(null);
+      userForm.reset();
+      toast({ title: "Success", description: "Employee updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update employee",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskForm) => {
       return await apiRequest("/tasks", { method: "POST", body: data });
@@ -158,7 +179,15 @@ export default function EmployeesDashboard() {
   });
 
   const onUserSubmit = (data: UserForm) => {
-    createUserMutation.mutate(data);
+    if (editingUser) {
+      const updateData = { ...data };
+      if (!updateData.password) {
+        delete updateData.password;
+      }
+      updateUserMutation.mutate({ id: editingUser.id, data: updateData });
+    } else {
+      createUserMutation.mutate(data);
+    }
   };
 
   const onTaskSubmit = (data: TaskForm) => {
@@ -180,6 +209,7 @@ export default function EmployeesDashboard() {
       department: user.department || "",
       role: user.role,
     });
+    setIsUserDialogOpen(true);
   };
 
   const handleEditTask = (task: any) => {
@@ -472,7 +502,21 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+          <Dialog open={isUserDialogOpen} onOpenChange={(open) => {
+            setIsUserDialogOpen(open);
+            if (!open) {
+              setEditingUser(null);
+              userForm.reset({
+                username: "",
+                email: "",
+                password: "",
+                firstName: "",
+                lastName: "",
+                department: "",
+                role: "employee",
+              });
+            }
+          }}>
             <DialogTrigger asChild>
               <Button onClick={() => setIsUserDialogOpen(true)} data-testid="button-add-employee" data-tour="employees-add-employee-button">
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -481,9 +525,9 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogTitle>{editingUser ? "Edit Employee" : "Add New Employee"}</DialogTitle>
                 <DialogDescription>
-                  Enter the details for the new employee
+                  {editingUser ? "Update the employee details" : "Enter the details for the new employee"}
                 </DialogDescription>
               </DialogHeader>
               <Form {...userForm}>
@@ -576,6 +620,7 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
                             <SelectContent>
                               <SelectItem value="Admin">Admin</SelectItem>
                               <SelectItem value="Sales">Sales</SelectItem>
+                              <SelectItem value="Marketing">Marketing</SelectItem>
                               <SelectItem value="Inventory">Inventory</SelectItem>
                               <SelectItem value="Accounts">Accounts</SelectItem>
                               <SelectItem value="Logistics">Logistics</SelectItem>
@@ -621,10 +666,10 @@ const pendingTasks = safeTasks.filter((t) => t.status === 'new' || t.status === 
                     </Button>
                     <Button
                       type="submit"
-                      disabled={createUserMutation.isPending}
+                      disabled={createUserMutation.isPending || updateUserMutation.isPending}
                       data-testid="button-save-user"
                     >
-                      Add Employee
+                      {editingUser ? "Update" : "Add"} Employee
                     </Button>
                   </div>
                 </form>
