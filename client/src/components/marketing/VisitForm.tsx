@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, Calendar as LucideCalendar, AlertCircle, Timer } from "lucide-react";
+import { CalendarIcon, MapPin, User as UserIcon, Clock, Target, FileText, Calendar as LucideCalendar, AlertCircle, Timer, IndianRupee } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ const visitFormSchema = z.object({
   status: z.enum(['scheduled', 'upcoming', 'completed', 'cancelled', 'in_progress']).optional(),
   preVisitNotes: z.string().optional(),
   travelExpense: z.string().optional(),
+  estimatedBudget: z.string().optional(),
 });
 
 type VisitFormData = z.infer<typeof visitFormSchema>;
@@ -111,6 +112,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
           : visit.status.toLowerCase().replace(" ", "_")) as any,
         preVisitNotes: visit.preVisitNotes || '',
         travelExpense: visit.travelExpense || '',
+        estimatedBudget: visit.lead?.estimatedBudget?.toString() || '',
       };
       
       form.reset(visitData);
@@ -137,6 +139,11 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
         form.setValue('visitAddress', lead.address);
         form.setValue('visitCity', lead.city || '');
         form.setValue('visitState', lead.state || '');
+      }
+
+      // Auto-fill estimatedBudget
+      if (lead.estimatedBudget) {
+        form.setValue('estimatedBudget', lead.estimatedBudget.toString());
       }
 
       // Auto-fill assignedTo if available in lead
@@ -166,6 +173,7 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
       purpose: data.purpose,
       preVisitNotes: data.preVisitNotes,
       travelExpense: data.travelExpense,
+      estimatedBudget: data.estimatedBudget,
       status: purposeChanged ? 'Scheduled' : (data.status ? 
         (data.status.charAt(0).toUpperCase() + data.status.slice(1)).replace("_", " ") : 
         'Scheduled'),
@@ -554,25 +562,52 @@ export default function VisitForm({ visit, leads, users, onSubmit, onCancel, isL
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="travelExpense"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estimated Travel Expense</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter amount (e.g. 500.00)"
-                      {...field}
-                      data-testid="input-travel-expense"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="estimatedBudget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center space-x-2">
+                      <Target className="h-4 w-4" />
+                      <span>Estimated Budget (₹)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0" 
+                        {...field}
+                        data-testid="input-estimated-budget"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="travelExpense"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center space-x-2">
+                      <IndianRupee className="h-4 w-4" />
+                      <span>Estimated Travel Expense</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter amount (e.g. 500.00)"
+                        {...field}
+                        data-testid="input-travel-expense"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Visit Summary */}
             <Card className="bg-muted/30">

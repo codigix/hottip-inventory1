@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Camera, FileText, X, Eye, Download, AlertCircle, CheckCircle } from "lucide-react";
+import { Upload, Camera, FileText, X, Download, AlertCircle, CheckCircle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -525,13 +525,6 @@ export default function ProofUpload({ open, onOpenChange, visit, onUploadComplet
                         <span className="text-sm truncate max-w-[200px]">{path.split('/').pop()}</span>
                       </div>
                       <div className="flex space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(getAbsoluteUrl(path), "_blank")}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

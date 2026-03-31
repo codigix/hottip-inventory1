@@ -14,6 +14,15 @@ import {
   User,
   FileText,
   Upload,
+  RefreshCw,
+  Download,
+  Calculator,
+  Check,
+  X,
+  FileEdit,
+  FileCheck,
+  FileX,
+  UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -59,6 +68,8 @@ import {
 } from "@/components/ui/table";
 
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
+import FollowUpForm from "./FollowUpForm";
+import EstimationDetailsDialog from "../sales/EstimationDetailsDialog";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
 export default function LeadTable({
@@ -68,7 +79,9 @@ export default function LeadTable({
   onView,
   isSalesMode = false,
   onAddQuotation,
+  onReviseQuotation,
   onUploadProof,
+  onConvert,
 }: {
   leads?: LeadWithAssignee[];
   isLoading?: boolean;
@@ -76,7 +89,9 @@ export default function LeadTable({
   onView: (lead: LeadWithAssignee) => void;
   isSalesMode?: boolean;
   onAddQuotation?: (lead: LeadWithAssignee) => void;
+  onReviseQuotation?: (lead: LeadWithAssignee) => void;
   onUploadProof?: (lead: LeadWithAssignee) => void;
+  onConvert?: (lead: LeadWithAssignee) => void;
 }) {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [statusChangeLeadId, setStatusChangeLeadId] = useState<string | null>(
@@ -84,6 +99,10 @@ export default function LeadTable({
   );
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
+  const [estimationDialogOpen, setEstimationDialogOpen] = useState(false);
+  const [estimationQuotationId, setEstimationQuotationId] = useState<string | null>(null);
 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -101,9 +120,9 @@ export default function LeadTable({
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
+      apiRequest(`/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -112,16 +131,16 @@ export default function LeadTable({
   // ✅ Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/api/marketing/leads/${id}/status`, {
+      apiRequest(`/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
       toast({
         title:
-          variables.status === "converted"
+          variables.status === "WON"
             ? "Lead confirmed for sales successfully!"
             : "Lead status updated successfully!",
       });
@@ -133,10 +152,10 @@ export default function LeadTable({
   // ✅ Convert lead mutation
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
+      apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
       toast({
         title: "Lead confirmed for Sales and handed over!",
       });
@@ -149,7 +168,7 @@ export default function LeadTable({
 
   const handleStatusChange = () => {
     if (statusChangeLeadId && newStatus) {
-      if (newStatus === "converted") {
+      if (newStatus === "WON") {
         convertMutation.mutate(statusChangeLeadId);
       } else {
         updateStatusMutation.mutate({
@@ -164,7 +183,7 @@ export default function LeadTable({
     LEAD_STATUS_WORKFLOW[currentStatus] || [];
 
   const formatCurrency = (amount: string | undefined) =>
-    amount ? `₹${parseFloat(amount).toLocaleString("en-IN")}` : "Not specified";
+    (amount && parseFloat(amount) !== 0) ? `₹${parseFloat(amount).toLocaleString("en-IN")}` : "Not Set";
 
   const columns = useMemo<Column<LeadWithAssignee>[]>(() => [
     {
@@ -271,82 +290,147 @@ export default function LeadTable({
       },
     },
     {
-      key: "lastContactedDate",
-      header: "Last Contact",
-      cell: (lead) => lead.lastContactedDate ? (
-        <div className="flex items-center text-xs">
-          <Calendar className="h-3 w-3 mr-1 text-gray-500" />
-          {format(new Date(lead.lastContactedDate), "MMM dd")}
-        </div>
-      ) : (
-        <span className="text-xs text-gray-500">Never</span>
-      ),
-      sortable: true,
-    },
-    {
       key: "actions",
       header: "Actions",
       cell: (lead) => (
-        <div className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
+        <div className="flex items-center justify-end gap-1">
+          {isSalesMode ? (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={() => setLocation(`/sales/leads/${lead.id}`)}
+                title="View"
+              >
+                <Eye className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {isSalesMode ? (
-                <DropdownMenuItem
-                  onClick={() => onAddQuotation?.(lead)}
-                  className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary font-medium"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                onClick={() => onAddQuotation?.(lead)}
+                title="Create Quotation"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                onClick={() => onReviseQuotation?.(lead)}
+                title="Revise Quotation"
+              >
+                <FileEdit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                title="Download PDF"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  if (lead.quotationId) {
+                    setEstimationQuotationId(lead.quotationId);
+                    setEstimationDialogOpen(true);
+                  } else {
+                    toast({
+                      title: "No Quotation Found",
+                      description: "Create a quotation first to view estimation details.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                title="View Estimation"
+              >
+                <Calculator className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setFollowUpLeadId(lead.id);
+                  setIsFollowUpModalOpen(true);
+                }}
+                title="Follow-up"
+              >
+                <Calendar className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setDeleteLeadId(lead.id)}
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={() => setLocation(`/marketing/leads/${lead.id}`)}
+                title="View"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                onClick={() => onEdit(lead)}
+                title="Edit"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                onClick={() => {
+                  setFollowUpLeadId(lead.id);
+                  setIsFollowUpModalOpen(true);
+                }}
+                title="Follow-up"
+              >
+                <Calendar className="h-4 w-4" />
+              </Button>
+              {onUploadProof && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => onUploadProof(lead)}
+                  title="Upload Proof"
                 >
-                  <FileText className="mr-2 h-4 w-4" /> Create Quotation
-                </DropdownMenuItem>
-              ) : (
-                <>
-                  <DropdownMenuItem onClick={() => setLocation(`/marketing/leads/${lead.id}`)}>
-                    <Eye className="mr-2 h-4 w-4" /> View
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onEdit(lead)}>
-                    <Edit className="mr-2 h-4 w-4" /> Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {getAvailableStatuses(lead.status).filter(s => s !== 'converted').map((status) => (
-                    <DropdownMenuItem
-                      key={status}
-                      onClick={() => {
-                        setStatusChangeLeadId(lead.id);
-                        setNewStatus(status);
-                      }}
-                    >
-                      <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setDeleteLeadId(lead.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </DropdownMenuItem>
-                  {onUploadProof && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onUploadProof(lead)}>
-                        <Upload className="mr-2 h-4 w-4" /> Upload Proof
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </>
+                  <Upload className="h-4 w-4" />
+                </Button>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setDeleteLeadId(lead.id)}
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       ),
     }
-  ], [onEdit, getAvailableStatuses, isSalesMode, onAddQuotation, onUploadProof]);
+  ], [onEdit, getAvailableStatuses, isSalesMode, onAddQuotation, onReviseQuotation, onUploadProof]);
 
   return (
     <>
@@ -391,15 +475,15 @@ export default function LeadTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
-              {newStatus === "converted"
+              {newStatus === "WON"
                 ? "Confirming this lead for sales will create a Sales customer record."
                 : `Are you sure you want to mark as "${newStatus}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
-              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "WON" ? "marketing-lead-conversion-button" : undefined}>
+              {newStatus === "WON" ? "Confirm for Sales" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -521,6 +605,22 @@ export default function LeadTable({
           )}
         </DialogContent>
       </Dialog>
+
+      {followUpLeadId && (
+        <FollowUpForm
+          open={isFollowUpModalOpen}
+          onOpenChange={setIsFollowUpModalOpen}
+          leadId={followUpLeadId}
+        />
+      )}
+
+      {estimationQuotationId && (
+        <EstimationDetailsDialog
+          open={estimationDialogOpen}
+          onOpenChange={setEstimationDialogOpen}
+          quotationId={estimationQuotationId}
+        />
+      )}
     </>
   );
 }

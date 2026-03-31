@@ -103,16 +103,26 @@ export default function QuotationsPage() {
 
         <div className="mt-0">
           <TabsContent value="sent" className="border-none p-0 outline-none animate-in fade-in-50 duration-300">
-            <OutboundQuotations isEmbedded={true} />
+            <OutboundQuotations 
+              isEmbedded={true} 
+              statusFilter={["draft", "sent", "pending", "rejected"]}
+            />
           </TabsContent>
 
           <TabsContent value="received" className="border-none p-0 outline-none animate-in fade-in-50 duration-300">
-            <InboundQuotations 
-              isEmbedded={true} 
-              defaultOpen={isUploadModalOpen} 
-              onOpenChange={handleModalClose}
-              preFillNumber={preFillNumber}
-            />
+            <div className="space-y-6">
+              <OutboundQuotations 
+                isEmbedded={true} 
+                statusFilter={["approved"]} 
+                title="Approved Quotations (Analysis)"
+              />
+              <InboundQuotations 
+                isEmbedded={true} 
+                defaultOpen={isUploadModalOpen} 
+                onOpenChange={handleModalClose}
+                preFillNumber={preFillNumber}
+              />
+            </div>
           </TabsContent>
         </div>
       </Tabs>

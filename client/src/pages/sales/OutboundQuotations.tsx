@@ -48,6 +48,7 @@ import {
   Trash2,
   Package,
   FileUp,
+  FileEdit,
 } from "lucide-react";
 import MaterialRequestDialog from "@/components/inventory/MaterialRequestDialog";
 import {
@@ -58,7 +59,15 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
-export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export default function OutboundQuotations({ 
+  isEmbedded = false,
+  statusFilter,
+  title
+}: { 
+  isEmbedded?: boolean;
+  statusFilter?: string[];
+  title?: string;
+}) {
   const [, setLocation] = useLocation();
   const [selectedQuotation, setSelectedQuotation] =
     useState<OutboundQuotation | null>(null);
@@ -126,9 +135,13 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
   // Update displayed quotations when quotations data loads
   useEffect(() => {
     if (quotations) {
-      setDisplayedQuotations(quotations);
+      if (statusFilter && statusFilter.length > 0) {
+        setDisplayedQuotations(quotations.filter(q => statusFilter.includes(q.status)));
+      } else {
+        setDisplayedQuotations(quotations);
+      }
     }
-  }, [quotations]);
+  }, [quotations, statusFilter]);
 
   // Apply main table filters
   const applyMainFilters = async () => {
@@ -528,6 +541,15 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             size="sm"
             variant="ghost"
             className="h-8 w-8 p-0"
+            onClick={() => setLocation(`/sales/outbound-quotations/new?reviseFromId=${quotation.id}`)}
+            title="Revise Quotation"
+          >
+            <FileEdit className="h-4 w-4 text-slate-400" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => handleSendQuotation(quotation)}
             disabled={quotation.status === "sent"}
             title="Mark as Sent"
@@ -648,6 +670,10 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
     },
   ];
 
+  const filteredStatsData = statusFilter && statusFilter.length > 0
+    ? quotations.filter(q => statusFilter.includes(q.status))
+    : quotations;
+
   return (
     <div className={cn("space-y-3", !isEmbedded && "p-8 bg-slate-50 min-h-screen")}>
       {!isEmbedded && (
@@ -677,7 +703,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl  text-slate-800">{quotations.length}</div>
+            <div className="text-xl  text-slate-800">{filteredStatsData.length}</div>
           </CardContent>
         </Card>
         <Card className="border-none  bg-white">
@@ -688,7 +714,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           </CardHeader>
           <CardContent>
             <div className="text-2xl  text-emerald-600">
-              {quotations.filter((q) => q.status === "approved").length}
+              {filteredStatsData.filter((q) => q.status === "approved").length}
             </div>
           </CardContent>
         </Card>
@@ -700,7 +726,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           </CardHeader>
           <CardContent>
             <div className="text-2xl  text-amber-600">
-              {quotations.filter((q) => q.status === "pending" || q.status === "sent").length}
+              {filteredStatsData.filter((q) => q.status === "pending" || q.status === "sent").length}
             </div>
           </CardContent>
         </Card>
@@ -712,7 +738,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
           </CardHeader>
           <CardContent>
             <div className="text-2xl  text-red-600">
-              {quotations.filter((q) => q.status === "rejected").length}
+              {filteredStatsData.filter((q) => q.status === "rejected").length}
             </div>
           </CardContent>
         </Card>
@@ -748,27 +774,29 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs    text-slate-500">Status</label>
-              <Select
-                value={mainFilters.status}
-                onValueChange={(v) =>
-                  setMainFilters((prev) => ({ ...prev, status: v }))
-                }
-              >
-                <SelectTrigger className="bg-slate-50/50 border-slate-200 h-9 text-xs">
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {(!statusFilter || statusFilter.length > 1) && (
+              <div className="space-y-2">
+                <label className="text-xs    text-slate-500">Status</label>
+                <Select
+                  value={mainFilters.status}
+                  onValueChange={(v) =>
+                    setMainFilters((prev) => ({ ...prev, status: v }))
+                  }
+                >
+                  <SelectTrigger className="bg-slate-50/50 border-slate-200 h-9 text-xs">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-xs    text-slate-500">From Date</label>
               <Input
@@ -816,7 +844,7 @@ export default function OutboundQuotations({ isEmbedded = false }: { isEmbedded?
         <div className=" border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <FileUp className="h-5 w-5 text-slate-400" />
-            <h2 className="text-sm  text-slate-700">Sent Quotations</h2>
+            <h2 className="text-sm  text-slate-700">{title || "Sent Quotations"}</h2>
             <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs ">
               {displayedQuotations.length}
             </Badge>

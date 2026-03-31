@@ -45,6 +45,7 @@ interface VisitWithDetails extends FieldVisit {
     companyName?: string;
     status?: string;
     estimatedBudget?: string | number;
+    previousBudget?: string | number;
   };
   assignedToUser?: {
     id: string;
@@ -147,8 +148,12 @@ export default function VisitCard({
     visit.actualStartTime &&
     !visit.actualEndTime;
 
-  const formatCurrency = (amount: string | number | undefined) =>
-    amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "₹0";
+  const formatCurrency = (amount: string | number | undefined | null) => {
+    if (amount === undefined || amount === null || amount === "" || Number(amount) === 0) return "Not Set";
+    const num = Number(amount);
+    if (isNaN(num)) return "Not Set";
+    return `₹${num.toLocaleString("en-IN")}`;
+  };
 
   if (variant === "kanban") {
     return (
@@ -209,12 +214,6 @@ export default function VisitCard({
               <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 text-[9px] py-0 px-1.5 h-4 capitalize border-none font-semibold">
                 {getPurposeText(visit.purpose)}
               </Badge>
-              <Badge
-                variant={statusInfo.variant}
-                className={`${statusInfo.bgColor} ${statusInfo.color} capitalize text-[9px] h-4 py-0 px-1.5 border-none font-semibold`}
-              >
-                {visit.status.replace("_", " ")}
-              </Badge>
             </div>
           </div>
 
@@ -227,9 +226,16 @@ export default function VisitCard({
             </div>
             <div className="space-y-0.5 text-right">
               <p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">Estimated Budget</p>
-              <p className="text-[10px] text-primary font-bold">
-                {formatCurrency(visit.lead?.estimatedBudget)}
-              </p>
+              <div className="flex flex-col items-end">
+                <p className="text-[10px] text-primary font-bold">
+                  {formatCurrency(visit.lead?.estimatedBudget)}
+                </p>
+                {visit.lead?.previousBudget && Number(visit.lead.previousBudget) !== Number(visit.lead.estimatedBudget) && (
+                  <p className="text-[8px] text-slate-400 line-through font-medium">
+                    {formatCurrency(visit.lead.previousBudget)}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           
@@ -354,9 +360,16 @@ export default function VisitCard({
         <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight block">Budget</span>
-            <span className="font-bold text-primary text-sm">
-              {formatCurrency(visit.lead?.estimatedBudget)}
-            </span>
+            <div className="flex flex-col">
+              <span className="font-bold text-primary text-sm">
+                {formatCurrency(visit.lead?.estimatedBudget)}
+              </span>
+              {visit.lead?.previousBudget && Number(visit.lead.previousBudget) !== Number(visit.lead.estimatedBudget) && (
+                <span className="text-[10px] text-slate-400 line-through font-medium">
+                  {formatCurrency(visit.lead.previousBudget)}
+                </span>
+              )}
+            </div>
           </div>
           <div className="space-y-1 text-right">
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight block">Assigned To</span>

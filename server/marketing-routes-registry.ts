@@ -35,6 +35,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     username: string;
+    department?: string;
   };
 }
 
@@ -124,7 +125,8 @@ export const getLead = async (
 
     // SECURITY: Check if user has permission to view this lead
     if (req.user!.role !== "admin" && req.user!.role !== "manager") {
-      if (lead.createdBy !== req.user!.id && lead.assignedTo !== req.user!.id) {
+      const isSalesDept = req.user!.department?.toLowerCase() === "sales";
+      if (!isSalesDept && lead.createdBy !== req.user!.id && lead.assignedTo !== req.user!.id) {
         res
           .status(403)
           .json({ error: "You do not have permission to view this lead" });
@@ -471,7 +473,17 @@ export const updateLeadStatus = async (
 
     const { status, notes } = updateLeadStatusSchema.parse(req.body);
 
-    const lead = await storage.updateLead(req.params.id, { status });
+    const updateData: any = { status };
+    if (status === "WON" || status === "QUALIFIED") {
+      // Set expected closing date to 30 days from now if not already set
+      if (!existingLead.expectedClosingDate) {
+        const date = new Date();
+        date.setDate(date.getDate() + 30);
+        updateData.expectedClosingDate = date;
+      }
+    }
+
+    const lead = await storage.updateLead(req.params.id, updateData);
 
     // AUTO-CREATE OR UPDATE DEAL (FIELD VISIT): If lead status becomes "contacted", "quotation", or "qualified"
     const dealerStatuses = ["contacted", "quotation", "qualified"];
@@ -578,6 +590,30 @@ export const convertLead = async (
     const conversionData = convertLeadSchema.parse(req.body || {});
 
     const customer = await storage.convertLeadToCustomer(req.params.id);
+
+    // AUTO-CREATE DEAL (FIELD VISIT) ON CONVERSION
+    try {
+      const existingVisits = await storage.getVisitsByLead(req.params.id);
+      if (!existingVisits || existingVisits.length === 0) {
+        await storage.createFieldVisit({
+          leadId: req.params.id,
+          plannedDate: new Date(),
+          visitAddress: existingLead.address || existingLead.city || "Client Address",
+          visitCity: existingLead.city,
+          visitState: existingLead.state,
+          assignedTo: existingLead.assignedTo || req.user!.id,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          purpose: "initial_meeting",
+          status: "Scheduled",
+          preVisitNotes: `Auto-created deal on lead conversion. Budget: ${existingLead.estimatedBudget || 'N/A'}`
+        });
+        console.log(`✅ Auto-created initial deal for converted lead ${req.params.id}`);
+      }
+    } catch (dealErr) {
+      console.error("⚠️ Failed to auto-create deal on conversion:", dealErr);
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CONVERT_LEAD",
@@ -602,9 +638,9 @@ export const syncLeadsToDeals = async (
   res: Response
 ): Promise<void> => {
   try {
-    const dealerStatuses = ["contacted", "quotation", "qualified"];
+    const dealerStatuses = ["contacted", "quotation", "qualified", "won", "converted"];
     const allLeads = await storage.getLeads();
-    const leadsToSync = allLeads.filter(l => l.status && dealerStatuses.includes(l.status));
+    const leadsToSync = allLeads.filter(l => l.status && dealerStatuses.includes(l.status.toLowerCase()));
     
     let createdCount = 0;
     let updatedCount = 0;
@@ -613,7 +649,7 @@ export const syncLeadsToDeals = async (
       const existingVisits = await storage.getVisitsByLead(lead.id);
       
       let targetPurpose = "initial_meeting";
-      if (lead.status === "quotation") {
+      if (lead.status?.toLowerCase() === "quotation") {
         targetPurpose = "quotation_discussion";
       }
 
@@ -753,8 +789,8 @@ export const getFieldVisits = async (
     }
 
     // SECURITY: Apply user-based scoping based on role
-    if (req.user!.role === "admin" || req.user!.role === "manager") {
-      // Admins and managers can see all field visits
+    if (req.user!.role === "admin" || req.user!.role === "manager" || req.user!.department?.toLowerCase() === "sales") {
+      // Admins, managers and Sales department can see all field visits (or scoped by filters)
     } else {
       // Regular employees can only see field visits they created or are assigned to
       filterObject.userScope = {
@@ -825,6 +861,13 @@ export const createFieldVisit = async (
     }
 
     const visit = await storage.createFieldVisit(visitData);
+
+    // Sync budget to lead if provided
+    if (req.body.estimatedBudget !== undefined && lead.id) {
+      await storage.updateLead(lead.id, { 
+        estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget 
+      });
+    }
 
     if (visit.purpose) {
       await storage.createVisitPurposeLog({
@@ -903,6 +946,13 @@ export const updateFieldVisit = async (
     console.log(`Updating field visit ${req.params.id} with data:`, JSON.stringify(visitData, null, 2));
 
     const visit = await storage.updateFieldVisit(req.params.id, visitData);
+
+    // Sync budget to lead if provided
+    if (req.body.estimatedBudget !== undefined && visit.leadId) {
+      await storage.updateLead(visit.leadId, { 
+        estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget 
+      });
+    }
 
     // If purpose was updated, log it in history
     if (visitData.purpose && visitData.purpose !== existingVisit.purpose) {
@@ -2647,10 +2697,15 @@ function checkOwnership(entityType: string) {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { role } = req.user;
+      const { role, department } = req.user;
 
       // Admin and manager roles have full access
       if (role === "admin" || role === "manager") {
+        return next();
+      }
+
+      // Sales department users can view leads (to create quotations)
+      if (department?.toLowerCase() === "sales" && req.method === "GET" && entityType === "lead") {
         return next();
       }
 
@@ -2916,6 +2971,18 @@ export function registerMarketingRoutes(
       path: "/api/field-visits", // Compatibility alias
       middlewares: ["requireAuth"],
       handler: getFieldVisits,
+    },
+    {
+      method: "post",
+      path: "/api/marketing/field-visits",
+      middlewares: ["requireAuth"],
+      handler: createFieldVisit,
+    },
+    {
+      method: "post",
+      path: "/api/field-visits", // Compatibility alias
+      middlewares: ["requireAuth"],
+      handler: createFieldVisit,
     },
     {
       method: "get",

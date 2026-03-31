@@ -58,20 +58,22 @@ import type { LeadFormData, User } from "@/types";
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const leadFormSchema = z
   .object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    companyName: z.string().optional(),
-    email: z.string().email("Invalid email format").optional().or(z.literal("")),
+    fullName: z.string().min(1, "Full name is required"),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    companyName: z.string().optional().nullable(),
+    email: z.string().email("Invalid email format").optional().nullable().or(z.literal("")),
     phone: z
       .string()
       .min(10, "Phone number must be at least 10 digits")
       .optional()
+      .nullable()
       .or(z.literal("")),
-    alternatePhone: z.string().optional(),
-    address: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    zipCode: z.string().optional(),
+    alternatePhone: z.string().optional().nullable(),
+    address: z.string().optional().nullable(),
+    city: z.string().optional().nullable(),
+    state: z.string().optional().nullable(),
+    zipCode: z.string().optional().nullable(),
     country: z.string().min(1, "Country is required").default("India"),
     source: z.enum([
       "website",
@@ -170,8 +172,18 @@ export default function LeadForm({
     if (existingLead) {
       // The API returns { lead, activities }, so we need to extract the lead data
       const leadData = (existingLead as any).lead || existingLead;
+      
+      // Convert null values to empty strings to avoid Zod validation errors (Expected string, received null)
+      const sanitizedData = { ...leadData };
+      Object.keys(sanitizedData).forEach(key => {
+        if (sanitizedData[key] === null) {
+          sanitizedData[key] = "";
+        }
+      });
+
       form.reset({
-        ...leadData,
+        ...sanitizedData,
+        fullName: `${leadData.firstName || ""} ${leadData.lastName || ""}`.trim(),
         assignedTo: leadData.assignedTo || "null",
         followUpDate: leadData.followUpDate
           ? new Date(leadData.followUpDate).toISOString().split("T")[0]
@@ -183,16 +195,25 @@ export default function LeadForm({
       });
     } else if (open && defaultValues) {
       // Immediate pre-fill from list data while waiting for full lead details
+      const firstName = defaultValues.firstName || "";
+      const lastName = defaultValues.lastName || "";
       form.reset({
         country: "India",
         priority: "medium",
         source: "other",
         ...defaultValues,
+        fullName: `${firstName} ${lastName}`.trim(),
         assignedTo: (defaultValues as any).assignedTo || "null",
+        expectedClosingDate: (defaultValues as any).expectedClosingDate
+          ? new Date((defaultValues as any).expectedClosingDate)
+              .toISOString()
+              .split("T")[0]
+          : "",
       } as any);
     } else if (open && !leadId) {
       // Reset to empty for new leads
       form.reset({
+        fullName: "",
         country: "India",
         priority: "medium",
         source: "other",
@@ -202,7 +223,7 @@ export default function LeadForm({
   }, [existingLead, form, open, defaultValues, leadId]);
 
   const createMutation = useMutation({
-    mutationFn: (data: LeadFormData) =>
+    mutationFn: (data: any) =>
       apiRequest("/api/marketing/leads", {
         method: "POST",
         body: JSON.stringify(data),
@@ -223,7 +244,7 @@ export default function LeadForm({
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: LeadFormData) =>
+    mutationFn: (data: any) =>
       apiRequest(`/api/marketing/leads/${leadId}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -246,11 +267,21 @@ export default function LeadForm({
     },
   });
 
-  const onSubmit = (data: LeadFormData) => {
+  const onSubmit = (data: any) => {
+    // Split full name into first and last name
+    const nameParts = data.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
     const submitData = {
       ...data,
+      firstName,
+      lastName,
       estimatedBudget: data.estimatedBudget || undefined,
     };
+    // Remove fullName before sending to API if necessary, but backend usually ignores extra fields
+    delete submitData.fullName;
+
     if (leadId) updateMutation.mutate(submitData);
     else createMutation.mutate(submitData);
   };
@@ -315,32 +346,15 @@ export default function LeadForm({
                 <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
-                    name="firstName"
+                    name="fullName"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="col-span-2">
                         <FormLabel className="flex items-center space-x-2">
                           <UserIcon className="h-4 w-4" />
-                          <span className="text-gray-600">First Name *</span>
+                          <span className="text-gray-600">Full Name *</span>
                         </FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-first-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <UserIcon className="h-4 w-4" />
-                          <span className="text-gray-600">Last Name *</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-last-name" />
+                          <Input {...field} data-testid="input-full-name" placeholder="First Last" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -786,6 +800,8 @@ export default function LeadForm({
                           <Input
                             {...field}
                             type="date"
+                            disabled
+                            className="bg-slate-50 cursor-not-allowed"
                             data-testid="input-expected-closing-date"
                           />
                         </FormControl>

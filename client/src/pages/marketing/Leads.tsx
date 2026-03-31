@@ -153,7 +153,7 @@ export default function Leads() {
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title:
-          variables.status === "converted"
+          variables.status === "WON"
             ? "Lead confirmed for sales successfully!"
             : "Lead status updated successfully!",
       });
@@ -181,7 +181,7 @@ export default function Leads() {
 
   const handleStatusChange = () => {
     if (statusChangeLeadId && newStatus) {
-      if (newStatus === "converted") {
+      if (newStatus === "WON") {
         convertMutation.mutate(statusChangeLeadId);
       } else {
         updateStatusMutation.mutate({
@@ -193,7 +193,7 @@ export default function Leads() {
   };
 
   const handleStatusChangeAction = (id: string, status: LeadStatus) => {
-    if (status === "converted") {
+    if (status === "WON") {
       setStatusChangeLeadId(id);
       setNewStatus(status);
     } else {
@@ -230,7 +230,34 @@ export default function Leads() {
     try {
       setIsFetchingVisit(true);
       // Fetch visits for this specific lead
-      const visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      let visits = await apiRequest(`/api/field-visits?leadId=${lead.id}`);
+      
+      // If no visits found, try to auto-sync or create one if the lead is in a relevant status
+      if ((!Array.isArray(visits) || visits.length === 0) && 
+          ["contacted", "quotation", "qualified"].includes(lead.status)) {
+        try {
+          // Attempt to create a visit automatically since it's in a status that should have one
+          const newVisit = await apiRequest("/api/marketing/field-visits", {
+            method: "POST",
+            body: JSON.stringify({
+              leadId: lead.id,
+              plannedDate: new Date(),
+              visitAddress: lead.address || lead.city || "Client Address",
+              visitCity: lead.city,
+              visitState: lead.state,
+              assignedTo: lead.assignedTo || undefined,
+              purpose: lead.status === "quotation" ? "quotation_discussion" : "initial_meeting",
+              status: "Scheduled"
+            })
+          });
+          
+          if (newVisit && newVisit.id) {
+            visits = [newVisit];
+          }
+        } catch (syncError) {
+          console.error("Failed to auto-create visit:", syncError);
+        }
+      }
       
       if (Array.isArray(visits) && visits.length > 0) {
         // Find the most recent visit or one that is 'Completed' or 'In Progress'
@@ -506,7 +533,21 @@ export default function Leads() {
                 { id: "qualified", label: "Qualified", color: "bg-green-500", border: "border-t-green-500" },
                 { id: "lost", label: "Lost", color: "bg-red-500", border: "border-t-red-500" }
               ].map((column) => {
-                const columnLeads = leads.filter(l => l.status === column.id);
+                const columnLeads = leads.filter(l => {
+                  if (column.id === "new") {
+                    return l.status === "new" || l.status === "NOT_CONTACTED";
+                  }
+                  if (column.id === "contacted") {
+                    return l.status === "contacted" || l.status === "CONTACTED";
+                  }
+                  if (column.id === "qualified") {
+                    return l.status === "qualified" || l.status === "QUALIFIED";
+                  }
+                  if (column.id === "lost") {
+                    return l.status === "lost" || l.status === "LOST";
+                  }
+                  return l.status === column.id;
+                });
                 const totalBudget = columnLeads.reduce((sum, l) => sum + (l.estimatedBudget ? parseFloat(l.estimatedBudget) : 0), 0);
                 
                 return (
@@ -598,15 +639,15 @@ export default function Leads() {
           <AlertDialogHeader>
             <AlertDialogTitle>Change Lead Status</AlertDialogTitle>
             <AlertDialogDescription>
-              {newStatus === "converted"
+              {newStatus === "WON"
                 ? "Confirming this lead for sales will create a Sales customer record."
-                : `Are you sure you want to mark as "${newStatus === "converted" ? "Converted to Deal" : (newStatus || "").charAt(0).toUpperCase() + (newStatus || "").slice(1)}"?`}
+                : `Are you sure you want to mark as "${newStatus === "WON" ? "WON" : (newStatus || "").charAt(0).toUpperCase() + (newStatus || "").slice(1)}"?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "converted" ? "marketing-lead-conversion-button" : undefined}>
-              {newStatus === "converted" ? "Confirm for Sales" : "Update Status"}
+            <AlertDialogAction onClick={handleStatusChange} data-tour={newStatus === "WON" ? "marketing-lead-conversion-button" : undefined}>
+              {newStatus === "WON" ? "Confirm for Sales" : "Update Status"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

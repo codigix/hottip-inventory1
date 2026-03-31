@@ -58,7 +58,7 @@ import {
   account_reminders,
   insertAccountReminderSchema,
 } from "../shared/schema";
-import { sql, eq, and, gte, lt, aliasedTable, desc } from "drizzle-orm";
+import { sql, eq, and, gte, lt, aliasedTable, desc, inArray } from "drizzle-orm";
 // Fabrication Orders API
 
 // Login schema
@@ -656,10 +656,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        const { role } = req.user;
+        const { role, department } = req.user;
 
         // Admin and manager roles have full access
         if (role === "admin" || role === "manager") {
+          next();
+          return;
+        }
+
+        // Sales department users can view leads (to create quotations)
+        if (department?.toLowerCase() === "sales" && req.method === "GET" && entityType === "lead") {
           next();
           return;
         }
@@ -2617,7 +2623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           total: sql`COUNT(*)::integer`,
           active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
-          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} IN ('converted', 'WON') THEN 1 END)::integer`,
           monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
         })
         .from(leads);
@@ -2688,7 +2694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           total: sql`COUNT(*)::integer`,
           active: sql`COUNT(CASE WHEN ${leads.status} IN ('new','contacted','in_progress') THEN 1 END)::integer`,
-          converted: sql`COUNT(CASE WHEN ${leads.status} = 'converted' THEN 1 END)::integer`,
+          converted: sql`COUNT(CASE WHEN ${leads.status} IN ('converted', 'WON') THEN 1 END)::integer`,
           monthlyNew: sql`COUNT(CASE WHEN EXTRACT(MONTH FROM ${leads.createdAt}) = EXTRACT(MONTH FROM NOW()) THEN 1 END)::integer`,
         })
         .from(leads);
@@ -2803,7 +2809,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Optional filters
       if (status && status !== "all") {
-        query = query.where(sql`${leads.status} ILIKE ${status as string}`);
+        if (Array.isArray(status)) {
+          query = query.where(inArray(leads.status, status as string[]));
+        } else {
+          query = query.where(sql`${leads.status} ILIKE ${status as string}`);
+        }
       }
       if (source && source !== "all") {
         query = query.where(eq(leads.source, source as string));
@@ -2823,6 +2833,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const rows = await query;
+
+      // --- SELF-HEALING: Auto-link leads to quotations if missing ---
+      // This helps with existing data created before the quotationId column was added
+      try {
+        const allApprovedQuotations = await db.select().from(outboundQuotations).where(eq(outboundQuotations.status, "approved"));
+        
+        for (const row of rows) {
+          const lead = row.lead;
+          if (!lead.quotationId) {
+            // Find an approved quotation for this customer
+            // Try to match by company name or customerId if possible
+            const matchingQuote = allApprovedQuotations.find(q => 
+              (q.customerId && lead.email && q.companyEmail === lead.email) ||
+              (q.companyName && lead.companyName && q.companyName.toLowerCase() === lead.companyName.toLowerCase())
+            );
+
+            if (matchingQuote) {
+              console.log(`🔧 [HEAL] Linking lead ${lead.id} to quotation ${matchingQuote.id}`);
+              await db.update(leads).set({ quotationId: matchingQuote.id }).where(eq(leads.id, lead.id));
+              lead.quotationId = matchingQuote.id; // Update in-memory for immediate response
+            }
+          }
+        }
+      } catch (healErr) {
+        console.error("⚠️ Failed to self-heal lead-quotation links:", healErr);
+      }
 
       // Format response to match LeadWithAssignee interface
       const leadsWithAssignee = rows.map((row) => ({
@@ -2861,6 +2897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         followUpDate,
         expectedClosingDate,
         notes,
+        quotationId,
       } = req.body;
 
       const validSources = [
@@ -2904,6 +2941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: notes || null,
           createdBy: req.user!.id,
           assignedBy: req.user!.id,
+          quotationId: quotationId || null,
         })
         .returning();
 
@@ -2960,6 +2998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         followUpDate,
         expectedClosingDate,
         notes,
+        quotationId,
       } = req.body;
 
       const [existingLead] = await db
@@ -2999,6 +3038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : null,
           notes: notes || null,
           updatedAt: new Date(),
+          quotationId: quotationId || null,
         })
         .where(eq(leads.id, id))
         .returning();
@@ -3107,7 +3147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
 
-      if (lead.status === "converted") {
+      if (lead.status === "WON" || lead.status === "converted") {
         return res.status(400).json({ error: "Lead is already converted" });
       }
 
@@ -3132,7 +3172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [updatedLead] = await db
         .update(leads)
         .set({
-          status: "converted",
+          status: "WON",
           updatedAt: new Date(),
         })
         .where(eq(leads.id, id))
@@ -3205,12 +3245,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/field-visits", requireAuth, async (_req, res) => {
+  app.get(["/api/field-visits", "/api/marketing/field-visits"], requireAuth, async (req, res) => {
     try {
+      const { leadId } = req.query;
       const assignedToAlias = aliasedTable(users, "assignedToUser");
       const assignedByAlias = aliasedTable(users, "assignedByUser");
 
-      const rows = await db
+      let query = db
         .select({
           visit: fieldVisits,
           lead: {
@@ -3218,6 +3259,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: leads.firstName,
             lastName: leads.lastName,
             companyName: leads.companyName,
+            status: leads.status,
+            estimatedBudget: leads.estimatedBudget,
           },
           assignedToUser: {
             id: assignedToAlias.id,
@@ -3234,6 +3277,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
         .leftJoin(assignedToAlias, eq(fieldVisits.assignedTo, assignedToAlias.id))
         .leftJoin(assignedByAlias, eq(fieldVisits.assignedBy, assignedByAlias.id));
+
+      if (leadId && typeof leadId === "string") {
+        query = query.where(eq(fieldVisits.leadId, leadId)) as any;
+      }
+
+      const rows = await query.orderBy(desc(fieldVisits.createdAt));
 
       // Map status to lowercase/underscore for frontend compatibility
       const statusMap: Record<string, string> = {
@@ -3258,7 +3307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json([]);
     }
   });
-  app.post("/api/field-visits", requireAuth, async (req, res) => {
+  app.post(["/api/field-visits", "/api/marketing/field-visits"], requireAuth, async (req, res) => {
     try {
       const {
         leadId,
@@ -3308,6 +3357,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: status || "Scheduled",
         })
         .returning();
+
+      // Update lead budget if provided
+      if (req.body.estimatedBudget !== undefined && leadId) {
+        await db.update(leads)
+          .set({ estimatedBudget: req.body.estimatedBudget === "" ? null : req.body.estimatedBudget })
+          .where(eq(leads.id, leadId));
+      }
 
       res.status(201).json({ message: "Field visit created", visit: newVisit });
     } catch (err) {

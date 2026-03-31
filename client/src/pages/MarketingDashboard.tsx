@@ -163,7 +163,7 @@ export default function MarketingDashboard() {
               {conversionRate.toFixed(1)}%
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
-              {dashboardData?.leads?.converted || 0} leads converted
+              {dashboardData?.leads?.converted || 0} leads WON
             </p>
           </CardContent>
         </Card>
@@ -206,10 +206,10 @@ export default function MarketingDashboard() {
                         <p className="font-medium text-slate-900 text-sm">
                           {lead.companyName || `${lead.firstName} ${lead.lastName}`}
                         </p>
-                        {lead.status === "converted" && (
+                        {lead.status === "WON" && (
                           <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
                             <CheckCircle2 className="h-3 w-3" />
-                            <span>{lead.status}</span>
+                            <span>WON</span>
                           </div>
                         )}
                         {lead.status === "new" && (

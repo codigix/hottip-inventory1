@@ -41,6 +41,7 @@ import {
   Building2,
   CreditCard,
   FileText,
+  FileEdit,
   Settings,
   LayoutGrid,
 } from "lucide-react";
@@ -54,6 +55,178 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { 
+  History, 
+  ArrowRight, 
+  MinusCircle, 
+  CheckCircle2, 
+  Clock, 
+  Info,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  Equal,
+  Calendar
+} from "lucide-react";
+
+// Version History & Comparison Component
+function VersionHistorySidebar({ 
+  quotations, 
+  currentQuotation, 
+  reviseFromId
+}: { 
+  quotations: OutboundQuotation[], 
+  currentQuotation: any,
+  reviseFromId: string | null;
+}) {
+  const sortedQuotations = [...quotations].sort((a, b) => 
+    new Date(a.quotationDate).getTime() - new Date(b.quotationDate).getTime()
+  );
+
+  const prevQuotation = quotations.find(q => q.id === reviseFromId);
+  const currentTotal = parseFloat(currentQuotation.totalAmount || "0");
+  const prevTotal = prevQuotation ? parseFloat(prevQuotation.totalAmount || "0") : 0;
+  const totalChange = currentTotal - prevTotal;
+
+  return (
+    <div className="flex flex-col h-full bg-white border-l shadow-sm overflow-hidden">
+      <div className="p-4 border-b flex items-center justify-between bg-slate-50/50">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          Version History & Comparison
+        </h2>
+        <Badge variant="outline" className="bg-orange-50 text-orange-600 border-orange-200 text-[10px]">
+          Revised
+        </Badge>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Version List */}
+        <div className="p-4 space-y-3 border-b">
+          {sortedQuotations.map((q, idx) => (
+            <div 
+              key={q.id} 
+              className={`p-3 rounded-lg border transition-all ${
+                q.id === reviseFromId 
+                  ? "border-primary/30 bg-primary/5 ring-1 ring-primary/10" 
+                  : "border-slate-100 hover:border-slate-200"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-xs font-semibold text-slate-800">
+                  Quotation v{idx + 1}
+                  {q.id === reviseFromId && (
+                    <Badge variant="secondary" className="ml-2 bg-slate-200 text-slate-600 text-[9px] h-4">
+                      PREVIOUS
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs font-bold text-slate-700">
+                  ₹{parseFloat(q.totalAmount).toLocaleString("en-IN")}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                <Calendar className="h-3 w-3" />
+                {format(new Date(q.quotationDate), "dd MMMM yyyy")}
+                <Separator orientation="vertical" className="h-2" />
+                <span className="capitalize">{q.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Comparison Details */}
+        {prevQuotation && (
+          <div className="p-4 space-y-4 bg-slate-50/30">
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              Compare Quotation v{sortedQuotations.length} → v{sortedQuotations.length + 1}
+            </h3>
+
+            {/* Total Comparison */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white p-3 rounded-lg border border-slate-200">
+                <div className="text-[10px] text-slate-400 mb-1">Previous Total</div>
+                <div className="text-sm font-bold text-slate-700">₹{prevTotal.toLocaleString("en-IN")}</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-200 relative overflow-hidden">
+                <div className="text-[10px] text-orange-400 mb-1">Revised Total</div>
+                <div className="text-sm font-bold text-orange-700">₹{currentTotal.toLocaleString("en-IN")}</div>
+                <div className="absolute top-1 right-2">
+                  {totalChange > 0 ? (
+                    <TrendingUp className="h-3 w-3 text-red-500" />
+                  ) : totalChange < 0 ? (
+                    <TrendingDown className="h-3 w-3 text-emerald-500" />
+                  ) : (
+                    <Equal className="h-3 w-3 text-slate-400" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Item Changes */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold text-slate-600">Item Breakdown</div>
+              <div className="bg-white border rounded-lg overflow-hidden">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Item</th>
+                      <th className="px-3 py-2 text-right font-medium text-slate-500">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {currentQuotation.quotationItems.map((item: any) => {
+                      const prevItem = prevQuotation.quotationItems?.find((pi: any) => pi.partDescription === item.partDescription);
+                      const currentPrice = parseFloat(item.unitPrice || "0");
+                      const prevPrice = prevItem ? parseFloat(prevItem.unitPrice || "0") : 0;
+                      const priceDiff = currentPrice - prevPrice;
+
+                      return (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 text-slate-700 truncate max-w-[120px] text-xs">{item.partDescription}</td>
+                          <td className="px-3 py-2 text-right">
+                            {priceDiff !== 0 ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-slate-400 line-through">₹{prevPrice}</span>
+                                <ArrowRight className="h-2 w-2 text-slate-400" />
+                                <span className={priceDiff > 0 ? "text-red-600 font-medium" : "text-emerald-600 font-medium"}>
+                                  ₹{currentPrice}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-500">₹{currentPrice} (No Change)</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Total Change Summary */}
+            <div className="p-3 bg-white border rounded-lg flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-500">Total Change:</span>
+              <span className={`text-sm font-bold ${totalChange > 0 ? "text-red-600" : totalChange < 0 ? "text-emerald-600" : "text-slate-600"}`}>
+                {totalChange > 0 ? "+" : ""}{totalChange.toLocaleString("en-IN")}
+              </span>
+            </div>
+
+            {/* Revision Reasons / Notes */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold text-slate-600">Revision Reasons</div>
+              <div className="p-3 bg-white border rounded-lg italic text-[11px] text-slate-500 min-h-[60px]">
+                {currentQuotation.revisionReasons || "No significant reasons provided."}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const quotationFormSchema = insertOutboundQuotationSchema
   .extend({
@@ -69,6 +242,9 @@ const quotationFormSchema = insertOutboundQuotationSchema
     totalAmount: z
       .string()
       .min(1, "⚠️ Total amount is required"),
+    revisionReasons: z
+      .string()
+      .optional(),
   })
   .omit({
     warrantyTerms: true,
@@ -82,6 +258,10 @@ export default function QuotationFormPage() {
   const isEdit = !!id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const reviseFromId = searchParams.get("reviseFromId");
+  const isRevision = !!reviseFromId;
 
   const [moldDetails, setMoldDetails] = useState<any[]>([]);
   const [quotationItems, setQuotationItems] = useState<any[]>([]);
@@ -112,10 +292,15 @@ export default function QuotationFormPage() {
     enabled: isEdit,
   });
 
+  const { data: sourceQuotation, isLoading: isLoadingSource } = useQuery<OutboundQuotation>({
+    queryKey: [`/outbound-quotations/${reviseFromId}`],
+    enabled: isRevision,
+  });
+
   const form = useForm<FormValues>({
     resolver: zodResolver(quotationFormSchema),
     defaultValues: {
-      status: "draft",
+      status: isRevision ? "revised" : "draft",
       quotationDate: new Date(),
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       subtotalAmount: "0.00",
@@ -129,6 +314,7 @@ export default function QuotationFormPage() {
       bankingDetails: "",
       termsConditions: "",
       notes: "",
+      revisionReasons: "",
       jobCardNumber: "",
       partNumber: "",
       projectIncharge: "",
@@ -144,10 +330,18 @@ export default function QuotationFormPage() {
       companyName: "CHENNUPATI PLASTICS",
       companyAddress: "123, Industrial Area, Phase-II, Pune - 411 001, Maharashtra",
       companyGstin: "27AAAAA0000A1Z5",
-      companyEmail: "info@chennupatiplastics.com",
+      companyEmail: "info@chenpupatiplastics.com",
       companyPhone: "+91-9876543210",
-      companyWebsite: "www.chennupatiplastics.com",
+      companyWebsite: "www.chenpupatiplastics.com",
     },
+  });
+
+  const customerId = form.watch("customerId");
+
+  const { data: customerQuotations = [] } = useQuery<OutboundQuotation[]>({
+    queryKey: [`/api/outbound-quotations?customerId=${customerId}`],
+    enabled: !!customerId,
+    queryFn: () => apiRequest(`/api/outbound-quotations?customerId=${customerId}`),
   });
 
   useEffect(() => {
@@ -158,11 +352,23 @@ export default function QuotationFormPage() {
     if (customerIdParam && !isEdit && customers.length > 0) {
       const customer = customers.find(c => c.id === customerIdParam);
       if (customer) {
+        // Reset form to default values first to avoid keeping old state
+        form.reset({
+          ...form.getValues(),
+          customerId: customer.id,
+          companyName: customer.company || customer.name,
+          companyAddress: customer.address || "",
+          companyEmail: customer.email || "",
+          companyPhone: customer.phone || "",
+        });
+
+        // Set specific values again to be sure
         form.setValue("customerId", customer.id);
         form.setValue("companyName", customer.company || customer.name);
         form.setValue("companyAddress", customer.address || "");
         form.setValue("companyEmail", customer.email || "");
         form.setValue("companyPhone", customer.phone || "");
+        
         // Also update the gst number if available in customer record
         if (customer.gstNumber) {
           form.setValue("companyGstin", customer.gstNumber);
@@ -200,8 +406,35 @@ export default function QuotationFormPage() {
         moldDetails: quotation.moldDetails || [],
         quotationItems: quotation.quotationItems || [],
       });
+    } else if (isRevision && sourceQuotation) {
+      setMoldDetails(sourceQuotation.moldDetails || []);
+      setQuotationItems(sourceQuotation.quotationItems || []);
+      
+      // Reset form with source data but for a NEW quotation
+      form.reset({
+        ...sourceQuotation,
+        quotationDate: new Date(),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        subtotalAmount: String(sourceQuotation.subtotalAmount),
+        taxAmount: String(sourceQuotation.taxAmount),
+        discountAmount: String(sourceQuotation.discountAmount),
+        totalAmount: String(sourceQuotation.totalAmount),
+        customerId: sourceQuotation.customerId || "",
+        status: "draft", // Always draft for a new revision
+        quotationNumber: "", // Will be auto-generated by the next useEffect
+        projectIncharge: sourceQuotation.projectIncharge || "",
+        bankingDetails: sourceQuotation.bankingDetails || "",
+        termsConditions: sourceQuotation.termsConditions || "",
+        moldDetails: sourceQuotation.moldDetails || [],
+        quotationItems: sourceQuotation.quotationItems || [],
+      });
+      
+      toast({
+        title: "Revised Quotation",
+        description: "Form has been pre-filled with data from the previous quotation.",
+      });
     }
-  }, [isEdit, quotation, form]);
+  }, [isEdit, isRevision, quotation, sourceQuotation, form, toast]);
 
   useEffect(() => {
     const subtotal = quotationItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -331,37 +564,97 @@ export default function QuotationFormPage() {
     setQuotationItems(prev => prev.filter(item => item.id !== itemId));
   };
 
-  if (isEdit && isLoadingQuotation) {
+  const status = form.watch("status");
+  const isLocked = status === "approved" || status === "rejected";
+
+  if ((isEdit && isLoadingQuotation) || (isRevision && isLoadingSource)) {
     return <div className="p-4 text-center text-gray-500">Loading quotation details...</div>;
   }
 
   return (
-    <div className="p-2  mx-auto space-y-3 bg-slate-50 min-h-screen">
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-sm z-10 py-4 -mt-4 border-b">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/sales/outbound-quotations")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl  ">{isEdit ? "Edit" : "New"} Quotation</h1>
-            <p className="text-xs text-gray-500">Professional Quotation Management</p>
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
+      <div className={`flex-1 p-2 mx-auto space-y-3 ${isRevision ? "lg:max-w-[calc(100%-350px)]" : "max-w-5xl"}`}>
+        <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-sm z-10 py-4 border-b">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setLocation("/sales/outbound-quotations")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl  ">{isEdit ? "Edit" : isRevision ? "Revised" : "New"} Quotation</h1>
+              <p className="text-xs text-gray-500">Professional Quotation Management</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => setLocation("/sales/outbound-quotations")}>
+              Cancel
+            </Button>
+            
+            {!isLocked && (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "draft");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-slate-300 text-slate-600 hover:bg-slate-50"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Save as Draft
+                </Button>
+                <Button 
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "rejected");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold"
+                >
+                  <MinusCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button 
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "approved");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button onClick={form.handleSubmit((data) => mutation.mutate(data))} className="shadow-md px-8 bg-primary">
+                  <Save className="h-4 w-4 mr-2" />
+                  {isEdit ? "Update" : isRevision ? "Save Revised" : "Save"} Quotation
+                </Button>
+              </div>
+            )}
+            {isLocked && (
+               <div className="flex items-center gap-3">
+                 <Badge variant="outline" className={`px-4 py-2 ${status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                   {status === 'approved' ? 'Approved & Locked' : 'Rejected'}
+                 </Badge>
+                 <Button 
+                   onClick={() => setLocation(`/sales/outbound-quotations/new?reviseFromId=${id}`)}
+                   className="bg-orange-500 hover:bg-orange-600 text-white shadow-md"
+                 >
+                   <FileEdit className="h-4 w-4 mr-2" />
+                   Revise Quotation
+                 </Button>
+               </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setLocation("/sales/outbound-quotations")}>
-            Cancel
-          </Button>
-          <Button onClick={form.handleSubmit((data) => mutation.mutate(data))} className="shadow-md px-8">
-            <Save className="h-4 w-4 mr-2" />
-            {isEdit ? "Update" : "Save"} Quotation
-          </Button>
-        </div>
-      </div>
 
-      <Form {...form}>
-        <form className="space-y-2">
-          {/* 1. Basic Information */}
-          <Card className="border-none  overflow-hidden">
+        <Form {...form}>
+          <form className="space-y-2">
+            <fieldset disabled={isLocked} className="space-y-2">
+            {/* 1. Basic Information */}
+            <Card className="border-none overflow-hidden shadow-sm">
             <CardHeader className="bg-white border-b py-4">
               <div className="flex items-center gap-2">
                 <div className="bg-primary/10 p-2 rounded-lg">
@@ -467,6 +760,7 @@ export default function QuotationFormPage() {
                       <SelectContent>
                         <SelectItem value="draft">Draft</SelectItem>
                         <SelectItem value="sent">Sent</SelectItem>
+                        <SelectItem value="revised">Revised</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
@@ -476,6 +770,26 @@ export default function QuotationFormPage() {
                   </FormItem>
                 )}
               />
+
+              {isRevision && (
+                <FormField
+                  control={form.control}
+                  name="revisionReasons"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-4">
+                      <FormLabel className="text-xs">Revision Reasons</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          placeholder="Explain why this quotation is being revised..." 
+                          className="bg-slate-50 border-slate-200 focus:bg-white transition-all min-h-[80px]" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -491,7 +805,7 @@ export default function QuotationFormPage() {
                   <CardDescription className="text-xs">Add molds and define specific quotation items for each.</CardDescription>
                 </div>
               </div>
-              {!isAddingMold && (
+              {!isAddingMold && !isLocked && (
                 <Button type="button" size="sm" onClick={() => setIsAddingMold(true)} className="rounded ">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add New Mold
@@ -560,10 +874,12 @@ export default function QuotationFormPage() {
                   </div>
                   <h3 className="text-sm  text-slate-700">No Molds Configured</h3>
                   <p className="text-gray-500 max-w-xs mx-auto text-xs mt-1">Add mold specifications first, then define items for your quotation.</p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMold(true)} className="mt-6">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Mold
-                  </Button>
+                  {!isLocked && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMold(true)} className="mt-6">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Mold
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -590,9 +906,11 @@ export default function QuotationFormPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeMoldDetail(mIndex); }} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {!isLocked && (
+                          <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeMoldDetail(mIndex); }} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <div className="text-slate-400">
                           {editingMoldIndex === mIndex ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                         </div>
@@ -631,9 +949,11 @@ export default function QuotationFormPage() {
                               <Settings className="h-4 w-4 text-primary" />
                               Quotation Items for this Mold
                             </h4>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addQuotationItem(mold.id)} className="h-8 border-primary/20 text-primary hover:bg-primary/5">
-                              <Plus className="h-3 w-3 mr-1" /> Add Item
-                            </Button>
+                            {!isLocked && (
+                              <Button type="button" variant="outline" size="sm" onClick={() => addQuotationItem(mold.id)} className="h-8 border-primary/20 text-primary hover:bg-primary/5">
+                                <Plus className="h-3 w-3 mr-1" /> Add Item
+                              </Button>
+                            )}
                           </div>
 
                           <div className="border border-slate-100 rounded-lg overflow-hidden">
@@ -693,9 +1013,11 @@ export default function QuotationFormPage() {
                                       ₹{(parseFloat(String(item.amount || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="px-2 py-2 text-right">
-                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeQuotationItem(item.id)} className="h-6 w-6 text-slate-300 hover:text-red-500 hover:bg-red-50">
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
+                                      {!isLocked && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeQuotationItem(item.id)} className="h-6 w-6 text-slate-300 hover:text-red-500 hover:bg-red-50">
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      )}
                                     </td>
                                   </tr>
                                 ))}
@@ -864,9 +1186,24 @@ export default function QuotationFormPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </form>
-      </Form>
+            </div>
+            </fieldset>
+          </form>
+        </Form>
+      </div>
+      
+      {isRevision && (
+        <div className="w-[350px] shrink-0 sticky top-0 h-screen overflow-hidden">
+          <VersionHistorySidebar 
+            quotations={customerQuotations}
+            currentQuotation={{
+              ...form.getValues(),
+              quotationItems
+            }}
+            reviseFromId={reviseFromId}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -195,12 +195,12 @@ const { data: visitsMetrics, isLoading: loadingVisitsMetrics } = useQuery({
           'new': 'bg-blue-100 text-blue-800',
           'contacted': 'bg-yellow-100 text-yellow-800',
           'qualified': 'bg-green-100 text-green-800',
-          'converted': 'bg-emerald-100 text-emerald-800',
+          'WON': 'bg-emerald-100 text-emerald-800',
           'lost': 'bg-red-100 text-red-800'
         };
         return (
           <Badge className={statusColors[value as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-            {value || 'New'}
+            {value === 'WON' ? 'WON' : (value || 'New')}
           </Badge>
         );
       }

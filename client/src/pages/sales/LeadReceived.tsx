@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   Plus,
@@ -11,14 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 import { apiRequest } from "@/lib/queryClient";
 import LeadTable from "@/components/marketing/LeadTable";
@@ -34,40 +28,65 @@ import type {
 export default function LeadReceived() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<LeadWithAssignee | null>(null);
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("converted");
   const [searchQuery, setSearchQuery] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState<LeadPriority | "all">("all");
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Mutation to convert lead to customer
+  const convertMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/marketing/leads/${id}/convert`, { 
+        method: "POST",
+        body: {} 
+      }),
+    onSuccess: (data: { customer: Customer }) => {
+      queryClient.invalidateQueries({ queryKey: ["/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      toast({
+        title: "Success",
+        description: "Lead converted to customer successfully!",
+      });
+      // Redirect to quotation page with the new customer ID
+      setLocation(`/sales/outbound-quotations/new?customerId=${data.customer.id}`);
+    },
+    onError: (error) => {
+      console.error("Conversion failed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to convert lead to customer. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConvertLead = (lead: LeadWithAssignee) => {
+    convertMutation.mutate(lead.id);
+  };
 
   // Fetch customers to link leads to customers for quotations
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/customers"],
   });
 
-  // Build query parameters for server-side filtering
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    if (priorityFilter !== "all") params.set("priority", priorityFilter);
-    if (searchQuery.trim()) params.set("search", searchQuery.trim());
-    return params.toString();
-  }, [statusFilter, priorityFilter, searchQuery]);
-
-  // Fetch leads data with server-side filtering
   const { data: leads = [], isLoading } = useQuery<LeadWithAssignee[]>({
     queryKey: [
       "/marketing/leads",
       {
-        status: statusFilter,
-        priority: priorityFilter,
+        status: ["CONTACTED", "Contacted", "contacted", "WON", "converted", "QUOTATION"],
         search: searchQuery.trim(),
       },
     ],
     queryFn: () => {
-      const url = queryParams
-        ? `/marketing/leads?${queryParams}`
-        : "/marketing/leads";
-      return apiRequest(url);
+      const params = new URLSearchParams();
+      params.append("status", "CONTACTED");
+      params.append("status", "Contacted");
+      params.append("status", "contacted");
+      params.append("status", "WON");
+      params.append("status", "converted");
+      params.append("status", "QUOTATION");
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      return apiRequest(`/marketing/leads?${params.toString()}`);
     },
   });
 
@@ -86,7 +105,56 @@ export default function LeadReceived() {
   };
 
   const handleAddQuotation = (lead: LeadWithAssignee) => {
-    // Find matching customer by company name or email
+    // If already WON or converted, we just need to find the customer and redirect
+    if (lead.status === "WON" || lead.status === "converted") {
+      const customer = customers.find(
+        (c) =>
+          (lead.companyName && c.company === lead.companyName) ||
+          (lead.email && c.email === lead.email)
+      );
+
+      if (customer) {
+        setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+        return;
+      }
+    }
+
+    // Always call handleConvertLead to ensure status is updated to WON 
+    // and matching customer exists before creating a quotation
+    handleConvertLead(lead);
+  };
+
+  const handleReviseQuotation = async (lead: LeadWithAssignee) => {
+    // If not already WON, convert it (which updates status) but we need special redirect
+    if (lead.status !== "WON" && lead.status !== "converted") {
+      try {
+        const data = await apiRequest(`/api/marketing/leads/${lead.id}/convert`, { 
+          method: "POST",
+          body: {}
+        });
+        queryClient.invalidateQueries({ queryKey: ["/customers"] });
+        queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+        
+        // After conversion, find the latest quotation to revise
+        const customer = data.customer;
+        const quotations = await apiRequest(`/outbound-quotations?customerId=${customer.id}`);
+        
+        if (quotations && quotations.length > 0) {
+          const latestQuotation = quotations.sort((a: any, b: any) => 
+            new Date(b.quotationDate).getTime() - new Date(a.quotationDate).getTime()
+          )[0];
+          setLocation(`/sales/outbound-quotations/new?reviseFromId=${latestQuotation.id}`);
+        } else {
+          setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+        }
+      } catch (error) {
+        console.error("Revision conversion failed:", error);
+        toast({ title: "Error", description: "Failed to process lead for revision", variant: "destructive" });
+      }
+      return;
+    }
+
+    // Standard revision logic for already WON leads
     const customer = customers.find(
       (c) =>
         (lead.companyName && c.company === lead.companyName) ||
@@ -94,10 +162,30 @@ export default function LeadReceived() {
     );
 
     if (customer) {
-      setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+      try {
+        // Fetch existing quotations for this customer to find the latest one
+        const quotations = await apiRequest(`/outbound-quotations?customerId=${customer.id}`);
+        
+        if (quotations && quotations.length > 0) {
+          // Sort by date to get the most recent one
+          const latestQuotation = quotations.sort((a: any, b: any) => 
+            new Date(b.quotationDate).getTime() - new Date(a.quotationDate).getTime()
+          )[0];
+          
+          // Redirect to new quotation page with reviseFromId
+          setLocation(`/sales/outbound-quotations/new?reviseFromId=${latestQuotation.id}`);
+        } else {
+          // If no quotations found, just act like "Create Quotation"
+          setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+        }
+      } catch (error) {
+        console.error("Error fetching quotations for revision:", error);
+        // Fallback to basic new quotation if API fails
+        setLocation(`/sales/outbound-quotations/new?customerId=${customer.id}`);
+      }
     } else {
-      // If no customer found, just go to the new quotation page
-      setLocation("/sales/outbound-quotations/new");
+      // Auto-convert lead to customer if not found
+      handleConvertLead(lead);
     }
   };
 
@@ -126,7 +214,7 @@ export default function LeadReceived() {
         </div>
       </div>
 
-      {/* Filter Toolbar - Compact and Professional */}
+      {/* Filter Toolbar - Search Only */}
       <Card className="border-none shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -138,45 +226,6 @@ export default function LeadReceived() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-background border-slate-200"
               />
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Workflow:</span>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => setStatusFilter(value as LeadStatus | "all")}
-                >
-                  <SelectTrigger className="w-[160px] h-9 text-sm">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="converted">1. Confirmed for Sales</SelectItem>
-                    <SelectItem value="contacted">2. Contacted</SelectItem>
-                    <SelectItem value="analysis">3. Under Analysis</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Priority:</span>
-                <Select
-                  value={priorityFilter}
-                  onValueChange={(value) => setPriorityFilter(value as LeadPriority | "all")}
-                >
-                  <SelectTrigger className="w-[130px] h-9 text-sm">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
         </CardContent>
@@ -190,9 +239,6 @@ export default function LeadReceived() {
               <ClipboardList className="h-4 w-4 mr-2 text-primary" />
               Incoming Requests ({leads.length})
             </CardTitle>
-            <Badge variant="outline" className="font-bold text-[10px] bg-white uppercase tracking-tighter border-slate-800">
-              Viewing: {statusFilter === "converted" ? "Confirmed for Sales" : statusFilter.replace("_", " ")}
-            </Badge>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -202,6 +248,8 @@ export default function LeadReceived() {
             onEdit={handleEditLead}
             onView={handleViewLead}
             onAddQuotation={handleAddQuotation}
+            onReviseQuotation={handleReviseQuotation}
+            onConvert={handleConvertLead}
             isSalesMode={true}
           />
         </CardContent>

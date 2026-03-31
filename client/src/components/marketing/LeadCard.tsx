@@ -104,7 +104,7 @@ export default function LeadCard({
                     onClick={() => onStatusChange(lead.id, status)}
                   >
                     <ArrowRight className="mr-2 h-4 w-4" /> Mark as{" "}
-                    {status === "converted" ? "Converted to Deal" : status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status === "WON" || status === "converted" ? "WON" : status.charAt(0).toUpperCase() + status.slice(1)}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
