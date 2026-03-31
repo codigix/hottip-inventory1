@@ -22,7 +22,7 @@ export type {
 } from "@shared/schema";
 
 // Marketing Lead Types
-export type LeadStatus = 'NOT_CONTACTED' | 'CONTACTED' | 'Contacted' | 'contacted' | 'QUALIFIED' | 'LOST' | 'WON' | 'converted';
+export type LeadStatus = 'NOT_CONTACTED' | 'CONTACTED' | 'Contacted' | 'contacted' | 'QUALIFIED' | 'LOST' | 'WON' | 'converted' | 'QUOTATION';
 export type LeadSource = 'website' | 'referral' | 'advertisement' | 'social_media' | 'trade_show' | 'cold_call' | 'email_campaign' | 'other';
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -58,6 +58,7 @@ export interface Lead {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  quotationId?: string;
 }
 
 export interface LeadWithAssignee extends Lead {
@@ -332,8 +333,9 @@ export type UserRole = 'admin' | 'manager' | 'employee';
 // Lead Status Workflow Configuration
 export const LEAD_STATUS_WORKFLOW: Record<LeadStatus, LeadStatus[]> = {
   NOT_CONTACTED: ['CONTACTED', 'QUALIFIED', 'LOST'],
-  CONTACTED: ['QUALIFIED', 'LOST', 'WON'],
-  QUALIFIED: ['WON', 'LOST'],
+  CONTACTED: ['QUALIFIED', 'LOST', 'WON', 'QUOTATION'],
+  QUALIFIED: ['WON', 'LOST', 'QUOTATION'],
+  QUOTATION: ['WON', 'LOST'],
   WON: [], // Final state
   LOST: ['NOT_CONTACTED', 'CONTACTED', 'QUALIFIED'] // Allow revival
 };
@@ -344,6 +346,7 @@ export const LEAD_STATUS_COLORS: Record<string, string> = {
   Contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
   contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
   QUALIFIED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  QUOTATION: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
   WON: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
   LOST: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
 };

@@ -2834,6 +2834,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const rows = await query;
 
+      // --- SELF-HEALING: Auto-link leads to quotations if missing ---
+      // This helps with existing data created before the quotationId column was added
+      try {
+        const allApprovedQuotations = await db.select().from(outboundQuotations).where(eq(outboundQuotations.status, "approved"));
+        
+        for (const row of rows) {
+          const lead = row.lead;
+          if (!lead.quotationId) {
+            // Find an approved quotation for this customer
+            // Try to match by company name or customerId if possible
+            const matchingQuote = allApprovedQuotations.find(q => 
+              (q.customerId && lead.email && q.companyEmail === lead.email) ||
+              (q.companyName && lead.companyName && q.companyName.toLowerCase() === lead.companyName.toLowerCase())
+            );
+
+            if (matchingQuote) {
+              console.log(`🔧 [HEAL] Linking lead ${lead.id} to quotation ${matchingQuote.id}`);
+              await db.update(leads).set({ quotationId: matchingQuote.id }).where(eq(leads.id, lead.id));
+              lead.quotationId = matchingQuote.id; // Update in-memory for immediate response
+            }
+          }
+        }
+      } catch (healErr) {
+        console.error("⚠️ Failed to self-heal lead-quotation links:", healErr);
+      }
+
       // Format response to match LeadWithAssignee interface
       const leadsWithAssignee = rows.map((row) => ({
         ...row.lead,
@@ -2871,6 +2897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         followUpDate,
         expectedClosingDate,
         notes,
+        quotationId,
       } = req.body;
 
       const validSources = [
@@ -2914,6 +2941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: notes || null,
           createdBy: req.user!.id,
           assignedBy: req.user!.id,
+          quotationId: quotationId || null,
         })
         .returning();
 
@@ -2970,6 +2998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         followUpDate,
         expectedClosingDate,
         notes,
+        quotationId,
       } = req.body;
 
       const [existingLead] = await db
@@ -3009,6 +3038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : null,
           notes: notes || null,
           updatedAt: new Date(),
+          quotationId: quotationId || null,
         })
         .where(eq(leads.id, id))
         .returning();

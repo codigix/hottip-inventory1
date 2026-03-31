@@ -23,7 +23,7 @@ async function truncateTables() {
     console.log('Starting truncation...');
     
     // List of tables to truncate (based on schema analysis)
-    // We KEEP: users, suppliers
+    // We KEEP: users, suppliers, admin_settings, admin_backups
     const tablesToTruncate = [
       'tour_tracking',
       'material_requests',
@@ -31,8 +31,6 @@ async function truncateTables() {
       'spare_parts',
       'inventory_tasks',
       'fabrication_orders',
-      'admin_settings',
-      'admin_backups',
       'audit_logs',
       'leads',
       'marketing_tasks',
@@ -70,7 +68,11 @@ async function truncateTables() {
       'account_reminders',
       'activities',
       'account_reports',
-      'mold_details'
+      'mold_details',
+      'customer_purchase_orders',
+      'customer_purchase_order_items',
+      'sales_orders',
+      'sales_order_items'
     ];
 
     for (const table of tablesToTruncate) {

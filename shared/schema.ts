@@ -334,6 +334,7 @@ export const leads = pgTable("leads", {
   referredBy: text("referredBy"),
   requirementDescription: text("requirementDescription"),
   estimatedBudget: numeric("estimatedBudget"),
+  previousBudget: numeric("previousBudget"),
   assignedTo: uuid("assignedTo").references(() => users.id),
   status: text("status").default("NOT_CONTACTED"),
   priority: text("priority").default("medium"),
@@ -344,6 +345,7 @@ export const leads = pgTable("leads", {
   notes: text("notes"),
   assignedBy: uuid("assignedBy").references(() => users.id),
   createdBy: uuid("createdBy").references(() => users.id),
+  quotationId: uuid("quotationId").references(() => outboundQuotations.id),
 });
 
 // =====================

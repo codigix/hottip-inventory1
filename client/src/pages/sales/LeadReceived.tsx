@@ -73,7 +73,7 @@ export default function LeadReceived() {
     queryKey: [
       "/marketing/leads",
       {
-        status: ["CONTACTED", "Contacted", "contacted", "WON", "converted"],
+        status: ["CONTACTED", "Contacted", "contacted", "WON", "converted", "QUOTATION"],
         search: searchQuery.trim(),
       },
     ],
@@ -84,6 +84,7 @@ export default function LeadReceived() {
       params.append("status", "contacted");
       params.append("status", "WON");
       params.append("status", "converted");
+      params.append("status", "QUOTATION");
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
       return apiRequest(`/marketing/leads?${params.toString()}`);
     },

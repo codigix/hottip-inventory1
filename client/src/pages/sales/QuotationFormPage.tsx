@@ -41,6 +41,7 @@ import {
   Building2,
   CreditCard,
   FileText,
+  FileEdit,
   Settings,
   LayoutGrid,
 } from "lucide-react";
@@ -73,17 +74,11 @@ import {
 function VersionHistorySidebar({ 
   quotations, 
   currentQuotation, 
-  reviseFromId,
-  onSave,
-  onApprove,
-  onReject
+  reviseFromId
 }: { 
   quotations: OutboundQuotation[], 
   currentQuotation: any,
   reviseFromId: string | null;
-  onSave: () => void;
-  onApprove: () => void;
-  onReject: () => void;
 }) {
   const sortedQuotations = [...quotations].sort((a, b) => 
     new Date(a.quotationDate).getTime() - new Date(b.quotationDate).getTime()
@@ -139,27 +134,6 @@ function VersionHistorySidebar({
               </div>
             </div>
           ))}
-          
-          {/* Current Revised Version Placeholder */}
-          <div className="p-3 rounded-lg border border-orange-200 bg-orange-50/30 ring-1 ring-orange-200/50">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-semibold text-orange-800 flex items-center gap-2">
-                Quotation v{sortedQuotations.length + 1}
-                <Badge className="bg-orange-500 text-white border-none text-[9px] h-4">
-                  REVISED (CURRENT)
-                </Badge>
-              </div>
-              <div className="text-xs font-bold text-orange-700">
-                ₹{currentTotal.toLocaleString("en-IN")}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-orange-600/70">
-              <Calendar className="h-3 w-3" />
-              {format(new Date(), "dd MMMM yyyy")}
-              <Separator orientation="vertical" className="h-2" />
-              <span>Draft</span>
-            </div>
-          </div>
         </div>
 
         {/* Comparison Details */}
@@ -249,37 +223,6 @@ function VersionHistorySidebar({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Action Bar */}
-      <div className="p-4 border-t bg-slate-50/50 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <Button 
-            type="button"
-            variant="outline"
-            onClick={onReject}
-            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-10 shadow-sm"
-          >
-            <MinusCircle className="h-4 w-4 mr-2" />
-            Reject
-          </Button>
-          <Button 
-            type="button"
-            variant="outline"
-            onClick={onApprove}
-            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold h-10 shadow-sm"
-          >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Approve
-          </Button>
-        </div>
-        <Button 
-          type="button"
-          onClick={onSave}
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 shadow-lg"
-        >
-          Save Revised Quotation
-        </Button>
       </div>
     </div>
   );
@@ -621,6 +564,9 @@ export default function QuotationFormPage() {
     setQuotationItems(prev => prev.filter(item => item.id !== itemId));
   };
 
+  const status = form.watch("status");
+  const isLocked = status === "approved" || status === "rejected";
+
   if ((isEdit && isLoadingQuotation) || (isRevision && isLoadingSource)) {
     return <div className="p-4 text-center text-gray-500">Loading quotation details...</div>;
   }
@@ -643,27 +589,70 @@ export default function QuotationFormPage() {
               Cancel
             </Button>
             
-            <Button 
-              variant="outline" 
-              type="button"
-              onClick={() => {
-                form.setValue("status", "draft");
-                form.handleSubmit((data) => mutation.mutate(data))();
-              }}
-              className="border-slate-300 text-slate-600 hover:bg-slate-50"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Save as Draft
-            </Button>
-            <Button onClick={form.handleSubmit((data) => mutation.mutate(data))} className="shadow-md px-8 bg-primary">
-              <Save className="h-4 w-4 mr-2" />
-              {isEdit ? "Update" : isRevision ? "Save Revised" : "Save"} Quotation
-            </Button>
+            {!isLocked && (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "draft");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-slate-300 text-slate-600 hover:bg-slate-50"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Save as Draft
+                </Button>
+                <Button 
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "rejected");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold"
+                >
+                  <MinusCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button 
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    form.setValue("status", "approved");
+                    form.handleSubmit((data) => mutation.mutate(data))();
+                  }}
+                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button onClick={form.handleSubmit((data) => mutation.mutate(data))} className="shadow-md px-8 bg-primary">
+                  <Save className="h-4 w-4 mr-2" />
+                  {isEdit ? "Update" : isRevision ? "Save Revised" : "Save"} Quotation
+                </Button>
+              </div>
+            )}
+            {isLocked && (
+               <div className="flex items-center gap-3">
+                 <Badge variant="outline" className={`px-4 py-2 ${status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                   {status === 'approved' ? 'Approved & Locked' : 'Rejected'}
+                 </Badge>
+                 <Button 
+                   onClick={() => setLocation(`/sales/outbound-quotations/new?reviseFromId=${id}`)}
+                   className="bg-orange-500 hover:bg-orange-600 text-white shadow-md"
+                 >
+                   <FileEdit className="h-4 w-4 mr-2" />
+                   Revise Quotation
+                 </Button>
+               </div>
+            )}
           </div>
         </div>
 
         <Form {...form}>
           <form className="space-y-2">
+            <fieldset disabled={isLocked} className="space-y-2">
             {/* 1. Basic Information */}
             <Card className="border-none overflow-hidden shadow-sm">
             <CardHeader className="bg-white border-b py-4">
@@ -816,7 +805,7 @@ export default function QuotationFormPage() {
                   <CardDescription className="text-xs">Add molds and define specific quotation items for each.</CardDescription>
                 </div>
               </div>
-              {!isAddingMold && (
+              {!isAddingMold && !isLocked && (
                 <Button type="button" size="sm" onClick={() => setIsAddingMold(true)} className="rounded ">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add New Mold
@@ -885,10 +874,12 @@ export default function QuotationFormPage() {
                   </div>
                   <h3 className="text-sm  text-slate-700">No Molds Configured</h3>
                   <p className="text-gray-500 max-w-xs mx-auto text-xs mt-1">Add mold specifications first, then define items for your quotation.</p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMold(true)} className="mt-6">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Mold
-                  </Button>
+                  {!isLocked && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingMold(true)} className="mt-6">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Mold
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -915,9 +906,11 @@ export default function QuotationFormPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeMoldDetail(mIndex); }} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {!isLocked && (
+                          <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeMoldDetail(mIndex); }} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <div className="text-slate-400">
                           {editingMoldIndex === mIndex ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                         </div>
@@ -956,9 +949,11 @@ export default function QuotationFormPage() {
                               <Settings className="h-4 w-4 text-primary" />
                               Quotation Items for this Mold
                             </h4>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addQuotationItem(mold.id)} className="h-8 border-primary/20 text-primary hover:bg-primary/5">
-                              <Plus className="h-3 w-3 mr-1" /> Add Item
-                            </Button>
+                            {!isLocked && (
+                              <Button type="button" variant="outline" size="sm" onClick={() => addQuotationItem(mold.id)} className="h-8 border-primary/20 text-primary hover:bg-primary/5">
+                                <Plus className="h-3 w-3 mr-1" /> Add Item
+                              </Button>
+                            )}
                           </div>
 
                           <div className="border border-slate-100 rounded-lg overflow-hidden">
@@ -1018,9 +1013,11 @@ export default function QuotationFormPage() {
                                       ₹{(parseFloat(String(item.amount || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="px-2 py-2 text-right">
-                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeQuotationItem(item.id)} className="h-6 w-6 text-slate-300 hover:text-red-500 hover:bg-red-50">
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
+                                      {!isLocked && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeQuotationItem(item.id)} className="h-6 w-6 text-slate-300 hover:text-red-500 hover:bg-red-50">
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      )}
                                     </td>
                                   </tr>
                                 ))}
@@ -1189,32 +1186,24 @@ export default function QuotationFormPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </form>
-      </Form>
-    </div>
-    
-    {isRevision && (
-      <div className="w-[350px] shrink-0 sticky top-0 h-screen overflow-hidden">
-        <VersionHistorySidebar 
-          quotations={customerQuotations}
-          currentQuotation={{
-            ...form.getValues(),
-            quotationItems
-          }}
-          reviseFromId={reviseFromId}
-          onSave={() => form.handleSubmit((data) => mutation.mutate(data))()}
-          onApprove={() => {
-            form.setValue("status", "approved");
-            form.handleSubmit((data) => mutation.mutate(data))();
-          }}
-          onReject={() => {
-            form.setValue("status", "rejected");
-            form.handleSubmit((data) => mutation.mutate(data))();
-          }}
-        />
+            </div>
+            </fieldset>
+          </form>
+        </Form>
       </div>
-    )}
-  </div>
-);
+      
+      {isRevision && (
+        <div className="w-[350px] shrink-0 sticky top-0 h-screen overflow-hidden">
+          <VersionHistorySidebar 
+            quotations={customerQuotations}
+            currentQuotation={{
+              ...form.getValues(),
+              quotationItems
+            }}
+            reviseFromId={reviseFromId}
+          />
+        </div>
+      )}
+    </div>
+  );
 }

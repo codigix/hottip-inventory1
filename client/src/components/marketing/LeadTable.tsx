@@ -69,6 +69,7 @@ import {
 
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
 import FollowUpForm from "./FollowUpForm";
+import EstimationDetailsDialog from "../sales/EstimationDetailsDialog";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
 export default function LeadTable({
@@ -100,6 +101,8 @@ export default function LeadTable({
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
+  const [estimationDialogOpen, setEstimationDialogOpen] = useState(false);
+  const [estimationQuotationId, setEstimationQuotationId] = useState<string | null>(null);
 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -332,6 +335,18 @@ export default function LeadTable({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  if (lead.quotationId) {
+                    setEstimationQuotationId(lead.quotationId);
+                    setEstimationDialogOpen(true);
+                  } else {
+                    toast({
+                      title: "No Quotation Found",
+                      description: "Create a quotation first to view estimation details.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
                 title="View Estimation"
               >
                 <Calculator className="h-4 w-4" />
@@ -596,6 +611,14 @@ export default function LeadTable({
           open={isFollowUpModalOpen}
           onOpenChange={setIsFollowUpModalOpen}
           leadId={followUpLeadId}
+        />
+      )}
+
+      {estimationQuotationId && (
+        <EstimationDetailsDialog
+          open={estimationDialogOpen}
+          onOpenChange={setEstimationDialogOpen}
+          quotationId={estimationQuotationId}
         />
       )}
     </>

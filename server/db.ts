@@ -243,6 +243,21 @@ export const db = drizzle(pool, { schema });
       END $$;
     `);
 
+    // ✅ Ensure missing columns are added to leads
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'leads') THEN
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'quotationId') THEN
+            ALTER TABLE "leads" ADD COLUMN "quotationId" uuid;
+          END IF;
+          IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'previousBudget') THEN
+            ALTER TABLE "leads" ADD COLUMN "previousBudget" numeric;
+          END IF;
+        END IF;
+      END $$;
+    `);
+
     // ✅ Ensure missing columns are added to inbound_quotations
     await client.query(`
       DO $$ 

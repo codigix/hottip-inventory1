@@ -116,7 +116,38 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
   }, [form.relatedId, form.type, allLeads]);
 
   const handleChange = (name: string, value: string) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const newState = { ...prev, [name]: value };
+
+      // Auto-generate link when type changes or related lead changes
+      const isOnlineMeeting = ["WhatsApp Call", "Google Meet", "Zoom Meeting", "Internal Video Call", "WhatsApp Message"].includes(name === "type" ? value : prev.type);
+      
+      if (isOnlineMeeting) {
+        const selectedLead = allLeads.find(l => l.id === (name === "relatedId" ? value : prev.relatedId));
+        const sessionId = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const currentType = name === "type" ? value : prev.type;
+
+        // If type changed or relatedId changed, we might need a new link
+        if (name === "type" || name === "relatedId") {
+          if (currentType === "Google Meet" && (name === "type" || !prev.link)) {
+            newState.link = `https://meet.google.com/${sessionId.toLowerCase().substring(0, 3)}-${sessionId.toLowerCase().substring(3, 7)}-${sessionId.toLowerCase().substring(7, 10)}`;
+          } else if ((currentType === "WhatsApp Call" || currentType === "WhatsApp Message") && (name === "type" || name === "relatedId" || !prev.link)) {
+            const cleanPhone = selectedLead?.phone?.replace(/\D/g, '') || "";
+            newState.link = cleanPhone ? `https://wa.me/${cleanPhone}` : `SESSION-${sessionId}`;
+          } else if (currentType === "Zoom Meeting" && (name === "type" || !prev.link)) {
+            newState.link = `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`;
+          } else if (!prev.link || name === "type") {
+            newState.link = `SESSION-${sessionId}`;
+          }
+        }
+      } else if (name === "type") {
+        // Clear link for non-online meeting types unless manually set
+        if (!["In-Person Meeting", "Demo"].includes(value)) {
+          newState.link = "";
+        }
+      }
+      return newState;
+    });
   };
 
   const followUpMutation = useMutation({

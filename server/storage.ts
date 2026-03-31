@@ -109,6 +109,15 @@ class Storage {
   async getCustomers(): Promise<Customer[]> {
     return await db.select().from(customers).orderBy(desc(customers.createdAt));
   }
+
+  // Get a single customer by ID
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const [row] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
+    return row;
+  }
   // Clients CRUD
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const [row] = await db.insert(customers).values(insertCustomer).returning();

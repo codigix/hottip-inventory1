@@ -590,6 +590,30 @@ export const convertLead = async (
     const conversionData = convertLeadSchema.parse(req.body || {});
 
     const customer = await storage.convertLeadToCustomer(req.params.id);
+
+    // AUTO-CREATE DEAL (FIELD VISIT) ON CONVERSION
+    try {
+      const existingVisits = await storage.getVisitsByLead(req.params.id);
+      if (!existingVisits || existingVisits.length === 0) {
+        await storage.createFieldVisit({
+          leadId: req.params.id,
+          plannedDate: new Date(),
+          visitAddress: existingLead.address || existingLead.city || "Client Address",
+          visitCity: existingLead.city,
+          visitState: existingLead.state,
+          assignedTo: existingLead.assignedTo || req.user!.id,
+          assignedBy: req.user!.id,
+          createdBy: req.user!.id,
+          purpose: "initial_meeting",
+          status: "Scheduled",
+          preVisitNotes: `Auto-created deal on lead conversion. Budget: ${existingLead.estimatedBudget || 'N/A'}`
+        });
+        console.log(`✅ Auto-created initial deal for converted lead ${req.params.id}`);
+      }
+    } catch (dealErr) {
+      console.error("⚠️ Failed to auto-create deal on conversion:", dealErr);
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "CONVERT_LEAD",
@@ -614,9 +638,9 @@ export const syncLeadsToDeals = async (
   res: Response
 ): Promise<void> => {
   try {
-    const dealerStatuses = ["contacted", "quotation", "qualified"];
+    const dealerStatuses = ["contacted", "quotation", "qualified", "won", "converted"];
     const allLeads = await storage.getLeads();
-    const leadsToSync = allLeads.filter(l => l.status && dealerStatuses.includes(l.status));
+    const leadsToSync = allLeads.filter(l => l.status && dealerStatuses.includes(l.status.toLowerCase()));
     
     let createdCount = 0;
     let updatedCount = 0;
@@ -625,7 +649,7 @@ export const syncLeadsToDeals = async (
       const existingVisits = await storage.getVisitsByLead(lead.id);
       
       let targetPurpose = "initial_meeting";
-      if (lead.status === "quotation") {
+      if (lead.status?.toLowerCase() === "quotation") {
         targetPurpose = "quotation_discussion";
       }
 

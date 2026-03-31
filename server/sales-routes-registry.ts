@@ -18,7 +18,9 @@ import {
   materialRequests,
   materialRequestItems,
   products,
-  spareParts
+  spareParts,
+  leads,
+  fieldVisits
 } from "@shared/schema";
 import { storage } from "./storage";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
@@ -488,6 +490,21 @@ export function registerSalesRoutes(
     }
   });
 
+  app.get("/api/customers/:id", requireAuth, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (e: any) {
+      console.error(`❌ Error in /api/customers/${req.params.id}:`, e);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch customer", details: e.message });
+    }
+  });
+
   app.put("/api/customers/:id", requireAuth, async (req, res) => {
     try {
       const id = req.params.id;
@@ -731,6 +748,22 @@ export function registerSalesRoutes(
       const id = req.params.id;
       const body = { ...req.body };
 
+      // Get existing quotation to check status
+      const existingQuotation = await storage.getOutboundQuotation(id);
+      if (!existingQuotation) {
+        return res.status(404).json({ error: "Outbound quotation not found" });
+      }
+
+      // Check if it's already approved - lock editing if so
+      if (existingQuotation.status === "approved" && body.status !== "approved") {
+        // We only allow status updates if explicitly needed, but general editing is locked
+        // For now, let's block everything if it's already approved to enforce the lock
+        return res.status(403).json({ 
+          error: "This quotation is already approved and locked for editing.",
+          details: "Approved quotations cannot be modified. Please create a revision if changes are needed."
+        });
+      }
+
       // Convert date strings to Date objects to avoid TypeError: value.toISOString is not a function
       if (body.quotationDate && typeof body.quotationDate === "string") {
         body.quotationDate = new Date(body.quotationDate);
@@ -744,6 +777,97 @@ export function registerSalesRoutes(
         updatedAt: new Date()
       });
       const quotation = await storage.updateOutboundQuotation(id, quotationData);
+
+      // --- AUTOMATIC LEAD & DEAL (FIELD VISIT) CREATION ON APPROVAL ---
+      if (body.status === "approved" && existingQuotation.status !== "approved") {
+        try {
+          console.log(`🚀 [APPROVAL] Processing lead/deal for approved quotation ${quotation.quotationNumber}`);
+          
+          // 1. Manage Lead
+          let targetLeadId: string | null = null;
+          
+          // Check if a lead already exists for this quotation
+          const existingLeads = await db.select().from(leads).where(eq(leads.quotationId, id)).limit(1);
+          
+          if (existingLeads.length > 0) {
+            targetLeadId = existingLeads[0].id;
+            // Update existing lead status to 'QUOTATION' and update budget
+            await db.update(leads).set({
+              status: "QUOTATION",
+              previousBudget: existingLeads[0].estimatedBudget,
+              estimatedBudget: quotation.totalAmount,
+            }).where(eq(leads.id, targetLeadId));
+            console.log(`✅ Updated existing lead ${targetLeadId} status to 'QUOTATION' and updated budget from ${existingLeads[0].estimatedBudget} to ${quotation.totalAmount}`);
+          } else {
+            // Try to find lead by company email or phone if possible, or create new
+            let customerDetails: any = null;
+            if (quotation.customerId) {
+              const customersFound = await db.select().from(customersTable).where(eq(customersTable.id, quotation.customerId)).limit(1);
+              if (customersFound.length > 0) {
+                customerDetails = customersFound[0];
+              }
+            }
+
+            const fullName = (customerDetails?.name || quotation.companyName || "Unknown Customer").trim();
+            const nameParts = fullName.split(/\s+/);
+            const firstName = nameParts[0] || "Customer";
+            const lastName = nameParts.slice(1).join(" ") || " ";
+
+            const [newLead] = await db.insert(leads).values({
+              firstName,
+              lastName,
+              companyName: customerDetails?.company || quotation.companyName || "Unknown Company",
+              email: customerDetails?.email || quotation.companyEmail || null,
+              phone: customerDetails?.phone || quotation.companyPhone || null,
+              address: customerDetails?.address || quotation.companyAddress || null,
+              city: customerDetails?.city || null,
+              state: customerDetails?.state || null,
+              zipCode: customerDetails?.zipCode || null,
+              status: "QUOTATION",
+              quotationId: quotation.id,
+              estimatedBudget: quotation.totalAmount,
+              previousBudget: null,
+              priority: "medium",
+              assignedTo: quotation.userId,
+              createdBy: quotation.userId,
+              requirementDescription: `Auto-created from Approved Quotation: ${quotation.quotationNumber}`,
+            }).returning();
+            
+            targetLeadId = newLead.id;
+            console.log(`✅ Created new lead ${targetLeadId} with status 'QUOTATION'`);
+          }
+
+          // 2. Create Field Visit (Deal) if one doesn't exist for this purpose
+          if (targetLeadId) {
+            const existingVisits = await db.select().from(fieldVisits)
+              .where(and(
+                eq(fieldVisits.leadId, targetLeadId),
+                eq(fieldVisits.purpose, "quotation_discussion")
+              )).limit(1);
+
+            if (existingVisits.length === 0) {
+              const visitNumber = `VN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+              await db.insert(fieldVisits).values({
+                visitNumber,
+                leadId: targetLeadId,
+                plannedDate: new Date(),
+                assignedTo: quotation.userId,
+                assignedBy: quotation.userId,
+                createdBy: quotation.userId,
+                visitAddress: quotation.companyAddress || "Customer Address",
+                visitCity: quotation.companyCity || null,
+                visitState: quotation.companyState || null,
+                purpose: "quotation_discussion",
+                status: "Scheduled",
+                preVisitNotes: `Auto-created deal for approved quotation ${quotation.quotationNumber}`,
+              });
+              console.log(`✅ Created Field Visit (Deal) ${visitNumber} for lead ${targetLeadId}`);
+            }
+          }
+        } catch (leadError) {
+          console.error("⚠️ Failed to auto-manage lead/deal for approved quotation:", leadError);
+        }
+      }
 
       // --- AUTOMATIC MATERIAL REQUEST CREATION ---
       // If status is changed to 'sent', automatically create a material request
