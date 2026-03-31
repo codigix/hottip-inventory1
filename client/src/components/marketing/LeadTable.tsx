@@ -69,6 +69,7 @@ import {
 
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
 import FollowUpForm from "./FollowUpForm";
+import FollowUpContent from "./FollowUpContent";
 import EstimationDetailsDialog from "../sales/EstimationDetailsDialog";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
@@ -441,6 +442,15 @@ export default function LeadTable({
           isLoading={isLoading}
           searchable={false}
           defaultPageSize={10}
+          expandableContent={(lead) => (
+            <FollowUpContent
+              leadId={lead.id}
+              onAddFollowUp={(id) => {
+                setFollowUpLeadId(id);
+                setIsFollowUpModalOpen(true);
+              }}
+            />
+          )}
         />
       </div>
 

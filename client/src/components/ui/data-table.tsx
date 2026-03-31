@@ -37,6 +37,7 @@ import {
   Search, 
   ChevronUp, 
   ChevronDown, 
+  ChevronRight,
   ChevronsUpDown,
   ArrowUpDown
 } from "lucide-react";
@@ -61,6 +62,8 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   pageSizeOptions?: number[];
   defaultPageSize?: number;
+  onRowClick?: (item: T) => void;
+  expandableContent?: (item: T) => React.ReactNode;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -75,6 +78,8 @@ export function DataTable<T extends Record<string, any>>({
   isLoading = false,
   pageSizeOptions = [5, 10, 20, 50, 100],
   defaultPageSize = 10,
+  onRowClick,
+  expandableContent,
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' | null }>({
@@ -83,6 +88,7 @@ export function DataTable<T extends Record<string, any>>({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   // Default to first column if searchKey not provided but searchable is true
   const effectiveSearchKey = searchKey || (searchable && columns.length > 0 ? columns[0].key : undefined);
@@ -209,6 +215,7 @@ export function DataTable<T extends Record<string, any>>({
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow className="hover:bg-transparent border-slate-200">
+                {expandableContent && <TableHead className="w-10"></TableHead>}
                 {columns.map((column, index) => (
                   <TableHead 
                     key={index}
@@ -247,6 +254,7 @@ export function DataTable<T extends Record<string, any>>({
               {isLoading ? (
                 Array.from({ length: pageSize }).map((_, i) => (
                   <TableRow key={i} className="border-slate-100">
+                    {expandableContent && <TableCell className="w-10"><Skeleton className="h-4 w-4 bg-slate-100" /></TableCell>}
                     {columns.map((_, j) => (
                       <TableCell key={j} className="">
                         <Skeleton className="h-4 w-full bg-slate-100" />
@@ -261,7 +269,30 @@ export function DataTable<T extends Record<string, any>>({
                 ))
               ) : paginatedData.length > 0 ? (
                 paginatedData.map((item, rowIndex) => (
-                  <TableRow key={item.id || rowIndex} className="hover:bg-slate-50/50 transition-colors border-slate-100 group">
+                  <>
+                  <TableRow 
+                    key={item.id || rowIndex} 
+                    className={cn(
+                      "hover:bg-slate-50/50 transition-colors border-slate-100 group",
+                      (onRowClick || expandableContent) && "cursor-pointer",
+                      expandedRowId === item.id && "bg-slate-50/80"
+                    )}
+                    onClick={() => {
+                      if (expandableContent) {
+                        setExpandedRowId(expandedRowId === item.id ? null : item.id);
+                      }
+                      onRowClick?.(item);
+                    }}
+                  >
+                    {expandableContent && (
+                      <TableCell className="w-10">
+                        {expandedRowId === item.id ? (
+                          <ChevronDown className="h-4 w-4 text-primary" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                        )}
+                      </TableCell>
+                    )}
                     {columns.map((column, colIndex) => (
                       <TableCell key={colIndex} className=" text-xs text-slate-600">
                         {column.cell 
@@ -276,6 +307,7 @@ export function DataTable<T extends Record<string, any>>({
                             <Button
                               variant="ghost"
                               className="h-8 w-8 p-0  group-hover:opacity-100 transition-opacity focus:opacity-100"
+                              onClick={(e) => e.stopPropagation()}
                               data-testid={`button-actions-${rowIndex}`}
                             >
                               <MoreHorizontal className="h-4 w-4 text-slate-400" />
@@ -284,7 +316,10 @@ export function DataTable<T extends Record<string, any>>({
                           <DropdownMenuContent align="end" className="w-40">
                             {onView && (
                               <DropdownMenuItem
-                                onClick={() => onView(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onView(item);
+                                }}
                                 data-testid={`button-view-${rowIndex}`}
                                 className="text-slate-600 cursor-pointer"
                               >
@@ -293,7 +328,10 @@ export function DataTable<T extends Record<string, any>>({
                             )}
                             {onEdit && (
                               <DropdownMenuItem
-                                onClick={() => onEdit(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEdit(item);
+                                }}
                                 data-testid={`button-edit-${rowIndex}`}
                                 className="text-slate-600 cursor-pointer"
                               >
@@ -302,7 +340,10 @@ export function DataTable<T extends Record<string, any>>({
                             )}
                             {onDelete && (
                               <DropdownMenuItem
-                                onClick={() => onDelete(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDelete(item);
+                                }}
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
                                 data-testid={`button-delete-${rowIndex}`}
                               >
@@ -314,6 +355,16 @@ export function DataTable<T extends Record<string, any>>({
                       </TableCell>
                     )}
                   </TableRow>
+                  {expandedRowId === item.id && expandableContent && (
+                    <TableRow key={`expand-${item.id || rowIndex}`} className="bg-slate-50/30 border-slate-100">
+                      <TableCell colSpan={columns.length + (onEdit || onDelete || onView ? 1 : 0) + 1} className="p-0">
+                        <div className="p-4 border-t border-slate-100">
+                          {expandableContent(item)}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 ))
               ) : (
                 <TableRow>
