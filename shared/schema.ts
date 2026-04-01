@@ -374,6 +374,8 @@ export const marketingTasks = pgTable("marketing_tasks", {
   customerId: uuid("customerId").references(() => customers.id),
   estimatedHours: numeric("estimatedHours", { precision: 5, scale: 2 }),
   isRecurring: boolean("is_recurring").default(false),
+  attachmentPaths: text("attachmentPaths").array(),
+  outcome: text("outcome"),
   createdAt: timestamp("created_at").defaultNow(),
   completedDate: timestamp("completed_date"),
 });
@@ -1965,6 +1967,8 @@ export const insertMarketingTaskSchema = z.object({
   customerId: z.string().uuid().optional().or(z.null()),
   estimatedHours: z.number().optional().or(z.string().optional()),
   isRecurring: z.boolean().optional(),
+  attachmentPaths: z.array(z.string()).optional(),
+  outcome: z.string().optional(),
 });
 
 export const insertMarketingAttendanceSchema = z.object({

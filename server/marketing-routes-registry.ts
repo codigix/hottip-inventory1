@@ -29,6 +29,14 @@ import { ObjectStorageService } from "./objectStorage";
 // Object storage service for photo uploads
 const objectStorage = new ObjectStorageService();
 
+// Helper function to parse dates
+const parseDate = (dateVal: any) => {
+  if (dateVal === undefined) return undefined;
+  if (!dateVal || dateVal === "" || dateVal === "null") return null;
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 // Authentication and Authorization types
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -187,7 +195,15 @@ export const createFollowUpTask = async (
       amount, 
       dueDate, 
       description,
-      relatedType 
+      relatedType,
+      clientEmail,
+      clientPhone,
+      invitationMessage,
+      emailSubject,
+      ccEmail,
+      bccEmail,
+      emailBody,
+      attachments
     } = req.body;
 
     if (!leadId) {
@@ -202,7 +218,21 @@ export const createFollowUpTask = async (
     if (message) dynamicDescription += `Message: ${message}\n`;
     if (amount) dynamicDescription += `Amount: ₹${amount}\n`;
     if (dueDate) dynamicDescription += `Due Date: ${dueDate}\n`;
+    
+    // Email & Client fields
+    if (clientEmail) dynamicDescription += `To: ${clientEmail}\n`;
+    if (clientPhone) dynamicDescription += `Phone: ${clientPhone}\n`;
+    if (invitationMessage) dynamicDescription += `Invitation: ${invitationMessage}\n`;
+    if (emailSubject) dynamicDescription += `Subject: ${emailSubject}\n`;
+    if (ccEmail) dynamicDescription += `CC: ${ccEmail}\n`;
+    if (bccEmail) dynamicDescription += `BCC: ${bccEmail}\n`;
+    if (emailBody) dynamicDescription += `Body: ${emailBody}\n`;
+    if (attachments) dynamicDescription += `Attachments: ${typeof attachments === 'string' ? attachments : JSON.stringify(attachments)}\n`;
+
     if (description) dynamicDescription += `Notes: ${description}\n`;
+
+    // Automatically complete previous pending follow-ups for this lead
+    await storage.completePreviousFollowUps(leadId);
 
     const taskData = {
       title: subject || `Follow-up: ${type}`,
@@ -328,13 +358,6 @@ export const updateLead = async (
     const leadData = updateLeadSchema.parse(req.body);
     
     // Robust Date handling for update
-    const parseDate = (dateVal: any) => {
-      if (dateVal === undefined) return undefined;
-      if (!dateVal || dateVal === "" || dateVal === "null") return null;
-      const d = new Date(dateVal);
-      return isNaN(d.getTime()) ? null : d;
-    };
-
     if (req.body.followUpDate !== undefined) {
       leadData.followUpDate = parseDate(req.body.followUpDate);
     }
@@ -1521,6 +1544,18 @@ export const updateMarketingTask = async (
     }
 
     const taskData = insertMarketingTaskSchema.partial().parse(req.body);
+    
+    // Robust Date handling for update
+    if (req.body.dueDate !== undefined) {
+      taskData.dueDate = parseDate(req.body.dueDate) as any;
+    }
+    if (req.body.startedDate !== undefined) {
+      taskData.startedDate = parseDate(req.body.startedDate) as any;
+    }
+    if (req.body.completedDate !== undefined) {
+      taskData.completedDate = parseDate(req.body.completedDate) as any;
+    }
+
     const task = await storage.updateMarketingTask(req.params.id, taskData);
     await storage.createActivity({
       userId: req.user!.id,
@@ -1531,6 +1566,7 @@ export const updateMarketingTask = async (
     });
     res.json(task);
   } catch (error) {
+    console.error("Error updating marketing task:", error);
     if (error instanceof z.ZodError) {
       res
         .status(400)
@@ -1595,9 +1631,21 @@ export const updateMarketingTaskStatus = async (
       return;
     }
 
-    const { status, notes } = updateMarketingTaskStatusSchema.parse(req.body);
+    const { status, notes, outcome, attachmentPaths, completedDate, leadId, leadStatus } = req.body;
 
-    const task = await storage.updateMarketingTask(req.params.id, { status });
+    const task = await storage.updateMarketingTask(req.params.id, { 
+      status,
+      outcome: outcome || notes,
+      attachmentPaths: attachmentPaths,
+      completedDate: completedDate ? parseDate(completedDate) : new Date()
+    });
+
+    // If leadId and leadStatus are provided, update the lead's status
+    if (leadId && leadStatus) {
+      console.log(`Updating lead ${leadId} status to ${leadStatus} based on task outcome`);
+      await storage.updateLead(leadId, { status: leadStatus });
+    }
+
     await storage.createActivity({
       userId: req.user!.id,
       action: "UPDATE_MARKETING_TASK_STATUS",

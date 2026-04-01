@@ -70,6 +70,7 @@ import {
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
 import FollowUpForm from "./FollowUpForm";
 import FollowUpContent from "./FollowUpContent";
+import CompleteFollowUpDialog from "./CompleteFollowUpDialog";
 import EstimationDetailsDialog from "../sales/EstimationDetailsDialog";
 import type { LeadWithAssignee, LeadStatus } from "@/types";
 
@@ -101,7 +102,10 @@ export default function LeadTable({
   const [newStatus, setNewStatus] = useState<LeadStatus | null>(null);
   const [viewingLead, setViewingLead] = useState<LeadWithAssignee | null>(null);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isCompleteFollowUpOpen, setIsCompleteFollowUpOpen] = useState(false);
+  const [completeFollowUpTaskId, setCompleteFollowUpTaskId] = useState<string | null>(null);
   const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
+  const [editFollowUpId, setEditFollowUpId] = useState<string | null>(null);
   const [estimationDialogOpen, setEstimationDialogOpen] = useState(false);
   const [estimationQuotationId, setEstimationQuotationId] = useState<string | null>(null);
 
@@ -111,7 +115,7 @@ export default function LeadTable({
 
   // ✅ Sort leads by createdAt (LIFO)
   const sortedLeads = useMemo(() => {
-    return [...leads].sort((a, b) => {
+    return [...(leads || [])].sort((a, b) => {
       const aDate = new Date(a.createdAt || 0).getTime();
       const bDate = new Date(b.createdAt || 0).getTime();
       return bDate - aDate;
@@ -121,9 +125,9 @@ export default function LeadTable({
   // ✅ Delete lead mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/marketing/leads/${id}`, { method: "DELETE" }),
+      apiRequest(`/api/marketing/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       toast({ title: "Lead deleted successfully!" });
       setDeleteLeadId(null);
     },
@@ -132,13 +136,13 @@ export default function LeadTable({
   // ✅ Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      apiRequest(`/marketing/leads/${id}/status`, {
+      apiRequest(`/api/marketing/leads/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title:
           variables.status === "WON"
@@ -153,10 +157,10 @@ export default function LeadTable({
   // ✅ Convert lead mutation
   const convertMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest(`/marketing/leads/${id}/convert`, { method: "POST" }),
+      apiRequest(`/api/marketing/leads/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/marketing/marketing-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks"] });
       toast({
         title: "Lead confirmed for Sales and handed over!",
       });
@@ -358,6 +362,7 @@ export default function LeadTable({
                 className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
                 onClick={() => {
                   setFollowUpLeadId(lead.id);
+                  setEditFollowUpId(null);
                   setIsFollowUpModalOpen(true);
                 }}
                 title="Follow-up"
@@ -400,6 +405,7 @@ export default function LeadTable({
                 className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
                 onClick={() => {
                   setFollowUpLeadId(lead.id);
+                  setEditFollowUpId(null);
                   setIsFollowUpModalOpen(true);
                 }}
                 title="Follow-up"
@@ -437,7 +443,7 @@ export default function LeadTable({
     <>
       <div className="bg-white rounded-md">
         <DataTable
-          data={leads}
+          data={sortedLeads}
           columns={columns}
           isLoading={isLoading}
           searchable={false}
@@ -445,9 +451,20 @@ export default function LeadTable({
           expandableContent={(lead) => (
             <FollowUpContent
               leadId={lead.id}
+              leadStatus={lead.status}
               onAddFollowUp={(id) => {
                 setFollowUpLeadId(id);
+                setEditFollowUpId(null);
                 setIsFollowUpModalOpen(true);
+              }}
+              onEditFollowUp={(lId, tId) => {
+                setFollowUpLeadId(lId);
+                setEditFollowUpId(tId);
+                setIsFollowUpModalOpen(true);
+              }}
+              onCompleteFollowUp={(_, tId) => {
+                setCompleteFollowUpTaskId(tId);
+                setIsCompleteFollowUpOpen(true);
               }}
             />
           )}
@@ -619,8 +636,15 @@ export default function LeadTable({
       {followUpLeadId && (
         <FollowUpForm
           open={isFollowUpModalOpen}
-          onOpenChange={setIsFollowUpModalOpen}
+          onOpenChange={(open) => {
+            setIsFollowUpModalOpen(open);
+            if (!open) {
+              setFollowUpLeadId(null);
+              setEditFollowUpId(null);
+            }
+          }}
           leadId={followUpLeadId}
+          editId={editFollowUpId}
         />
       )}
 
@@ -629,6 +653,17 @@ export default function LeadTable({
           open={estimationDialogOpen}
           onOpenChange={setEstimationDialogOpen}
           quotationId={estimationQuotationId}
+        />
+      )}
+
+      {completeFollowUpTaskId && (
+        <CompleteFollowUpDialog
+          open={isCompleteFollowUpOpen}
+          onOpenChange={(open) => {
+            setIsCompleteFollowUpOpen(open);
+            if (!open) setCompleteFollowUpTaskId(null);
+          }}
+          taskId={completeFollowUpTaskId}
         />
       )}
     </>

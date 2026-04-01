@@ -114,14 +114,19 @@ export default function FieldVisits() {
       const matchesAssignee = assigneeFilter === "all" || v.assignedTo === assigneeFilter;
 
       if (matchesAssignee) {
-        if (v.lead?.status === "lost") {
+        const leadStatus = v.lead?.status?.toLowerCase();
+        
+        if (leadStatus === "lost") {
           columns.lost.push(v);
-        } else if (v.purpose === "closing" && v.status?.toLowerCase() === "completed") {
+        } else if ((v.purpose === "closing" && v.status?.toLowerCase() === "completed") || leadStatus === "won") {
           columns.won.push(v);
-        } else if (v.purpose === "quotation_discussion") {
+        } else if (v.purpose === "quotation_discussion" || leadStatus === "quotation") {
           columns.quotation.push(v);
+        } else if (leadStatus === "qualified" || leadStatus === "converted" || leadStatus === "contacted") {
+          // Explicitly include relevant statuses in Converted Lead column
+          columns.converted.push(v);
         } else {
-          // Default to converted for all other qualified/active deals
+          // Default to converted for all other active deals
           columns.converted.push(v);
         }
       }

@@ -528,25 +528,17 @@ export default function Leads() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 h-full">
               {/* Kanban Columns */}
               {[
-                { id: "new", label: "Not Contacted", color: "bg-blue-500", border: "border-t-blue-500" },
-                { id: "contacted", label: "Contacted", color: "bg-yellow-500", border: "border-t-yellow-500" },
-                { id: "qualified", label: "Qualified", color: "bg-green-500", border: "border-t-green-500" },
-                { id: "lost", label: "Lost", color: "bg-red-500", border: "border-t-red-500" }
+                { id: "NOT_CONTACTED", label: "Not Contacted", color: "bg-blue-500", border: "border-t-blue-500" },
+                { id: "CONTACTED", label: "Contacted", color: "bg-amber-500", border: "border-t-amber-500" },
+                { id: "QUALIFIED", label: "Qualified", color: "bg-green-500", border: "border-t-green-500" },
+                { id: "LOST", label: "Lost", color: "bg-red-500", border: "border-t-red-500" }
               ].map((column) => {
                 const columnLeads = leads.filter(l => {
-                  if (column.id === "new") {
-                    return l.status === "new" || l.status === "NOT_CONTACTED";
+                  const status = l.status?.toUpperCase();
+                  if (column.id === "NOT_CONTACTED") {
+                    return status === "NEW" || status === "NOT_CONTACTED";
                   }
-                  if (column.id === "contacted") {
-                    return l.status === "contacted" || l.status === "CONTACTED";
-                  }
-                  if (column.id === "qualified") {
-                    return l.status === "qualified" || l.status === "QUALIFIED";
-                  }
-                  if (column.id === "lost") {
-                    return l.status === "lost" || l.status === "LOST";
-                  }
-                  return l.status === column.id;
+                  return status === column.id;
                 });
                 const totalBudget = columnLeads.reduce((sum, l) => sum + (l.estimatedBudget ? parseFloat(l.estimatedBudget) : 0), 0);
                 

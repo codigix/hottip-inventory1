@@ -1708,29 +1708,51 @@ class Storage {
       query = query.where(and(...conditions)) as any;
     }
 
-    const rows = await query.orderBy(desc(marketingTasks.createdAt));
-    console.log(`📋 [STORAGE] getMarketingTasks returned ${rows.length} results`);
-    if (rows.length > 0) {
-      console.log("🔍 [STORAGE] First task sample:", JSON.stringify({
-        id: rows[0].task.id,
-        title: rows[0].task.title,
-        assignedTo: rows[0].task.assignedTo,
-        assignedToUser: rows[0].assignedToUser
-      }, null, 2));
+    try {
+      const rows = await query.orderBy(desc(marketingTasks.createdAt));
+      console.log(`📋 [STORAGE] getMarketingTasks returned ${rows.length} results`);
+      if (rows.length > 0) {
+        console.log("🔍 [STORAGE] First task sample:", JSON.stringify({
+          id: rows[0].task.id,
+          title: rows[0].task.title,
+          assignedTo: rows[0].task.assignedTo,
+          assignedToUser: rows[0].assignedToUser
+        }, null, 2));
+      }
+      return rows.map(r => ({
+        ...r.task,
+        assignedToUser: r.assignedToUser,
+        lead: r.lead
+      }));
+    } catch (error) {
+      console.error("❌ [STORAGE] getMarketingTasks Error:", error);
+      throw error;
     }
-    return rows.map(r => ({
-      ...r.task,
-      assignedToUser: r.assignedToUser,
-      lead: r.lead
-    }));
   }
 
-  async getMarketingTask(id: string): Promise<MarketingTask | undefined> {
+  async getMarketingTask(id: string): Promise<any | undefined> {
     const [row] = await db
-      .select()
+      .select({
+        task: marketingTasks,
+        lead: {
+          id: leads.id,
+          firstName: leads.firstName,
+          lastName: leads.lastName,
+          companyName: leads.companyName,
+          email: leads.email,
+          phone: leads.phone,
+        }
+      })
       .from(marketingTasks)
+      .leftJoin(leads, eq(marketingTasks.leadId, leads.id))
       .where(eq(marketingTasks.id, id));
-    return row;
+    
+    if (!row) return undefined;
+
+    return {
+      ...row.task,
+      lead: row.lead
+    };
   }
 
   async createMarketingTask(
@@ -1760,6 +1782,25 @@ class Storage {
 
   async deleteMarketingTask(id: string): Promise<void> {
     await db.delete(marketingTasks).where(eq(marketingTasks.id, id));
+  }
+
+  async completePreviousFollowUps(leadId: string): Promise<void> {
+    await db
+      .update(marketingTasks)
+      .set({ 
+        status: "completed",
+        completedDate: new Date()
+      })
+      .where(
+        and(
+          eq(marketingTasks.leadId, leadId),
+          eq(marketingTasks.type, "follow_up"),
+          or(
+            eq(marketingTasks.status, "pending"),
+            eq(marketingTasks.status, "in_progress")
+          )
+        )
+      );
   }
 
   // =====================

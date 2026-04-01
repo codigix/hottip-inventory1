@@ -286,11 +286,6 @@ export default function LeadDetails() {
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row justify-between gap-4">
               <div className="flex gap-4">
-                <Avatar className="h-12 w-12 border-2 border-slate-100">
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                    {lead.firstName[0]}{lead.lastName[0]}
-                  </AvatarFallback>
-                </Avatar>
                 <div className="space-y-0.5">
                   <h1 className="text-lg font-bold text-slate-900 leading-tight">{fullName}</h1>
                   <div className="flex items-center gap-2 text-slate-500">
@@ -327,51 +322,9 @@ export default function LeadDetails() {
                   </div>
                 </div>
               </div>
-
-              {/* Quick Actions */}
-              <div className="flex flex-wrap gap-1.5 items-start h-fit">
-                <Button 
-                  onClick={() => handleAction("CALL", "Outgoing call to lead")}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 h-8 text-xs px-3"
-                >
-                  <Phone className="h-3.5 w-3.5" /> Call
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => handleAction("WHATSAPP", "WhatsApp message sent")}
-                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-1.5 h-8 text-xs px-3"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setIsFollowUpModalOpen(true)}
-                  className="border-blue-200 text-blue-600 hover:bg-blue-50 gap-1.5 h-8 text-xs px-3"
-                >
-                  <Calendar className="h-3.5 w-3.5" /> Follow-up
-                </Button>
-              </div>
             </div>
 
             <Separator className="my-4" />
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => convertToDealMutation.mutate()}
-                className="bg-purple-600 hover:bg-purple-700 text-white gap-2 h-9 text-xs"
-                disabled={lead.status === "WON" || lead.status === "converted" || convertToDealMutation.isPending}
-              >
-                <Briefcase className="h-3.5 w-3.5" /> 
-                {lead.status === "WON" || lead.status === "converted" ? "Lead is Deal" : "Create Deal"}
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => handleAction("QUOTATION", "Quotation shared with lead")}
-                className="gap-2 h-9 text-xs"
-              >
-                <FileText className="h-3.5 w-3.5" /> Quotation
-              </Button>
-            </div>
           </CardContent>
         </Card>
 

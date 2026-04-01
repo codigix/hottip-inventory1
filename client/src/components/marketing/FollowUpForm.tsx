@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +35,10 @@ import {
   AlertCircle,
   Paperclip,
   FilePlus,
+  X,
+  FileText
 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface User {
@@ -50,17 +53,66 @@ interface Lead {
   lastName: string;
   email?: string;
   phone?: string;
+  quotationId?: string;
 }
 
 interface FollowUpFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string;
+  editId?: string | null;
 }
 
-export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFormProps) {
+export default function FollowUpForm({ open, onOpenChange, leadId, editId }: FollowUpFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [attachments, setAttachments] = useState<{name: string, path: string}[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const { uploadURL } = await apiRequest<{ uploadURL: string }>("/objects/upload", {
+          method: "POST"
+        });
+
+        const response = await fetch(uploadURL, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type }
+        });
+
+        if (!response.ok) throw new Error("Upload failed");
+        
+        const { path } = await response.json();
+        setAttachments(prev => [...prev, { name: file.name, path }]);
+      }
+      toast({ title: "Files uploaded successfully" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const attachQuotation = () => {
+    if (lead?.quotationId) {
+      setAttachments(prev => {
+        if (prev.some(a => a.path.includes(lead.quotationId!))) return prev;
+        return [...prev, { name: "Quotation PDF", path: `/api/sales/quotations/${lead.quotationId}/pdf` }];
+      });
+      toast({ title: "Quotation attached" });
+    } else {
+      toast({ title: "No quotation found", description: "This lead has no associated quotation.", variant: "destructive" });
+    }
+  };
 
   const [form, setForm] = useState({
     relatedType: "Lead",
@@ -97,23 +149,117 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
     select: (data: any) => data.lead
   });
 
+  const { data: editTask } = useQuery<MarketingTask>({
+    queryKey: [`/api/marketing/marketing-tasks/${editId}`],
+    enabled: !!editId && open,
+    queryFn: () => apiRequest(`/marketing/marketing-tasks/${editId}`),
+  });
+
   const { data: allLeads = [] } = useQuery<Lead[]>({
-    queryKey: ["/marketing/leads"],
+    queryKey: ["/api/marketing/leads"],
     enabled: open,
-    select: (data: any) => data || []
+    queryFn: () => apiRequest("/marketing/leads"),
   });
 
   useEffect(() => {
-    const selectedLead = allLeads.find(l => l.id === form.relatedId);
-    if (selectedLead) {
-      setForm(prev => ({
-        ...prev,
-        clientEmail: selectedLead.email || "",
-        clientPhone: selectedLead.phone || "",
-        invitationMessage: `Dear ${selectedLead.firstName} ${selectedLead.lastName}, I would like to schedule a ${form.type || 'meeting'} to discuss our collaboration. Looking forward to connecting with you.`
-      }));
+    if (editTask) {
+      setForm({
+        relatedType: "Lead",
+        relatedId: editTask.leadId || leadId,
+        subject: editTask.title.replace("Follow-up: ", "").replace("Scheduled ", ""),
+        type: editTask.type === "follow_up" ? "Meeting" : editTask.type, // Basic mapping
+        priority: editTask.priority as any,
+        date: editTask.dueDate ? format(new Date(editTask.dueDate), "yyyy-MM-dd") : "",
+        time: editTask.dueDate ? format(new Date(editTask.dueDate), "HH:mm") : "",
+        assignedTo: editTask.assignedTo || "",
+        link: "", // Parse from description if needed
+        location: "", // Parse from description if needed
+        message: "",
+        amount: "",
+        dueDate: "",
+        description: editTask.description || "",
+        clientEmail: "",
+        clientPhone: "",
+        invitationMessage: "",
+        ccEmail: "",
+        bccEmail: "",
+        emailSubject: "",
+        emailBody: "",
+      });
+      
+      // Try to parse dynamic fields from description
+      if (editTask.description) {
+        const desc = editTask.description;
+        const prefixes = [
+          "Type:", "Link:", "Location:", "Message:", "Amount:", "Due Date:", 
+          "To:", "Phone:", "Invitation:", "Subject:", "CC:", "BCC:", "Body:", 
+          "Attachments:", "Notes:"
+        ].join('|');
+        
+        const extractField = (fieldName: string, isMultiline = false) => {
+          const regex = new RegExp(`${fieldName}:\\s*([\\s\\S]*?)(?=\\n(?:${prefixes})|$)`, 'i');
+          const match = desc.match(regex);
+          return match ? match[1].trim() : null;
+        };
+
+        const typeValue = extractField("Type");
+        const linkValue = extractField("Link");
+        const locValue = extractField("Location");
+        const msgValue = extractField("Message");
+        const amtValue = extractField("Amount");
+        const notesValue = extractField("Notes");
+        const toValue = extractField("To");
+        const phoneValue = extractField("Phone");
+        const invitationValue = extractField("Invitation", true);
+        const subValue = extractField("Subject");
+        const ccValue = extractField("CC");
+        const bccValue = extractField("BCC");
+        const bodyValue = extractField("Body", true);
+        const attachmentsValue = extractField("Attachments");
+
+        if (attachmentsValue) {
+          try {
+            setAttachments(JSON.parse(attachmentsValue));
+          } catch (e) {
+            console.error("Failed to parse attachments", e);
+          }
+        }
+
+        setForm(prev => ({
+          ...prev,
+          type: typeValue || prev.type,
+          link: linkValue || "",
+          location: locValue || "",
+          message: msgValue || "",
+          amount: amtValue ? amtValue.replace(/[^0-9.]/g, "") : "",
+          description: notesValue || prev.description,
+          clientEmail: toValue || prev.clientEmail,
+          clientPhone: phoneValue || prev.clientPhone,
+          invitationMessage: invitationValue || prev.invitationMessage,
+          emailSubject: subValue || prev.emailSubject,
+          ccEmail: ccValue || prev.ccEmail,
+          bccEmail: bccValue || prev.bccEmail,
+          emailBody: bodyValue || prev.emailBody,
+        }));
+      }
+    } else {
+      resetForm();
     }
-  }, [form.relatedId, form.type, allLeads]);
+  }, [editTask, open]);
+
+  useEffect(() => {
+    if (!editId) {
+      const selectedLead = allLeads.find(l => l.id === form.relatedId);
+      if (selectedLead) {
+        setForm(prev => ({
+          ...prev,
+          clientEmail: selectedLead.email || "",
+          clientPhone: selectedLead.phone || "",
+          invitationMessage: `Dear ${selectedLead.firstName} ${selectedLead.lastName}, I would like to schedule a ${form.type || 'meeting'} to discuss our collaboration. Looking forward to connecting with you.`
+        }));
+      }
+    }
+  }, [form.relatedId, form.type, allLeads, editId]);
 
   const handleChange = (name: string, value: string) => {
     setForm((prev) => {
@@ -153,47 +299,110 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
   const followUpMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       const currentRelatedId = data.relatedId;
-      // 1. Create Follow-up (Marketing Task)
-      await apiRequest(`/api/marketing/followups`, {
-        method: "POST",
-        body: { leadId: currentRelatedId, ...data },
-      });
 
-      // 2. Log Activity
-      const activityType = ["Phone Call", "WhatsApp Call", "Google Meet", "Zoom Meeting", "Internal Video Call"].includes(data.type) 
-        ? "CALL" 
-        : ["Email", "WhatsApp Message"].includes(data.type) 
-          ? "EMAIL" 
-          : "FOLLOW_UP";
+      // Build description with dynamic fields
+      let dynamicDescription = `Type: ${data.type}\n`;
+      if (data.link) dynamicDescription += `Link: ${data.link}\n`;
+      if (data.location) dynamicDescription += `Location: ${data.location}\n`;
+      if (data.message) dynamicDescription += `Message: ${data.message}\n`;
+      if (data.amount) dynamicDescription += `Amount: ₹${parseFloat(data.amount).toLocaleString("en-IN")}\n`;
+      if (data.dueDate) dynamicDescription += `Due Date: ${data.dueDate}\n`;
+      
+      // Email fields
+      if (data.clientEmail) dynamicDescription += `To: ${data.clientEmail}\n`;
+      if (data.clientPhone) dynamicDescription += `Phone: ${data.clientPhone}\n`;
+      if (data.invitationMessage) dynamicDescription += `Invitation: ${data.invitationMessage}\n`;
+      if (data.emailSubject) dynamicDescription += `Subject: ${data.emailSubject}\n`;
+      if (data.ccEmail) dynamicDescription += `CC: ${data.ccEmail}\n`;
+      if (data.bccEmail) dynamicDescription += `BCC: ${data.bccEmail}\n`;
+      if (data.emailBody) dynamicDescription += `Body: ${data.emailBody}\n`;
 
-      await apiRequest("/api/activity", {
-        method: "POST",
-        body: {
-          leadId: currentRelatedId,
-          type: activityType,
-          note: data.subject || `Scheduled ${data.type}`,
-        },
-      });
-
-      // 3. Update Status
-      let status = "contacted";
-      if (["Demo", "In-Person Meeting"].includes(data.type)) {
-        status = "qualified";
-      }
-      if (data.type === "Proposal Discussion") {
-        status = "converted"; // Mapping 'DEAL' from user snippet to 'converted' from schema
+      // Attachments
+      if (attachments.length > 0) {
+        dynamicDescription += `Attachments: ${JSON.stringify(attachments)}\n`;
       }
 
-      await apiRequest(`/api/marketing/leads/${currentRelatedId}/status`, {
-        method: "PUT",
-        body: { status },
-      });
+      if (data.description) dynamicDescription += `Notes: ${data.description}\n`;
+
+      // Map UI types to schema types
+      const typeMapping: Record<string, string> = {
+        "Phone Call": "phone_call",
+        "WhatsApp Call": "follow_up",
+        "WhatsApp Message": "follow_up",
+        "SMS": "follow_up",
+        "Email": "email_campaign",
+        "Google Meet": "follow_up",
+        "Zoom Meeting": "follow_up",
+        "Internal Video Call": "follow_up",
+        "In-Person Meeting": "follow_up",
+        "Demo": "demo",
+        "Proposal Discussion": "proposal",
+        "Payment Reminder": "follow_up"
+      };
+
+      const taskData = {
+        title: data.subject || `Follow-up: ${data.type}`,
+        description: dynamicDescription,
+        type: typeMapping[data.type] || "follow_up",
+        assignedTo: (data.assignedTo && data.assignedTo !== "") ? data.assignedTo : undefined,
+        priority: data.priority,
+        leadId: (currentRelatedId && currentRelatedId !== "") ? currentRelatedId : null,
+        dueDate: data.date ? new Date(`${data.date}T${data.time || "00:00"}`).toISOString() : null,
+      };
+
+      if (editId) {
+        // Update existing task
+        await apiRequest(`/marketing/marketing-tasks/${editId}`, {
+          method: "PUT",
+          body: taskData,
+        });
+      } else {
+        // 1. Create Follow-up (Marketing Task)
+        await apiRequest(`/marketing/followups`, {
+          method: "POST",
+          body: { 
+            leadId: currentRelatedId, 
+            ...data,
+            type: data.type, // Send UI type, backend handler createFollowUpTask will handle mapping/description
+          },
+        });
+
+        // 2. Log Activity (Only for new follow-ups)
+        const activityType = ["Phone Call", "WhatsApp Call", "Google Meet", "Zoom Meeting", "Internal Video Call"].includes(data.type) 
+          ? "CALL" 
+          : ["Email", "WhatsApp Message"].includes(data.type) 
+            ? "EMAIL" 
+            : "FOLLOW_UP";
+
+        await apiRequest("/activity", {
+          method: "POST",
+          body: {
+            leadId: currentRelatedId,
+            type: activityType,
+            note: data.subject || `Scheduled ${data.type}`,
+          },
+        });
+
+        // 3. Update Status (Only for new follow-ups)
+        let status = "contacted";
+        if (["Demo", "In-Person Meeting"].includes(data.type)) {
+          status = "qualified";
+        }
+        if (data.type === "Proposal Discussion") {
+          status = "converted"; 
+        }
+
+        await apiRequest(`/marketing/leads/${currentRelatedId}/status`, {
+          method: "PUT",
+          body: { status },
+        });
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/leads"] });
       queryClient.invalidateQueries({ queryKey: [`/api/marketing/leads/${variables.relatedId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing-tasks"] });
-      toast({ title: "Follow-up added successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks", { leadId: variables.relatedId, type: "follow_up" }] });
+      toast({ title: editId ? "Follow-up updated successfully!" : "Follow-up added successfully!" });
       onOpenChange(false);
       resetForm();
     },
@@ -207,6 +416,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
   });
 
   const resetForm = () => {
+    setAttachments([]);
     setForm({
       relatedType: "Lead",
       relatedId: leadId || "",
@@ -222,6 +432,9 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
       amount: "",
       dueDate: "",
       description: "",
+      clientEmail: "",
+      clientPhone: "",
+      invitationMessage: "",
       ccEmail: "",
       bccEmail: "",
       emailSubject: "",
@@ -308,14 +521,56 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
               <Label className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
                 <Paperclip className="h-3 w-3" /> Attachments
               </Label>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-[10px] gap-1.5 border-dashed border-slate-300">
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  type="button"
+                  onClick={attachQuotation}
+                  className="h-8 text-[10px] gap-1.5 border-dashed border-slate-300"
+                >
                    <FilePlus className="h-3 w-3" /> Quotation PDF
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-[10px] gap-1.5 border-dashed border-slate-300">
-                   <Paperclip className="h-3 w-3" /> Upload Document
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="h-8 text-[10px] gap-1.5 border-dashed border-slate-300"
+                >
+                   {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />} 
+                   Upload Document
                 </Button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                  multiple
+                />
               </div>
+
+              {attachments.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {attachments.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-slate-100 group">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-3 w-3 text-blue-500 shrink-0" />
+                        <span className="text-[10px] text-slate-600 truncate">{file.name}</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -449,9 +704,11 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
         <DialogHeader className="p-6 bg-primary text-white rounded-t-lg">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-white" />
-            Schedule Follow-Up Task
+            {editId ? "Edit Follow-Up Task" : "Schedule Follow-Up Task"}
           </DialogTitle>
-          <p className="text-xs text-white/80 mt-1 font-medium">Create and assign activities for your sales pipeline.</p>
+          <p className="text-xs text-white/80 mt-1 font-medium">
+            {editId ? "Update follow-up details and activities for your sales pipeline." : "Create and assign activities for your sales pipeline."}
+          </p>
         </DialogHeader>
 
         <div className="p-6 space-y-8">
@@ -665,7 +922,7 @@ export default function FollowUpForm({ open, onOpenChange, leadId }: FollowUpFor
             {followUpMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "SCHEDULE TASK"
+              editId ? "UPDATE TASK" : "SCHEDULE TASK"
             )}
           </Button>
         </div>

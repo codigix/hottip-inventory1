@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Phone, 
@@ -10,7 +11,8 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,20 +28,40 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { MarketingTask } from "@shared/schema";
 
 interface FollowUpContentProps {
   leadId: string;
+  leadStatus?: string;
   onAddFollowUp: (leadId: string) => void;
+  onEditFollowUp: (leadId: string, taskId: string) => void;
+  onCompleteFollowUp: (leadId: string, taskId: string) => void;
 }
 
-export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpContentProps) {
+export default function FollowUpContent({ 
+  leadId, 
+  leadStatus,
+  onAddFollowUp, 
+  onEditFollowUp,
+  onCompleteFollowUp
+}: FollowUpContentProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: followUps = [], isLoading } = useQuery<MarketingTask[]>({
     queryKey: ["/api/marketing/marketing-tasks", { leadId, type: "follow_up" }],
-    queryFn: () => apiRequest(`/api/marketing/marketing-tasks?leadId=${leadId}&type=follow_up`),
+    queryFn: () => apiRequest(`/marketing/marketing-tasks?leadId=${leadId}&type=follow_up`),
     enabled: !!leadId,
   });
 
@@ -73,7 +95,12 @@ export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpConte
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 font-medium px-2 py-0 h-5">Completed</Badge>;
+        return (
+          <div className="flex items-center gap-1.5">
+            <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 font-medium px-2 py-0 h-5">Completed</Badge>
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+          </div>
+        );
       case "in_progress":
         return <Badge className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 font-medium px-2 py-0 h-5">Scheduled</Badge>;
       case "pending":
@@ -87,17 +114,19 @@ export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpConte
     <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
       <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
         <h4 className="text-sm font-bold text-slate-700">Follow-up History</h4>
-        <Button 
-          size="sm" 
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddFollowUp(leadId);
-          }}
-          className="gap-2 h-7 text-[10px] font-bold uppercase"
-        >
-          <Plus className="h-3 w-3" /> Add Follow-up
-        </Button>
+        {leadStatus !== "QUALIFIED" && leadStatus !== "LOST" && (
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddFollowUp(leadId);
+            }}
+            className="gap-2 h-7 text-[10px] font-bold uppercase"
+          >
+            <Plus className="h-3 w-3" /> Add Follow-up
+          </Button>
+        )}
       </div>
       
       <Table>
@@ -158,14 +187,41 @@ export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpConte
                 </TableCell>
                 <TableCell>{getStatusBadge(followUp.status)}</TableCell>
                 <TableCell>
-                  <span className="text-[10px] text-slate-400">—</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-600 font-medium">
+                      {followUp.outcome || "—"}
+                    </span>
+                    {followUp.attachmentPaths && followUp.attachmentPaths.length > 0 && (
+                      <Paperclip className="h-2.5 w-2.5 text-blue-400" title={`${followUp.attachmentPaths.length} attachment(s)`} />
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-500 hover:text-emerald-600">
-                      <CheckCircle2 className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-600">
+                    {followUp.status !== "completed" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-emerald-500 hover:text-emerald-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCompleteFollowUp(leadId, followUp.id);
+                        }}
+                        title="Mark as Completed"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 text-blue-500 hover:text-blue-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditFollowUp(leadId, followUp.id);
+                      }}
+                      title="Edit Follow-up"
+                    >
                       <Edit className="h-3 w-3" />
                     </Button>
                     <Button 
@@ -174,7 +230,7 @@ export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpConte
                       className="h-6 w-6 text-red-400 hover:text-red-500"
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteMutation.mutate(followUp.id);
+                        setDeleteId(followUp.id);
                       }}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -186,6 +242,29 @@ export default function FollowUpContent({ leadId, onAddFollowUp }: FollowUpConte
           )}
         </TableBody>
       </Table>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this follow-up attempt. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (deleteId) deleteMutation.mutate(deleteId);
+                setDeleteId(null);
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

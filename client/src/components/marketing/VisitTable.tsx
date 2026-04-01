@@ -185,7 +185,7 @@ export default function VisitTable({
 
   const openStatusUpdate = (visit: VisitWithDetails) => {
     setSelectedVisit(visit);
-    let currentStatus = visit.status.toLowerCase().replace(" ", "_") as VisitStatus;
+    let currentStatus = (visit.status || "Scheduled").toLowerCase().replace(" ", "_") as VisitStatus;
     if (currentStatus === ("in_progress" as any)) currentStatus = "upcoming";
     setNewStatus(currentStatus);
     setStatusUpdateOpen(true);

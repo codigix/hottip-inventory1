@@ -140,11 +140,11 @@ export default function VisitCard({
     return purposeMap[purpose] || purpose;
   };
 
-  const statusInfo = getStatusInfo(visit.status);
+  const statusInfo = getStatusInfo(visit.status || "Scheduled");
   const StatusIcon = statusInfo.icon;
 
-  const canCheckIn = visit.status?.toLowerCase()?.trim() === "scheduled";
-  const canCheckOut = (visit.status?.toLowerCase()?.trim() === "in_progress" || visit.status?.toLowerCase()?.trim() === "upcoming") &&
+  const canCheckIn = (visit.status || "Scheduled").toLowerCase()?.trim() === "scheduled";
+  const canCheckOut = ((visit.status || "Scheduled").toLowerCase()?.trim() === "in_progress" || (visit.status || "Scheduled").toLowerCase()?.trim() === "upcoming") &&
     visit.actualStartTime &&
     !visit.actualEndTime;
 

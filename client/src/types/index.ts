@@ -22,7 +22,7 @@ export type {
 } from "@shared/schema";
 
 // Marketing Lead Types
-export type LeadStatus = 'NOT_CONTACTED' | 'CONTACTED' | 'Contacted' | 'contacted' | 'QUALIFIED' | 'LOST' | 'WON' | 'converted' | 'QUOTATION';
+export type LeadStatus = 'NOT_CONTACTED' | 'CONTACTED' | 'QUALIFIED' | 'LOST' | 'WON' | 'QUOTATION';
 export type LeadSource = 'website' | 'referral' | 'advertisement' | 'social_media' | 'trade_show' | 'cold_call' | 'email_campaign' | 'other';
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
 

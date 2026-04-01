@@ -565,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = jwt.sign(
         { sub: user.id, role: user.role, username: user.username, department: user.department },
         tokenSecret,
-        { expiresIn: "15m", algorithm: "HS256" }
+        { expiresIn: "24h", algorithm: "HS256" }
       );
 
       console.log("? Login successful for user:", user.username);
