@@ -60,15 +60,15 @@ export default function FollowUpContent({
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: followUps = [], isLoading } = useQuery<MarketingTask[]>({
-    queryKey: ["/api/marketing/marketing-tasks", { leadId, type: "follow_up" }],
-    queryFn: () => apiRequest(`/marketing/marketing-tasks?leadId=${leadId}&type=follow_up`),
+    queryKey: ["/api/marketing/marketing-tasks", { leadId }],
+    queryFn: () => apiRequest(`/marketing/marketing-tasks?leadId=${leadId}`),
     enabled: !!leadId,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/marketing/marketing-tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks", { leadId, type: "follow_up" }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/marketing-tasks", { leadId }] });
       toast({ title: "Follow-up deleted" });
     }
   });
@@ -114,7 +114,7 @@ export default function FollowUpContent({
     <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
       <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
         <h4 className="text-sm font-bold text-slate-700">Follow-up History</h4>
-        {leadStatus !== "QUALIFIED" && leadStatus !== "LOST" && (
+        {leadStatus !== "LOST" && (
           <Button 
             size="sm" 
             variant="outline"

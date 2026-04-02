@@ -73,18 +73,13 @@ export default function LeadReceived() {
     queryKey: [
       "/marketing/leads",
       {
-        status: ["CONTACTED", "Contacted", "contacted", "WON", "converted", "QUOTATION"],
+        status: ["QUALIFIED"],
         search: searchQuery.trim(),
       },
     ],
     queryFn: () => {
       const params = new URLSearchParams();
-      params.append("status", "CONTACTED");
-      params.append("status", "Contacted");
-      params.append("status", "contacted");
-      params.append("status", "WON");
-      params.append("status", "converted");
-      params.append("status", "QUOTATION");
+      params.append("status", "QUALIFIED");
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
       return apiRequest(`/marketing/leads?${params.toString()}`);
     },
@@ -203,7 +198,7 @@ export default function LeadReceived() {
             Lead Requests & Analysis
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage incoming lead requests through the analysis workflow
+            Manage qualified leads through the analysis workflow
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -221,7 +216,7 @@ export default function LeadReceived() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search requests by name or company..."
+                placeholder="Search qualified leads by name or company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-background border-slate-200"
@@ -237,7 +232,7 @@ export default function LeadReceived() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold flex items-center">
               <ClipboardList className="h-4 w-4 mr-2 text-primary" />
-              Incoming Requests ({leads.length})
+              Qualified Leads ({leads.length})
             </CardTitle>
           </div>
         </CardHeader>
